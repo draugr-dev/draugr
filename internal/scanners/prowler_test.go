@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/awsaccess"
+	"github.com/draugr-dev/draugr/internal/azureaccess"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -108,7 +109,31 @@ func newTestProwler(f *fakeProwler, g *grantAll) prowlerScanner {
 	s.identify = func(context.Context) (awsaccess.Identifier, error) { return callerIn("111111111111"), nil }
 	// As on the role the recordings were made with, which may not ask IAM about itself.
 	s.simulate = func(context.Context) (awsaccess.Simulator, error) { return &fakeSimulator{deny: true}, nil }
+	// Holding Reader on the subscription, and no Azure credential in the environment. A test never
+	// reaches Azure, so the real client is replaced here, in the one place every test passes through.
+	s.azure = func(context.Context) (azureaccess.Reader, error) {
+		return &fakeAzure{grants: []azureaccess.Permission{{Actions: []string{"*/read"}}}}, nil
+	}
+	s.getenv = func(string) string { return "" }
 	return s
+}
+
+// fakeAzure is Azure Resource Manager, synthetic: there is no recording of it.
+type fakeAzure struct {
+	// subErr is the answer about the subscription, and grantsErr the answer about its permissions.
+	subErr, grantsErr error
+	grants            []azureaccess.Permission
+	// asked is the subscription last asked about.
+	asked string
+}
+
+func (f *fakeAzure) Subscription(_ context.Context, id string) (azureaccess.Subscription, error) {
+	f.asked = id
+	return azureaccess.Subscription{ID: id, Name: "Shop"}, f.subErr
+}
+
+func (f *fakeAzure) Permissions(context.Context, string) ([]azureaccess.Permission, error) {
+	return f.grants, f.grantsErr
 }
 
 // fakeSimulator is IAM's policy simulator. Synthetic: there is no recording of a successful
@@ -282,12 +307,16 @@ func TestAWSAccountWideChecks(t *testing.T) {
 // that cloud's accounts and the others keep their default; the measured-against line names the one
 // each ran.
 func TestAFrameworkAppliesToItsOwnCloud(t *testing.T) {
-	gcp, aws := prowlerClouds["gcp"], prowlerClouds["aws"]
+	gcp, aws, azure := prowlerClouds["gcp"], prowlerClouds["aws"], prowlerClouds["azure"]
 	for _, c := range []struct {
 		cloud prowlerCloud
 		set   string
 		want  string
 	}{
+		{azure, "", "cis_6.0_azure"},
+		{azure, "cis_5.0_azure", "cis_5.0_azure"},
+		{azure, "cis_7.0_aws", "cis_6.0_azure"},
+		{aws, "cis_5.0_azure", "cis_7.0_aws"},
 		{aws, "", "cis_7.0_aws"},
 		{aws, "cis_6.0_aws", "cis_6.0_aws"},
 		{aws, "cis_4.0_gcp", "cis_7.0_aws"},
@@ -329,7 +358,7 @@ func TestProwlerRefusesCredentialsForAnotherAWSAccount(t *testing.T) {
 
 func TestProwlerArgvStopsWhereTheMutelistCannotBeWritten(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "missing")
-	if _, err := prowlerArgv(prowlerClouds["aws"], webProd, "cis_7.0_aws", missing); err == nil {
+	if _, err := prowlerArgv(prowlerClouds["aws"], webProd, "cis_7.0_aws", missing, func(string) string { return "" }); err == nil {
 		t.Error("a mutelist in a missing directory was accepted")
 	}
 }
@@ -536,7 +565,7 @@ func TestProwlerRefusesWhatItCannotCheck(t *testing.T) {
 		"a framework with no checks":      {shopProd, &fakeProwler{}, &grantAll{}, nil, "maps no Google Cloud checks"},
 		"a check list that fails":         {shopProd, &fakeProwler{listErr: errors.New("exit status 2")}, &grantAll{}, nil, "list the checks of cis_5.0_gcp"},
 		"a scan that fails":               {shopProd, &fakeProwler{checks: []string{"a_b"}, scanErr: errors.New("exit status 1")}, &grantAll{}, nil, "run prowler: exit status 1"},
-		"another provider":                {plugin.AccountTarget{Provider: "azure", ID: "1"}, &fakeProwler{}, &grantAll{}, nil, `Draugr checks Google Cloud and AWS accounts, not "azure"`},
+		"another provider":                {plugin.AccountTarget{Provider: "oracle", ID: "1"}, &fakeProwler{}, &grantAll{}, nil, `Draugr checks Google Cloud, AWS and Azure accounts, not "oracle"`},
 		"an AWS framework with no checks": {webProd, &fakeProwler{}, &grantAll{}, nil, "cis_7.0_aws maps no AWS checks; `prowler aws --list-compliance`"},
 		"an AWS scan with no result":      {webProd, &fakeProwler{checks: []string{"a_b"}}, &grantAll{}, nil, "no result for any of the 1 cis_7.0_aws checks on account 111111111111"},
 		"another kind of target":          {plugin.ImageTarget{Ref: "a:1"}, &fakeProwler{}, &grantAll{}, nil, "unsupported target"},

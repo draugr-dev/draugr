@@ -1,17 +1,18 @@
-"""For each Prowler AWS check, the service modules whose clients it imports, followed through
+"""For each Prowler check of a cloud, the service modules whose clients it imports, followed through
 helper imports. Reads Prowler's source as text. Prints JSON {check: [service, ...]}.
 
-Usage: python3 -I scripts/prowler-aws-check-reads.py <prowler package dir> <checks file>
+Usage: python3 -I scripts/prowler-check-reads.py <prowler package dir> <aws|azure> <checks file>
 
 <checks file> is the framework's check list, one per line or space-separated, as
-`prowler aws --list-checks-json --compliance cis_7.0_aws` lists them under "aws". The output is
-awsCheckReads in internal/scanners/prowler_aws_reads.go.
+`prowler <cloud> --list-checks-json --compliance <framework>` lists them under the cloud's name. The
+output is awsCheckReads in internal/scanners/prowler_aws_reads.go and azureCheckReads in
+internal/scanners/prowler_azure_reads.go.
 """
 import json, os, re, sys
 
-root, checks_file = sys.argv[1], sys.argv[2]
-svc_dir = os.path.join(root, "providers", "aws", "services")
-imp_re = re.compile(r"from prowler\.providers\.aws\.services\.([a-z0-9_.]+) import")
+root, cloud, checks_file = sys.argv[1], sys.argv[2], sys.argv[3]
+svc_dir = os.path.join(root, "providers", cloud, "services")
+imp_re = re.compile(r"from prowler\.providers\." + cloud + r"\.services\.([a-z0-9_.]+) import")
 
 
 def path_of(mod):

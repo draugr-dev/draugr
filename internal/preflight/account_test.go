@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/awsaccess"
+	"github.com/draugr-dev/draugr/internal/azureaccess"
 	"github.com/draugr-dev/draugr/internal/gcpaccess"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
@@ -85,8 +86,8 @@ func TestAProjectIsReadableWhenTheCredentialsCanGetIt(t *testing.T) {
 }
 
 func TestReachAccountNamesWhatItCannotCheck(t *testing.T) {
-	if _, err := reachAccount(context.Background(), "azure", "123"); err == nil || !strings.Contains(err.Error(), "cannot check accounts on azure") {
-		t.Errorf("azure = %v", err)
+	if _, err := reachAccount(context.Background(), "oracle", "123"); err == nil || !strings.Contains(err.Error(), "cannot check accounts on oracle") {
+		t.Errorf("oracle = %v", err)
 	}
 	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", t.TempDir()+"/missing.json")
 	if _, err := reachAccount(context.Background(), "gcp", "p"); !errors.Is(err, gcpaccess.ErrNoCredentials) {
@@ -123,6 +124,51 @@ func TestAnAWSAccountIsReachableAsAnIdentityInIt(t *testing.T) {
 	if _, err := callerInAccount(context.Background(), role, "222222222222"); err == nil ||
 		!strings.Contains(err.Error(), "in account 111111111111, not the declared account 222222222222") {
 		t.Errorf("another account = %v", err)
+	}
+}
+
+// fakeSubscriptions is Azure Resource Manager, synthetic: reachAccount's "azure" case builds a real
+// credential, so no test calls it.
+type fakeSubscriptions struct {
+	sub       azureaccess.Subscription
+	err       error
+	grants    []azureaccess.Permission
+	grantsErr error
+}
+
+func (f fakeSubscriptions) Subscription(context.Context, string) (azureaccess.Subscription, error) {
+	return f.sub, f.err
+}
+
+func (f fakeSubscriptions) Permissions(context.Context, string) ([]azureaccess.Permission, error) {
+	return f.grants, f.grantsErr
+}
+
+// An Azure subscription is reachable when the credentials can read it and hold a role on it, and doctor
+// names it, which tells somebody whose subscription a scan would read.
+func TestAnAzureSubscriptionIsReachableWhenItCanBeRead(t *testing.T) {
+	const id = "00000000-0000-0000-0000-000000000000"
+	shop := azureaccess.Subscription{ID: id, Name: "Shop"}
+	reader := []azureaccess.Permission{{Actions: []string{"*/read"}}}
+	const readable = "subscription " + id + " (Shop) · the credentials can read it"
+
+	got, err := subscriptionReadable(context.Background(), fakeSubscriptions{sub: shop, grants: reader}, id)
+	if err != nil || got != readable {
+		t.Errorf("readable = %q, %v", got, err)
+	}
+	refused := errors.New("subscription " + id + " does not exist, or the credentials cannot read it")
+	if _, err := subscriptionReadable(context.Background(), fakeSubscriptions{err: refused}, id); !errors.Is(err, refused) {
+		t.Errorf("refused = %v", err)
+	}
+	// Visible with no role: the subscription answers and the list is empty, so a scan reads nothing.
+	if _, err := subscriptionReadable(context.Background(), fakeSubscriptions{sub: shop}, id); err == nil ||
+		err.Error() != "subscription "+id+" (Shop) · the credentials hold no role on it; grant Reader" {
+		t.Errorf("no role = %v", err)
+	}
+	// A list Azure will not give says nothing about the role, so the subscription stays reachable.
+	got, err = subscriptionReadable(context.Background(), fakeSubscriptions{sub: shop, grantsErr: azureaccess.ErrRefused}, id)
+	if err != nil || got != readable {
+		t.Errorf("list refused = %q, %v", got, err)
 	}
 }
 

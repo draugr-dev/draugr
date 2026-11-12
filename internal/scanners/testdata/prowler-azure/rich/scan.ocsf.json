@@ -1,0 +1,3253 @@
+[
+ {
+  "metadata": {
+   "event_code": "appinsights_ensure_is_configured"
+  },
+  "status_code": "PASS",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has at least one Application Insights resource configured"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-1",
+    "region": "global",
+    "group": {
+     "name": "appinsights"
+    },
+    "type": "microsoft.insights/components"
+   }
+  ],
+  "remediation": {
+   "desc": "Deploy **Application Insights** for all critical workloads and centralize data in a **Log Analytics workspace**. Configure actionable alerts and dashboards, enforce **least privilege** on telemetry, and set retention/export policies. Use private connectivity and appropriate sampling, and integrate with SIEM for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/appinsights_ensure_is_configured"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_app_services_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for App Services is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-2",
+    "name": "resource-2",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Defender for App Service** at subscription scope with tier `Standard`. Integrate alerts with SOC tooling, tune rules to reduce noise, and review findings regularly. Apply **defense in depth** and **least privilege**, and automate responses to contain threats quickly.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_app_services_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.2.1",
+     "8.1.6.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_arm_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Azure Resource Manager is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-3",
+    "name": "resource-3",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable Microsoft Defender for **Azure Resource Manager** at the `Standard` tier across all subscriptions. Apply least privilege to deployment principals, enforce the plan via policy for new subscriptions, and route alerts to centralized monitoring to support defense-in-depth and rapid response.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_arm_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.9.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_azure_sql_databases_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Azure SQL databases is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-4",
+    "name": "resource-4",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the **Microsoft Defender** plan for Azure SQL databases with `pricing_tier: Standard` across applicable subscriptions. Integrate alerts with SIEM, enforce **least privilege** and **separation of duties**, and apply **defense in depth** (network controls, MFA) to prevent and promptly detect misuse.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_azure_sql_databases_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.7.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_containers_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Containers is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-5",
+    "name": "resource-5",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the **Defender for Containers** plan at `Standard` for all relevant subscriptions. Apply **least privilege**, integrate alerts with response workflows, and use **defense in depth**: signed images, private registries, RBAC, network policies, and periodic reviews to maintain consistent coverage.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_containers_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.4.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_cosmosdb_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Cosmos DB is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-6",
+    "name": "resource-6",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the `Standard` plan for **Microsoft Defender for Azure Cosmos DB** at the subscription to ensure full coverage. Enforce **least privilege**, route alerts to your SIEM, and tune detections. Use policy to require the plan across environments and regularly review findings to strengthen **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_cosmosdb_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.7.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_keyvault_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Key Vaults is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-7",
+    "name": "resource-7",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Defender for Key Vaults** at the `Standard` tier across all subscriptions. Integrate alerts with monitoring and tune noise. Apply **least privilege** with **RBAC**, enforce purge protection and logging, and use **defense in depth** (private access and network restrictions) to prevent abuse and accelerate detection.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_keyvault_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.8.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_os_relational_databases_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Open-Source Relational Databases is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-8",
+    "name": "resource-8",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the plan at the `Standard` tier across relevant subscriptions. Apply **defense in depth**: enforce **least privilege**, isolate databases on private networks, require strong authentication, and route alerts to centralized monitoring for rapid triage. *Review coverage regularly*.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_os_relational_databases_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.7.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_server_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Servers is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-9",
+    "name": "resource-9",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the **Defender for Servers** plan at the **subscription** scope with tier `Standard`, choosing P1 or P2 per asset risk. Ensure all Azure VMs and Arc-enabled servers are covered for EDR integration. Apply **defense in depth** and **least privilege**, and continuously monitor and tune alerts.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_server_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_sql_servers_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for SQL servers on machines is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-10",
+    "name": "resource-10",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the **Defender for SQL Server on Machines** plan at the `Standard` tier for subscriptions hosting SQL Server VMs.\n\nApply defense-in-depth: enforce least privilege and strong authentication, segment networks, keep SQL patched, enable auditing, and route alerts to a SIEM for rapid containment.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_sql_servers_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.7.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_defender_for_storage_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for Storage is set to On (Standard pricing tier)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Security/pricings/resource-11",
+    "name": "resource-11",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/pricings"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Defender for Storage** at the `Standard` tier for subscriptions with storage workloads. Apply **defense in depth**: restrict network exposure, enforce **least privilege** on keys and `SAS`, use short-lived tokens and rotation, and route alerts to centralized monitoring for rapid response.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_defender_for_storage_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.5.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_iot_hub_defender_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for IoT Hub is set to On"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-12",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/iotsecuritysolutions"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Defender for IoT** on all IoT Hubs and keep it `Enabled`. Route security data to a central workspace and your SIEM. Apply **least privilege** to IoT identities, enforce **network segmentation** and private access, and use **defense in depth** with continuous monitoring, alert tuning, and periodic coverage reviews.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_iot_hub_defender_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_non_privileged_user_has_mfa"
+  },
+  "status_code": "MANUAL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Non-privileged user has multi-factor authentication enabled"
+  },
+  "resources": [
+   {
+    "uid": "resource-13",
+    "name": "resource-13",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **MFA** for all users, including non-privileged. Prefer **phishing-resistant** methods (FIDO2/passkeys or Authenticator with number matching); avoid SMS/voice when possible. Use **Conditional Access** to require MFA by risk and context. Pair with **least privilege**, device trust, and sign-in monitoring.",
+   "references": [
+    "https://hub.prowler.com/check/entra_non_privileged_user_has_mfa"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.1.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_policy_guest_users_access_restrictions"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Authorization policy restricts guest user access to properties and memberships of their own directory objects"
+  },
+  "resources": [
+   {
+    "uid": "resource-14",
+    "name": "resource-14",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** to external users:\n- Set guest access to `Restricted access` so guests can only view their own directory objects\n- Avoid assigning admin roles to guests; use **PIM** for rare exceptions\n- Constrain external collaboration and group visibility, and run periodic **access reviews** to remove stale guest access",
+   "references": [
+    "https://hub.prowler.com/check/entra_policy_guest_users_access_restrictions"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.3.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_privileged_user_has_mfa"
+  },
+  "status_code": "MANUAL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Privileged user has multi-factor authentication enabled"
+  },
+  "resources": [
+   {
+    "uid": "resource-15",
+    "name": "resource-15",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **MFA** for all privileged roles via **Conditional Access** or security defaults. Prefer **phishing-resistant** methods (FIDO2, passkeys, Authenticator push) over SMS/voice. Require registration before granting privileges, block legacy/basic auth, and apply **least privilege** with protected break-glass accounts.",
+   "references": [
+    "https://hub.prowler.com/check/entra_privileged_user_has_mfa"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.1.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_user_with_vm_access_has_mfa"
+  },
+  "status_code": "MANUAL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Entra ID user with VM access has multi-factor authentication enabled"
+  },
+  "resources": [
+   {
+    "uid": "resource-16",
+    "name": "resource-16",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **MFA** for all identities that can sign in to or manage VMs via **Conditional Access**, preferring strong, phishing-resistant methods. Apply **least privilege** by removing broad roles (`Owner`, `Contributor`) when not required. Use **PIM/JIT** for admin access and monitor sign-in risk for continuous assurance.",
+   "references": [
+    "https://hub.prowler.com/check/entra_user_with_vm_access_has_mfa"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "3.1.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_custom_role_has_permissions_to_administer_resource_locks"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Custom role has permission to administer resource locks"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleDefinitions/resource-17",
+    "name": "resource-17",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roledefinitions"
+   }
+  ],
+  "remediation": {
+   "desc": "Define a **least-privilege custom role** restricted to `Microsoft.Authorization/locks/*` and assign it to a tightly controlled group at minimal scope. Apply **separation of duties**, use just-in-time elevation, audit lock changes, and avoid broad roles or pipeline identities managing locks. Layer with **defense-in-depth** controls.",
+   "references": [
+    "https://hub.prowler.com/check/iam_custom_role_has_permissions_to_administer_resource_locks"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.5",
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_custom_role_has_permissions_to_administer_resource_locks"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Custom role has permission to administer resource locks"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleDefinitions/resource-18",
+    "name": "resource-18",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roledefinitions"
+   }
+  ],
+  "remediation": {
+   "desc": "Define a **least-privilege custom role** restricted to `Microsoft.Authorization/locks/*` and assign it to a tightly controlled group at minimal scope. Apply **separation of duties**, use just-in-time elevation, audit lock changes, and avoid broad roles or pipeline identities managing locks. Layer with **defense-in-depth** controls.",
+   "references": [
+    "https://hub.prowler.com/check/iam_custom_role_has_permissions_to_administer_resource_locks"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.5",
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_role_user_access_admin_restricted"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Role assignment does not grant the User Access Administrator role"
+  },
+  "resources": [
+   {
+    "uid": "resource-19",
+    "name": "resource-19",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roleassignments"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **least privilege**:\n- Avoid standing `User Access Administrator`; use time-bound, approval-based elevation (PIM)\n- Scope access to only required subscriptions/resource groups\n- Require MFA and monitor role activity\n- Review regularly and remove unused grants",
+   "references": [
+    "https://hub.prowler.com/check/iam_role_user_access_admin_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.3.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_role_user_access_admin_restricted"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Role assignment does not grant the User Access Administrator role"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleAssignments/resource-20",
+    "name": "resource-20",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roleassignments"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **least privilege**:\n- Avoid standing `User Access Administrator`; use time-bound, approval-based elevation (PIM)\n- Scope access to only required subscriptions/resource groups\n- Require MFA and monitor role activity\n- Review regularly and remove unused grants",
+   "references": [
+    "https://hub.prowler.com/check/iam_role_user_access_admin_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.3.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_subscription_owners_between_2_and_3"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has between 2 and 3 principals assigned the Owner role"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-21",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.resources/subscriptions"
+   }
+  ],
+  "remediation": {
+   "desc": "Keep **2 to 3 standing owners** per subscription so access can always be recovered without concentrating full control:\n- Grant day-to-day work through narrower roles such as Contributor\n- Use **PIM** for just-in-time Owner elevation\n- Review Owner assignments and group membership regularly",
+   "references": [
+    "https://hub.prowler.com/check/iam_subscription_owners_between_2_and_3"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_subscription_roles_owner_custom_not_created"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Custom role is not a subscription owner role"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleDefinitions/resource-22",
+    "name": "resource-22",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roledefinitions"
+   }
+  ],
+  "remediation": {
+   "desc": "Avoid owner-equivalent custom roles. Apply **least privilege**: prefer built-in roles, define explicit allowed `actions` (avoid `*`), and limit assignment scope to the minimum needed. Enforce **separation of duties**, require just-in-time elevation, and perform periodic access reviews to prevent privilege creep.",
+   "references": [
+    "https://hub.prowler.com/check/iam_subscription_roles_owner_custom_not_created"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_key_expiration_set_in_non_rbac"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key in non-RBAC Key Vault has expiration date set"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-23",
+    "name": "resource-23",
+    "region": "eastus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults/keys"
+   }
+  ],
+  "remediation": {
+   "desc": "Set an `expiration` on all keys and enforce **automated rotation** with advance alerts. Retire or disable old versions promptly and rotate after any suspected exposure. Apply **least privilege** and **separation of duties** for key administration. Prefer standardized lifecycle policies (e.g., RBAC-based governance) to enforce consistent control.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_key_expiration_set_in_non_rbac"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_key_rotation_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault key has automatic rotation enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-24",
+    "name": "resource-24",
+    "region": "eastus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults/keys"
+   }
+  ],
+  "remediation": {
+   "desc": "Define a per-key **rotation policy** to automatically `Rotate` on a fixed cadence (e.g., `P2Y`) and set an **expiry** to enforce lifecycle.\n\nUse versionless key URIs in dependent services, apply **least privilege** to rotation roles, enable near-expiry notifications, and monitor events for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_key_rotation_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.9"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_logging_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault has at least one diagnostic setting with audit logging enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-25",
+    "name": "resource-25",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **diagnostic settings** to collect `AuditEvent` logs and send them to a central sink. Apply **least privilege** to log access, enforce secure **retention/immutability**, monitor with alerts for anomalous operations, and use **separation of duties** to prevent logging bypass.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_logging_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.1.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_non_rbac_secret_expiration_set"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Secret in non-RBAC Key Vault has expiration date set"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-26",
+    "name": "resource-26",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults/secrets"
+   }
+  ],
+  "remediation": {
+   "desc": "Set an **expiration** on every secret and enforce a **rotation policy** aligned with risk and compliance.\n\nAutomate rotation and alerts, disable or purge stale versions, and apply **least privilege**. *Where possible*, use **managed identities** to reduce secret sprawl.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_non_rbac_secret_expiration_set"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_non_rbac_secret_expiration_set"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Secret in non-RBAC Key Vault has expiration date set"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-27",
+    "name": "resource-27",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults/secrets"
+   }
+  ],
+  "remediation": {
+   "desc": "Set an **expiration** on every secret and enforce a **rotation policy** aligned with risk and compliance.\n\nAutomate rotation and alerts, disable or purge stale versions, and apply **least privilege**. *Where possible*, use **managed identities** to reduce secret sprawl.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_non_rbac_secret_expiration_set"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_private_endpoints"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault uses private endpoints"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-28",
+    "name": "resource-28",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Private Endpoints** for each Key Vault and disable public network access. Use private DNS so the vault FQDN resolves to the private IP. Apply **least privilege** with RBAC and managed identities, restrict traffic with NSGs and routing, and monitor access logs as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_private_endpoints"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.7",
+     "8.3.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_rbac_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault uses Azure RBAC for access control"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-29",
+    "name": "resource-29",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt **Azure RBAC** for Key Vault data access and design roles with **least privilege** at appropriate scopes (prefer vault-level per app/env). Use **Privileged Identity Management** for JIT, restrict control-plane Contributor rights, and monitor role assignments. *Role assignments aren't preserved after soft-delete recovery*.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_rbac_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_rbac_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault uses Azure RBAC for access control"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-30",
+    "name": "resource-30",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt **Azure RBAC** for Key Vault data access and design roles with **least privilege** at appropriate scopes (prefer vault-level per app/env). Use **Privileged Identity Management** for JIT, restrict control-plane Contributor rights, and monitor role assignments. *Role assignments aren't preserved after soft-delete recovery*.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_rbac_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_rbac_secret_expiration_set"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Secret in RBAC-enabled Key Vault has expiration date set"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-31",
+    "name": "resource-31",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults/secrets"
+   }
+  ],
+  "remediation": {
+   "desc": "Set an **expiration** on all enabled secrets and enforce a **regular rotation policy**.\n\nPrefer **short-lived, identity-based access** to reduce secret usage. Apply **least privilege** for secret access, alert on upcoming expirations, and automate rotation and version cleanup to minimize exposure.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_rbac_secret_expiration_set"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_recoverable"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault has soft delete and purge protection enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-32",
+    "name": "resource-32",
+    "region": "southcentralus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable both `enable_soft_delete` and `enable_purge_protection` on all vaults. Enforce with policy, restrict purge/recover to **least privilege** and apply **separation of duties**. Keep backups and test recovery. Monitor delete/purge with alerts. *Adjust retention to business needs* to strengthen defense in depth.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_recoverable"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "keyvault_recoverable"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Key Vault has soft delete and purge protection enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.KeyVault/vaults/resource-33",
+    "name": "resource-33",
+    "region": "eastus",
+    "group": {
+     "name": "keyvault"
+    },
+    "type": "microsoft.keyvault/vaults"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable both `enable_soft_delete` and `enable_purge_protection` on all vaults. Enforce with policy, restrict purge/recover to **least privilege** and apply **separation of duties**. Keep backups and test recovery. Monitor delete/purge with alerts. *Adjust retention to business needs* to strengthen defense in depth.",
+   "references": [
+    "https://hub.prowler.com/check/keyvault_recoverable"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.3.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_policy_assignment"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Azure Monitor activity log alert for policy assignment creation"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-34",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement an **activity log alert** for `Microsoft.Authorization/policyAssignments/write` and route to an action group for timely response.\n\nApply across all subscriptions, restrict assignment rights (**least privilege**), require change approval, and integrate notifications with your SIEM for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_policy_assignment"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_nsg"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for Network Security Group create or update operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-35",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement a subscription-wide **Activity Log alert** for NSG change operations and route notifications to an **action group** for rapid triage.\n\nApply **least privilege** for change tooling, enforce **change management**, and add complementary alerts for `Microsoft.Network/networkSecurityGroups/securityRules/write` and `.../delete`. *Integrate with SIEM for correlation*",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_nsg"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_public_ip_address_rule"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log Alert for Public IP address create or update operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-36",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Create a subscription-wide **activity log alert** on `Microsoft.Network/publicIPAddresses/write` and route it to an **action group**.\n\nEnforce **least privilege** for IP management, apply **change control**, and use **defense in depth** (private endpoints, bastions, VPN) to minimize public exposure and speed response.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_public_ip_address_rule"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.9"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_security_solution"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has Activity Log alert for Security Solution create or update"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-37",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Configure an **activity log alert** for `Microsoft.Security/securitySolutions/write` and route it to action groups for prompt notification/automation.\n\nApply **least privilege**, require **change control**, and forward alerts to a central SIEM to strengthen **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_security_solution"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_sqlserver_fr"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for SQL Server firewall rule create or update events"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-38",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable an activity log alert for `Microsoft.Sql/servers/firewallRules/write` and route it to responsive action groups.\n\nApply **least privilege** for firewall management, enforce change approvals, and use **defense in depth**: prefer **private endpoints** and avoid broad public network access.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_sqlserver_fr"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_nsg"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for Network Security Group delete operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-39",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Configure a subscription-wide **activity log alert** for the NSG delete operation (`Microsoft.Network/networkSecurityGroups/delete`; include Classic if applicable) and route notifications via **action groups**. Enforce **least privilege** for NSG changes, require **change control**, and integrate with your **SIEM** for correlation.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_nsg"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_policy_assignment"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for policy assignment deletion"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-40",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "- Configure an activity log alert for `Microsoft.Authorization/policyAssignments/delete` and route to an action group.\n- Enforce **least privilege** and **separation of duties** for policy changes and require approvals.\n- Integrate alerts with your SIEM and define playbooks for rapid response.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_policy_assignment"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_public_ip_address_rule"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure subscription has an Activity Log alert for public IP address deletion"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-41",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement an activity log alert for `Microsoft.Network/publicIPAddresses/delete` and route it to an action group for rapid response.\n- Apply **least privilege** and change approval for IP deletions\n- Use **resource locks** on critical IPs\n- Centralize alerts in your SIEM and define runbooks for containment",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_public_ip_address_rule"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.10"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_security_solution"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Azure Monitor Activity Log alert for Microsoft.Security/securitySolutions delete operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-42",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Configure a **dedicated activity log alert** for `Microsoft.Security/securitySolutions/delete` and route it to resilient **action groups** (email, chat, ticketing, SIEM). Apply **least privilege** and **resource locks** to deter tampering. Test alerting routinely and integrate it into **defense-in-depth** monitoring.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_security_solution"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_sqlserver_fr"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log Alert for SQL Server firewall rule deletions"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-43",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Create an **activity log alert** for `Microsoft.Sql/servers/firewallRules/delete` and route it via an **action group** for rapid triage.\n\nEnforce **least privilege** and **separation of duties** on SQL admins, add alerts for related create/update operations, integrate with **SIEM**, and require *change approval* to strengthen defense in depth.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_sqlserver_fr"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_service_health_exists"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure subscription has an enabled Activity Log alert for Service Health incidents"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-44",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Create and maintain an enabled **Activity Log alert** for **Service Health Incident** events.\n- Route via **Action Groups** to on-call channels\n- Filter to critical services/regions\n- Test routing and refine recipients regularly\n- Integrate with **incident response** and **defense-in-depth** monitoring",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_service_health_exists"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_diagnostic_setting_with_appropriate_categories"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has a diagnostic setting capturing Administrative, Security, Alert, and Policy categories"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/microsoft.insights/diagnosticSettings/resource-45",
+    "name": "resource-45",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.resources/subscriptions"
+   }
+  ],
+  "remediation": {
+   "desc": "Collect `Administrative`, `Security`, `Policy`, and `Alert` via a subscription diagnostic setting and route them to a centralized, tamper-resistant destination. Enforce **least privilege** on log access, set retention, and create **alerts** for high-risk changes as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_diagnostic_setting_with_appropriate_categories"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.1.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_diagnostic_settings_exists"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log diagnostic setting"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/microsoft.insights/diagnosticSettings/resource-46",
+    "name": "resource-46",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.resources/subscriptions"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **subscription Diagnostic Settings** to send the **Activity Log** to a trusted destination.\n\nUse **immutable storage** or a **SIEM**, enforce coverage with **Azure Policy**, apply **least privilege** to log access, include essential categories, and set retention aligned to regulatory needs.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_diagnostic_settings_exists"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.1.1",
+     "6.1.1.7",
+     "6.1.1.8",
+     "6.1.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_application_gateway_http2_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Application Gateway has HTTP/2 enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/applicationGateways/resource-47",
+    "name": "resource-47",
+    "region": "southcentralus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/applicationgateways"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **HTTP/2** on every gateway so clients that support it negotiate the modern protocol over TLS. HTTP/1.1 clients keep working because the gateway supports both.",
+   "references": [
+    "https://hub.prowler.com/check/network_application_gateway_http2_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.13"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_application_gateway_waf_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Application Gateway has an enabled Web Application Firewall policy associated"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/applicationGateways/resource-48",
+    "name": "resource-48",
+    "region": "southcentralus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/applicationgateways"
+   }
+  ],
+  "remediation": {
+   "desc": "Put an **enabled WAF policy in Prevention mode** in front of every internet-facing gateway, using the latest Default Rule Set. Migrate gateways that still use the legacy WAF configuration to a policy before it retires.",
+   "references": [
+    "https://hub.prowler.com/check/network_application_gateway_waf_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.10"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_bastion_host_exists"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure subscription has at least one Bastion Host"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/bastionHosts/resource-49",
+    "name": "resource-49",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/bastionhosts"
+   }
+  ],
+  "remediation": {
+   "desc": "Standardize on **Azure Bastion** for admin access.\n\nRemove VM public IPs and deny inbound `22`/`3389` via perimeter controls and NSGs. Apply **least privilege** and just-in-time access, integrate **Entra ID** with **MFA** and conditional access, monitor sessions/logs, and segment networks so only Bastion can reach management ports.",
+   "references": [
+    "https://hub.prowler.com/check/network_bastion_host_exists"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.4.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_flow_log_captured_sent"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network Watcher has flow logs enabled and sent to a Log Analytics workspace"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkWatchers/resource-50",
+    "name": "resource-50",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networkwatchers"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable and centrally aggregate **flow logs** for supported Network Watcher targets, including **virtual networks** and **network security groups**, to a **Log Analytics workspace**.\n\n- Enforce least privilege on log data\n- Define retention and secure storage\n- Use layered monitoring (e.g., Traffic Analytics)\n- Ensure coverage across regions, subscriptions, and critical network segments",
+   "references": [
+    "https://hub.prowler.com/check/network_flow_log_captured_sent"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.1.5",
+     "6.1.1.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_flow_log_more_than_90_days"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network Watcher has all flow logs enabled with retention set to 0 or at least 90 days"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkWatchers/resource-51",
+    "name": "resource-51",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networkwatchers"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **flow logs** and keep retention `90` days (`0` for unlimited) for supported targets, including **virtual networks** and **network security groups**. Restrict and monitor access to logs, store immutably, and stream to a SIEM to detect anomalies. Apply **defense in depth** and **least privilege**. Prefer **virtual network flow logs** for new deployments as NSG flow logs are being retired.",
+   "references": [
+    "https://hub.prowler.com/check/network_flow_log_more_than_90_days"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.5",
+     "7.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_http_internet_access_restricted"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network security group restricts inbound HTTP (port 80) access from the Internet"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkSecurityGroups/resource-52",
+    "name": "resource-52",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networksecuritygroups"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** at NSGs:\n- Remove broad allows to `TCP 80`, or restrict to trusted sources\n- Enforce **HTTPS (443)** and redirect or block HTTP\n- Use **private access** patterns and segmentation for **defense in depth**\n- If exposure is necessary, place services behind a **WAF**, enable **DDoS** protections, and monitor",
+   "references": [
+    "https://hub.prowler.com/check/network_http_internet_access_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_rdp_internet_access_restricted"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network security group does not allow inbound RDP (TCP 3389) from the Internet"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkSecurityGroups/resource-53",
+    "name": "resource-53",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networksecuritygroups"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **least privilege** for remote admin:\n- Remove `Allow` to `3389` from `0.0.0.0/0`\n- Limit access to fixed IPs or private networks\n- Prefer Azure Bastion, JIT, or VPN/ExpressRoute\n- Harden auth (strong keys, MFA) and monitor\n\nAdopt **zero trust** and **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/network_rdp_internet_access_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_ssh_internet_access_restricted"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network security group does not allow inbound SSH (TCP port 22) from the Internet"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkSecurityGroups/resource-54",
+    "name": "resource-54",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networksecuritygroups"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** on SSH:\n- Remove public rules to `TCP 22` from `0.0.0.0/0`\n- Allowlist specific admin IPs or management subnets\n- Prefer **Azure Bastion**, **JIT access**, or **VPN/ExpressRoute** for admin\n- Use key-based auth, disable passwords, and remove unnecessary public IPs\n\nAdopt **defense in depth** with logging and periodic reviews.",
+   "references": [
+    "https://hub.prowler.com/check/network_ssh_internet_access_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_ssh_internet_access_restricted"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network security group does not allow inbound SSH (TCP port 22) from the Internet"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkSecurityGroups/resource-55",
+    "name": "resource-55",
+    "region": "southcentralus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networksecuritygroups"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** on SSH:\n- Remove public rules to `TCP 22` from `0.0.0.0/0`\n- Allowlist specific admin IPs or management subnets\n- Prefer **Azure Bastion**, **JIT access**, or **VPN/ExpressRoute** for admin\n- Use key-based auth, disable passwords, and remove unnecessary public IPs\n\nAdopt **defense in depth** with logging and periodic reviews.",
+   "references": [
+    "https://hub.prowler.com/check/network_ssh_internet_access_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_subnet_nsg_associated"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subnet has a network security group associated"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/virtualNetworks/resource-56",
+    "name": "resource-56",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/virtualnetworks/subnets"
+   }
+  ],
+  "remediation": {
+   "desc": "Associate a **Network Security Group** with every subnet. Create NSG rules following **least privilege** \u2014 deny all by default and allow only required traffic. Exclude Azure-managed subnets (GatewaySubnet, AzureFirewallSubnet, AzureBastionSubnet) which have their own security controls.",
+   "references": [
+    "https://hub.prowler.com/check/network_subnet_nsg_associated"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_subnet_nsg_associated"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subnet has a network security group associated"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/virtualNetworks/resource-57",
+    "name": "resource-57",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/virtualnetworks/subnets"
+   }
+  ],
+  "remediation": {
+   "desc": "Associate a **Network Security Group** with every subnet. Create NSG rules following **least privilege** \u2014 deny all by default and allow only required traffic. Exclude Azure-managed subnets (GatewaySubnet, AzureFirewallSubnet, AzureBastionSubnet) which have their own security controls.",
+   "references": [
+    "https://hub.prowler.com/check/network_subnet_nsg_associated"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_udp_internet_access_restricted"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network security group does not allow inbound UDP from the Internet"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/networkSecurityGroups/resource-58",
+    "name": "resource-58",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networksecuritygroups"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** on NSG rules:\n- Deny Internet `UDP` inbound by default\n- Allow only required sources/ports\n- Prefer private access (VNets, private endpoints, VPN/ExpressRoute)\n- Use **defense in depth** with Azure Firewall and DDoS Protection\n- Monitor and disable or rate-limit unnecessary UDP services",
+   "references": [
+    "https://hub.prowler.com/check/network_udp_internet_access_restricted"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_vnet_ddos_protection_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Virtual network has Azure DDoS Network Protection enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Network/virtualNetworks/resource-59",
+    "name": "resource-59",
+    "region": "eastus",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/virtualnetworks"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Azure DDoS Network Protection** on virtual networks hosting internet-facing workloads. Consider cost implications \u2014 DDoS Network Protection has a monthly charge per plan. Use **DDoS IP Protection** as a lower-cost alternative for individual public IPs.",
+   "references": [
+    "https://hub.prowler.com/check/network_vnet_ddos_protection_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_watcher_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network Watcher is enabled for all locations in the subscription"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-60",
+    "region": "global",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networkwatchers"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Network Watcher** in all regions and keep it enabled as your footprint expands.\n\nApply **defense in depth** by centralizing network logs and analytics, enforce coverage with policy, and restrict tool access by **least privilege**. Align retention and monitoring to support timely detection and investigation.",
+   "references": [
+    "https://hub.prowler.com/check/network_watcher_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "policy_ensure_asc_enforcement_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Security Center built-in policy assignment has enforcement mode set to Default"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/policyAssignments/resource-61",
+    "name": "resource-61",
+    "region": "global",
+    "group": {
+     "name": "policy"
+    },
+    "type": "microsoft.authorization/policyassignments"
+   }
+  ],
+  "remediation": {
+   "desc": "Keep enforcement mode `Default` on the default initiative and avoid disabling critical effects. Apply at scale for consistent governance, align with **least privilege** and **defense in depth**, validate changes in `Audit` in non-prod, and manage justified exceptions via time-bound policy exemptions instead of turning enforcement off.",
+   "references": [
+    "https://hub.prowler.com/check/policy_ensure_asc_enforcement_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.1.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_account_key_access_disabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has shared key access disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-62",
+    "name": "resource-62",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Disallow **Shared Key** and require **Microsoft Entra ID** with least-privilege RBAC for all data access.\n- Prefer user delegation SAS over account/service SAS\n- Apply Conditional Access and separation of duties\n- Monitor and phase out key-based clients; rotate and revoke unused keys",
+   "references": [
+    "https://hub.prowler.com/check/storage_account_key_access_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.1.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_account_key_access_disabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has shared key access disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-63",
+    "name": "resource-63",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Disallow **Shared Key** and require **Microsoft Entra ID** with least-privilege RBAC for all data access.\n- Prefer user delegation SAS over account/service SAS\n- Apply Conditional Access and separation of duties\n- Monitor and phase out key-based clients; rotate and revoke unused keys",
+   "references": [
+    "https://hub.prowler.com/check/storage_account_key_access_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.1.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_account_public_network_access_disabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has 'Public Network Access' disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-64",
+    "name": "resource-64",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Disable **public network access** on the storage account and reach it through **private endpoints** or trusted Azure services only. Combine this with **least privilege** RBAC, short-lived `SAS` tokens, and network restrictions. Validate client connectivity before disabling public access in production.",
+   "references": [
+    "https://hub.prowler.com/check/storage_account_public_network_access_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_account_public_network_access_disabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has 'Public Network Access' disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-65",
+    "name": "resource-65",
+    "region": "southcentralus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Disable **public network access** on the storage account and reach it through **private endpoints** or trusted Azure services only. Combine this with **least privilege** RBAC, short-lived `SAS` tokens, and network restrictions. Validate client connectivity before disabling public access in production.",
+   "references": [
+    "https://hub.prowler.com/check/storage_account_public_network_access_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_blob_public_access_level_is_disabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has 'Allow Blob Anonymous Access' disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-66",
+    "name": "resource-66",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Disable **blob public access** at the account and enforce authenticated access based on **least privilege**. Prefer **private endpoints** or restricted networks, use short-lived `SAS` or federated identities, and apply **RBAC** with container-level permissions. Monitor access and review exposure regularly.",
+   "references": [
+    "https://hub.prowler.com/check/storage_blob_public_access_level_is_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_blob_versioning_is_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has blob versioning enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-67",
+    "name": "resource-67",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **blob versioning** for accounts holding critical data. Pair with **blob soft delete** and lifecycle rules to retain and age off versions. Enforce **least privilege** on write and version-delete actions, and monitor access. *For high-churn data*, isolate into separate accounts with tailored retention to balance security and cost.",
+   "references": [
+    "https://hub.prowler.com/check/storage_blob_versioning_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_blob_versioning_is_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has blob versioning enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-68",
+    "name": "resource-68",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **blob versioning** for accounts holding critical data. Pair with **blob soft delete** and lifecycle rules to retain and age off versions. Enforce **least privilege** on write and version-delete actions, and monitor access. *For high-churn data*, isolate into separate accounts with tailored retention to balance security and cost.",
+   "references": [
+    "https://hub.prowler.com/check/storage_blob_versioning_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_cross_tenant_replication_disabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has cross-tenant replication disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-69",
+    "name": "resource-69",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce `AllowCrossTenantReplication=false` and keep replication within the same tenant. Apply **least privilege** and **separation of duties** for replication management, backed by **policy-based governance** to prevent drift. *If cross-tenant transfer is required*, use formal data-sharing controls, monitoring, and time-bound approvals.",
+   "references": [
+    "https://hub.prowler.com/check/storage_cross_tenant_replication_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_cross_tenant_replication_disabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has cross-tenant replication disabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-70",
+    "name": "resource-70",
+    "region": "westeurope",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce `AllowCrossTenantReplication=false` and keep replication within the same tenant. Apply **least privilege** and **separation of duties** for replication management, backed by **policy-based governance** to prevent drift. *If cross-tenant transfer is required*, use formal data-sharing controls, monitoring, and time-bound approvals.",
+   "references": [
+    "https://hub.prowler.com/check/storage_cross_tenant_replication_disabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_default_network_access_rule_is_denied"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account default network access rule is set to Deny"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-71",
+    "name": "resource-71",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Set the default network access to `Deny` and permit only required sources: selected VNets, specific IP ranges, or preferably **private endpoints**. Apply **least privilege**, minimize service bypass, and use short-lived, scoped SAS to limit blast radius if credentials leak.",
+   "references": [
+    "https://hub.prowler.com/check/storage_default_network_access_rule_is_denied"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_default_network_access_rule_is_denied"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account default network access rule is set to Deny"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-72",
+    "name": "resource-72",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Set the default network access to `Deny` and permit only required sources: selected VNets, specific IP ranges, or preferably **private endpoints**. Apply **least privilege**, minimize service bypass, and use short-lived, scoped SAS to limit blast radius if credentials leak.",
+   "references": [
+    "https://hub.prowler.com/check/storage_default_network_access_rule_is_denied"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_default_to_entra_authorization_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account uses Microsoft Entra authorization by default"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-73",
+    "name": "resource-73",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable this setting so the portal uses **Microsoft Entra ID** by default. Apply **least privilege** with Azure RBAC, prefer **managed identities** and user-delegation SAS, and *where feasible* disable Shared Key use. Rotate any existing keys, and monitor access with logs to enforce **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/storage_default_to_entra_authorization_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_default_to_entra_authorization_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account uses Microsoft Entra authorization by default"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-74",
+    "name": "resource-74",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable this setting so the portal uses **Microsoft Entra ID** by default. Apply **least privilege** with Azure RBAC, prefer **managed identities** and user-delegation SAS, and *where feasible* disable Shared Key use. Rotate any existing keys, and monitor access with logs to enforce **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/storage_default_to_entra_authorization_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_azure_services_are_trusted_to_access_is_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has 'Allow trusted Microsoft services to access this storage account' enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-75",
+    "name": "resource-75",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the **trusted services** exception (`AzureServices`) for storage accounts used by platform services.\n- Enforce **least privilege** with RBAC and managed identities\n- Keep networks restricted; prefer **private endpoints**\n- Monitor access and review exceptions regularly",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_azure_services_are_trusted_to_access_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_azure_services_are_trusted_to_access_is_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has 'Allow trusted Microsoft services to access this storage account' enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-76",
+    "name": "resource-76",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable the **trusted services** exception (`AzureServices`) for storage accounts used by platform services.\n- Enforce **least privilege** with RBAC and managed identities\n- Keep networks restricted; prefer **private endpoints**\n- Monitor access and review exceptions regularly",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_azure_services_are_trusted_to_access_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_file_shares_soft_delete_is_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has soft delete enabled for file shares"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-77",
+    "name": "resource-77",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **soft delete** for all Azure file shares and choose a retention window aligned to `RPO/RTO` and data criticality (e.g., `7-90` days). Apply **least privilege** to delete actions, layer **snapshots/backup** for defense in depth, consider **resource locks**, and monitor delete events for misuse.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_file_shares_soft_delete_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.1.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_file_shares_soft_delete_is_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has soft delete enabled for file shares"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-78",
+    "name": "resource-78",
+    "region": "southcentralus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **soft delete** for all Azure file shares and choose a retention window aligned to `RPO/RTO` and data criticality (e.g., `7-90` days). Apply **least privilege** to delete actions, layer **snapshots/backup** for defense in depth, consider **resource locks**, and monitor delete events for misuse.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_file_shares_soft_delete_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.1.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_minimum_tls_version_12"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account minimum TLS version is 1.2"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-79",
+    "name": "resource-79",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Set the storage account `minimum TLS version` to at least `1.2` (prefer `1.3` where supported) and disable legacy protocols. Apply **defense in depth** by restricting network access, using **least privilege** credentials, and monitoring handshake failures to identify outdated clients.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_minimum_tls_version_12"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_minimum_tls_version_12"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account minimum TLS version is 1.2"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-80",
+    "name": "resource-80",
+    "region": "southcentralus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Set the storage account `minimum TLS version` to at least `1.2` (prefer `1.3` where supported) and disable legacy protocols. Apply **defense in depth** by restricting network access, using **least privilege** credentials, and monitoring handshake failures to identify outdated clients.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_minimum_tls_version_12"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_private_endpoints_in_storage_accounts"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has private endpoint connections"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-81",
+    "name": "resource-81",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Prefer **Private Endpoints** for storage access and minimize public exposure:\n- Limit or disable `Public network access`\n- Use private DNS so names resolve to private IPs\n- Enforce **least privilege** and **defense in depth** with segmentation and logging\n- Monitor access and rotate keys/SAS *as part of routine hygiene*.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_private_endpoints_in_storage_accounts"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_private_endpoints_in_storage_accounts"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has private endpoint connections"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-82",
+    "name": "resource-82",
+    "region": "southcentralus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Prefer **Private Endpoints** for storage access and minimize public exposure:\n- Limit or disable `Public network access`\n- Use private DNS so names resolve to private IPs\n- Enforce **least privilege** and **defense in depth** with segmentation and logging\n- Monitor access and rotate keys/SAS *as part of routine hygiene*.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_private_endpoints_in_storage_accounts"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_soft_delete_is_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has soft delete for containers enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-83",
+    "name": "resource-83",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **container soft delete** and choose a retention window (`7-365` days) that meets your RPO. Pair with **blob soft delete** and **versioning** for layered recovery. Enforce **least privilege** on delete actions and apply resource **locks** to prevent destructive changes.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_soft_delete_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.2.1",
+     "9.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_ensure_soft_delete_is_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has soft delete for containers enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-84",
+    "name": "resource-84",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **container soft delete** and choose a retention window (`7-365` days) that meets your RPO. Pair with **blob soft delete** and **versioning** for layered recovery. Enforce **least privilege** on delete actions and apply resource **locks** to prevent destructive changes.",
+   "references": [
+    "https://hub.prowler.com/check/storage_ensure_soft_delete_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.2.1",
+     "9.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_geo_redundant_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure Storage account uses geo-redundant replication (GRS, GZRS, RA-GRS, or RA-GZRS)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-85",
+    "name": "resource-85",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt **GRS/GZRS** for critical workloads (prefer `Standard_GZRS` where supported) to achieve cross-region resilience. *If read continuity is required*, use `Standard_RAGRS` or `Standard_RAGZRS`. Define RPO/RTO, regularly test failover, and design for **defense in depth** across regions and zones.",
+   "references": [
+    "https://hub.prowler.com/check/storage_geo_redundant_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_geo_redundant_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure Storage account uses geo-redundant replication (GRS, GZRS, RA-GRS, or RA-GZRS)"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-86",
+    "name": "resource-86",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Adopt **GRS/GZRS** for critical workloads (prefer `Standard_GZRS` where supported) to achieve cross-region resilience. *If read continuity is required*, use `Standard_RAGRS` or `Standard_RAGZRS`. Define RPO/RTO, regularly test failover, and design for **defense in depth** across regions and zones.",
+   "references": [
+    "https://hub.prowler.com/check/storage_geo_redundant_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_infrastructure_encryption_is_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has infrastructure encryption enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-87",
+    "name": "resource-87",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **infrastructure encryption** for accounts or scopes handling sensitive data to strengthen **defense in depth**. Plan it at creation, as the setting is immutable. Maintain strong key hygiene for service-level encryption (use CMK where appropriate, rotate, restrict access) and enforce guardrails with policy.",
+   "references": [
+    "https://hub.prowler.com/check/storage_infrastructure_encryption_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.1.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_key_rotation_90_days"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has access key expiration period set to 90 days or less"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-88",
+    "name": "resource-88",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce a `key expiration period` of `<= 90` days and automate rotation. Prefer **Microsoft Entra ID** with managed identities over Shared Key; when SAS is needed, use user-delegation SAS. Apply **least privilege**, minimize key distribution, monitor usage, rotate on suspected exposure, and disable Shared Key when feasible.",
+   "references": [
+    "https://hub.prowler.com/check/storage_key_rotation_90_days"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.1.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_secure_transfer_required_is_enabled"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account has secure transfer required enabled"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-89",
+    "name": "resource-89",
+    "region": "eastus",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **HTTPS-only** on all storage accounts (`enableHttpsTrafficOnly`) and use modern TLS.\nApply **least privilege** to SAS and keys, rotate if exposure is suspected, and use **defense in depth**: prefer private endpoints, restrict public access, block `HTTP` at network controls, and ensure all clients use `https://` endpoints.",
+   "references": [
+    "https://hub.prowler.com/check/storage_secure_transfer_required_is_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.3.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "storage_smb_channel_encryption_with_secure_algorithm"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Storage account uses AES-256-GCM for SMB channel encryption on file shares"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Storage/storageAccounts/resource-90",
+    "name": "resource-90",
+    "region": "global",
+    "group": {
+     "name": "storage"
+    },
+    "type": "microsoft.storage/storageaccounts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **defense in depth** by restricting SMB channel encryption to `AES-256-GCM` on SMB `3.1.1`, removing weaker options.\n\n- Prefer private access (private endpoints/VPN)\n- Require secure transfer and modern TLS\n- Apply **least privilege** on shares\n- Validate client support and monitor connections during rollout",
+   "references": [
+    "https://hub.prowler.com/check/storage_smb_channel_encryption_with_secure_algorithm"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "9.1.3"
+    ]
+   }
+  }
+ }
+]

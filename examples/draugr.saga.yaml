@@ -189,11 +189,14 @@ clusters:
 # Each cloud account once, by its ID at its provider.
 accounts:
   data-prod:
-    provider: gcp                # gcp | aws
+    provider: gcp                # gcp | aws | azure
     project: acme-data-prod      # the project ID, as `gcloud projects list` prints it
   web-prod:
     provider: aws
     account: "123456789012"      # the 12-digit account ID, quoted
+  console-prod:
+    provider: azure
+    subscription: 00000000-0000-0000-0000-000000000000   # the subscription ID, as `az account list` prints it
 
 components:
   # A public web app: source, the image it builds, and the endpoint it serves.
@@ -295,6 +298,9 @@ components:
         builtBy: self        # …except this one, which we do publish
     images:
       - image: ghcr.io/vendor/console:4.2
+    cloud:
+      - account: console-prod
+        regions: [eastus]    # Azure's location names; findings with no region stay with the whole subscription
 
   # A batch job: source only, and one control turned off just for this component.
   - name: nightly-etl

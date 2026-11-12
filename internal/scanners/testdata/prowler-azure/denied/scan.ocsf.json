@@ -1,0 +1,871 @@
+[
+ {
+  "metadata": {
+   "event_code": "appinsights_ensure_is_configured"
+  },
+  "status_code": "FAIL",
+  "severity": "Low",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has at least one Application Insights resource configured"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-1",
+    "region": "global",
+    "group": {
+     "name": "appinsights"
+    },
+    "type": "microsoft.insights/components"
+   }
+  ],
+  "remediation": {
+   "desc": "Deploy **Application Insights** for all critical workloads and centralize data in a **Log Analytics workspace**. Configure actionable alerts and dashboards, enforce **least privilege** on telemetry, and set retention/export policies. Use private connectivity and appropriate sampling, and integrate with SIEM for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/appinsights_ensure_is_configured"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.3.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "defender_ensure_iot_hub_defender_is_on"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Defender for IoT Hub is set to On"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-2",
+    "region": "global",
+    "group": {
+     "name": "defender"
+    },
+    "type": "microsoft.security/iotsecuritysolutions"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Defender for IoT** on all IoT Hubs and keep it `Enabled`. Route security data to a central workspace and your SIEM. Apply **least privilege** to IoT identities, enforce **network segmentation** and private access, and use **defense in depth** with continuous monitoring, alert tuning, and periodic coverage reviews.",
+   "references": [
+    "https://hub.prowler.com/check/defender_ensure_iot_hub_defender_is_on"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_non_privileged_user_has_mfa"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Non-privileged user has multi-factor authentication enabled"
+  },
+  "resources": [
+   {
+    "uid": "resource-3",
+    "name": "resource-3",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **MFA** for all users, including non-privileged. Prefer **phishing-resistant** methods (FIDO2/passkeys or Authenticator with number matching); avoid SMS/voice when possible. Use **Conditional Access** to require MFA by risk and context. Pair with **least privilege**, device trust, and sign-in monitoring.",
+   "references": [
+    "https://hub.prowler.com/check/entra_non_privileged_user_has_mfa"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.1.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_policy_guest_users_access_restrictions"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Authorization policy restricts guest user access to properties and memberships of their own directory objects"
+  },
+  "resources": [
+   {
+    "uid": "resource-4",
+    "name": "resource-4",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Apply **least privilege** to external users:\n- Set guest access to `Restricted access` so guests can only view their own directory objects\n- Avoid assigning admin roles to guests; use **PIM** for rare exceptions\n- Constrain external collaboration and group visibility, and run periodic **access reviews** to remove stale guest access",
+   "references": [
+    "https://hub.prowler.com/check/entra_policy_guest_users_access_restrictions"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.3.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "entra_privileged_user_has_mfa"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Privileged user has multi-factor authentication enabled"
+  },
+  "resources": [
+   {
+    "uid": "resource-5",
+    "name": "resource-5",
+    "region": "global",
+    "group": {
+     "name": "entra"
+    },
+    "type": "NotDefined"
+   }
+  ],
+  "remediation": {
+   "desc": "Enforce **MFA** for all privileged roles via **Conditional Access** or security defaults. Prefer **phishing-resistant** methods (FIDO2, passkeys, Authenticator push) over SMS/voice. Require registration before granting privileges, block legacy/basic auth, and apply **least privilege** with protected break-glass accounts.",
+   "references": [
+    "https://hub.prowler.com/check/entra_privileged_user_has_mfa"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.1.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_custom_role_has_permissions_to_administer_resource_locks"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Custom role has permission to administer resource locks"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleDefinitions/resource-6",
+    "name": "resource-6",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roledefinitions"
+   }
+  ],
+  "remediation": {
+   "desc": "Define a **least-privilege custom role** restricted to `Microsoft.Authorization/locks/*` and assign it to a tightly controlled group at minimal scope. Apply **separation of duties**, use just-in-time elevation, audit lock changes, and avoid broad roles or pipeline identities managing locks. Layer with **defense-in-depth** controls.",
+   "references": [
+    "https://hub.prowler.com/check/iam_custom_role_has_permissions_to_administer_resource_locks"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.5",
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_custom_role_has_permissions_to_administer_resource_locks"
+  },
+  "status_code": "PASS",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Custom role has permission to administer resource locks"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleDefinitions/resource-7",
+    "name": "resource-7",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roledefinitions"
+   }
+  ],
+  "remediation": {
+   "desc": "Define a **least-privilege custom role** restricted to `Microsoft.Authorization/locks/*` and assign it to a tightly controlled group at minimal scope. Apply **separation of duties**, use just-in-time elevation, audit lock changes, and avoid broad roles or pipeline identities managing locks. Layer with **defense-in-depth** controls.",
+   "references": [
+    "https://hub.prowler.com/check/iam_custom_role_has_permissions_to_administer_resource_locks"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.5",
+     "6.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_subscription_owners_between_2_and_3"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has between 2 and 3 principals assigned the Owner role"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-8",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.resources/subscriptions"
+   }
+  ],
+  "remediation": {
+   "desc": "Keep **2 to 3 standing owners** per subscription so access can always be recovered without concentrating full control:\n- Grant day-to-day work through narrower roles such as Contributor\n- Use **PIM** for just-in-time Owner elevation\n- Review Owner assignments and group membership regularly",
+   "references": [
+    "https://hub.prowler.com/check/iam_subscription_owners_between_2_and_3"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "iam_subscription_roles_owner_custom_not_created"
+  },
+  "status_code": "PASS",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Custom role is not a subscription owner role"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/group-1/providers/Microsoft.Authorization/roleDefinitions/resource-9",
+    "name": "resource-9",
+    "region": "global",
+    "group": {
+     "name": "iam"
+    },
+    "type": "microsoft.authorization/roledefinitions"
+   }
+  ],
+  "remediation": {
+   "desc": "Avoid owner-equivalent custom roles. Apply **least privilege**: prefer built-in roles, define explicit allowed `actions` (avoid `*`), and limit assignment scope to the minimum needed. Enforce **separation of duties**, require just-in-time elevation, and perform periodic access reviews to prevent privilege creep.",
+   "references": [
+    "https://hub.prowler.com/check/iam_subscription_roles_owner_custom_not_created"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "5.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_policy_assignment"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Azure Monitor activity log alert for policy assignment creation"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-10",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement an **activity log alert** for `Microsoft.Authorization/policyAssignments/write` and route to an action group for timely response.\n\nApply across all subscriptions, restrict assignment rights (**least privilege**), require change approval, and integrate notifications with your SIEM for **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_policy_assignment"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_nsg"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for Network Security Group create or update operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-11",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement a subscription-wide **Activity Log alert** for NSG change operations and route notifications to an **action group** for rapid triage.\n\nApply **least privilege** for change tooling, enforce **change management**, and add complementary alerts for `Microsoft.Network/networkSecurityGroups/securityRules/write` and `.../delete`. *Integrate with SIEM for correlation*",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_nsg"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.3"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_public_ip_address_rule"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log Alert for Public IP address create or update operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-12",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Create a subscription-wide **activity log alert** on `Microsoft.Network/publicIPAddresses/write` and route it to an **action group**.\n\nEnforce **least privilege** for IP management, apply **change control**, and use **defense in depth** (private endpoints, bastions, VPN) to minimize public exposure and speed response.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_public_ip_address_rule"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.9"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_security_solution"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has Activity Log alert for Security Solution create or update"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-13",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Configure an **activity log alert** for `Microsoft.Security/securitySolutions/write` and route it to action groups for prompt notification/automation.\n\nApply **least privilege**, require **change control**, and forward alerts to a central SIEM to strengthen **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_security_solution"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.5"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_create_update_sqlserver_fr"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for SQL Server firewall rule create or update events"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-14",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable an activity log alert for `Microsoft.Sql/servers/firewallRules/write` and route it to responsive action groups.\n\nApply **least privilege** for firewall management, enforce change approvals, and use **defense in depth**: prefer **private endpoints** and avoid broad public network access.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_create_update_sqlserver_fr"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.7"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_nsg"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for Network Security Group delete operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-15",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Configure a subscription-wide **activity log alert** for the NSG delete operation (`Microsoft.Network/networkSecurityGroups/delete`; include Classic if applicable) and route notifications via **action groups**. Enforce **least privilege** for NSG changes, require **change control**, and integrate with your **SIEM** for correlation.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_nsg"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_policy_assignment"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log alert for policy assignment deletion"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-16",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "- Configure an activity log alert for `Microsoft.Authorization/policyAssignments/delete` and route to an action group.\n- Enforce **least privilege** and **separation of duties** for policy changes and require approvals.\n- Integrate alerts with your SIEM and define playbooks for rapid response.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_policy_assignment"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_public_ip_address_rule"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure subscription has an Activity Log alert for public IP address deletion"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-17",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Implement an activity log alert for `Microsoft.Network/publicIPAddresses/delete` and route it to an action group for rapid response.\n- Apply **least privilege** and change approval for IP deletions\n- Use **resource locks** on critical IPs\n- Centralize alerts in your SIEM and define runbooks for containment",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_public_ip_address_rule"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.10"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_security_solution"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Azure Monitor Activity Log alert for Microsoft.Security/securitySolutions delete operations"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-18",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Configure a **dedicated activity log alert** for `Microsoft.Security/securitySolutions/delete` and route it to resilient **action groups** (email, chat, ticketing, SIEM). Apply **least privilege** and **resource locks** to deter tampering. Test alerting routinely and integrate it into **defense-in-depth** monitoring.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_security_solution"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.6"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_delete_sqlserver_fr"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log Alert for SQL Server firewall rule deletions"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-19",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Create an **activity log alert** for `Microsoft.Sql/servers/firewallRules/delete` and route it via an **action group** for rapid triage.\n\nEnforce **least privilege** and **separation of duties** on SQL admins, add alerts for related create/update operations, integrate with **SIEM**, and require *change approval* to strengthen defense in depth.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_delete_sqlserver_fr"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.8"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_alert_service_health_exists"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure subscription has an enabled Activity Log alert for Service Health incidents"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-20",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.insights/activitylogalerts"
+   }
+  ],
+  "remediation": {
+   "desc": "Create and maintain an enabled **Activity Log alert** for **Service Health Incident** events.\n- Route via **Action Groups** to on-call channels\n- Filter to critical services/regions\n- Test routing and refine recipients regularly\n- Integrate with **incident response** and **defense-in-depth** monitoring",
+   "references": [
+    "https://hub.prowler.com/check/monitor_alert_service_health_exists"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.2.11"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_diagnostic_setting_with_appropriate_categories"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has a diagnostic setting capturing Administrative, Security, Alert, and Policy categories"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-21",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.resources/subscriptions"
+   }
+  ],
+  "remediation": {
+   "desc": "Collect `Administrative`, `Security`, `Policy`, and `Alert` via a subscription diagnostic setting and route them to a centralized, tamper-resistant destination. Enforce **least privilege** on log access, set retention, and create **alerts** for high-risk changes as part of **defense in depth**.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_diagnostic_setting_with_appropriate_categories"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.1.2"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "monitor_diagnostic_settings_exists"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Subscription has an Activity Log diagnostic setting"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-22",
+    "region": "global",
+    "group": {
+     "name": "monitor"
+    },
+    "type": "microsoft.resources/subscriptions"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **subscription Diagnostic Settings** to send the **Activity Log** to a trusted destination.\n\nUse **immutable storage** or a **SIEM**, enforce coverage with **Azure Policy**, apply **least privilege** to log access, include essential categories, and set retention aligned to regulatory needs.",
+   "references": [
+    "https://hub.prowler.com/check/monitor_diagnostic_settings_exists"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "6.1.1.1",
+     "6.1.1.7",
+     "6.1.1.8",
+     "6.1.4"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_bastion_host_exists"
+  },
+  "status_code": "FAIL",
+  "severity": "Medium",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Azure subscription has at least one Bastion Host"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-23",
+    "region": "global",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/bastionhosts"
+   }
+  ],
+  "remediation": {
+   "desc": "Standardize on **Azure Bastion** for admin access.\n\nRemove VM public IPs and deny inbound `22`/`3389` via perimeter controls and NSGs. Apply **least privilege** and just-in-time access, integrate **Entra ID** with **MFA** and conditional access, monitor sessions/logs, and segment networks so only Bastion can reach management ports.",
+   "references": [
+    "https://hub.prowler.com/check/network_bastion_host_exists"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "8.4.1"
+    ]
+   }
+  }
+ },
+ {
+  "metadata": {
+   "event_code": "network_watcher_enabled"
+  },
+  "status_code": "FAIL",
+  "severity": "High",
+  "status_detail": "redacted",
+  "message": "redacted",
+  "finding_info": {
+   "title": "Network Watcher is enabled for all locations in the subscription"
+  },
+  "resources": [
+   {
+    "uid": "/subscriptions/00000000-0000-0000-0000-000000000000",
+    "name": "resource-24",
+    "region": "global",
+    "group": {
+     "name": "network"
+    },
+    "type": "microsoft.network/networkwatchers"
+   }
+  ],
+  "remediation": {
+   "desc": "Enable **Network Watcher** in all regions and keep it enabled as your footprint expands.\n\nApply **defense in depth** by centralizing network logs and analytics, enforce coverage with policy, and restrict tool access by **least privilege**. Align retention and monitoring to support timely detection and investigation.",
+   "references": [
+    "https://hub.prowler.com/check/network_watcher_enabled"
+   ]
+  },
+  "unmapped": {
+   "compliance": {
+    "CIS-6.0": [
+     "7.6"
+    ]
+   }
+  }
+ }
+]

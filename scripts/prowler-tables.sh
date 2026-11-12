@@ -56,7 +56,7 @@ A check whose reads changed between the two releases can have its result discard
 
 To catch up, install Prowler $latest and:
 
-- regenerate \`awsCheckReads\` in \`internal/scanners/prowler_aws_reads.go\` with \`scripts/prowler-aws-check-reads.py\`, over the installed package and the framework's check list;
+- regenerate \`awsCheckReads\` in \`internal/scanners/prowler_aws_reads.go\` with \`scripts/prowler-check-reads.py\`, over the installed package and the framework's check list;
 - for \`internal/scanners/prowler_gcp_reads.go\`, which has no generator, diff \`prowler/providers/gcp/\` between the two releases and read again each check whose clients or their calls changed, and any new service the framework now lists;
 - set \`ProwlerTablesVersion\` to $latest, and move the \`prowlercloud/prowler\` image digest in \`.github/workflows/integration.yml\` to the $latest tag's, so the live cloud run checks the same release.
 

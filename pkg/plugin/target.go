@@ -367,8 +367,8 @@ func (t KubernetesTarget) CacheDetail() string {
 type AccountTarget struct {
 	// Account is the account's name in the descriptor.
 	Account string
-	// Provider is the cloud, "gcp" or "aws", and ID the account's identifier there: a project ID on
-	// Google Cloud, a 12-digit account ID on AWS.
+	// Provider is the cloud, "gcp", "aws" or "azure", and ID the account's identifier there: a project
+	// ID on Google Cloud, a 12-digit account ID on AWS, a subscription's GUID on Azure.
 	Provider, ID string
 	// Regions narrows the findings to resources in these regions. Empty means all of the account.
 	Regions []string

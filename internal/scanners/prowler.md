@@ -1,6 +1,6 @@
 ---
 title: "prowler"
-description: "Checks a live Google Cloud project or AWS account against the CIS benchmark by running Prowler."
+description: "Checks a live Google Cloud project, AWS account or Azure subscription against the CIS benchmark by running Prowler."
 section: Scanners
 order: 95
 ---
@@ -9,7 +9,7 @@ order: 95
 
 - **Control:** [`cloud`](../controllers/cloud.md)
 - **Tool:** **Prowler**, https://github.com/prowler-cloud/prowler
-- **Status:** ✅ implemented (Google Cloud, AWS)
+- **Status:** ✅ implemented (Google Cloud, AWS, Azure)
 - **Target:** a cloud account (`AccountTarget`)
 - **License / terms:** **Apache-2.0** (permissive), the tool and its check metadata. Run via
   **exec**. The command-line tool has no terms of use of its own; Prowler's hosted service, which
@@ -17,18 +17,21 @@ order: 95
 
 ## What it does
 
-Runs `prowler gcp` against the project a Google Cloud account names, or `prowler aws` against an AWS
-account, limited to one compliance framework, and reads its OCSF output. A failed check becomes a
-finding at the resource Prowler names; a passed one counts as decided.
+Runs `prowler gcp` against the project a Google Cloud account names, `prowler aws` against an AWS
+account, or `prowler azure` against an Azure subscription, limited to one compliance framework, and
+reads its OCSF output. A failed check becomes a finding at the resource Prowler names; a passed one
+counts as decided.
 
 | Provider | Framework by default | Scoped by |
 |---|---|---|
 | `gcp` | `cis_5.0_gcp` | `--project-id` |
 | `aws` | `cis_7.0_aws` | the credentials' account, confirmed first, and `--region` when the component claims regions |
+| `azure` | `cis_6.0_azure` | `--subscription-id` |
 
-`compliance` replaces the default for the accounts of the cloud its suffix names, `_gcp` or `_aws`.
+`compliance` replaces the default for the accounts of the cloud its suffix names, `_gcp`, `_aws` or
+`_azure`.
 
-The framework's checks are listed first, with `prowler <gcp|aws> --list-checks-json`, so the
+The framework's checks are listed first, with `prowler <gcp|aws|azure> --list-checks-json`, so the
 coverage figure counts the checks the installed Prowler runs.
 
 ### Google Cloud
@@ -78,12 +81,61 @@ coverage figure counts the checks the installed Prowler runs.
 A service with no known action is left out of the simulation, and its denials come from the log
 alone.
 
+### Azure
+
+1. **The credential is chosen from the environment**: the three service principal variables, then
+   `IDENTITY_ENDPOINT`, then the `az login` session, as [the control](../controllers/cloud.md) lists
+   them. The scanner's own requests use the same credential as Prowler.
+2. **The subscription is confirmed.** Before Prowler runs, the scanner asks Azure Resource Manager for
+   the subscription. One the credentials cannot read, or one that does not exist, is an error naming it.
+3. **A permission preflight.** The scanner lists `Microsoft.Authorization/permissions` on the
+   subscription and compares it with the actions Prowler's services call. Deny assignments are outside
+   that answer. Credentials holding none of the actions are an error: Azure lets them see the
+   subscription and answers with an empty list, Prowler logs no refusal, and the checks that look for
+   something absent fail. A refused list is no error, and the measured-against line says so:
+   `permissions: read from Prowler's log; Azure refused the preflight`. Otherwise it reads
+   `permissions: listed before the scan, then read from Prowler's log`. Prowler's Azure base class
+   discards what its worker threads raise, so a denial there may leave no log line, and the preflight
+   carries more weight than on the other clouds.
+4. **The log is read for refused and failed reads**, at `WARNING` rather than the `ERROR` the other clouds
+   use. A refused read is `AuthorizationFailed`, a `Forbidden` code, or a 403 from Microsoft Graph, in a
+   line from a service module. A failed read ended with no answer: a dropped connection, named as
+   `read failed, RemoteProtocolError`, or a 429 or 5xx from Microsoft Graph, named as
+   `read failed, HTTP 503`. Its service's checks are treated as a denied service's are, because the same
+   login may get a different answer on the next run. Prowler logs a Key Vault data-plane read that failed
+   as a warning, `has no access policy configured for keyvault`, for any HTTP error, and the scanner
+   reads it as a denial of the `keyvault-data` group. `LOG_LEVEL` in the environment overrides
+   `--log-level`, so `ERROR` or `CRITICAL` hides those warnings, and the measured-against line says so.
+5. **A denial is judged per check**, as on AWS. Only `keyvault_key_rotation_enabled` reads the Key Vault
+   data plane, so a locked vault leaves that check partly read and the service's others alone. That
+   check fails each key whose rotation policy it could not read, so a failure on a key in a locked
+   vault says nothing about the key.
+6. **A `MANUAL` result is not a verdict.** Prowler's Azure checks return it when a read failed. A check
+   with no pass or fail as well is unread, with the reason `Prowler could not evaluate it`.
+7. **Some checks never run**, and the measured-against line names each as `not run`:
+   - `--excluded-service app` is on every run. Prowler's App service reads function host keys and
+     application settings in its constructor whenever any `app_*` check runs, and those are secrets the
+     scan has no need of. `cis_6.0_azure` holds no `app_*` check. A `compliance` framework that does
+     reports those checks with no result.
+   - `--excluded-service entra` is on every run. Prowler's Entra service reads every user in the
+     tenant, and each one's MFA registration, whichever subscription the scan names: a row per person
+     in the organization, from a scan pointed at one subscription. The five `entra_*` checks in
+     `cis_6.0_azure` are listed as not run, and the tenant's directory is not read.
+   - `--excluded-check network_public_ip_shodan` is on every run. Given a Shodan key in Prowler's own
+     configuration, that check sends each of the subscription's public IP addresses to Shodan, so it
+     never runs, whichever framework selects it. `cis_6.0_azure` holds it and the five `entra_*` checks,
+     so that framework's coverage reads six short of its check list at most.
+
+A service with no action the preflight can ask about is left out, and its denials come from the log
+alone: `keyvault-data`, and the auto provisioning settings of `defender`.
+
 Findings in a component's claimed regions are kept, matching zones of a region; a component that
 claims the whole account gets every finding, including those with no region. On AWS, Prowler files a
 finding about the account itself under the first region it audited, so the IAM, account and
 Organizations checks and the CloudWatch metric-filter alarms (`cloudwatch_log_metric_filter_*`,
 `cloudwatch_changes_*`) go to the component claiming the whole account, whatever region they carry.
-CloudTrail's findings stay in the trail's home region.
+CloudTrail's findings stay in the trail's home region. On Azure, a finding with no location, which
+Prowler writes as `global`, goes to the component claiming the whole subscription.
 
 ## Mapping
 
@@ -94,9 +146,9 @@ CloudTrail's findings stay in the trail's home region.
 | `severity` medium | `warning`, score 5.5 |
 | `severity` low, informational | `note`, score 2.0, 0 |
 | `metadata.event_code` | rule `prowler/<check>` |
-| `resources[0].uid` | the location: an ARN on AWS, or `aws/<account>/<region>` for a region's setting whose ARN names no resource (Security Hub, EBS encryption by default, a Config recorder, a multi-region trail) |
+| `resources[0].uid` | the location: an ARN on AWS, or `aws/<account>/<region>` for a region's setting whose ARN names no resource (Security Hub, EBS encryption by default, a Config recorder, a multi-region trail); a resource ID on Azure |
 | `remediation.desc`, `references[0]` | the rule's description and help link |
-| `unmapped.compliance["CIS-5.0"]`, `["CIS-7.0"]` | the rule's taxa |
+| `unmapped.compliance["CIS-5.0"]`, `["CIS-6.0"]`, `["CIS-7.0"]` | the rule's taxa |
 
 `resources[].data` is never read: it carries what a service returned, which can include secrets
 such as function keys.
@@ -123,6 +175,11 @@ service account need a quota project: `gcloud auth application-default set-quota
 which the preflight calls. A narrower grant works, and a check whose read it denies is reported unread
 or partly read rather than passed.
 
+**Azure.** Assign `Reader` on the subscription and nothing else. No Graph permission is needed, and
+leave out Prowler's `ProwlerRole`: it grants function host key access for checks that do not run. A
+Key Vault's keys need a grant on the vault itself, by access policy or a data role, or
+`keyvault_key_rotation_enabled` reads as partly read.
+
 ## Links
 
 - Prowler: https://github.com/prowler-cloud/prowler
@@ -131,15 +188,21 @@ or partly read rather than passed.
 - `GetCallerIdentity`: https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html
 - `SimulatePrincipalPolicy`: https://docs.aws.amazon.com/IAM/latest/APIReference/API_SimulatePrincipalPolicy.html
 - Prowler's AWS permissions: https://docs.prowler.com/user-guide/providers/aws/authentication
+- Prowler's Azure permissions: https://docs.prowler.com/user-guide/providers/azure/authentication
+- Azure permissions: https://learn.microsoft.com/en-us/rest/api/authorization/permissions
 
 ## Notes
 
 - Integration mode: **exec**. `prowler` must be on `PATH`, and the credentials must reach the
   account: Application Default Credentials on Google Cloud, the AWS SDK's default chain on AWS
   (`AWS_PROFILE`, the shared config and credentials files, an SSO session, or an instance or task
-  role).
+  role), and on Azure the credential the environment declares.
 - Draugr's own AWS calls are STS `GetCallerIdentity` and IAM `GetRole` and
-  `SimulatePrincipalPolicy`, made with the same credential chain Prowler reads.
+  `SimulatePrincipalPolicy`, made with the same credential chain Prowler reads. Its own Azure calls are
+  Azure Resource Manager's subscription read and permissions list, with the credential Prowler is told
+  to use.
+- Azure's public cloud only. The scanner leaves Prowler's `--azure-region` at `AzureCloud`, and asks
+  `management.azure.com`.
 - Prowler's version is read with its update check unable to connect: `prowler --version` otherwise
   asks api.github.com for the newest release on every scan.
 - Prowler sends no telemetry. Its integrations with a hosted dashboard, Shodan and Slack are opt-in,
@@ -151,6 +214,16 @@ The checks ship with Prowler. The scan reads the account through the provider's 
 target rather than a data source: on Google Cloud, `cloudresourcemanager.googleapis.com` for the
 preflight and each service's API for its checks; on AWS, `sts.<region>.amazonaws.com` for the caller,
 `iam.amazonaws.com` for the preflight and each service's endpoint for its checks.
+
+An Azure scan contacts these hosts on every run, and nothing is cached between runs:
+
+| Host | What it reads |
+|---|---|
+| `login.microsoftonline.com` | the credential's token |
+| `management.azure.com` | the preflight, and the service reads of every check |
+| `graph.microsoft.com` | the tenant's default domain, which Prowler reads when it starts |
+| `*.vault.azure.net` | each key's rotation policy, from the vault that holds it |
+| `api.loganalytics.io` | Log Analytics, for checks outside `cis_6.0_azure` |
 
 A `compliance` framework that includes the checks below makes the scan contact these hosts as well.
 The default framework includes none of them.

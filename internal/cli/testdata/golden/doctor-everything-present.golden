@@ -21,9 +21,14 @@ trivy        ✓ found  0.76.1   /somewhere/trivy
 NETWORK  (besides its targets · --offline stops all of it)
   draugr scan
     cloud       *.s3.<region>.amazonaws.com  AWS Lambda code and ECR image layers, outside the CIS checks · every scan
+                *.vault.azure.net            Azure Key Vault data plane · every scan
+                api.loganalytics.io          Azure Log Analytics, outside the CIS checks · every scan
                 github.com                   AWS CodePipeline source repositories, outside the CIS checks · every scan
                 gitlab.com                   AWS CodePipeline source repositories, outside the CIS checks · every scan
+                graph.microsoft.com          Microsoft Graph, for the tenant's domain · every scan
                 ip-ranges.amazonaws.com      AWS IP address ranges, outside the CIS checks · every scan
+                login.microsoftonline.com    Azure sign-in · every scan
+                management.azure.com         Azure Resource Manager · every scan
     dast        api.github.com               template set · before the scan
                 api.pdtm.sh                  template set · before the scan
                 github.com                   template set · before the scan
