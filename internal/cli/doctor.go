@@ -985,6 +985,7 @@ type scanContact struct {
 func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 	var scanners []plugin.ScannerInfo
 	var optioned map[string]bool
+	var clouds map[string]bool
 	if model == nil {
 		for _, s := range reg.Scanners() {
 			scanners = append(scanners, s.Info())
@@ -992,11 +993,15 @@ func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 	} else {
 		scanners = needs.Scanners(reg, model)
 		optioned = optionDisclosures(reg, model)
+		clouds = declaredClouds(model)
 	}
 	var rows []scanContact
 	for _, info := range scanners {
 		for _, control := range info.Controls {
 			for _, d := range info.Data {
+				if clouds != nil && len(d.Providers) > 0 && !slices.ContainsFunc(d.Providers, func(p string) bool { return clouds[p] }) {
+					continue
+				}
 				when := "before the scan"
 				if d.PerScan {
 					when = "every scan"
@@ -1024,6 +1029,21 @@ func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 		return a.Scanner < b.Scanner
 	})
 	return rows
+}
+
+// declaredClouds is the providers of the accounts the descriptor's components run in, which are the
+// clouds its scan contacts. An account declared and used by no component is not scanned, so its
+// cloud adds no host.
+func declaredClouds(model *saga.Model) map[string]bool {
+	out := map[string]bool{}
+	for i := range model.Components {
+		for _, ref := range model.Components[i].Cloud {
+			if a, ok := model.Accounts[ref.Account]; ok {
+				out[string(a.Provider)] = true
+			}
+		}
+	}
+	return out
 }
 
 // withoutScanner drops the scanner from each row and the duplicates that leaves: four
