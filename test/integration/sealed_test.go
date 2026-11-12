@@ -35,6 +35,11 @@ func TestSealedScenarios(t *testing.T) {
 	for _, tool := range []string{"trivy", "grype", "semgrep", "gitleaks", "gosec", "govulncheck", "retire", "nuclei", "go"} {
 		requireTool(t, tool, "a sealed scenario runs it")
 	}
+	// A golden rewritten by a draugr found on PATH records whichever release is installed rather
+	// than the tree under test, and the diff then reads as this change's.
+	if *updateSealed && os.Getenv("DRAUGR_BIN") == "" {
+		t.Fatal("-update-sealed rewrites the goldens from the binary it runs: set DRAUGR_BIN to one built from this tree")
+	}
 	bin := draugrBin(t)
 
 	// The loopback server every sealed command runs beside, built without cgo so it needs nothing
