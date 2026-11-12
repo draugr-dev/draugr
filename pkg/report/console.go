@@ -1100,10 +1100,11 @@ func movements(f finding) []string {
 // reader the location and the scanner to show a namespace they didn't need.
 const ruleIDWidth = 44
 
-// shortRuleID fits a rule id into the column by dropping the front. Namespaced ids put the
-// general part first and the specific part last ("yaml.github-actions.security.<name>"), so the
-// tail is the half worth keeping. The full id stays in the JSON and SARIF reports, and the
-// hyperlink on it still resolves.
+// shortRuleID fits a rule id into the compact table's column and an action's row by dropping the
+// front. Namespaced ids put the general part first and the specific part last
+// ("yaml.github-actions.security.<name>"), so the tail is the half worth keeping. The default
+// findings view prints the id whole, because config.exclude matches it exactly, and so do the JSON
+// and SARIF reports; the hyperlink on a shortened id still resolves.
 //
 // It cuts on a dot where one fits. Cutting purely by width lands mid-word and the result reads as
 // corruption rather than truncation, "…ction-tag.github-actions-mutable-action-tag" invites the

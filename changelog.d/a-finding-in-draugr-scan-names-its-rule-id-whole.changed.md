@@ -1,0 +1,1 @@
+- **A finding in `draugr scan` names its rule id whole**, beside its band, with the message on the line beneath, so the id can be copied into `config.exclude` as printed. An id too wide for the line takes a line of its own.

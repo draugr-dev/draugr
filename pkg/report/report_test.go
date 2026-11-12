@@ -539,8 +539,8 @@ func TestShortRuleIDKeepsAWholeSegmentEvenWhenTwoWouldNotFit(t *testing.T) {
 	}
 }
 
-// Shortening is for the table only: the machine formats keep the id whole, because that's what
-// you feed back to the scanner or search upstream with.
+// The machine formats keep the id whole, because that's what you feed back to the scanner or search
+// upstream with, and so does the finding's block, because it is what config.exclude matches.
 func TestLongRuleIDStaysWholeInJSON(t *testing.T) {
 	long := "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
 	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
@@ -550,8 +550,8 @@ func TestLongRuleIDStaysWholeInJSON(t *testing.T) {
 	if err := (consoleReporter{}).Render(&console, d); err != nil {
 		t.Fatalf("console: %v", err)
 	}
-	if strings.Contains(console.String(), long) {
-		t.Errorf("console should shorten the id:\n%s", console.String())
+	if !strings.Contains(console.String(), "      "+long+"\n") {
+		t.Errorf("the finding's block should name the id whole, on a line of its own where it does not fit beside the band:\n%s", console.String())
 	}
 	if err := (sarifReporter{}).Render(&machine, d); err != nil {
 		t.Fatalf("sarif: %v", err)

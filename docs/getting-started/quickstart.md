@@ -87,15 +87,18 @@ SIGNALS
   floor  nothing raised
 
 FIX FIRST  top 3 of 11, by priority
-  P1  critical  CVE-2019-10906 · str.format_map allows sandbox escape
+  P1  critical  CVE-2019-10906
+      str.format_map allows sandbox escape
       scanner trivy · jinja2 2.10 → 2.10.1
       requirements.txt:3
 
-  P1  high      CVE-2025-27516 · Jinja sandbox breakout through attr filter selecting format…
+  P1  high      CVE-2025-27516
+      Jinja sandbox breakout through attr filter selecting format method
       scanner trivy · jinja2 2.10 → 3.1.6
       requirements.txt:3
 
-  P1  high      CVE-2023-30861 · Possible disclosure of permanent session cookie due to…
+  P1  high      CVE-2023-30861
+      Possible disclosure of permanent session cookie due to missing Vary: Cookie header
       scanner trivy · flask 2.0.1 → 2.2.5
       requirements.txt:1
 

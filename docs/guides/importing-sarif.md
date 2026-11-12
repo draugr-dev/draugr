@@ -104,17 +104,20 @@ SIGNALS
   EPSS  nothing raised
 
 FIX FIRST  top 3 of 21, by priority
-  P1  critical  …dangerous-system-call · Found user-controlled data used in a system call.…
+  P1  critical  python.lang.security.dangerous-system-call.dangerous-system-call
+      Found user-controlled data used in a system call. This could allow a malicious actor to…
       Run the command as an argument list, without a shell
       scanner semgrep oss · fix change the code
       app/app.py:16 · impact high · likelihood high
 
-  P1  high      B605 · Starting a process with a shell, possible injection detected, security…
+  P1  high      B605
+      Starting a process with a shell, possible injection detected, security issue.
       Run the command as an argument list, without a shell
       scanner bandit · fix change the code
       app/app.py:16 · issue_severity high
 
-  P1  high      B602 · subprocess call with shell=True identified, security issue.
+  P1  high      B602
+      subprocess call with shell=True identified, security issue.
       Run the command as an argument list, without a shell
       scanner bandit · fix change the code
       app/app.py:23 · issue_severity high
