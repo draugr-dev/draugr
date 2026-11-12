@@ -1148,6 +1148,12 @@ func findingSummary(msg string) string {
 // bury the report under it, and past three lines a reader wants --log-level trace rather than
 // more of the same in a summary.
 func wrapMessage(msg string, width int) []string {
+	return wrapLines(msg, width, maxMessageLines)
+}
+
+// wrapLines folds a message onto lines of at most width, breaking on spaces, and onto at most
+// maxLines of them, the last cut short; zero is no limit.
+func wrapLines(msg string, width, maxLines int) []string {
 	msg = strings.Join(strings.Fields(strings.ReplaceAll(msg, "\n", " ")), " ")
 	if msg == "" {
 		return nil
@@ -1167,7 +1173,7 @@ func wrapMessage(msg string, width int) []string {
 		}
 		lines = append(lines, strings.TrimSpace(msg[:cut]))
 		msg = strings.TrimSpace(msg[cut:])
-		if len(lines) == maxMessageLines-1 {
+		if maxLines > 0 && len(lines) == maxLines-1 {
 			break
 		}
 	}
@@ -1418,14 +1424,26 @@ func writeMeasuredRows(w io.Writer, col tui.Painter, lines []provenanceLine, wid
 	}
 }
 
+// minWrapWidth is the narrowest a control's sentence is wrapped to, however narrow the terminal.
+const minWrapWidth = 20
+
 // writeUnder prints a control's row and wraps what it has to say under itself.
 //
 // Wrapped rather than left to run off the edge. These carry a sentence explaining what a scanner
 // covered or could not, and the half a reader acts on is the end of it: a line that leaves the
 // screen has taken away the reason and kept the name. The same treatment a control's errors get,
 // and for the same reason.
+//
+// The sentence wraps within the terminal, counting the control's column and the gutters in front of
+// it, and within messageWidth where the terminal is wider or there is none. However many lines that
+// takes: these are Draugr's own sentences rather than a scanner's output, so none runs to a usage
+// screen, and a narrow terminal would otherwise cut off the end a wide one shows.
 func writeUnder(w io.Writer, col tui.Painter, width int, control, text string) {
-	for i, line := range wrapMessage(text, messageWidth-width-4) {
+	room := messageWidth
+	if cols := tui.Columns(w); cols > 0 {
+		room = min(room, cols)
+	}
+	for i, line := range wrapLines(text, max(room-width-4, minWrapWidth), 0) {
 		name := fmt.Sprintf("%-*s", width, control)
 		if i > 0 {
 			name = strings.Repeat(" ", width)
