@@ -897,21 +897,21 @@ func managedServicesFinding(platform, location string) (sarif.Result, sarif.Rule
 		return sarif.Result{}, sarif.Rule{}, false
 	}
 	return sarif.Result{
-			Tool:   draugrK8sPoliciesScannerName,
-			RuleID: managedServicesRuleID,
-			Level:  sarif.LevelWarning,
-			Message: fmt.Sprintf(
-				"The %s benchmark has a Managed Services section of %d checks, the parts of the "+
-					"cluster your provider controls, not the cluster itself. Draugr does not "+
-					"evaluate it; review those checks against the benchmark.",
-				section.Benchmark, section.Checks),
-			Location: sarif.Location{URI: location},
-		}, sarif.Rule{
-			Name:             "Managed Services (not evaluated)",
-			ShortDescription: "The provider-controlled section of the benchmark is not assessed by Draugr.",
-			FullDescription: "Covers image registry scanning, IAM, key management, node metadata, " +
-				"cluster networking, logging and storage as the provider exposes them. Reading it " +
-				"needs the cloud provider's own API rather than the Kubernetes one.",
-			HelpURI: "https://www.cisecurity.org/benchmark/kubernetes",
-		}, true
+		Tool:   draugrK8sPoliciesScannerName,
+		RuleID: managedServicesRuleID,
+		Level:  sarif.LevelWarning,
+		Message: fmt.Sprintf(
+			"The %s benchmark has a Managed Services section of %d checks, the parts of the "+
+				"cluster your provider controls, not the cluster itself. Draugr does not "+
+				"evaluate it; review those checks against the benchmark.",
+			section.Benchmark, section.Checks),
+		Location: sarif.Location{URI: location},
+	}, sarif.Rule{
+		Name:             "Managed Services (not evaluated)",
+		ShortDescription: "The provider-controlled section of the benchmark is not assessed by Draugr.",
+		FullDescription: "Covers image registry scanning, IAM, key management, node metadata, " +
+			"cluster networking, logging and storage as the provider exposes them. Reading it " +
+			"needs the cloud provider's own API rather than the Kubernetes one.",
+		HelpURI: "https://www.cisecurity.org/benchmark/kubernetes",
+	}, true
 }

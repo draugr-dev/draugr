@@ -40,7 +40,7 @@ func TestCISCatalogMatchesKubeBench(t *testing.T) {
 	}
 
 	path := filepath.Join(cfgDir, cisCatalogBenchmark, "policies.yaml")
-	raw, err := os.ReadFile(filepath.Clean(path))
+	raw, err := os.ReadFile(filepath.Clean(path)) // #nosec G304 G703 -- the kube-bench cfg/ directory the person running the test named
 	if err != nil {
 		t.Fatalf("read %s: %v\n%s points at %q; it should be the cfg/ directory that ships with kube-bench",
 			path, err, kubeBenchCfgEnv, cfgDir)
@@ -139,7 +139,7 @@ func TestManagedServicesCountsMatchKubeBench(t *testing.T) {
 
 	for platform, section := range managedServicesByPlatform {
 		path := filepath.Join(cfgDir, section.Benchmark, "managedservices.yaml")
-		raw, err := os.ReadFile(filepath.Clean(path))
+		raw, err := os.ReadFile(filepath.Clean(path)) // #nosec G304 G703 -- the kube-bench cfg/ directory the person running the test named
 		if err != nil {
 			t.Errorf("%s: read %s: %v", platform, path, err)
 			continue

@@ -51,7 +51,7 @@ on:
 env:
   TAG: ${{ inputs.tag }}
   # The patch ci.yml pins, for the reason given there.
-  GO_VERSION: "1.26.11"
+  GO_VERSION: "1.27.4"
 
 permissions:
   contents: read

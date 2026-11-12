@@ -65,7 +65,9 @@ func TestCancelingAToolEndsTheProcessesItStarted(t *testing.T) {
 	canceled := time.Now()
 	cancel()
 	select {
-	case <-done:
+	case err := <-done:
+		// A canceled run returns the context's error. The test is about how long it took to.
+		_ = err
 	case <-time.After(pipeWait + 5*time.Second):
 		t.Fatal("a canceled run is still waiting on its tool")
 	}

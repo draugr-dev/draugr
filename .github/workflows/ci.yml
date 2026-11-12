@@ -27,7 +27,7 @@ env:
   # patch release, and setup-go's version manifest lags go.dev by a day or two, so the floating
   # minor resolves to yesterday's patch and every pull request goes red for something no pull
   # request did. Bump this when govulncheck names a newer one.
-  GO_VERSION: "1.26.11"
+  GO_VERSION: "1.27.4"
 
 jobs:
   # Does this change touch anything that Go tooling could have an opinion about?
@@ -175,7 +175,7 @@ jobs:
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         if: needs.changes.outputs.code == 'true'
         with:
-          version: v2.12.2
+          version: v2.15.0
           skip-cache: true
 
   govulncheck:

@@ -116,8 +116,8 @@ var nucleiIntOptions = []nucleiIntOption{
 
 // nucleiTimeoutRange is what timeout accepts. Nuclei takes whole seconds.
 const (
-	nucleiTimeoutMin = time.Second
-	nucleiTimeoutMax = 10 * time.Minute
+	nucleiTimeoutFloor = time.Second
+	nucleiTimeoutMax   = 10 * time.Minute
 )
 
 // nucleiOptionArgs turns a job's nuclei block into flags, and refuses a block Nuclei would run
@@ -193,7 +193,7 @@ func nucleiOptionArgs(cfg plugin.Config) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("nuclei: timeout: %q is not a duration such as 30s", raw)
 		}
-		if d < nucleiTimeoutMin || d > nucleiTimeoutMax || d%time.Second != 0 {
+		if d < nucleiTimeoutFloor || d > nucleiTimeoutMax || d%time.Second != 0 {
 			return nil, fmt.Errorf("nuclei: timeout: %s is not a whole number of seconds from 1s to 10m", raw)
 		}
 		args = append(args, "-timeout", strconv.Itoa(int(d/time.Second)))
