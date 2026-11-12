@@ -76,8 +76,12 @@ echo "▶ self-scan (sast)"
 # installed Draugr is whatever release somebody last downloaded, the one on this machine is nine
 # versions behind and does not have the flag below. Checking HEAD with an old binary would answer
 # a question nobody asked.
+#
+# A scanner counts where Draugr finds it: on PATH, or in ~/.draugr/bin, where `draugr tools install`
+# puts it and which need not be on PATH.
+has_sast_tool() { command -v "$1" >/dev/null 2>&1 || [ -x "$HOME/.draugr/bin/$1" ]; }
 if [ -x bin/draugr ]; then
-	if command -v semgrep >/dev/null 2>&1 || command -v gosec >/dev/null 2>&1; then
+	if has_sast_tool semgrep || has_sast_tool gosec; then
 		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips
 	else
 		echo "  no sast scanner found, skipping (pipx install semgrep, or draugr tools install gosec)"

@@ -48,7 +48,7 @@ fmt: ## Format all Go sources
 tidy: ## Tidy module dependencies
 	go mod tidy
 
-gate: ## Run the full local quality gate (fmt, vet, lint, race tests, vulncheck)
+gate: build ## Run the full local quality gate (fmt, vet, lint, race tests, vulncheck)
 	./scripts/gate.sh
 
 examples: build ## Print real scan output from the demo sandbox, to refresh the examples in README/docs
