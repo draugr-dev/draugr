@@ -25,6 +25,13 @@ signature, key and order, whether or not it verifies. A SHA-1 intermediate is re
 signature on that intermediate rather than only as an untrusted chain, and a certificate whose key
 Go refuses to use is reported as a weak key rather than as a failed connection.
 
+Go refuses to check an MD5 or SHA-1 signature, and its verifier then calls the chain untrusted. When
+that refusal is its reason, the weak signature is reported and `tls-cert-untrusted` is not, since
+the fix is a new signature rather than a CA. A server with an MD5 or SHA-1 leaf can also refuse a
+current client's TLS 1.2 handshake while speaking TLS 1.2 to others, because the client offers no
+signature scheme for that certificate; the signature finding then says so, in place of
+`tls-modern-unsupported`.
+
 | Rule | Level | What it means |
 |------|-------|---------------|
 | `tls-cert-expired` | error (9.0) | The certificate has expired (or isn't yet valid). Clients will refuse to connect. |

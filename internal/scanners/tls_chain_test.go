@@ -170,3 +170,64 @@ func TestARealServerWithAnUntrustedCertificateHasItsProtocolsTested(t *testing.T
 		t.Errorf("the certificate names localhost: %v", ruleIDs(rep))
 	}
 }
+
+// A chain to a trusted root whose leaf is signed with SHA-1 fails Go's verifier only because Go
+// refuses the algorithm. The finding is the weak signature, by name, and not an untrusted chain,
+// which would send the reader looking for a missing CA. A SHA-1 leaf from a root nobody trusts is
+// still untrusted.
+func TestARefusedAlgorithmIsTheSignatureFindingNotAnUntrustedChain(t *testing.T) {
+	root, rootKey := issue(t, 1, "Test Root", nil, x509.SHA256WithRSA, true, nil, nil)
+	leaf, _ := issue(t, 2, "www.example.test", []string{"www.example.test"}, x509.SHA1WithRSA, false, root, rootKey)
+	trusted := x509.NewCertPool()
+	trusted.AddCert(root)
+	other, _ := issue(t, 3, "Other Root", nil, x509.SHA256WithRSA, true, nil, nil)
+	elsewhere := x509.NewCertPool()
+	elsewhere.AddCert(other)
+
+	for name, tc := range map[string]struct {
+		roots         *x509.CertPool
+		wantUntrusted bool
+	}{
+		"trusted root": {trusted, false},
+		"no root":      {elsewhere, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := newTestScanner(probeFunc(tls.ConnectionState{PeerCertificates: []*x509.Certificate{leaf}}, tls.VersionTLS13))
+			s.verify = func(c []*x509.Certificate, now time.Time) error { return verifyChainAgainst(c, now, tc.roots) }
+			rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://www.example.test"}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !hasRule(rep, "tls-weak-cert-signature") || hasRule(rep, "tls-cert-untrusted") != tc.wantUntrusted {
+				t.Errorf("got %v, want the weak signature, and untrusted %v", ruleIDs(rep), tc.wantUntrusted)
+			}
+		})
+	}
+}
+
+// A server that refuses the TLS 1.2+ handshake and accepts TLS 1.0, with an MD5- or SHA-1-signed
+// leaf (SHA-1 here, since Go will not sign with MD5), may
+// speak TLS 1.2 to a client that offers a signature scheme for that certificate. The refusal is
+// told on the signature finding, and the server is not reported as stuck on old versions.
+func TestARefusalAWeakLeafExplainsIsNotReportedAsOldVersionsOnly(t *testing.T) {
+	weakLeaf := makeCert(t, testNow.Add(90*24*time.Hour), x509.SHA1WithRSA, rsaKey(t, 2048))
+	state := tls.ConnectionState{PeerCertificates: []*x509.Certificate{weakLeaf}}
+	s := newTestScanner(func(_ context.Context, _, _ string, minVer, _ uint16) (tls.ConnectionState, error) {
+		if minVer <= tls.VersionTLS11 {
+			return state, nil
+		}
+		return tls.ConnectionState{}, refusal()
+	})
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://md5.example.test"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasRule(rep, "tls-modern-unsupported") || !hasRule(rep, "tls-deprecated-protocol") {
+		t.Fatalf("got %v, want TLS 1.0 and 1.1 reported and no claim the server lacks TLS 1.2", ruleIDs(rep))
+	}
+	for _, r := range rep.Results {
+		if r.RuleID == "tls-weak-cert-signature" && !strings.Contains(r.Message, "TLS 1.2 handshake with this server failed") {
+			t.Errorf("the signature finding should say the refusal is likely its doing: %q", r.Message)
+		}
+	}
+}

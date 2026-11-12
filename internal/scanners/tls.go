@@ -165,9 +165,21 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			chain = state.PeerCertificates
 		}
 	}
+	// modernRefusedOnSignature is set when the TLS 1.2+ handshake was refused and the leaf is signed
+	// with MD5 or SHA-1. A server that speaks TLS 1.2 refuses a client offering no signature scheme
+	// for that certificate, so the refusal says more about the certificate than about the versions.
+	modernRefusedOnSignature := false
 	report := func(results []sarif.Result) sarif.Report {
-		results = append(s.chainFindings(host.URL, serverName, chain, cfg), results...)
-		return sarif.Report{Tool: s.info.Name, Results: results}
+		chainResults := s.chainFindings(host.URL, serverName, chain, cfg)
+		if modernRefusedOnSignature {
+			for i, r := range chainResults {
+				if r.RuleID == "tls-weak-cert-signature" && strings.HasPrefix(r.Message, "Certificate is signed") {
+					chainResults[i].Message += " A current client's TLS 1.2 handshake with this server failed, " +
+						"and this signature is the likely cause."
+				}
+			}
+		}
+		return sarif.Report{Tool: s.info.Name, Results: append(chainResults, results...)}
 	}
 
 	// Baseline handshake at modern versions: establishes that TLS works at all.
@@ -199,16 +211,20 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 			}
 			return sarif.Report{}, fmt.Errorf("draugr-tls: connect %s: %w", addr, err)
 		}
-		results = append(results, sarif.Result{
-			Tool:     s.info.Name,
-			RuleID:   "tls-modern-unsupported",
-			Level:    sarif.LevelError,
-			Score:    8.5,
-			HasScore: true,
-			Message: "Server refused a TLS 1.2 or newer handshake from a current client and accepted a " +
-				"deprecated version. Traffic is protected by protocols with known attacks; enable TLS 1.2+ urgently.",
-			Location: sarif.Location{URI: host.URL},
-		})
+		if chain != nil && weakSignature(chain[0].SignatureAlgorithm) {
+			modernRefusedOnSignature = true
+		} else {
+			results = append(results, sarif.Result{
+				Tool:     s.info.Name,
+				RuleID:   "tls-modern-unsupported",
+				Level:    sarif.LevelError,
+				Score:    8.5,
+				HasScore: true,
+				Message: "Server refused a TLS 1.2 or newer handshake from a current client and accepted a " +
+					"deprecated version. Traffic is protected by protocols with known attacks; enable TLS 1.2+ urgently.",
+				Location: sarif.Location{URI: host.URL},
+			})
+		}
 	}
 
 	// Deprecated protocol versions: a successful handshake pinned to TLS 1.0/1.1 means the
@@ -269,6 +285,11 @@ func (s draugrTLSScanner) chainFindings(uri, serverName string, chain []*x509.Ce
 		// certificateFindings below reports an expired leaf with its date, so the verifier's word
 		// for the same fact is not repeated.
 		reportedBelow := errors.As(err, &invalid) && invalid.Reason == x509.Expired && !leaf.NotAfter.After(now)
+		// Go refuses to check an MD5 or SHA-1 signature and then calls the chain untrusted, with the
+		// refused algorithm as the reason. The weak signature is reported below, by name, and is the
+		// fix; an untrusted finding beside it would send the reader looking for a missing CA.
+		var unknown x509.UnknownAuthorityError
+		reportedBelow = reportedBelow || (errors.As(err, &unknown) && strings.Contains(err.Error(), "insecure algorithm"))
 		if !reportedBelow {
 			if res, ok := certHandshakeFinding(uri, err); ok {
 				out = append(out, res)
@@ -337,11 +358,16 @@ func certName(c *x509.Certificate) string {
 // offered as intermediates. The host name is matched apart, so a chain that is both untrusted and
 // for another name is reported as both.
 func verifyChain(chain []*x509.Certificate, now time.Time) error {
+	return verifyChainAgainst(chain, now, nil)
+}
+
+// verifyChainAgainst is verifyChain with the roots given; nil is the system's.
+func verifyChainAgainst(chain []*x509.Certificate, now time.Time, roots *x509.CertPool) error {
 	intermediates := x509.NewCertPool()
 	for _, c := range chain[1:] {
 		intermediates.AddCert(c)
 	}
-	_, err := chain[0].Verify(x509.VerifyOptions{Intermediates: intermediates, CurrentTime: now})
+	_, err := chain[0].Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates, CurrentTime: now})
 	return err
 }
 
