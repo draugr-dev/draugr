@@ -69,6 +69,14 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 	// not explain it.
 	rule := shortRuleID(f.ruleID)
 	line += col.Link(f.helpURI, rule)
+	if who, expected, ok := unexpectedSigner(f); ok {
+		// The signer the descriptor expected is short and goes whole on the title line; the identity
+		// that signed the image is long and takes the line beneath, where the reader compares it with
+		// the signer they declared.
+		_, _ = fmt.Fprintln(w, line+col.Paint(cDim, " · ")+"not "+expected)
+		_, _ = fmt.Fprintln(w, "      "+signingIdentity(col, who, width-blockIndent))
+		return
+	}
 	title := findingTitle(f)
 	room := min(width-blockGutter-utf8.RuneCountInString(rule)-len(" · "), messageWidth)
 	// A sentence about the resource that is also the message, Prowler's, takes the line beneath
@@ -206,4 +214,43 @@ func padPainted(painted, plain string, width int) string {
 		return painted + strings.Repeat(" ", n)
 	}
 	return painted + " "
+}
+
+// unexpectedSigner reads a provenance-unexpected-identity finding's message, `Signed by <identity>,
+// not <signer>.` as the cosign scanner writes it, back into the identity and the signer. False for
+// any other finding, and for a message in another form, which keeps its row as it was. The message
+// itself is unchanged, because it is part of the finding's identity across runs.
+func unexpectedSigner(f finding) (who, expected string, ok bool) {
+	if f.ruleID != "provenance-unexpected-identity" {
+		return "", "", false
+	}
+	rest, found := strings.CutPrefix(f.message, "Signed by ")
+	if !found {
+		return "", "", false
+	}
+	i := strings.LastIndex(rest, ", not ")
+	if i < 0 {
+		return "", "", false
+	}
+	return rest[:i], strings.TrimSuffix(rest[i+len(", not "):], "."), true
+}
+
+// signingIdentity is a signing identity in width columns, under the keys a descriptor's GitHub signer
+// takes: `repository … · workflow … · ref …`, in the descriptor's own values where they fit, so each
+// can be pasted into the signer, and with the workflow's file name and the ref's short name where they
+// do not. An identity that is not a GitHub workflow's is printed as it is, cut at the end.
+func signingIdentity(col tui.Painter, who string, width int) string {
+	repo, rest, ok := strings.Cut(who, "/.github/workflows/")
+	file, ref, hasRef := strings.Cut(rest, "@")
+	if !ok || !hasRef || repo == "" || file == "" {
+		return col.Paint(cDim, "signed by") + " " + elide(who, width-len("signed by "))
+	}
+	sep := col.Paint(cDim, " · ")
+	key := func(k string) string { return col.Paint(cDim, k) + " " }
+	workflow, short := ".github/workflows/"+file, ref
+	if utf8.RuneCountInString("repository "+repo+" · workflow "+workflow+" · ref "+ref) > width {
+		workflow = file
+		short = strings.TrimPrefix(strings.TrimPrefix(ref, "refs/heads/"), "refs/tags/")
+	}
+	return key("repository") + repo + sep + key("workflow") + workflow + sep + key("ref") + short
 }

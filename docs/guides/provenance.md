@@ -270,10 +270,20 @@ works wherever the registry is reachable.
 ## What a failure looks like
 
 An image signed by a workload no signer names reports `provenance-unexpected-identity`, at
-critical severity. Its message leads with the identity found and closes with the one expected,
-because that is the comparison a reader is making and the console gives a message 96 characters:
+critical severity. Its message names the identity found and the signer expected, as the reports
+and `results.sarif` carry it:
 
     Signed by acme-forks/payments/.github/workflows/release.yml@refs/heads/main, not our-ci.
+
+The console's row puts the expected signer on the title line and the identity beneath it, under
+the keys a GitHub signer takes, so each value can be compared with the signer, and pasted into it:
+
+    P1  critical  provenance-unexpected-identity · not our-ci
+        repository acme-forks/payments · workflow .github/workflows/release.yml · ref refs/heads/main
+
+Where the line has no room for that, at 80 columns, it gives the workflow's file name and the
+branch alone, `workflow release.yml · ref main`. An identity that is not a GitHub workflow's is
+printed as it is.
 
 An image a signer covers and that carries no signature at all reports `provenance-unsigned`.
 
