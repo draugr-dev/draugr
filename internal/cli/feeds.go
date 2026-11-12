@@ -136,8 +136,8 @@ func newFeedsStatusCommand() *cobra.Command {
 			"A copy is stale once it is older than 24h, or than config.exploitability.maxAge in\n" +
 			"the descriptor --saga names.\n\n" +
 			"EPSS is republished daily. A stale KEV or EPSS copy still scans and ranks findings on\n" +
-			"old data. A stale govulndb copy is not read. govulncheck queries vuln.go.dev instead,\n" +
-			"and with --offline the control reports an error.",
+			"old data. A scan fetches a stale govulndb copy again before it runs. When that fails,\n" +
+			"govulncheck queries vuln.go.dev instead, and with --offline the control reports an error.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, err := feeds.Dir()
@@ -261,7 +261,8 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 		_, _ = fmt.Fprintf(out, "\n%s %s not cached. Run `draugr feeds update %s`.\n",
 			joinNames(missing), english.Choose(len(missing), "is", "are"), argNames(missing))
 	}
-	// A stale exploitability feed is still read; a stale Go vulnerability database is not, so the
+	// A stale exploitability feed is still read; a stale Go vulnerability database is fetched again or
+	// not read at all, so the
 	// two get different consequences rather than one sentence that is wrong for one of them.
 	var staleRanked []feeds.Name
 	staleGo := false
@@ -277,8 +278,8 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 			"Refresh with `draugr feeds update`.\n", joinNames(staleRanked), feeds.HumanAge(limit.maxAge))
 	}
 	if staleGo {
-		_, _ = fmt.Fprintf(out, "\ngovulndb older than %s. A scan does not read it. govulncheck queries vuln.go.dev instead, "+
-			"and with --offline the control reports an error. Refresh with `draugr feeds update govulndb`.\n",
+		_, _ = fmt.Fprintf(out, "\ngovulndb older than %s. A scan fetches it again before it runs, and govulncheck queries "+
+			"vuln.go.dev if that fails; with --offline the control reports an error. Refresh with `draugr feeds update govulndb`.\n",
 			feeds.HumanAge(limit.maxAge))
 	}
 	_, _ = fmt.Fprintf(out, "\n%s\n", limit.line())

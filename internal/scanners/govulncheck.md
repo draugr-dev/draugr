@@ -248,13 +248,16 @@ three checks, and refuses it otherwise:
 | `index/modules.json` | missing, unreadable, or listing no modules |
 
 The checks exist because govulncheck reports "No vulnerabilities found" and exits 0 against an
-empty or unreadable database. A refused copy is never read:
+empty or unreadable database. A refused copy is never read. Online, the scan fetches it again before
+the jobs start, the way it refreshes Trivy's and Grype's databases, so the module paths a module
+depends on stay on the machine. A machine with no copy is not given one; it queries `vuln.go.dev`
+as before.
 
-| Network | Refused or missing copy |
-|---|---|
-| online | govulncheck queries `vuln.go.dev`, and the scan warns with the reason |
-| `--offline` | the control reports an error naming the failed check |
+| Network | Refused copy | No copy |
+|---|---|---|
+| online | fetched again and read; when the fetch fails, govulncheck queries `vuln.go.dev` and the scan warns with the reason and the failed fetch | govulncheck queries `vuln.go.dev` |
+| `--offline` | the control reports an error naming the failed check | the control reports an error |
 
 The database the run read is recorded under `database` in the evidence: `local copy, fetched
-<date>`, `vuln.go.dev`, or `vuln.go.dev` with the reason a local copy was refused. The cache key
+<date>`, `vuln.go.dev`, or `vuln.go.dev` with the reason a local copy was refused and why fetching it again failed. The cache key
 carries the database's own `modified` date, so refreshing the copy invalidates cached results.

@@ -25,6 +25,8 @@ func TestMain(m *testing.M) {
 	// Nor the developer's own govulncheck: the Go it was built with would decide which test modules
 	// a scan refuses. A test that is about that names a build Go itself.
 	govulncheckBuildGo = func() string { return "" }
+	// Nor fetch the Go vulnerability database: a test about the refresh supplies its own fetch.
+	fetchGoVulnDB = func(context.Context) error { return errors.New("no test fetches the Go vulnerability database") }
 	// Nor the developer's own Trivy: its version is kept for the process, so one test asking would
 	// set the flags every later test builds, and the outcome would depend on what is on PATH and on
 	// the order tests ran in. A test about a version sets its own.
@@ -255,5 +257,91 @@ func TestGovulncheckCacheVersionReadsTheLocalCopy(t *testing.T) {
 	}
 	if p := localGovulncheckVersion("file:///elsewhere"); p == localVersionProbes[url] || dbArg(p.argv) != "file:///elsewhere" {
 		t.Errorf("a second database shared the first one's probe: %v", p.argv)
+	}
+}
+
+// useFetch makes fetch the refresh's download for one test.
+func useFetch(t *testing.T, fetch func(context.Context) error) {
+	t.Helper()
+	orig := fetchGoVulnDB
+	fetchGoVulnDB = fetch
+	t.Cleanup(func() { fetchGoVulnDB = orig })
+}
+
+var errStaleCopy = errors.New("local Go vulnerability database fetched 2026-09-20 08:00 UTC, older than 24h")
+
+// A stale local copy is fetched again before the jobs start, so govulncheck reads it on this machine
+// rather than sending the module's dependencies to vuln.go.dev.
+func TestGovulncheckRefreshesAStaleCopyBeforeTheRun(t *testing.T) {
+	refreshed := false
+	useGoVulnDB(t, func(now time.Time, maxAge time.Duration) (feeds.LocalGoVulnDB, error) {
+		if !refreshed {
+			return feeds.LocalGoVulnDB{}, errStaleCopy
+		}
+		return localCopy(now, maxAge)
+	})
+	useFetch(t, func(context.Context) error { refreshed = true; return nil })
+
+	if err := NewGovulncheck().(plugin.Prewarmer).Prewarm(context.Background()); err != nil {
+		t.Fatalf("Prewarm: %v", err)
+	}
+	if !refreshed {
+		t.Fatal("a stale copy was not fetched again")
+	}
+	if got := dbArg(govulncheckArgs(goModule(t), nil, plugin.Config{})[0]); got != "file:///cache/govulndb" {
+		t.Errorf("-db %q after the refresh, want the local copy", got)
+	}
+	if got := resolveGovulnDB().describe(); !strings.HasPrefix(got, "local copy") {
+		t.Errorf("describe = %q, want the local copy", got)
+	}
+}
+
+// A refresh that fails leaves the stale copy unread: the run falls back to vuln.go.dev, the
+// report says why, and the data refresh is recorded as failed.
+func TestGovulncheckNamesAFailedRefresh(t *testing.T) {
+	useGoVulnDB(t, func(time.Time, time.Duration) (feeds.LocalGoVulnDB, error) {
+		return feeds.LocalGoVulnDB{}, errStaleCopy
+	})
+	useFetch(t, func(context.Context) error { return errors.New("unexpected status 503 Service Unavailable") })
+
+	err := NewGovulncheck().(plugin.Prewarmer).Prewarm(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "503") {
+		t.Fatalf("Prewarm err = %v, want the failed fetch", err)
+	}
+	if got := dbArg(govulncheckArgs(goModule(t), nil, plugin.Config{})[0]); got != "" {
+		t.Errorf("-db %q, want no local copy after a failed refresh", got)
+	}
+	if err := govulncheckPreflight(context.Background()); err != nil {
+		t.Errorf("online, a failed refresh should fall back to vuln.go.dev: %v", err)
+	}
+	want := "vuln.go.dev (" + errStaleCopy.Error() + "; refreshing it failed: unexpected status 503 Service Unavailable)"
+	if got := resolveGovulnDB().describe(); got != want {
+		t.Errorf("describe = %q\nwant       %q", got, want)
+	}
+}
+
+// Nothing is fetched for a copy that is current, for a machine that never fetched one, or offline.
+func TestGovulncheckRefreshFetchesOnlyAStaleCopyOnline(t *testing.T) {
+	for name, tc := range map[string]struct {
+		find    func(time.Time, time.Duration) (feeds.LocalGoVulnDB, error)
+		offline bool
+	}{
+		"current copy":       {find: localCopy},
+		"no copy":            {find: noCopy},
+		"stale copy offline": {find: refusedCopy, offline: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if tc.offline {
+				offline(t)
+			}
+			useGoVulnDB(t, tc.find)
+			useFetch(t, func(context.Context) error {
+				t.Error("fetched the Go vulnerability database")
+				return nil
+			})
+			if err := refreshGovulnDB(context.Background()); err != nil {
+				t.Errorf("refresh: %v", err)
+			}
+		})
 	}
 }

@@ -108,7 +108,7 @@ func TestFeedsStatus(t *testing.T) {
 	buf.Reset()
 	feedsStatus(&buf, dir, now, defaultFeedLimit())
 	got = buf.String()
-	if !strings.Contains(got, "govulndb older than") || !strings.Contains(got, "A scan does not read it") {
+	if !strings.Contains(got, "govulndb older than") || !strings.Contains(got, "A scan fetches it again before it runs") {
 		t.Errorf("a stale Go database should be named as unread:\n%s", got)
 	}
 	if strings.Contains(got, "govulndb older than 1 day. A scan uses it") || strings.Contains(got, "and govulndb older") {
