@@ -25,3 +25,5 @@ FIX FIRST  top 6 of 10, by priority
 
 … and 4 findings not listed.
 
+TRY
+  --report json,sarif,html -o .draugr/out  every finding in one searchable page

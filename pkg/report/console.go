@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -1980,7 +1981,17 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		_, _ = fmt.Fprintf(w, "%s\n", heading(col, "Evidence"))
 		writeEvidence(w, col, d, "  ")
 	}
+	writeReports(w, col, d)
 	if dense(d) {
+		// The dense view leaves out what describes the run and keeps the one row that says where the
+		// rest of it is: a compact list of the first few findings is the view most likely to have
+		// left most of them out.
+		if wantsReport(s, d, listed) {
+			t := tui.NewTable(col).Indent("  ")
+			t.Row(tui.Styled(cDim, htmlReportFlags(d)), tui.Styled(cDim, reportRowSays))
+			_, _ = fmt.Fprintln(w, heading(col, "Try"))
+			t.Render(w)
+		}
 		return
 	}
 	// "Try", because none of it is required and a heading that reads as instructions puts a reader
@@ -2009,10 +2020,11 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		}
 	}
 	// Decided here rather than among the caller's tips, because only the renderer knows which
-	// blocks it cut, and kept under --no-tips with the other rows that describe this report. Not
-	// offered where the run already writes an HTML report, which holds every row.
-	if cutShort(d, listed) && !slices.Contains(d.Reports, "html") {
-		row(htmlReportFlags(d), "every row the console cut, in one searchable page")
+	// blocks it cut, and kept under --no-tips with the other rows that describe this report. Offered
+	// where the console left findings out or listed all of them, and not where the run already
+	// writes an HTML report, which holds every row.
+	if wantsReport(s, d, listed) {
+		row(htmlReportFlags(d), reportRowSays)
 	}
 	// A caveat row standing for several files names none of them; the evidence lists each.
 	if c, ok := foldedCaveat(d); ok && !d.Evidence {
@@ -2034,10 +2046,13 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		if len(s.findings) > 0 {
 			// explain reads the run's report, so a run that wrote none says what it needs; offered
 			// bare, the next command the reader types fails with "no scan report here".
-			if d.ReportsDir == "" {
-				row("draugr explain <rule>", "what a rule means and how to fix it, from a run with -o <dir>")
-			} else {
+			switch {
+			case d.ReportsDir == "":
+				row("draugr explain <rule>", "what a rule means and how to fix it, from "+defaultReportsDir)
+			case explainFinds(d.ReportsDir):
 				row("draugr explain <rule>", "what a rule means and how to fix it")
+			default:
+				row("draugr explain <rule> -r "+filepath.Join(d.ReportsDir, Filename("sarif")), "what a rule means and how to fix it")
 			}
 		}
 	}
@@ -2057,7 +2072,7 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 // given rather than adding to it.
 func htmlReportFlags(d Data) string {
 	if d.ReportsDir == "" {
-		return "--report html -o <dir>"
+		return "--report " + strings.Join(suggestedReports, ",") + " -o " + defaultReportsDir
 	}
 	return "--report " + strings.Join(append(slices.Clone(d.Reports), "html"), ",")
 }

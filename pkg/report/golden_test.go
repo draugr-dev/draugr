@@ -800,11 +800,16 @@ func pastesARun(fence []string, placeholder *regexp.Regexp) bool {
 // none, and says no more on a run that wrote one: the reader's next command must be one that works.
 func TestTryOffersExplainWithTheReportItReads(t *testing.T) {
 	without := renderConsole(t, goldenFullData())
-	if !strings.Contains(without, "what a rule means and how to fix it, from a run with -o <dir>") {
+	if !strings.Contains(without, "what a rule means and how to fix it, from .draugr/out") {
 		t.Errorf("a run that wrote no report offers explain bare:\n%s", without)
 	}
-	with := renderConsole(t, withReports(goldenFullData(), "out", "json", "sarif"))
-	if !strings.Contains(with, "what a rule means and how to fix it\n") || strings.Contains(with, "from a run with -o") {
-		t.Errorf("a run that wrote a report asks for one:\n%s", with)
+	with := renderConsole(t, withReports(goldenFullData(), ".draugr/out", "json", "sarif"))
+	if !strings.Contains(with, "what a rule means and how to fix it\n") || strings.Contains(with, "from .draugr/out") {
+		t.Errorf("a run that wrote a report where explain looks asks for one:\n%s", with)
+	}
+	// Written somewhere explain does not look, the row names the file to hand it.
+	elsewhere := renderConsole(t, withReports(goldenFullData(), "out", "json", "sarif"))
+	if !strings.Contains(elsewhere, "draugr explain <rule> -r out/results.sarif") {
+		t.Errorf("a run that wrote its report elsewhere offers explain without it:\n%s", elsewhere)
 	}
 }

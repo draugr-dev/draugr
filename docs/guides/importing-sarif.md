@@ -125,11 +125,11 @@ FIX FIRST  top 3 of 21, by priority
 … and 18 findings not listed.
 
 TRY
-  --top 0                 every one of them, not the first three
-  --report html -o <dir>  every row the console cut, in one searchable page
-  --view compact          one line each, to see how much there is
-  --view actions          the same findings as a list of things to do
-  draugr explain <rule>   what a rule means and how to fix it, from a run with -o <dir>
+  --top 0                                  every one of them, not the first three
+  --report json,sarif,html -o .draugr/out  every finding in one searchable page
+  --view compact                           one line each, to see how much there is
+  --view actions                           the same findings as a list of things to do
+  draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out
 ```
 
 This run is [`draugr-demo`](https://github.com/draugr-dev/draugr-demo), whose `api` component

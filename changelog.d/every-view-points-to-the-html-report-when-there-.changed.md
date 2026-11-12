@@ -1,0 +1,1 @@
+- **Every view points to the HTML report when there are more findings than it lists, and a run names the reports it wrote.** `--view compact` and `--top 0` now suggest it too. The suggestion, `--report json,sarif,html -o .draugr/out`, also writes the files `draugr explain` and `--base` read, where `explain` looks for them. Written reports are listed under REPORTS as paths.
