@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -40,6 +41,9 @@ type draugrTLSScanner struct {
 	probeLegacySuites func(ctx context.Context, addr string, serverName string) (tls.ConnectionState, error)
 	// now supplies the current time (certificate expiry math); injected for deterministic tests.
 	now func() time.Time
+	// verify verifies a chain the handshakes received, at a time. verifyChain, against the system's
+	// roots; injected so a test certificate need not be trusted by the machine running it.
+	verify func(chain []*x509.Certificate, now time.Time) error
 }
 
 // Default certificate-expiry windows, in days. A certificate inside errorDays is an error; inside
@@ -122,6 +126,7 @@ func NewTLSProbe() plugin.Scanner {
 		probe:             dialTLS,
 		probeLegacySuites: dialTLSLegacySuites,
 		now:               time.Now,
+		verify:            verifyChain,
 	}
 }
 
@@ -135,6 +140,12 @@ func (s draugrTLSScanner) Info() plugin.ScannerInfo { return s.info }
 func (s draugrTLSScanner) CacheVersion(context.Context) string { return draugrCacheVersion() }
 
 // Scan probes the host's TLS endpoint and reports certificate and protocol findings.
+//
+// The handshakes do not verify the certificate. A client that refuses the chain stops there, and a
+// host whose certificate fails would then never have its protocol versions tested, which is where
+// a certificate problem and an old protocol most often sit together. The first chain any handshake
+// receives is judged on its own instead: verified against the system's roots, matched to the host,
+// and read for its signatures, keys and order, whether or not it verifies.
 func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	host, ok := target.(plugin.HostTarget)
 	if !ok {
@@ -148,59 +159,73 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		return sarif.Report{}, fmt.Errorf("draugr-tls: %w", err)
 	}
 
-	var results []sarif.Result
-
-	// Baseline handshake at modern versions: establishes that TLS works at all and gives us the
-	// certificate chain to inspect.
-	state, err := s.probe(ctx, addr, serverName, tls.VersionTLS12, tls.VersionTLS13)
-	if err != nil {
-		// A failure here can be a genuine finding (expired/untrusted certificate) rather than an
-		// infrastructure error, so classify it instead of aborting the whole scan.
-		if res, ok := certHandshakeFinding(host.URL, err); ok {
-			return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{res}}, nil
+	var chain []*x509.Certificate
+	keep := func(state tls.ConnectionState) {
+		if chain == nil && len(state.PeerCertificates) > 0 {
+			chain = state.PeerCertificates
 		}
+	}
+	// modernRefusedOnSignature is set when the TLS 1.2+ handshake was refused and the leaf is signed
+	// with MD5 or SHA-1. A server that speaks TLS 1.2 refuses a client offering no signature scheme
+	// for that certificate, so the refusal says more about the certificate than about the versions.
+	modernRefusedOnSignature := false
+	report := func(results []sarif.Result) sarif.Report {
+		chainResults := s.chainFindings(host.URL, serverName, chain, cfg)
+		if modernRefusedOnSignature {
+			for i, r := range chainResults {
+				if r.RuleID == "tls-weak-cert-signature" && strings.HasPrefix(r.Message, "Certificate is signed") {
+					chainResults[i].Message += " A current client's TLS 1.2 handshake with this server failed, " +
+						"and this signature is the likely cause."
+				}
+			}
+		}
+		return sarif.Report{Tool: s.info.Name, Results: append(chainResults, results...)}
+	}
+
+	// Baseline handshake at modern versions: establishes that TLS works at all.
+	state, err := s.probe(ctx, addr, serverName, tls.VersionTLS12, tls.VersionTLS13)
+	keep(state)
+	var results []sarif.Result
+	if err != nil {
 		// The server may refuse TLS 1.2+ because it only speaks deprecated versions, the worst case, and
 		// a finding rather than an error. Retry on the legacy range before giving up.
 		legacyState, legacyErr := s.probe(ctx, addr, serverName, tls.VersionTLS10, tls.VersionTLS11)
+		keep(legacyState)
 		if legacyErr != nil {
-			// Each probe's error is read on its own. The first can fail on something that is not
-			// the certificate, such as no signature algorithm in common, while the retry gets as
-			// far as the certificate and fails on it, and then the certificate is the finding.
-			if res, ok := certHandshakeFinding(host.URL, legacyErr); ok {
-				return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{res}}, nil
-			}
 			// A server that answers with a handshake_failure alert was reached and refused every
 			// suite offered, which says something about its ciphers rather than about the network.
-			if !refusedSuites(err) || s.probeLegacySuites == nil {
-				return sarif.Report{}, fmt.Errorf("draugr-tls: connect %s: %w", addr, err)
+			if refusedSuites(err) && s.probeLegacySuites != nil {
+				suiteState, suiteErr := s.probeLegacySuites(ctx, addr, serverName)
+				keep(suiteState)
+				switch {
+				case suiteErr == nil:
+					return report([]sarif.Result{legacyCipherFinding(host.URL, suiteState.CipherSuite)}), nil
+				case refusedSuites(suiteErr) && chain == nil:
+					return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{noSharedCipherFinding(host.URL)}}, nil
+				}
 			}
-			suiteState, suiteErr := s.probeLegacySuites(ctx, addr, serverName)
-			switch {
-			case suiteErr == nil:
-				results = append(results, legacyCipherFinding(host.URL, suiteState.CipherSuite))
-				results = append(results, certificateFindings(host.URL, suiteState, s.now(), thresholdsFrom(cfg))...)
-				return sarif.Report{Tool: s.info.Name, Results: results}, nil
-			case refusedSuites(suiteErr):
-				return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{noSharedCipherFinding(host.URL)}}, nil
-			}
-			if res, ok := certHandshakeFinding(host.URL, suiteErr); ok {
-				return sarif.Report{Tool: s.info.Name, Results: []sarif.Result{res}}, nil
+			// A handshake that received the certificate and then failed, on a key Go refuses to use,
+			// say, has still shown what the server presents. Nothing else completed to be tested.
+			if chain != nil {
+				return report(nil), nil
 			}
 			return sarif.Report{}, fmt.Errorf("draugr-tls: connect %s: %w", addr, err)
 		}
-		results = append(results, sarif.Result{
-			Tool:     s.info.Name,
-			RuleID:   "tls-modern-unsupported",
-			Level:    sarif.LevelError,
-			Score:    8.5,
-			HasScore: true,
-			Message: "Server does not accept TLS 1.2 or newer, only deprecated versions. " +
-				"Traffic is protected by protocols with known attacks; enable TLS 1.2+ urgently.",
-			Location: sarif.Location{URI: host.URL},
-		})
-		state = legacyState
+		if chain != nil && weakSignature(chain[0].SignatureAlgorithm) {
+			modernRefusedOnSignature = true
+		} else {
+			results = append(results, sarif.Result{
+				Tool:     s.info.Name,
+				RuleID:   "tls-modern-unsupported",
+				Level:    sarif.LevelError,
+				Score:    8.5,
+				HasScore: true,
+				Message: "Server refused a TLS 1.2 or newer handshake from a current client and accepted a " +
+					"deprecated version. Traffic is protected by protocols with known attacks; enable TLS 1.2+ urgently.",
+				Location: sarif.Location{URI: host.URL},
+			})
+		}
 	}
-	results = append(results, certificateFindings(host.URL, state, s.now(), thresholdsFrom(cfg))...)
 
 	// Deprecated protocol versions: a successful handshake pinned to TLS 1.0/1.1 means the
 	// server still accepts it.
@@ -241,7 +266,109 @@ func (s draugrTLSScanner) Scan(ctx context.Context, target plugin.Target, cfg pl
 		})
 	}
 
-	return sarif.Report{Tool: s.info.Name, Results: results}, nil
+	return report(results), nil
+}
+
+// chainFindings judges the chain a handshake received, apart from the handshake: whether it
+// verifies, whether it names the host, and what the leaf's and each intermediate's signatures and
+// keys are. Nil for no chain.
+func (s draugrTLSScanner) chainFindings(uri, serverName string, chain []*x509.Certificate, cfg plugin.Config) []sarif.Result {
+	if len(chain) == 0 {
+		return nil
+	}
+	now := s.now()
+	leaf := chain[0]
+	var out []sarif.Result
+
+	if err := s.verify(chain, now); err != nil {
+		var invalid x509.CertificateInvalidError
+		// certificateFindings below reports an expired leaf with its date, so the verifier's word
+		// for the same fact is not repeated.
+		reportedBelow := errors.As(err, &invalid) && invalid.Reason == x509.Expired && !leaf.NotAfter.After(now)
+		// Go refuses to check an MD5 or SHA-1 signature and then calls the chain untrusted, with the
+		// refused algorithm as the reason. The weak signature is reported below, by name, and is the
+		// fix; an untrusted finding beside it would send the reader looking for a missing CA.
+		var unknown x509.UnknownAuthorityError
+		reportedBelow = reportedBelow || (errors.As(err, &unknown) && strings.Contains(err.Error(), "insecure algorithm"))
+		if !reportedBelow {
+			if res, ok := certHandshakeFinding(uri, err); ok {
+				out = append(out, res)
+			}
+		}
+	}
+
+	if len(leaf.DNSNames) == 0 && len(leaf.IPAddresses) == 0 {
+		out = append(out, sarif.Result{
+			Tool: "draugr-tls", RuleID: "tls-cert-no-san", Level: sarif.LevelError,
+			Score: 7.0, HasScore: true,
+			Message: "Certificate names its host only in the Common Name and has no Subject Alternative " +
+				"Name. Current clients ignore the Common Name and reject it; reissue it with the host as a SAN.",
+			Location: sarif.Location{URI: uri},
+		})
+	} else if err := leaf.VerifyHostname(serverName); err != nil {
+		if res, ok := certHandshakeFinding(uri, err); ok {
+			out = append(out, res)
+		}
+	}
+
+	out = append(out, certificateFindings(uri, tls.ConnectionState{PeerCertificates: chain}, now, thresholdsFrom(cfg))...)
+
+	for i, c := range chain[1:] {
+		if bytes.Equal(c.RawIssuer, c.RawSubject) {
+			continue // a root's signature on itself is not what anyone checks
+		}
+		if weakSignature(c.SignatureAlgorithm) {
+			out = append(out, sarif.Result{
+				Tool: "draugr-tls", RuleID: "tls-weak-cert-signature", Level: sarif.LevelError,
+				Score: 7.0, HasScore: true,
+				Message: fmt.Sprintf("Intermediate certificate %d (%s) is signed with %s, which is collision-prone "+
+					"and no longer trusted. Serve an intermediate with an SHA-256 (or stronger) signature.",
+					i+1, certName(c), c.SignatureAlgorithm),
+				Location: sarif.Location{URI: uri},
+			})
+		}
+	}
+
+	for i := 0; i+1 < len(chain); i++ {
+		if !bytes.Equal(chain[i].RawIssuer, chain[i+1].RawSubject) {
+			out = append(out, sarif.Result{
+				Tool: "draugr-tls", RuleID: "tls-cert-chain-order", Level: sarif.LevelWarning,
+				Score: 4.0, HasScore: true,
+				Message: fmt.Sprintf("The server sends its certificate chain out of order: certificate %d (%s) "+
+					"is not issued by the one after it. Browsers reorder it and other clients may fail; "+
+					"serve the leaf first, then each issuer in turn.", i, certName(chain[i])),
+				Location: sarif.Location{URI: uri},
+			})
+			break
+		}
+	}
+	return out
+}
+
+// certName is how a finding names one certificate of a chain: its subject's common name, or the
+// whole subject when it has none.
+func certName(c *x509.Certificate) string {
+	if c.Subject.CommonName != "" {
+		return c.Subject.CommonName
+	}
+	return c.Subject.String()
+}
+
+// verifyChain verifies a chain against the system's roots at now, the leaf first and the rest
+// offered as intermediates. The host name is matched apart, so a chain that is both untrusted and
+// for another name is reported as both.
+func verifyChain(chain []*x509.Certificate, now time.Time) error {
+	return verifyChainAgainst(chain, now, nil)
+}
+
+// verifyChainAgainst is verifyChain with the roots given; nil is the system's.
+func verifyChainAgainst(chain []*x509.Certificate, now time.Time, roots *x509.CertPool) error {
+	intermediates := x509.NewCertPool()
+	for _, c := range chain[1:] {
+		intermediates.AddCert(c)
+	}
+	_, err := chain[0].Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates, CurrentTime: now})
+	return err
 }
 
 // certificateFindings inspects the negotiated peer certificate: expiry window, signature
@@ -472,18 +599,37 @@ func dialTLSLegacySuites(ctx context.Context, addr, serverName string) (tls.Conn
 
 // dialTLSWith is dialTLS offering the given cipher suites, or Go's defaults where suites is nil.
 func dialTLSWith(ctx context.Context, addr, serverName string, minVer, maxVer uint16, suites []uint16) (tls.ConnectionState, error) {
+	// The chain the server sent, kept even when the handshake fails after it: a key Go refuses to
+	// use fails the handshake once the certificate has arrived, and the certificate is the finding.
+	var received []*x509.Certificate
 	d := &tls.Dialer{
 		NetDialer: &net.Dialer{Timeout: 10 * time.Second},
+		// The probe does not verify the chain in the handshake; verifyChain verifies it apart.
+		// nosemgrep: problem-based-packs.insecure-transport.go-stdlib.bypass-tls-verification.bypass-tls-verification
 		Config: &tls.Config{ // MinVersion is set per probe: we must attempt old versions to detect them
 			ServerName:   serverName,
 			MinVersion:   minVer,
 			MaxVersion:   maxVer,
 			CipherSuites: suites, // #nosec G402 -- offering insecure suites is how a server accepting only them is found
+			// Nothing is sent over these connections, and the chain is verified apart, in
+			// chainFindings, so a host whose certificate fails still has its protocols tested.
+			InsecureSkipVerify: true, // #nosec G402 -- a probe, not a client: the chain is verified by verifyChain
+			// Every probe is a full handshake: a resumed session would skip the certificate, and what
+			// a host accepts is the question, not what it accepted last time.
+			SessionTicketsDisabled: true,
+			VerifyPeerCertificate: func(raw [][]byte, _ [][]*x509.Certificate) error {
+				for _, der := range raw {
+					if c, err := x509.ParseCertificate(der); err == nil {
+						received = append(received, c)
+					}
+				}
+				return nil
+			},
 		},
 	}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return tls.ConnectionState{}, err
+		return tls.ConnectionState{PeerCertificates: received}, err
 	}
 	defer func() { _ = conn.Close() }()
 	tlsConn, ok := conn.(*tls.Conn)

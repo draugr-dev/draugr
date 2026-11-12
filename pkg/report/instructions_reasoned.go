@@ -46,6 +46,8 @@ var reasonedInstruction = map[string]string{ // #nosec G101 -- sentences for a r
 	"tls-cert-untrusted":         "Serve the full certificate chain from a trusted authority",
 	"tls-cert-hostname-mismatch": "Reissue the certificate to cover the host's name",
 	"tls-cert-invalid":           "Replace the certificate",
+	"tls-cert-no-san":            "Reissue the certificate with the host's name as a SAN",
+	"tls-cert-chain-order":       "Serve the leaf first, then each issuer in turn",
 	"tls-weak-cert-signature":    "Reissue the certificate with a SHA-256 or stronger signature",
 	"tls-weak-key":               "Reissue the certificate with a stronger key",
 

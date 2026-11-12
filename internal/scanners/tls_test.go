@@ -31,6 +31,7 @@ func makeCert(t *testing.T, notAfter time.Time, sigAlg x509.SignatureAlgorithm, 
 	tmpl := &x509.Certificate{
 		SerialNumber:       big.NewInt(1),
 		Subject:            pkix.Name{CommonName: "example.test"},
+		DNSNames:           []string{"example.test", "*.example.test"},
 		NotBefore:          testNow.Add(-24 * time.Hour),
 		NotAfter:           notAfter,
 		SignatureAlgorithm: sigAlg,
@@ -85,6 +86,9 @@ func newTestScanner(probe func(context.Context, string, string, uint16, uint16) 
 		return tls.ConnectionState{}, errors.New("legacy suites probe not stubbed")
 	}
 	s.now = func() time.Time { return testNow }
+	// A test certificate is trusted by nothing on the machine running it; a test of verification
+	// sets its own.
+	s.verify = func([]*x509.Certificate, time.Time) error { return nil }
 	return s
 }
 
@@ -318,20 +322,24 @@ func TestCertHandshakeFinding(t *testing.T) {
 	}
 }
 
-// The scanner should surface a certificate problem found during the handshake as a finding.
-func TestTLSProbeCertErrorBecomesFinding(t *testing.T) {
-	s := newTestScanner(func(context.Context, string, string, uint16, uint16) (tls.ConnectionState, error) {
-		return tls.ConnectionState{}, x509.UnknownAuthorityError{}
-	})
-	rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://self-signed.test"}, nil)
+// A certificate that does not verify is a finding, and the host's protocols are still tested: the
+// handshakes do not verify, so a failing chain no longer ends the scan.
+func TestTLSProbeCertErrorBecomesFindingAndProtocolsAreStillTested(t *testing.T) {
+	cert := makeCert(t, testNow.Add(90*24*time.Hour), x509.SHA256WithRSA, rsaKey(t, 2048))
+	state := tls.ConnectionState{PeerCertificates: []*x509.Certificate{cert}}
+	s := newTestScanner(probeFunc(state, tls.VersionTLS13, tls.VersionTLS10))
+	s.verify = func([]*x509.Certificate, time.Time) error { return x509.UnknownAuthorityError{} }
+	rep, err := s.Scan(context.Background(), plugin.HostTarget{URL: "https://self-signed.example.test"}, nil)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
-	if len(rep.Results) != 1 || rep.Results[0].RuleID != "tls-cert-untrusted" {
-		t.Fatalf("got %v, want a single tls-cert-untrusted finding", ruleIDs(rep))
+	if !hasRule(rep, "tls-cert-untrusted") || !hasRule(rep, "tls-deprecated-protocol") {
+		t.Fatalf("got %v, want the untrusted certificate and TLS 1.0 both", ruleIDs(rep))
 	}
-	if !strings.Contains(rep.Results[0].Message, "trusted") {
-		t.Errorf("message should explain the problem: %q", rep.Results[0].Message)
+	for _, r := range rep.Results {
+		if r.RuleID == "tls-cert-untrusted" && !strings.Contains(r.Message, "trusted") {
+			t.Errorf("message should explain the problem: %q", r.Message)
+		}
 	}
 }
 
