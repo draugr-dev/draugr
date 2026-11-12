@@ -16,18 +16,27 @@ order: 30
 ## What it does
 
 Opens TLS handshakes against the endpoint and reports what it finds. No external tool, no
-provisioning, and it finishes in seconds:
+provisioning, and it finishes in seconds.
+
+The handshakes do not verify the certificate, so a certificate that fails does not stop the
+protocol versions being tested. The first chain the endpoint sends is judged on its own: verified
+against the machine's trusted roots, matched to the host name, and read for each certificate's
+signature, key and order, whether or not it verifies. A SHA-1 intermediate is reported as a weak
+signature on that intermediate rather than only as an untrusted chain, and a certificate whose key
+Go refuses to use is reported as a weak key rather than as a failed connection.
 
 | Rule | Level | What it means |
 |------|-------|---------------|
 | `tls-cert-expired` | error (9.0) | The certificate has expired (or isn't yet valid). Clients will refuse to connect. |
 | `tls-cert-expiring` | error (7.0) / warning (4.0) | Expires within 14 days / within 30 days. |
 | `tls-cert-untrusted` | error (8.0) | Self-signed, or an incomplete chain to a trusted CA. |
-| `tls-cert-hostname-mismatch` | error (8.0) | The certificate isn't valid for the hostname requested. |
+| `tls-cert-hostname-mismatch` | error (8.0) | The certificate isn't valid for the hostname requested. Reported beside `tls-cert-untrusted` when both hold, since each has its own fix. |
+| `tls-cert-no-san` | error (7.0) | The certificate names its host only in the Common Name, with no Subject Alternative Name. Current clients ignore the Common Name and reject it. |
+| `tls-cert-chain-order` | warning (4.0) | The chain is sent out of order: a certificate is not issued by the one after it. Browsers reorder it; other clients may fail. |
 | `tls-cert-invalid` | error (8.0) | Otherwise rejected during verification. |
-| `tls-weak-cert-signature` | error (7.5) | Signed with a broken hash (MD2/MD5/SHA-1). |
+| `tls-weak-cert-signature` | error (7.5 / 7.0) | The leaf (7.5) or an intermediate (7.0) is signed with a broken hash (MD2/MD5/SHA-1). A root's signature on itself is not checked. |
 | `tls-weak-key` | error (7.0) | RSA below 2048 bits, or an ECDSA curve below P-256. |
-| `tls-modern-unsupported` | error (8.5) | The endpoint refuses TLS 1.2+ and only accepts deprecated versions. |
+| `tls-modern-unsupported` | error (8.5) | The endpoint refuses a TLS 1.2+ handshake from a current client and accepts a deprecated version. |
 | `tls-legacy-cipher-only` | error (8.0 / 7.5 / 7.0 / 6.5) | The endpoint accepts none of the cipher suites a current client offers. The message names the suite it chose from the older ones offered and the problem with it: RC4, 3DES, CBC with a SHA-256 MAC, or RSA key exchange. |
 | `tls-no-shared-cipher` | error (7.0) | The endpoint refuses every cipher suite Draugr can offer, insecure ones included. It likely accepts only others, such as finite-field Diffie-Hellman (DHE), NULL or export suites, or only SSL 3.0. |
 | `tls-deprecated-protocol` | error (7.0 / 6.5) | TLS 1.0 or TLS 1.1 is still accepted (deprecated by RFC 8996). |
