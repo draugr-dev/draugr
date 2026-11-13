@@ -54,12 +54,13 @@
     {
       "component": "jvm-maven",
       "control": "sca",
-      "read": 1,
+      "read": 0,
       "scanners": [
         "trivy-fs"
       ],
       "unread": [
         {
+          "partly": true,
           "path": "pom.xml",
           "reason": "transitive dependencies not resolved, run mvn dependency:resolve",
           "repository": "./jvm-maven"

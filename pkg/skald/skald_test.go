@@ -1015,6 +1015,49 @@ func TestJSONCarriesTheDependencyFilesNoScanRead(t *testing.T) {
 	}
 }
 
+// A file read in part is counted once: listed under unread and marked partly, and left out of read,
+// so read and unread together count the files. The engine counts it as read for the caveats.
+func TestJSONCountsAFileReadInPartOnce(t *testing.T) {
+	run := engine.Result{
+		Controls: map[string]plugin.ControlResult{"licenses": {Report: sarif.Report{}}},
+		Inputs: []engine.InputCoverage{{
+			Component: "native", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 3,
+			Unread: []engine.UnreadInput{
+				{Repository: "native", Path: "Cargo.lock", Reason: "records no license for 1 package", Partly: true},
+				{Repository: "native", Path: "Gemfile.lock", Reason: "records no license for 1 package", Partly: true},
+				{Repository: "native", Path: "pyproject.toml", Reason: "no lockfile"},
+			},
+		}},
+	}
+	verdict := norn.Result{Verdict: norn.Pass, Controls: []norn.ControlOutcome{{Control: "licenses", Verdict: norn.Pass}}}
+	var buf bytes.Buffer
+	if err := RenderJSON(&buf, saga.Release{Version: "1"}, run, verdict, ""); err != nil {
+		t.Fatalf("RenderJSON: %v", err)
+	}
+	var doc struct {
+		DependencyFiles []struct {
+			Read   int
+			Unread []struct {
+				Path   string
+				Partly bool
+			}
+		} `json:"dependencyFiles"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(doc.DependencyFiles) != 1 {
+		t.Fatalf("dependencyFiles = %+v", doc.DependencyFiles)
+	}
+	got := doc.DependencyFiles[0]
+	if got.Read != 1 || len(got.Unread) != 3 || !got.Unread[0].Partly || !got.Unread[1].Partly || got.Unread[2].Partly {
+		t.Errorf("dependencyFiles = %+v, want read 1 and the two files read in part marked partly", got)
+	}
+	if !strings.Contains(buf.String(), `"partly": true`) || strings.Count(buf.String(), `"partly"`) != 2 {
+		t.Errorf("partly should be written for a file read in part only:\n%s", buf.String())
+	}
+}
+
 // Each target's outcome reaches the document with the names a reader filters on, and a run that
 // planned none leaves the key out rather than printing an empty list.
 func TestRenderJSONCarriesTargets(t *testing.T) {

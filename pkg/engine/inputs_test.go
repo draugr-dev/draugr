@@ -205,12 +205,12 @@ func TestInputCoverageListsAFileReadInPart(t *testing.T) {
 	}}
 	want := []InputCoverage{
 		{Component: "api", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1,
-			Unread: []UnreadInput{{Repository: "api", Path: "requirements.txt", Reason: partly}}},
+			Unread: []UnreadInput{{Repository: "api", Path: "requirements.txt", Reason: partly, Partly: true}}},
 		{Component: "worker", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 2,
 			Unread: []UnreadInput{
 				// Read in part by one scanner and not at all by the other: what was read in part
 				// says what was left.
-				{Repository: "worker", Path: "requirements-dev.txt", Reason: "2 requirements not pinned: torch, transformers"},
+				{Repository: "worker", Path: "requirements-dev.txt", Reason: "2 requirements not pinned: torch, transformers", Partly: true},
 				{Repository: "worker", Path: "requirements/test.txt", Reason: "no pinned versions"},
 			},
 			// Trivy read nothing of a file Grype read in part: a record of Trivy's gap.
