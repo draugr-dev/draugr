@@ -561,6 +561,11 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 					break
 				}
 			}
+			// 5.2.7 before the container's own context is required: a container that sets none runs
+			// as root unless its pod says otherwise, and runsAsRoot reads both.
+			if runsAsRoot(pod, &c) {
+				rootUser = append(rootUser, at)
+			}
 			if sc == nil {
 				continue
 			}
@@ -569,9 +574,6 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 			}
 			if sc.AllowPrivilegeEscalation != nil && *sc.AllowPrivilegeEscalation {
 				escalation = append(escalation, at)
-			}
-			if runsAsRoot(pod, &c) {
-				rootUser = append(rootUser, at)
 			}
 			if sc.WindowsOptions != nil && sc.WindowsOptions.HostProcess != nil && *sc.WindowsOptions.HostProcess {
 				hostProcess = append(hostProcess, at)
