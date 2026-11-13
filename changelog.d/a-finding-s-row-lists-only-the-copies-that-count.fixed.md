@@ -1,0 +1,1 @@
+- **A finding's row lists only the copies that count.** When a package is a runtime dependency in one lockfile and a suppressed development dependency in another, the development copy no longer appears as another location of the runtime finding or in its "also found by". It stays under ACCEPTED, which now counts it as a suppressed finding.

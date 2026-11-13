@@ -316,26 +316,64 @@ func (c namedDevPolicy) Info() plugin.ControllerInfo {
 }
 
 // One flaw in one package, a development dependency in one lockfile of a repository and a runtime
-// one in another. The setting sets the development copy aside and the flaw is still counted, under
-// the copy that ships, which is not set aside by the other's suppression.
+// one in another. The setting sets the development copy aside, which does not reach the runtime
+// copy, and the two are counted apart: the runtime row names no copy the setting set aside, and the
+// development copies, found by two scanners, stay one suppressed finding of their own.
 func TestASettingDoesNotReachARuntimeCopyOfTheFlaw(t *testing.T) {
-	dev := devFinding("trivy", "web", "one", "tools/package-lock.json", "CVE-2026-0001", true)
-	dev.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting, Justification: sarif.JustificationDevDependency}
-	dev.Score = 9.8 // the stronger copy, so only the suppression decides which one counts
-	shipped := devFinding("grype", "web", "one", "app/package-lock.json", "CVE-2026-0001", false)
+	setting := func(r sarif.Result) sarif.Result {
+		r.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting, Justification: sarif.JustificationDevDependency}
+		return r
+	}
+	devTrivy := setting(devFinding("trivy", "web", "one", "tools/bun.lock", "CVE-2026-0001", true))
+	devTrivy.Score = 9.8 // the strongest copy, so only the suppression decides which one counts
+	devGrype := setting(devFinding("grype", "web", "one", "tools/bun.lock", "CVE-2026-0001", true))
+	shipped := devFinding("grype", "web", "one", "app/bun.lock", "CVE-2026-0001", false)
 	shipped.Score = 5.0
-	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{dev, shipped}}}}
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{devTrivy, devGrype, shipped}}}}
 
 	groups, extra := applyCorrelation(controls)
 	if groups != 1 || extra != 0 {
 		t.Errorf("groups %d, extra suppressed %d, want 1 and 0", groups, extra)
 	}
 	got := controls["sca"].Report.Results
-	if got[1].Suppressed() {
+	if got[2].Suppressed() {
 		t.Error("the runtime copy took the development copy's suppression")
 	}
-	if got[1].Correlated() || !got[0].Correlated() {
-		t.Errorf("counted under %+v / %+v, want the runtime copy counted and the development one under it",
+	if got[2].Correlation != nil {
+		t.Errorf("the runtime copy is correlated with %+v, want no copy the setting set aside", got[2].Correlation)
+	}
+	if got[0].Correlated() || got[0].Correlation == nil || len(got[0].Correlation.AlsoFoundBy) != 1 ||
+		got[0].Correlation.AlsoFoundBy[0].Tool != "grype" || got[1].Correlation == nil || got[1].Correlation.CountedUnder != "trivy" {
+		t.Errorf("development copies %+v / %+v, want one finding counted under trivy, also found by grype",
 			got[0].Correlation, got[1].Correlation)
+	}
+}
+
+// An exclusion on any copy still excuses the whole flaw, the copies a setting set aside included, and
+// they stay one finding.
+func TestAnExclusionStillExcusesEveryCopyBesideASetting(t *testing.T) {
+	dev := devFinding("trivy", "web", "one", "tools/bun.lock", "CVE-2026-0001", true)
+	dev.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSetting, Justification: sarif.JustificationDevDependency}
+	excluded := devFinding("grype", "web", "one", "app/bun.lock", "CVE-2026-0001", false)
+	excluded.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSaga, Justification: "accepted"}
+	shipped := devFinding("trivy", "web", "one", "app/bun.lock", "CVE-2026-0001", false)
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: []sarif.Result{dev, excluded, shipped}}}}
+
+	groups, extra := applyCorrelation(controls)
+	if groups != 1 || extra != 1 {
+		t.Errorf("groups %d, extra suppressed %d, want 1 and 1", groups, extra)
+	}
+	got := controls["sca"].Report.Results
+	if !got[2].Suppressed() || got[2].Suppression.Origin != sarif.OriginSaga {
+		t.Errorf("the runtime copy: suppression %+v, want the exclusion's", got[2].Suppression)
+	}
+	counted := 0
+	for _, r := range got {
+		if !r.Correlated() {
+			counted++
+		}
+	}
+	if counted != 1 {
+		t.Errorf("%d copies counted, want the flaw counted once", counted)
 	}
 }

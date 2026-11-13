@@ -2879,16 +2879,21 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 // group excuses the whole flaw. A reader who excluded a vulnerability excused the vulnerability,
 // not one tool's report of it, and leaving the other copy counted would be an exclusion that
 // silently stopped working the day a second scanner was added.
+//
+// A setting's suppression is the exception, because it is about one copy rather than the flaw: a
+// development dependency in one lockfile says nothing about the same package shipped from another.
+// Where a group has no decision about the whole flaw, its copies a setting set aside are correlated
+// apart from the ones that count. The counted row then lists only copies that count, and the
+// set-aside ones stay a finding of their own under ACCEPTED, rather than being counted under a row
+// they do not belong to and leaving ACCEPTED to report locations with no finding.
 func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSuppressed int) {
 	for name, cr := range controls {
-		for _, idxs := range correlationGroups(cr.Report.Results) {
+		results := cr.Report.Results
+		for _, idxs := range correlationGroups(results) {
 			if len(idxs) < 2 {
 				continue
 			}
-			groups++
-			results := cr.Report.Results
-			primary := strongestOf(results, idxs)
-
+			parts := [][]int{idxs}
 			// A decision about the flaw applies to every scanner's copy of it.
 			if reason := suppressionIn(results, idxs); reason != nil {
 				for _, i := range idxs {
@@ -2898,27 +2903,15 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 						extraSuppressed++
 					}
 				}
+			} else {
+				parts = apartSetAside(results, idxs)
 			}
-
-			var others []sarif.Observation
-			for _, i := range idxs {
-				if i == primary {
+			for _, part := range parts {
+				if len(part) < 2 {
 					continue
 				}
-				others = append(others, sarif.Observation{
-					Tool:     results[i].Tool,
-					RuleID:   results[i].RuleID,
-					Severity: results[i].Severity(""),
-					Score:    results[i].Score,
-					Location: results[i].Location.URI,
-				})
-			}
-			sort.Slice(others, func(a, b int) bool { return others[a].Tool < others[b].Tool })
-			results[primary].Correlation = &sarif.Correlation{AlsoFoundBy: others}
-			for _, i := range idxs {
-				if i != primary {
-					results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Tool}
-				}
+				groups++
+				correlate(results, part)
 			}
 		}
 
@@ -2927,6 +2920,51 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 		controls[name] = cr
 	}
 	return groups, extraSuppressed
+}
+
+// apartSetAside splits one flaw's copies into those that count and those a setting set aside,
+// leaving out a part with no copies.
+func apartSetAside(results []sarif.Result, idxs []int) [][]int {
+	var counted, setAside []int
+	for _, i := range idxs {
+		if results[i].SetAsideBySetting() {
+			setAside = append(setAside, i)
+		} else {
+			counted = append(counted, i)
+		}
+	}
+	var parts [][]int
+	for _, part := range [][]int{counted, setAside} {
+		if len(part) > 0 {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// correlate counts one flaw's copies once, under the strongest, which names the others.
+func correlate(results []sarif.Result, idxs []int) {
+	primary := strongestOf(results, idxs)
+	var others []sarif.Observation
+	for _, i := range idxs {
+		if i == primary {
+			continue
+		}
+		others = append(others, sarif.Observation{
+			Tool:     results[i].Tool,
+			RuleID:   results[i].RuleID,
+			Severity: results[i].Severity(""),
+			Score:    results[i].Score,
+			Location: results[i].Location.URI,
+		})
+	}
+	sort.Slice(others, func(a, b int) bool { return others[a].Tool < others[b].Tool })
+	results[primary].Correlation = &sarif.Correlation{AlsoFoundBy: others}
+	for _, i := range idxs {
+		if i != primary {
+			results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Tool}
+		}
+	}
 }
 
 // correlationKey identifies one flaw in one dependency in one repository or image.
