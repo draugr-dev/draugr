@@ -1152,6 +1152,9 @@ type provenanceLine struct {
 	Tool    string
 	Version string
 	Detail  string
+	// Unsettled is the count of checks the scanner left for a person as Detail words it, which the
+	// console follows with where they are listed. Empty where it left none.
+	Unsettled string
 }
 
 // provenanceLines collects what each scanner said about the run, in control order.
@@ -1177,7 +1180,7 @@ func provenanceLines(d Data) []provenanceLine {
 	var out []provenanceLine
 	for _, name := range names {
 		for _, p := range d.Run.Controls[name].Report.Provenance {
-			p.Fields = coverageNamed(d, p)
+			p.Fields = withUnsettled(d, name, p, coverageNamed(d, p))
 			if analyzers[p.Tool] {
 				p.Fields = withoutField(p.Fields, "coverage")
 			}
@@ -1196,6 +1199,7 @@ func provenanceLines(d Data) []provenanceLine {
 			}
 			out = append(out, provenanceLine{
 				Control: name, Tool: p.Tool, Version: p.Version, Detail: detail,
+				Unsettled: unsettledNote(d, name, p),
 			})
 		}
 	}

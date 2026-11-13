@@ -68,9 +68,12 @@ Speed is the visible reason. Two others matter more:
 ## Coverage, stated rather than implied
 
 A scanner that evaluates part of a benchmark and omits the rest returns a shorter, cleaner report
-that quietly means less. So **every check in the section is reported**. The ones implemented here
-get a verdict from the cluster; the rest are reported as requiring manual review, which is what CIS
-says about them, and what kube-bench reports for them too.
+that quietly means less. So **every check in the section is accounted for**. The ones implemented
+here get a verdict from the cluster. The rest are left for a person, which is what CIS says about
+them. They are not findings: nothing was seen to fail and nothing changed in the cluster clears
+them, so they take no band and do not count toward the gate. The coverage line counts them,
+`--evidence` lists each by rule id and title, and `report.json` and SARIF's run properties carry
+them as `unsettledChecks`.
 
 Coverage is therefore additive. Implementing a check replaces "review this yourself" with an
 answer and changes nothing else.
@@ -97,7 +100,7 @@ answer and changes nothing else.
 | `5.6.2` | A seccomp profile is set | **decided** |
 | `5.6.3` | SecurityContext applied to pods and containers | **decided** |
 | `5.6.4` | The default namespace is not used | **decided** |
-| the other 14 | | reported for manual review |
+| the other 14 | | left for a person |
 
 ¹ These two ask the cluster's own authorizer rather than reassembling its decision from roles and
 bindings. RBAC is additive across bindings, aggregated ClusterRoles resolve at runtime, and a
@@ -107,16 +110,16 @@ cluster in exactly the cases that matter. Draugr submits the same query kube-ben
 
 That creates nothing. The API server answers and discards it, but submitting one needs the `create`
 verb on `subjectaccessreviews`, which a deliberately read-only credential will not have. Being
-refused is expected rather than exceptional, so the check is left undecided and reported for manual
-review like any other this scanner cannot settle.
+refused is expected rather than exceptional, so the check is left for a person, like any other this
+scanner cannot settle.
 
 **20 of 34 decided, against the 11 kube-bench automates.** The nine past parity are ones kube-bench
 leaves manual, and they are decidable here for the reason this scanner exists: they are questions
 about a pod spec, and correlating pod specs is what a `kubectl | jq | xargs` pipeline is worst at.
 They cost nothing extra, the same single listing already answers the others.
 
-The 14 that remain manual are honestly manual: whether an admission control mechanism is in
-*place*, whether the CNI *supports* NetworkPolicy, whether secrets belong in an external store.
+The 14 left for a person are questions about intent and architecture rather than cluster state:
+whether an admission control mechanism is in *place*, whether the CNI *supports* NetworkPolicy, whether secrets belong in an external store.
 Those are questions about intent and architecture, not cluster state.
 
 The catalog is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
@@ -164,7 +167,7 @@ would work only for people who did not need the feature.
 
 Cluster-scoped checks still run and are still reported: a namespace owner is affected by a
 cluster-admin binding even though they cannot remove it. Where the credential cannot read those
-objects, those checks fall back to manual review rather than failing the run. A scoped audit is
+objects, those checks are left for a person rather than failing the run. A scoped audit is
 usually run by a scoped credential, and the namespaced half is still worth having.
 
 The scope is part of the finding's location (`kubernetes/prod-cluster[team-a,team-a-jobs]`) and
@@ -210,8 +213,8 @@ The scanner records what it measured and against what, which travels in `--forma
 
 ```
 Measured against
-- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided · scope whole cluster
-- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 18 of 22 checks decided · scope namespace team-a
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided, 14 left for a person · scope whole cluster
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 18 of 22 checks decided, 4 left for a person · scope namespace team-a
 ```
 
 Three facts, and each answers a question a reader has about a finding they are looking at.
@@ -219,9 +222,8 @@ Three facts, and each answers a question a reader has about a finding they are l
 **The benchmark** names the standard the checks came from, which is what makes the result defensible
 to somebody who was not there, `cis-1.12` measures different things from `aks-1.8`.
 
-**The coverage** is the figure a reader cannot otherwise get. Counting manual-review findings by
-hand is the only alternative, and a clean report gives no hint that fourteen of the section's
-checks were never decided by anything.
+**The coverage** is the figure a reader cannot otherwise get. Without it, a clean report gives no
+hint that fourteen of the section's checks were never decided by anything.
 
 **The scope** says what the scan covered, and it is stated even when it covers everything. A scan of
 the whole cluster and a scan whose scope nobody recorded are the same silence otherwise, and the
@@ -256,7 +258,7 @@ No check in this section is scored by the benchmark, so the severity comes from 
 | Severity | Checks |
 |---|---|
 | high | what the **Baseline** profile forbids: `5.2.2` privileged, `5.2.3` host PID, `5.2.4` host IPC, `5.2.5` host network, `5.2.10` Windows HostProcess, `5.2.11` hostPath volumes, `5.2.12` host ports; and `5.1.1`, a binding to `cluster-admin` |
-| medium | every other decided check, and every check that needs manual review |
+| medium | every other decided check |
 
 The scored checks of the benchmark are in sections 1–4, which [`kube-bench-job`](kube-bench-job.md)
 reads.

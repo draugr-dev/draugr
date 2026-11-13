@@ -818,6 +818,11 @@ type Report struct {
 	// consulted" without this. And silence reads as the second, which makes the whole ranking look
 	// like it came from nowhere.
 	Consulted []Consulted `json:"consulted,omitempty"`
+	// UnsettledChecks are the checks a scanner left for a person rather than decided. They are not
+	// findings: nothing was seen to fail, and nothing in the target clears them, so they are kept out
+	// of Results, the band counts and the gate, and listed here so the person who does the review
+	// can find them.
+	UnsettledChecks []UnsettledCheck `json:"unsettledChecks,omitempty"`
 	// Inputs are the dependency files a scan accounted for: those it read packages from, and those
 	// in its tree it did not, each with the reason.
 	//
@@ -850,6 +855,27 @@ type Unchecked struct {
 	// PartlyRead marks a check that returned results from the reads it was allowed. Its findings are
 	// in the report, and it is not decided: what the denied read held was not looked at.
 	PartlyRead bool `json:"partlyRead,omitempty"`
+}
+
+// UnsettledManual is the kind of an UnsettledCheck the benchmark leaves to a person to decide.
+const UnsettledManual = "manual"
+
+// UnsettledCheck is one check a scan did not decide, and why.
+type UnsettledCheck struct {
+	// Scanner is the scanner whose check it is, and RuleID the rule it reports under, as a
+	// config.exclude rule names it.
+	Scanner string `json:"scanner"`
+	RuleID  string `json:"ruleId"`
+	// Title is the check as the benchmark words it.
+	Title string `json:"title,omitempty"`
+	// Component and Location are whose check it was and what it read, the cluster.
+	Component string `json:"component,omitempty"`
+	Location  string `json:"location"`
+	// Kind is why it was not decided: UnsettledManual for a check the benchmark leaves to a person.
+	Kind string `json:"kind"`
+	// Suppression is the decision recorded about it, where a config.exclude rule names it: the
+	// reason somebody gave once they had reviewed it. Nil for a check still waiting on a person.
+	Suppression *Suppression `json:"suppression,omitempty"`
 }
 
 // InputOperatingSystem is the Kind of an Input that stands for an image's operating system rather
@@ -1197,6 +1223,7 @@ func Merge(reports ...Report) Report {
 		out.addProvenance(rep.Provenance)
 		out.addDecided(rep.Decided)
 		out.addConsulted(rep.Consulted)
+		out.UnsettledChecks = append(out.UnsettledChecks, rep.UnsettledChecks...)
 		out.addInputs(rep.Inputs)
 		out.addUnchecked(rep.Unchecked)
 		for _, res := range rep.Results {

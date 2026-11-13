@@ -62,7 +62,7 @@ func renderChange(w io.Writer, d Data) error {
 		for _, l := range lines {
 			width = max(width, len(l.Control))
 		}
-		writeMeasuredRows(w, col, lines, width)
+		writeMeasuredRows(w, col, lines, width, d.Evidence)
 		_, _ = fmt.Fprintln(w)
 	}
 	writeErrors(w, col, d)

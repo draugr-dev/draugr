@@ -125,9 +125,9 @@ components:
 // so a kind release or a benchmark revision that renumbers checks or changes which ones fail
 // leaves them standing:
 //
-//   - Findings, all in the sections the scanner asked for. Most CIS checks are manual, and
-//     kube-bench reports every manual check as WARN, so a run that produced none did not run the
-//     benchmark.
+//   - Findings or checks left for a person, all in the sections the scanner asked for. Most CIS
+//     checks are manual, and kube-bench reports every manual check as WARN, which Draugr lists as
+//     left for a person, so a run that produced neither did not run the benchmark.
 //   - A cis-* benchmark other than kube-bench's fallback. kind is vanilla Kubernetes, and the
 //     fallback means kube-bench never learned the cluster's version.
 //   - At least one check decided with no finding, a PASS. kube-bench that cannot reach what it
@@ -137,11 +137,11 @@ func requireKubeBenchAudited(t *testing.T, outDir, tool string, section *regexp.
 	t.Helper()
 	ev := kubeBenchEvidenceIn(t, outDir, tool)
 
-	if len(ev.ruleIDs) == 0 {
-		t.Errorf("%s reported no findings, and kube-bench reports every manual check as one, so it "+
-			"did not run the benchmark", tool)
+	if len(ev.ruleIDs)+len(ev.undecided) == 0 {
+		t.Errorf("%s reported no findings and left no check for a person, and kube-bench reports every "+
+			"manual check, so it did not run the benchmark", tool)
 	}
-	for _, id := range ev.ruleIDs {
+	for _, id := range append(append([]string{}, ev.ruleIDs...), ev.undecided...) {
 		if !section.MatchString(id) {
 			t.Errorf("%s reported %s, outside the sections it asks kube-bench for (%s)", tool, id, section)
 		}
@@ -154,13 +154,16 @@ func requireKubeBenchAudited(t *testing.T, outDir, tool string, section *regexp.
 		t.Errorf("%s passed no check, so kube-bench never reached what it inspects; findings: %v",
 			tool, ev.ruleIDs)
 	}
-	t.Logf("%s: benchmark %s, %d findings, %d checks passed", tool, ev.benchmark, len(ev.ruleIDs), len(ev.passed))
+	t.Logf("%s: benchmark %s, %d findings, %d left for a person, %d checks passed",
+		tool, ev.benchmark, len(ev.ruleIDs), len(ev.undecided), len(ev.passed))
 }
 
 // kubeBenchEvidence is one kube-bench scanner's part of results.sarif.
 type kubeBenchEvidence struct {
-	// ruleIDs are its findings, one per FAIL or WARN.
+	// ruleIDs are its findings, one per FAIL or WARN on a check with an audit command.
 	ruleIDs []string
+	// undecided are the checks it left for a person, one per WARN on a manual check.
+	undecided []string
 	// benchmark is the benchmark kube-bench reported having applied.
 	benchmark string
 	// passed are the CIS checks decided with no finding.
@@ -191,6 +194,10 @@ func kubeBenchEvidenceIn(t *testing.T, outDir, tool string) kubeBenchEvidence {
 					Taxonomy string `json:"taxonomy"`
 					ID       string `json:"id"`
 				} `json:"decided"`
+				UnsettledChecks []struct {
+					Scanner string `json:"scanner"`
+					RuleID  string `json:"ruleId"`
+				} `json:"unsettledChecks"`
 			} `json:"properties"`
 			Results []struct {
 				RuleID     string `json:"ruleId"`
@@ -213,6 +220,12 @@ func kubeBenchEvidenceIn(t *testing.T, outDir, tool string) kubeBenchEvidence {
 			}
 			ev.ruleIDs = append(ev.ruleIDs, r.RuleID)
 			reported[strings.TrimPrefix(r.RuleID, kubeBenchRulePrefix)] = true
+		}
+		for _, u := range run.Properties.UnsettledChecks {
+			if u.Scanner == tool {
+				ev.undecided = append(ev.undecided, u.RuleID)
+				reported[strings.TrimPrefix(u.RuleID, kubeBenchRulePrefix)] = true
+			}
 		}
 		for _, p := range run.Properties.Provenance {
 			if p.Tool == tool && p.Fields["benchmark"] != "" {

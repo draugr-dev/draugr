@@ -69,6 +69,10 @@ type sarifRunProperties struct {
 	// Consulted lists the exploitability datasets the run had loaded. Same argument as Decided:
 	// a consumer cannot tell "not on KEV" from "KEV was not consulted" without it.
 	Consulted []Consulted `json:"consulted,omitempty"`
+	// UnsettledChecks are the checks a scanner left for a person. They are not results, because
+	// nothing failed and nothing in the target clears them, and a consumer counting results would
+	// count them as findings.
+	UnsettledChecks []UnsettledCheck `json:"unsettledChecks,omitempty"`
 }
 
 // sarifProvenance mirrors Provenance in the property bag. Written as an object per tool rather
@@ -89,8 +93,8 @@ type sarifProvenance struct {
 // The fields become an object here, unlike the ordered slice they are internally: JSON object
 // keys have no order a consumer can rely on, so pretending otherwise would be a promise the
 // format cannot keep. Order is a rendering concern, and this is not the rendering.
-func runProperties(entries []Provenance, decided []Taxon, consulted []Consulted) *sarifRunProperties {
-	if len(entries) == 0 && len(decided) == 0 && len(consulted) == 0 {
+func runProperties(entries []Provenance, decided []Taxon, consulted []Consulted, unsettled []UnsettledCheck) *sarifRunProperties {
+	if len(entries) == 0 && len(decided) == 0 && len(consulted) == 0 && len(unsettled) == 0 {
 		return nil
 	}
 	out := make([]sarifProvenance, 0, len(entries))
@@ -110,7 +114,7 @@ func runProperties(entries []Provenance, decided []Taxon, consulted []Consulted)
 		}
 		out = append(out, sp)
 	}
-	props := &sarifRunProperties{Provenance: out, Consulted: consulted}
+	props := &sarifRunProperties{Provenance: out, Consulted: consulted, UnsettledChecks: unsettled}
 	for _, t := range decided {
 		props.Decided = append(props.Decided, sarifDecidedTaxon{
 			Taxonomy: t.Taxonomy, ID: t.ID, Version: t.Version,
@@ -481,7 +485,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	if opts.AutomationID != "" {
 		run.AutomationDetails = &sarifAutomationDetails{ID: opts.AutomationID}
 	}
-	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted)
+	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted, r.UnsettledChecks)
 	var relativeNotification bool
 	run.Invocations, relativeNotification = invocationsOf(opts.Notifications)
 	if relativeNotification {
@@ -574,6 +578,20 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			}
 		}
 		run.Results = append(run.Results, sr)
+	}
+	// The rules of the checks left for a person too, which are not results: what a check asks is
+	// what the person reviewing it needs, and `draugr explain` reads it from here.
+	for _, u := range r.UnsettledChecks {
+		if u.RuleID == "" {
+			continue
+		}
+		if ruleScanners[u.RuleID] == nil {
+			ruleScanners[u.RuleID] = map[string]bool{}
+			ruleOrder = append(ruleOrder, u.RuleID)
+		}
+		if u.Scanner != "" {
+			ruleScanners[u.RuleID][u.Scanner] = true
+		}
 	}
 	// Emit one rule per ruleId, tagged with its originating scanner(s). GitHub matches a
 	// result to its rule by ruleId and shows the rule's tags on the alert.
@@ -779,6 +797,9 @@ func (r *Report) readRun(i int, run sarifRun) runReader {
 	// looked", and a read that drops them turns every reloaded report into the second.
 	r.addDecided(decidedFrom(run.Properties))
 	r.addConsulted(consultedFrom(run.Properties))
+	if run.Properties != nil {
+		r.UnsettledChecks = append(r.UnsettledChecks, run.Properties.UnsettledChecks...)
+	}
 	// SARIF lets a result omit its level and inherit it from the rule's
 	// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
 	// we can resolve a result's severity from its ruleId.

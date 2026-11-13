@@ -1401,19 +1401,29 @@ func writeMeasuredAgainst(w io.Writer, col tui.Painter, d Data, width int) {
 		return
 	}
 	_, _ = fmt.Fprintln(w)
-	writeMeasuredRows(w, col, lines, width)
+	writeMeasuredRows(w, col, lines, width, d.Evidence)
+}
+
+// measuredText is a scanner's row, and where the checks it left for a person are listed when this
+// view does not list them.
+func measuredText(l provenanceLine, evidence bool) string {
+	text := l.Label()
+	if l.Detail != "" {
+		text += " · " + l.Detail
+	}
+	// Right after the count, so "them" is the checks it counts rather than the scope beside them.
+	if l.Unsettled != "" && !evidence {
+		text = strings.Replace(text, l.Unsettled, l.Unsettled+" · "+unsettledEvidenceFlag, 1)
+	}
+	return text
 }
 
 // writeMeasuredRows is the MEASURED AGAINST heading and a row per control, the control names
 // padded to width.
-func writeMeasuredRows(w io.Writer, col tui.Painter, lines []provenanceLine, width int) {
+func writeMeasuredRows(w io.Writer, col tui.Painter, lines []provenanceLine, width int, evidence bool) {
 	_, _ = fmt.Fprintln(w, heading(col, "Measured against"))
 	for _, l := range lines {
-		text := l.Label()
-		if l.Detail != "" {
-			text += " · " + l.Detail
-		}
-		writeUnder(w, col, width, l.Control, text)
+		writeUnder(w, col, width, l.Control, measuredText(l, evidence))
 	}
 }
 
@@ -2818,11 +2828,16 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 	if width <= 0 {
 		width = messageWidth
 	}
-	type row struct{ label, value string }
+	// cut is a row cut to the width rather than wrapped: a list of checks reads down its id column,
+	// and a wrapped title would sit under it.
+	type row struct {
+		label, value string
+		cut          bool
+	}
 	var rows []row
 	add := func(label, value string) {
 		if value != "" {
-			rows = append(rows, row{label, value})
+			rows = append(rows, row{label: label, value: value})
 		}
 	}
 
@@ -2858,6 +2873,19 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 		}
 		add(label, l)
 	}
+	// The checks the run left for a person, which are not findings and are listed nowhere else on the
+	// screen: the coverage line counts them and says they are here.
+	heads, checks := unsettledRows(d)
+	for i, head := range heads {
+		label := "unsettled"
+		if i > 0 {
+			label = ""
+		}
+		add(label, head)
+		for _, c := range checks[i] {
+			rows = append(rows, row{value: c, cut: true})
+		}
+	}
 	// What the run wrote, where the rest of what it did is. Not beside the findings: Draugr writes
 	// a report, a SARIF file and whatever else the descriptor asked for without announcing any of
 	// them, and one artifact naming itself there reads as the important one.
@@ -2871,6 +2899,12 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 	add("gate", gateLine(d))
 
 	for _, r := range rows {
+		if r.cut {
+			// Indented under the row that counts them, outside the cut, which trims what it shortens.
+			_, _ = fmt.Fprintf(w, "%s%s  %s\n", indent,
+				col.Paint(cDim, tui.Pad("", evidenceLabel)), col.Paint(cDim, truncate(r.value, width-2)))
+			continue
+		}
 		for i, part := range wrapMessage(r.value, width) {
 			label := r.label
 			if i > 0 {
