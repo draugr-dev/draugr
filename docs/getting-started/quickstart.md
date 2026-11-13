@@ -84,6 +84,8 @@ CONTROLS
   secrets  pass   no findings
 
 SIGNALS
+  KEV    not read · --kev auto reads it
+  EPSS   not read · --epss auto reads it
   floor  nothing raised
 
 FIX FIRST  top 3 of 11, by priority
@@ -120,6 +122,8 @@ draugr: policy verdict: fail
   severity until [Focus](#focus-what-to-fix-first) classifies them.
 - **`CONTROLS`** has a row for each enabled control, saying whether it passed and what it found.
 - **`SIGNALS`** lists what raised or lowered findings in the ranking, and how many each one moved.
+  `KEV` and `EPSS` raise a vulnerability that is being exploited, or is likely to be. A scan reads
+  them only when asked, so here they say they were not read and which flag reads them.
   `floor` ranks a leaked credential P1 whatever its component declares, and raised nothing here
   because `secrets` found none.
 - **`FIX FIRST`** lists findings most urgent first, each with its band and severity, the advisory

@@ -52,8 +52,10 @@ type htmlView struct {
 	// Caveats is the console's CAVEATS block under each component. A shared report is the copy read
 	// by somebody who never saw the console, and without it a component nothing checked reads as a
 	// clean one.
-	Caveats  htmlCaveats
-	Findings []htmlFinding
+	Caveats htmlCaveats
+	// CleanLine is what a run with no findings and no control in error closes on: cleanRunLine.
+	CleanLine string
+	Findings  []htmlFinding
 	// Provenance is what each scanner said about its own run, the standard applied, how much of it
 	// was decided, what it was scoped to. A shared HTML report is the copy that reaches someone who
 	// did not run the scan, so it is the one that most needs to say what was measured rather than
@@ -552,6 +554,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Components = htmlComponents(d, s)
 	view.Found = d.Found
 	view.Caveats = htmlCaveatBlock(d, view.Components)
+	view.CleanLine, _ = cleanRunLine(d)
 	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
 	fixes, tools, moved := map[string]int{}, map[string]int{}, map[string]int{}
@@ -2280,10 +2283,8 @@ prints each scanner's full output.</p>
 {{template "nomatch"}}
 {{else if .Errors}}
 <p>No findings. A control marked ERROR checked less than it was asked to.</p>
-{{else if .Caveats.Groups}}
-<p>No findings. The run did not check what its caveats name.</p>
 {{else}}
-<p>No findings. ✓</p>
+<p>{{.CleanLine}}</p>
 {{end}}
 
 <p class="dl">

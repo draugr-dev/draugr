@@ -1617,6 +1617,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, a `go.mod` gosec found no Go package in, or an image whose operating system the scanner does not support |
 | `unread-checks` | a check the scan could not evaluate, or could evaluate only in part: a cloud check whose read was denied, a CIS Kubernetes check whose audit read nothing on the node `kube-bench-job` ran it on, or an HTTP header check on an endpoint that answered with a non-2xx status |
 | `unbound-imports` | an imported SARIF file that names no commit, so nothing ties its findings to the code being scanned |
+| `uncommitted-files` | a local repository with uncommitted changes the scan did not read, because it read the committed revision; [`--working-tree`](cli.md#--working-tree-for-the-loop-of-fixing-something) reads them. Draugr's own reports folder, `.draugr/out` or the run's `-o`, is not counted |
 
 ```yaml
 config:
@@ -2219,6 +2220,17 @@ config:
 
 KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal works
 without the other. Set one key and omit the other.
+
+**Left out, a scan reads neither, and says so.** On a run with a finding that names a CVE, `SIGNALS`
+lists each dataset the run did not read and the flag that reads it, in every view:
+
+```console
+SIGNALS
+  KEV   not read · --kev auto reads it
+  EPSS  not read · --epss auto reads it
+```
+
+A run with no CVE has nothing either could raise and lists neither.
 
 **Where the data comes from.** `kev` and `epss` each take three kinds of value:
 

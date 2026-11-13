@@ -63,7 +63,7 @@ jq -r '[.targets[]?.refusal | select(.credential == false) | .registry] | unique
 | Field | Meaning |
 |---|---|
 | `executionSuccessful` | `false` where any notification has level `error`, and otherwise `true`. SARIF defines `false` as a run whose results may be incomplete. Findings do not affect it |
-| `descriptor.id` | the notification's kind: a kind of caveat, `not-checked`, `not-measured`, `unread-files`, `unread-checks` or `unbound-imports`, or `scan-error` |
+| `descriptor.id` | the notification's kind: a kind of caveat, `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports` or `uncommitted-files`, or `scan-error` |
 | `level` | `error` for a scan error and for a caveat of a kind `gate.failOnCaveats` lists, and `warning` for any other caveat. `--allow-scan-errors` does not lower it |
 | `message.text` | what the caveat names and why, as the console's row says them: `package.json: no lockfile`. A scan error's is its control and the scanner's own words. URL userinfo, bearer tokens and `token=`, `password=`, `passwd=` and `secret=` parameters are replaced with `<redacted>`, in this file only: `report.json` keeps a tool's words as they were. Cut at 1024 bytes |
 | `locations[].physicalLocation.artifactLocation.uri` | the file or image the caveat names, one location per file on a row that folds several. A path is percent-encoded and relative to its repository, with `uriBaseId` `%SRCROOT%`. An image is its pinned reference, with no base. Absent where the caveat names neither |
@@ -90,6 +90,7 @@ The file lists at most 200 notifications of a kind. A kind past that closes with
 | `unread-files` | `dependencyFiles[].unread[]` |
 | `unread-checks` | `unreadChecks[]` |
 | `unbound-imports` | `unboundImports[]` |
+| `uncommitted-files` | `repositories[].uncommitted` |
 
 ```bash
 jq -r '.runs[].invocations[]?.toolExecutionNotifications[] | "\(.level) \(.descriptor.id) \(.message.text)"' out/results.sarif

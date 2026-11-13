@@ -58,7 +58,7 @@ func kevListedRun() []sarif.Result {
 func kevData(results []sarif.Result) Data {
 	return Data{
 		Verdict:        norn.Result{Verdict: norn.Fail},
-		Exploitability: []FeedProvenance{{Name: "kev"}},
+		Exploitability: []FeedProvenance{{Name: "kev"}, {Name: "epss"}},
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{
 			"sca": {Control: "sca", Report: sarif.Report{Tool: "trivy", Results: results}},
 		}},
@@ -109,7 +109,7 @@ func TestTheKEVLineCountsTheFindingsOnTheCatalog(t *testing.T) {
 	if err := (consoleReporter{}).Render(&b, d); err != nil {
 		t.Fatal(err)
 	}
-	if out := b.String(); !strings.Contains(out, "\n  KEV  2 findings listed\n") {
+	if out := b.String(); !strings.Contains(out, "\n  KEV   2 findings listed\n") {
 		t.Errorf("the KEV line should count both listed findings and no raise:\n%s", out)
 	}
 	// Neither listed finding moved, so neither row wears a mark saying it did.
@@ -144,7 +144,7 @@ func TestAFindingKEVRaisedStillSaysItWasRaised(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	if !strings.Contains(out, "\n  KEV  2 findings listed · 1 raised\n") {
+	if !strings.Contains(out, "\n  KEV   2 findings listed · 1 raised\n") {
 		t.Errorf("the KEV line should count two listed and one raised:\n%s", out)
 	}
 	if strings.Count(out, "↑ KEV") != 1 {
@@ -195,16 +195,29 @@ func TestAnEscalationAloneStillCountsAsAListing(t *testing.T) {
 	}
 }
 
-// A run that consulted KEV and found nothing on it says so, and one that never consulted it has no
-// row.
+// A run that consulted KEV and found nothing on it says so. One that never consulted it says it
+// was not read and what reads it, where the run has a CVE KEV could have listed, and has no row
+// where it has none.
 func TestTheKEVLineSaysNothingListed(t *testing.T) {
 	d := kevData([]sarif.Result{xnet("CVE-2026-0001", "api", "repo-api")})
+	d.Exploitability = []FeedProvenance{{Name: "kev"}}
 	rows, _ := signals(d, summarize(d))
-	if len(rows) != 1 || rows[0].Name != "KEV" || rows[0].Did != "nothing listed" {
+	if len(rows) != 2 || rows[0].Name != "KEV" || rows[0].Did != "nothing listed" || rows[0].Unread {
 		t.Errorf("rows = %+v, want KEV saying nothing listed", rows)
 	}
+	if rows[1].Name != "EPSS" || rows[1].Did != "not read · --epss auto reads it" || !rows[1].Unread {
+		t.Errorf("rows = %+v, want EPSS saying it was not read", rows)
+	}
+	d.Exploitability = nil
+	rows, _ = signals(d, summarize(d))
+	if len(rows) != 2 || rows[0].Did != "not read · --kev auto reads it" || rows[1].Did != "not read · --epss auto reads it" {
+		t.Errorf("rows = %+v, want KEV and EPSS saying they were not read", rows)
+	}
+	noCVE := xnet("CVE-2026-0001", "api", "repo-api")
+	noCVE.RuleID = "go/sql-injection"
+	d = kevData([]sarif.Result{noCVE})
 	d.Exploitability = nil
 	if rows, _ := signals(d, summarize(d)); len(rows) != 0 {
-		t.Errorf("rows = %+v, want none for a run that never consulted KEV", rows)
+		t.Errorf("rows = %+v, want none for a run with nothing KEV or EPSS could raise", rows)
 	}
 }

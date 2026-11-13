@@ -242,7 +242,8 @@ func UncommittedFiles(ctx context.Context, url string) int {
 	if !IsLocalPath(url) {
 		return 0
 	}
-	out, err := exec.CommandContext(ctx, "git", "-C", url, "status", "--porcelain").Output() // #nosec G204 -- the descriptor's own repository path
+	args := append([]string{"-C", url, "status", "--porcelain", "--", "."}, ownOutputExcludes(ctx, url)...)
+	out, err := exec.CommandContext(ctx, "git", args...).Output() // #nosec G204 -- the descriptor's own repository path and Draugr's own folders
 	if err != nil {
 		return 0 // not a repository, or no git; the clone will say so properly
 	}
@@ -253,6 +254,48 @@ func UncommittedFiles(ctx context.Context, url string) int {
 		}
 	}
 	return n
+}
+
+// DefaultOutput is the folder, relative to a repository, where the console suggests a run write its
+// reports. It is left out of the count of uncommitted files whether or not this run writes there,
+// because an earlier run that followed the suggestion did.
+const DefaultOutput = ".draugr/out"
+
+type ownOutputKey struct{}
+
+// WithOwnOutput records the folders this run writes its reports into, so UncommittedFiles leaves
+// them out. Reports written inside the repository are Draugr's output rather than the reader's
+// work, and counting them would tell the reader a scan left out files that are only its own reports.
+func WithOwnOutput(ctx context.Context, dirs ...string) context.Context {
+	var abs []string
+	for _, d := range dirs {
+		if d == "" {
+			continue
+		}
+		if a, err := filepath.Abs(d); err == nil {
+			abs = append(abs, a)
+		}
+	}
+	return context.WithValue(ctx, ownOutputKey{}, abs)
+}
+
+// ownOutputExcludes are the pathspecs that leave Draugr's own folders inside repo out of
+// `git status`: DefaultOutput, and each folder WithOwnOutput recorded that lies inside repo.
+func ownOutputExcludes(ctx context.Context, repo string) []string {
+	out := []string{":(exclude)" + DefaultOutput}
+	root, err := filepath.Abs(repo)
+	if err != nil {
+		return out
+	}
+	dirs, _ := ctx.Value(ownOutputKey{}).([]string)
+	for _, d := range dirs {
+		rel, err := filepath.Rel(root, d)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		out = append(out, ":(exclude)"+filepath.ToSlash(rel))
+	}
+	return out
 }
 
 // IsLocalPath reports whether url names a directory on this machine rather than a remote.

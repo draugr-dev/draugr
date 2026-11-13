@@ -935,7 +935,7 @@ func TestValidateGateFailOnCaveats(t *testing.T) {
 	}
 	err := with("unread")
 	if err == nil || !strings.Contains(err.Error(), `config.gate.failOnCaveats[0] is "unread"`) ||
-		!strings.Contains(err.Error(), "unread-checks or unbound-imports") {
+		!strings.Contains(err.Error(), "unbound-imports or uncommitted-files") {
 		t.Errorf("err = %v, want the bad kind refused, naming every kind", err)
 	}
 	if err := with(CaveatUnreadFiles, CaveatUnreadFiles); err == nil || !strings.Contains(err.Error(), "twice") {

@@ -96,10 +96,9 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 	if len(s.findings) == 0 {
 		if len(s.scanErrors) > 0 {
 			_, _ = fmt.Fprintln(w, noFindingsWithErrors)
-		} else if len(caveats(d)) > 0 {
-			_, _ = fmt.Fprintln(w, noFindingsWithCaveats)
 		} else {
-			_, _ = fmt.Fprintln(w, "No findings. ✓")
+			line, _ := cleanRunLine(d)
+			_, _ = fmt.Fprintln(w, line)
 		}
 		_, _ = fmt.Fprintln(w)
 		writeRunEvidence(w, d, s)
@@ -393,8 +392,10 @@ func writeRepositories(w io.Writer, d Data) {
 		if rev := r.Short(); rev != "" {
 			line += " at `" + rev + "`"
 		}
-		if r.Uncommitted > 0 {
-			line += fmt.Sprintf(" · %s not included", english.Count(r.Uncommitted, "uncommitted file"))
+		// Uncommitted files a scan left out are a caveat, said under Caveats. Read from the working
+		// tree, they are in the result and it cannot be reproduced from the revision.
+		if r.WorkingTree && r.Uncommitted > 0 {
+			line += fmt.Sprintf(" · working tree · %s, not reproducible", english.Count(r.Uncommitted, "uncommitted file"))
 		}
 		_, _ = fmt.Fprintln(w, line)
 	}

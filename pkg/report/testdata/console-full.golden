@@ -20,6 +20,8 @@ COMPONENTS
   3 findings not tied to a component (project-wide controls)
 
 SIGNALS
+  KEV    not read · --kev auto reads it
+  EPSS   not read · --epss auto reads it
   floor  nothing raised
 
 ACCEPTED

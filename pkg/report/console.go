@@ -260,9 +260,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// was and how much it raised at the foot of the evidence, an analyzer said what it decided
 	// halfway up, and a control's floor said nothing anywhere. A reader asking what moved their
 	// ranking was reading three answers in three registers and could not compare them.
-	if !dense(d) {
-		writeSignals(w, col, d, s)
-	}
+	//
+	// The dense view keeps only a dataset the run did not read: it says the bands are less than they
+	// could be, which a dense view never drops.
+	writeSignals(w, col, d, s, dense(d))
 
 	// Evidence, not a control, so a line rather than a row in the table above, where every entry means
 	// "checked, and here is the verdict". Printed before the early returns below, because a clean
@@ -288,10 +289,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// the ERROR row exists to prevent.
 		if len(errored) > 0 {
 			_, _ = fmt.Fprintln(w, col.Paint(cDim, noFindingsWithErrors))
-		} else if len(caveats(d)) > 0 {
-			_, _ = fmt.Fprintln(w, col.Paint(cDim, noFindingsWithCaveats))
+		} else if line, tick := cleanRunLine(d); tick {
+			_, _ = fmt.Fprintln(w, col.Paint(cPass, line))
 		} else {
-			_, _ = fmt.Fprintln(w, col.Paint(cPass, "No findings. ✓"))
+			_, _ = fmt.Fprintln(w, col.Paint(cDim, line))
 		}
 		_, _ = fmt.Fprintln(w)
 		// A clean run still did whatever it did and still produced whatever it produced, and all of
@@ -1771,17 +1772,12 @@ func repositoryRows(repos []RepositoryProvenance) [][2]string {
 		if localPath(r.URL) {
 			notes = append(notes, "no git remote")
 		}
-		switch {
-		case r.WorkingTree && r.Uncommitted > 0:
-			// The uncommitted work is the reason this scan was asked for, so it is included rather
-			// than missing, and the result cannot be reproduced from the revision.
+		// The uncommitted work is the reason a working-tree scan was asked for, so it is included
+		// rather than missing, and the result cannot be reproduced from the revision. Uncommitted
+		// files a scan left out are not repeated here: they are a caveat, said in every view.
+		if r.WorkingTree && r.Uncommitted > 0 {
 			notes = append(notes,
 				fmt.Sprintf("%s, not reproducible", english.Count(r.Uncommitted, "uncommitted file")))
-		case r.Uncommitted > 0:
-			// A clause, not an alarm. Uncommitted work is the normal state of a checkout somebody
-			// is editing; what matters is knowing it is not in what you are reading.
-			notes = append(notes,
-				fmt.Sprintf("%s not included", english.Count(r.Uncommitted, "uncommitted file")))
 		}
 		if len(notes) > 0 {
 			said = strings.TrimPrefix(said+" · "+strings.Join(notes, " · "), " · ")
@@ -2103,8 +2099,12 @@ func writeFound(w io.Writer, col tui.Painter, d Data) {
 //
 // How each one moves a finding is in the HTML and markdown reports, which have the width for it. A
 // terminal row that carried the rule would push what the signal did off the line.
-func writeSignals(w io.Writer, col tui.Painter, d Data, s summary) {
+func writeSignals(w io.Writer, col tui.Painter, d Data, s summary, onlyUnread bool) {
 	rows, notes := signals(d, s)
+	if onlyUnread {
+		rows = slices.DeleteFunc(rows, func(r signalRow) bool { return !r.Unread })
+		notes = nil
+	}
 	if len(rows) == 0 {
 		return
 	}
