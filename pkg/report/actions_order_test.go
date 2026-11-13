@@ -119,10 +119,10 @@ func upstreamImage(image, rule, fixed string) finding {
 	return f
 }
 
-// TestAnUpstreamImageIsABumpWhenMovingItClearsAFinding: the reader does not build the image and
+// TestAnUpstreamImageIsAnUpdateWhenMovingItClearsAFinding: the reader does not build the image and
 // does choose which one they pull, so an image whose findings have a fix published is a reference
-// to move, and only one whose findings have none is a wait.
-func TestAnUpstreamImageIsABumpWhenMovingItClearsAFinding(t *testing.T) {
+// to move, in a list of its own, and only one whose findings have none is a wait.
+func TestAnUpstreamImageIsAnUpdateWhenMovingItClearsAFinding(t *testing.T) {
 	in := []finding{
 		upstreamImage("python:3.8-slim", "CVE-1", ""),
 		upstreamImage("python:3.8-slim", "CVE-2", "3.0.22"),
@@ -133,8 +133,8 @@ func TestAnUpstreamImageIsABumpWhenMovingItClearsAFinding(t *testing.T) {
 	for _, a := range got {
 		kinds[a.title] = a.kind
 	}
-	if k := kinds["Update python:3.8-slim"]; k != skald.KindBump {
-		t.Errorf("an image with a published fix among its findings is %q, want a bump; the first finding grouped had none", k)
+	if k := kinds["Update python:3.8-slim"]; k != skald.KindImage {
+		t.Errorf("an image with a published fix among its findings is %q, want an image update; the first finding grouped had none", k)
 	}
 	if k := kinds["Update vendor/old:1"]; k != skald.KindWait {
 		t.Errorf("an image none of whose findings has a fix is %q, want a wait", k)

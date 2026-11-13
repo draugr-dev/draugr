@@ -184,6 +184,9 @@ type ActionKind string
 
 // The kinds of action.
 const (
+	// KindImage is a newer release of an image somebody else publishes, one the descriptor declares
+	// `builtBy: upstream`: the reader moves the reference to it rather than changing anything inside.
+	KindImage ActionKind = "image"
 	// KindBump is an upgrade of a dependency to the release that clears its findings.
 	KindBump ActionKind = "bump"
 	// KindCode is a change to the application's code or configuration, and an investigation of
@@ -206,11 +209,16 @@ const (
 // A list per kind because the kinds are different people's work. A change to the application's
 // code and a newer base image do not compete for one engineer's next hour, and one sequence ranks
 // each against the other by numbers that say nothing about which to do first.
-var WorkOrder = []ActionKind{KindBump, KindCode, KindInfrastructure, KindCredential, KindWait, KindDecide}
+//
+// An image somebody else publishes leads. One such action routinely clears more findings than every
+// other list together, and a reader has to see that before reading a package bump inside it as work.
+var WorkOrder = []ActionKind{KindImage, KindBump, KindCode, KindInfrastructure, KindCredential, KindWait, KindDecide}
 
 // ListName is the name of the list an action of this kind is in, or "" for a kind with none.
 func (k ActionKind) ListName() string {
 	switch k {
+	case KindImage:
+		return "Update an image you do not build"
 	case KindBump:
 		return "Bump a dependency"
 	case KindCode:

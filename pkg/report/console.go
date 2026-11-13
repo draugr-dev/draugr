@@ -688,6 +688,11 @@ func nonShippingNote(n int) string {
 // move to, and the default view says what is there now. Fit shortens the Summary after it first,
 // so a long name costs the summary rather than the fix.
 func compactFix(f finding) string {
+	// The image rather than the package inside it, which the reader cannot upgrade. The summary
+	// beside it says what is wrong; the package stays in the default view and the evidence.
+	if u := imageUpdate(f); u != "" {
+		return u
+	}
 	name, fixed := packageFix(f, false)
 	if short, _ := packageKind(f); name != "" && short != "" {
 		name = short + " " + name
@@ -1930,7 +1935,9 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 		as := byKind[kind]
 		rows := foldLines(as)
 		shown := rows
-		if limit >= 0 && len(shown) > limit {
+		// Never cut. Each row is a whole image, there are as many as the descriptor names, and the
+		// list exists so the largest reductions are not left below a "not listed" line.
+		if limit >= 0 && len(shown) > limit && kind != skald.KindImage {
 			shown = shown[:limit]
 		}
 		_, _ = fmt.Fprintf(w, "\n%s  %s\n", listName(kind), col.Paint(cDim, fmt.Sprintf("%s %s %s",

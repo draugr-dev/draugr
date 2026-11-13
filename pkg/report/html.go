@@ -344,6 +344,9 @@ type htmlUnmatched struct {
 // have no code to change, and an instruction nobody can carry out is worse than none, because it
 // teaches a reader that this column is not worth reading.
 func fixPhrase(f finding) string {
+	if u := imageUpdate(f); u != "" {
+		return u
+	}
 	if f.pkg != nil && f.pkg.Name != "" {
 		if f.pkg.FixedVersion != "" {
 			return "upgrade to " + fixedRelease(f)

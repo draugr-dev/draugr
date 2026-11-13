@@ -141,7 +141,11 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 	if _, full := packageKind(f); name != "" && full != "" {
 		name = col.Paint(cDim, full) + " " + name
 	}
-	if fixed != "" {
+	// In an image somebody else builds, the package keeps its name, which tells one CVE in two
+	// packages apart, and loses its arrow: the fix is the image, not a version of the package.
+	if u := imageUpdate(f); u != "" {
+		parts = append(parts, name, col.Paint(cDim, "fix")+" "+col.Paint(tui.StyleFixed, u))
+	} else if fixed != "" {
 		parts = append(parts, name+" "+col.Paint(tui.StyleFixed, "→ "+fixed))
 	} else {
 		if name != "" {

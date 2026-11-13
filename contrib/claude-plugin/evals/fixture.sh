@@ -197,3 +197,36 @@ YAML
         file: reports/infrastructure.sarif
 "
 }
+
+# upstream_image stands in for an image scan another pipeline step ran: a SARIF 2.1.0 file for the
+# python:3.8-slim image the api service runs, each result marked builtUpstream as a scan of an image
+# declared `builtBy: upstream` marks it, imported into the images control. Call it before
+# `descriptor`, which reads the `API_EXTRA` this extends.
+#
+# Three critical findings in three packages inside the image, each with a fixed version. Nobody here
+# builds the image, so the one action is to update it, and fix_list puts it in a list of its own.
+upstream_image() {
+  mkdir -p reports
+  img() { # rule message package fixed
+    printf '{"ruleId":"%s","level":"error","message":{"text":"%s"},' "$1" "$2"
+    printf '"locations":[{"physicalLocation":{"artifactLocation":{"uri":"python:3.8-slim"}}}],'
+    printf '"properties":{"security-severity":"9.8","builtUpstream":true,"package":{"name":"%s","version":"1.0","fixedVersion":"%s","ecosystem":"debian"}}}' \
+      "$3" "$4"
+  }
+  {
+    printf '{"version":"2.1.0","$schema":"https://json.schemastore.org/sarif-2.1.0.json","runs":[{'
+    printf '"tool":{"driver":{"name":"image-fixture","version":"1.0.0"}},"results":['
+    img CVE-2025-15467 "OpenSSL remote code execution via an oversized initialization vector" openssl 3.0.18-1~deb12u2
+    printf ','
+    img CVE-2025-6965 "SQLite integer truncation" libsqlite3-0 3.40.1-2+deb12u2
+    printf ','
+    img CVE-2026-42010 "GnuTLS authentication bypass via a NUL character in a username" libgnutls30 3.7.9-2+deb12u7
+    printf ']}]}\n'
+  } >reports/image.sarif
+  git_ add reports/image.sarif
+  git_ commit -q -m "Add the image scan"
+  API_EXTRA="${API_EXTRA:-    imports:
+}      - control: images
+        file: reports/image.sarif
+"
+}
