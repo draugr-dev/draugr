@@ -176,3 +176,28 @@ func TestExplainHelpNamesWhereItLooks(t *testing.T) {
 		t.Errorf("--report help = %q, want it to contain %q", usage, want)
 	}
 }
+
+// The directory a scan wrote with -o is what a reader typed to the scan, so it is what they type
+// here, and the answer names the report it came from.
+func TestExplainReadsTheDirectoryAScanWrote(t *testing.T) {
+	dir := writeReport(t, map[string]sarif.Rule{"kube-bench/cis/4.3.1": {ShortDescription: "Ensure the metrics service is bound to localhost"}},
+		[]sarif.Result{{RuleID: "kube-bench/cis/4.3.1", Location: sarif.Location{URI: "kubernetes/prod"}}})
+	var out bytes.Buffer
+	if err := runExplain(&out, "4.3.1", dir); err != nil {
+		t.Fatalf("explain -r <dir>: %v", err)
+	}
+	got := out.String()
+	want := filepath.Join(dir, "results.sarif") + " · written "
+	if !strings.Contains(got, "REPORT\n  "+want) {
+		t.Errorf("explain does not name the report it read:\n%s", got)
+	}
+}
+
+// A directory with no results.sarif says so, and says why a scan may not have written one.
+func TestExplainSaysADirectoryHoldsNoReport(t *testing.T) {
+	dir := t.TempDir()
+	err := runExplain(&bytes.Buffer{}, "4.3.1", dir)
+	if err == nil || !strings.Contains(err.Error(), "no results.sarif in "+dir) || !strings.Contains(err.Error(), "--report leaves sarif out") {
+		t.Errorf("err = %v, want the directory named and why", err)
+	}
+}

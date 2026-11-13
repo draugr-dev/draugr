@@ -44,7 +44,7 @@ func newExplainCommand() *cobra.Command {
 		Short: "Show what a finding means and how to fix it, from a scan's own report",
 		Long: "Print a rule's description, the remediation its scanner published, and where the\n" +
 			"scan found it.\n\n" +
-			"Reads the SARIF a scan wrote with -o. Name the rule by its full id, by its trailing\n" +
+			"Reads the SARIF a scan wrote with -o, and names the file it read. Name the rule by its full id, by its trailing\n" +
 			"segments (`4.3.1` finds `kube-bench/cis/4.3.1`), or by the name a row prints\n" +
 			"(`missing-user` finds `dockerfile.security.missing-user.missing-user`).",
 		Args: cobra.ExactArgs(1),
@@ -53,7 +53,7 @@ func newExplainCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&reportPath, "report", "r", "",
-		"the results.sarif to read (default: the first that exists of "+
+		"the results.sarif to read, or the directory a scan wrote with -o (default: the first that exists of "+
 			strings.Join(defaultSARIFNames, ", ")+")")
 	return cmd
 }
@@ -81,13 +81,39 @@ func runExplain(w io.Writer, query, reportPath string) error {
 		return err
 	}
 	writeExplanation(w, report, id, rule)
+	writeSource(w, path)
 	return nil
 }
 
+// writeSource names the report the answer came from, and when it was written.
+//
+// A checkout can hold more than one: a report committed under .draugr/out by a publisher, and the
+// one the scan just wrote somewhere else. explain reads the first it finds, and an answer from
+// last week's report looks as current as one from a minute ago unless it says which it read.
+func writeSource(w io.Writer, path string) {
+	col := tui.For(w)
+	line := path
+	if info, err := os.Stat(path); err == nil {
+		line += " · written " + info.ModTime().UTC().Format("2006-01-02 15:04 UTC")
+	}
+	_, _ = fmt.Fprintf(w, "\n%s\n  %s\n", col.Paint(tui.StyleMuted, "REPORT"), line)
+}
+
 // findSARIF resolves which report to read, and says what it looked for when there is none.
+//
+// A directory is the one a scan wrote with -o, and its results.sarif is read: that is the name the
+// scan gives the file, and the directory is what a reader typed to the scan.
 func findSARIF(explicit string) (string, error) {
 	if explicit != "" {
-		return explicit, nil
+		info, err := os.Stat(explicit)
+		if err != nil || !info.IsDir() {
+			return explicit, nil
+		}
+		path := filepath.Join(explicit, "results.sarif")
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("no results.sarif in %s; a scan writes it with -o %s unless --report leaves sarif out", explicit, explicit)
+		}
+		return path, nil
 	}
 	for _, name := range defaultSARIFNames {
 		if _, err := os.Stat(name); err == nil {
@@ -95,7 +121,7 @@ func findSARIF(explicit string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no scan report here, looked for %s. "+
-		"Run a scan with -o <dir>, or name one with --report",
+		"Run a scan with -o .draugr/out, or name the directory a scan wrote with --report <dir>",
 		strings.Join(defaultSARIFNames, ", "))
 }
 
