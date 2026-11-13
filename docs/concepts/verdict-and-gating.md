@@ -139,7 +139,7 @@ The scanner's whole message is in `report.json`, under `targets[]`, with the who
 registry's answer under `targets[].refusal`.
 
 Pass `--allow-scan-errors` for best-effort scanning. The run then passes on findings alone, and
-the verdict line carries `partial` with the number of targets not reached. The errored control is
+the line under the band counts starts `Partial:` with the number of targets not reached. The errored control is
 still reported either way; the flag buys a passing exit code, not silence.
 
 ### A surface nobody looked at *does* pass, so it is reported instead

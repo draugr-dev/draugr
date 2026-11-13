@@ -11,15 +11,15 @@ This does not run anything. It compares what the block *claims about its own run
 in the command, which is enough to catch the mismatch that actually occurs:
 
   draugr scan draugr.saga.yaml --labels team=web
-  →  DRAUGR  FAIL  demo 1.0  (scope: 1 of 3 components; sca)
+  →  Scoped to 1 of 3 components and the sca control.
 
 The block says a control filter was applied. The command has none, so the paste came from a run
 with `--controls sca` and the reader will not reproduce it.
 
 Four claims are checkable, all of them rendered by the scan report from what it was asked for:
 
-  (scope: N of M components)   a component was narrowed  → --components/--labels/--exposure/--criticality
-  (scope: …; sca, secrets)     a control was narrowed    → --controls
+  Scoped to N of M components.    a component was narrowed  → --components/--labels/--exposure/--criticality
+  Scoped to … the sca control.    a control was narrowed    → --controls
   FIX FIRST  top N of M        the table was capped      → --top N, unless N is the default
   EVIDENCE                     the evidence block ran    → --evidence
 
@@ -44,7 +44,9 @@ ROOT = Path(__file__).resolve().parent.parent
 FENCE = re.compile(r"```(\w*)\n(.*?)```", re.S)
 # What only this renderer prints, so a console fence carrying one is a run rather than a shell session.
 CONSOLE_SHAPES = ("DRAUGR ", "FIX FIRST", "WHAT TO DO", "CONTROLS\n", "COMPONENTS\n", "EVIDENCE\n")
-SCOPE = re.compile(r"\(scope: ([^)]*)\)")
+# The line under the band counts a scoped run prints: "Scoped to 1 of 3 components and the sca
+# control." Either half may stand alone.
+SCOPE = re.compile(r"^ Scoped to (.+)\.$", re.M)
 TOP = re.compile(r"^(FIX FIRST|CHANGED)\s+top (\d+) of \d+", re.M)
 # What each subcommand caps at when nobody asks. The heading names which one rendered the block,
 # which is a surer signal than the command, since the pairing takes whichever command came last.
@@ -72,9 +74,13 @@ def problems(cmd: str, block: str) -> list[str]:
     out = []
     scope = SCOPE.search(block)
     if scope:
-        parts = [p.strip() for p in scope.group(1).split(";")]
-        narrowed_components = any("components" in p for p in parts)
-        narrowed_controls = [p for p in parts if "components" not in p]
+        said = scope.group(1)
+        components, _, controls = said.partition(" and the ") if " components" in said else ("", "", said)
+        if controls.startswith("the "):
+            controls = controls[len("the "):]
+        controls = re.sub(r" controls?$", "", controls)
+        narrowed_components = bool(components)
+        narrowed_controls = [c for c in re.split(r", | and ", controls) if c]
         if narrowed_components and not any(f in cmd for f in COMPONENT_FLAGS):
             out.append(
                 "the block says the components were narrowed and the command narrows none "

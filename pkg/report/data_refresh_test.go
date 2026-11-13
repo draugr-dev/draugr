@@ -15,39 +15,21 @@ var coldRefresh = []engine.DataRefresh{
 	{Scanner: "gitleaks", Took: 0},
 }
 
-// The header names the refresh only when it is why the run was slow, in one phrase that never
-// grows. A warm run's header is the one it always had.
-func TestTheHeaderNamesARefreshOnlyWhenItExplainsTheRun(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		st   engine.Stats
-		want string
-	}{
-		{"a cold run", engine.Stats{Duration: 16 * time.Second, DataRefresh: coldRefresh}, "5.7s refreshing scanner data"},
-		{"a warm run", engine.Stats{Duration: 10 * time.Second, DataRefresh: []engine.DataRefresh{
-			{Scanner: "trivy-config", Data: []string{"checks bundle"}, Took: 482 * time.Millisecond}}}, ""},
-		{"under five seconds", engine.Stats{Duration: 8 * time.Second, DataRefresh: []engine.DataRefresh{
-			{Scanner: "trivy", Took: 4 * time.Second}}}, ""},
-		{"under a quarter of a long run", engine.Stats{Duration: 10 * time.Minute, DataRefresh: []engine.DataRefresh{
-			{Scanner: "trivy", Took: 30 * time.Second}}}, ""},
-		{"nothing refreshed", engine.Stats{Duration: 10 * time.Second}, ""},
-	} {
-		if got := refreshShare(tc.st); got != tc.want {
-			t.Errorf("%s: refreshShare = %q, want %q", tc.name, got, tc.want)
-		}
-	}
-
+// The title line is the verdict, what was scanned and how long it took, a cold run's included. How
+// much of that time went to refreshing scanner data is --evidence's to say, on its run row.
+func TestTheTitleLineKeepsARefreshOffIt(t *testing.T) {
 	d := sampleData()
 	d.Run.Stats.Duration = 16 * time.Second
+	d.Run.Stats.Jobs = 3
 	d.Run.Stats.DataRefresh = coldRefresh
-	first, _, _ := strings.Cut(renderWith(t, consoleReporter{}, d), "\n")
-	if !strings.HasSuffix(first, "16s · 5.7s refreshing scanner data") {
-		t.Errorf("header = %q, want the duration and the refresh beside it", first)
+	out := renderWith(t, consoleReporter{}, d)
+	first, _, _ := strings.Cut(out, "\n")
+	if strings.Contains(out, "refreshing") || !strings.HasSuffix(first, "16s") {
+		t.Errorf("header = %q, want the duration alone and no refresh anywhere without --evidence", first)
 	}
-	d.Run.Stats.DataRefresh = nil
-	first, _, _ = strings.Cut(renderWith(t, consoleReporter{}, d), "\n")
-	if strings.Contains(first, "refreshing") || !strings.HasSuffix(first, "16s") {
-		t.Errorf("header = %q, want the duration alone", first)
+	d.Evidence = true
+	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, "5.7s refreshing scanner data") {
+		t.Errorf("--evidence does not name the refresh:\n%s", out)
 	}
 }
 

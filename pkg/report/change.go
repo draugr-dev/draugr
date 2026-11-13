@@ -22,7 +22,8 @@ import (
 // change, the one `draugr diff` already prints, and leaves the dependency pointing the way it did.
 type ChangeView interface {
 	// WriteStrips draws a strip of band counts for each state a finding can be in against the base,
-	// then one more labeled strip for the counts in whole.
+	// then one more labeled strip for the counts in whole, with no blank line after them, so the
+	// caller can put what qualifies the counts directly beneath.
 	WriteStrips(w io.Writer, label string, whole [4]int)
 	// WriteListing draws what changed in the view asked for, capped at top rows where top is
 	// positive, and reports whether it wrote anything. It writes nothing where nothing changed.
@@ -45,8 +46,13 @@ func (d Data) judgedOnChange() bool { return d.Change != nil && d.Gate.judgesCha
 func renderChange(w io.Writer, d Data) error {
 	s := summarize(d)
 	col := tui.For(w)
-	writeVerdictLine(w, col, s, d, changeNote(d.Gate))
+	writeVerdictLine(w, col, s, d)
+	// What the verdict was measured against, under the strips it qualifies rather than beside the
+	// verdict, which stays the verdict, what was scanned and how long it took.
 	d.Change.WriteStrips(w, "whole run", [4]int{s.p1, s.p2, s.p3, s.p4})
+	_, _ = fmt.Fprintf(w, " %s\n", changeNote(d.Gate))
+	writeCoverageNotes(w, col, d)
+	_, _ = fmt.Fprintln(w)
 	if d.Gate.Disabled {
 		writeGate(w, col, d, false, "")
 	}
@@ -69,7 +75,7 @@ func renderChange(w io.Writer, d Data) error {
 	return nil
 }
 
-// changeNote is what a judged run's verdict was measured against, beside it: the base, how many
+// changeNote is what a judged run's verdict was measured against, under the strips: the base, how many
 // findings are new against it, and the gate on them.
 //
 // The count is every new finding, the number `draugr diff` heads its own output with, and the
@@ -79,7 +85,7 @@ func changeNote(g GateSettings) string {
 	if n := len(g.New.Introduced); n > 0 {
 		news = fmt.Sprintf("%d new", n)
 	}
-	return "change since " + g.baseName() + " · " + news + " · fails on " + ThresholdWords(g.FailOnNew)
+	return "Change since " + g.baseName() + " · " + news + " · fails on " + ThresholdWords(g.FailOnNew)
 }
 
 // ThresholdWords is a gate setting as the report states it: a band as it is written, and a

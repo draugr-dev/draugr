@@ -153,7 +153,7 @@ func TestAllowScanErrorsAcceptsAFailingCaveat(t *testing.T) {
 	if err := runScan(context.Background(), path, scanOptions{format: "console", allowScanErrors: true}, caveatRegistry(), &buf); err != nil {
 		t.Fatalf("err = %v, want the caveat accepted", err)
 	}
-	for _, want := range []string{"PASS", "partial · scan errors accepted", "1 accepted by --allow-scan-errors"} {
+	for _, want := range []string{"PASS", "Partial: the run accepted its scan errors.", "1 accepted by --allow-scan-errors"} {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("missing %q:\n%s", want, buf.String())
 		}

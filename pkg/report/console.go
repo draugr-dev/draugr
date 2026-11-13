@@ -83,7 +83,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 	s := summarize(d)
 	col := tui.For(w)
-	writeVerdictLine(w, col, s, d, "")
+	writeVerdictLine(w, col, s, d)
 
 	// listed is how many rows a list printed when it left the rest out, and zero when it printed
 	// everything.
@@ -104,6 +104,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cAccent, unclassifiedRead))
 			_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cDim, unclassifiedBands))
 		}
+		writeCoverageNotes(w, col, d)
+		_, _ = fmt.Fprintln(w)
+	} else if notes := coverageNotes(d); len(notes) > 0 {
+		writeCoverageNotes(w, col, d)
 		_, _ = fmt.Fprintln(w)
 	}
 
@@ -335,7 +339,7 @@ const noFindingsWithCaveats = "No findings. The run did not check what its cavea
 
 // writeVerdictLine is the report's first line: the verdict, what was scanned, what qualifies the
 // verdict, and what the run cost. note is printed after the qualifiers, empty for none.
-func writeVerdictLine(w io.Writer, col tui.Painter, s summary, d Data, note string) {
+func writeVerdictLine(w io.Writer, col tui.Painter, s summary, d Data) {
 	verdict, vcol := "PASS", cPass
 	if s.verdict == norn.Fail {
 		verdict, vcol = "FAIL", cFail
@@ -350,34 +354,11 @@ func writeVerdictLine(w io.Writer, col tui.Painter, s summary, d Data, note stri
 		}
 		_, _ = fmt.Fprintf(w, "  %s", col.Paint(tui.StyleStrong, rel))
 	}
-	// Beside the verdict rather than below it. A PASS covering a fifth of the release must not be
-	// readable on its own.
-	if note := scopeNote(d); note != "" {
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
-	}
-	// Beside the verdict, for the reason the scope note is: a pass that accepted errors covered less
-	// than it says, and the word PASS must not be readable on its own.
-	if d.AcceptedErrors {
-		note := "partial · scan errors accepted"
-		if n := len(notReached(d)); n > 0 {
-			note = fmt.Sprintf("partial · %d of %s not reached", n, english.Count(len(d.Run.Targets), "target"))
-		}
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cAccent, note))
-	}
-	if note != "" {
-		_, _ = fmt.Fprintf(w, "  %s", note)
-	}
 	// What the run cost, where somebody asking is looking. It was reported only under --evidence,
 	// which is the flag for "can I trust this" rather than for "how long did that take", so the
 	// one question every reader has was the one answered furthest from the top.
 	if t := d.Run.Stats.Duration; t > 0 {
-		dur := t.Round(time.Millisecond).String()
-		// Only when refreshing scanner data is why this run was slow. A run that finds its data
-		// current refreshes in well under a second, and its header stays as it was.
-		if r := refreshShare(d.Run.Stats); r != "" {
-			dur += " · " + r
-		}
-		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, dur))
+		_, _ = fmt.Fprintf(w, "  %s", col.Paint(cDim, t.Round(time.Millisecond).String()))
 	}
 	_, _ = fmt.Fprint(w, "\n\n")
 }
@@ -1700,19 +1681,6 @@ func refreshed(rs []engine.DataRefresh) ([]engine.DataRefresh, time.Duration) {
 	return out, total
 }
 
-// refreshShare is what the header says about refreshing scanner data, or "" when it does not
-// explain the run's duration: under five seconds, or under a quarter of the run.
-//
-// One fixed phrase and a total, never a list. The header is the line every reader takes away, and
-// which scanner's data it was belongs under --evidence.
-func refreshShare(st engine.Stats) string {
-	_, total := refreshed(st.DataRefresh)
-	if total < 5*time.Second || total*4 < st.Duration {
-		return ""
-	}
-	return total.Round(100*time.Millisecond).String() + " refreshing scanner data"
-}
-
 // refreshSummary is the --evidence account of the data refreshes worth mentioning: the total, then
 // each scanner's data and how long it took.
 func refreshSummary(rs []engine.DataRefresh) string {
@@ -1884,26 +1852,48 @@ func sbomLine(docs []sbom.Document) string {
 	}
 }
 
-// scopeNote describes what a scoped run covered, for the line beside the verdict.
+// coverageNotes are the lines under the band counts saying the run covered less than all of it: a
+// scope narrowed to some components or controls, and scan errors the run accepted.
 //
-// Says the ratio for components, because "2 of 12" is the fact that changes what the verdict
-// means, and names the controls, because there are few of them and the names are the answer.
-// Empty for an unscoped run, which is nearly all of them.
-func scopeNote(d Data) string {
-	if d.Scope == nil {
-		return ""
+// Under the counts rather than beside the verdict. The title line is the verdict, what was scanned
+// and how long it took, and stays that way; the first line under the counts is still the next
+// thing a reader meets, so a PASS covering part of the run is never read on its own.
+//
+// The component ratio, because "2 of 12" is the fact that changes what the verdict means, and the
+// control names, because there are few of them and the names are the answer. Empty for an unscoped
+// run with nothing accepted, which is nearly all of them.
+func coverageNotes(d Data) []string {
+	var out []string
+	if sc := d.Scope; sc != nil {
+		// Only what narrowed. The components block names each one left out, so this says how many.
+		var parts []string
+		if n := len(sc.SkippedComponents); n > 0 {
+			parts = append(parts, fmt.Sprintf("%d of %d components", len(d.Components), len(d.Components)+n))
+		}
+		if len(sc.Controls) > 0 {
+			parts = append(parts, "the "+english.And(sc.Controls)+" "+english.Choose(len(sc.Controls), "control", "controls"))
+		}
+		if len(parts) > 0 {
+			out = append(out, "Scoped to "+strings.Join(parts, " and ")+".")
+		}
 	}
-	var parts []string
-	if n := len(d.Scope.SkippedComponents); n > 0 {
-		parts = append(parts, fmt.Sprintf("%d of %d components", len(d.Components), len(d.Components)+n))
+	if d.AcceptedErrors {
+		if n := len(notReached(d)); n > 0 {
+			out = append(out, fmt.Sprintf("Partial: %d of %s not reached, and the run accepted it.",
+				n, english.Count(len(d.Run.Targets), "target")))
+		} else {
+			out = append(out, "Partial: the run accepted its scan errors.")
+		}
 	}
-	if len(d.Scope.Controls) > 0 {
-		parts = append(parts, strings.Join(d.Scope.Controls, ", "))
+	return out
+}
+
+// writeCoverageNotes prints coverageNotes, one line each, in the accent a caveat on every count
+// wears.
+func writeCoverageNotes(w io.Writer, col tui.Painter, d Data) {
+	for _, n := range coverageNotes(d) {
+		_, _ = fmt.Fprintf(w, " %s\n", col.Paint(cAccent, n))
 	}
-	if len(parts) == 0 {
-		return ""
-	}
-	return "(scope: " + strings.Join(parts, "; ") + ")"
 }
 
 // writeActions renders the fix list as things to do rather than things that are wrong.
