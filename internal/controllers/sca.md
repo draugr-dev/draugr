@@ -97,8 +97,9 @@ the Saga reference lists the files and what each records.
 of documentation, examples or tests, such as a `tests/go.mod` for a module only the tests build.
 `report`, the default, counts each, labeled `docs`, `example` or `test` beside its location and
 listed after the shipped code's findings; `suppress` keeps each in the report suppressed with the
-reason `in docs, examples or tests`. A component's setting replaces the project's. A flaw a shipped
-manifest also holds is counted under the shipped copy.
+reason `in docs, examples or tests`. A component's setting replaces the project's. Under `report`, a
+flaw a shipped manifest also holds is counted under the shipped copy. Under `suppress`, the copy set
+aside stays a suppressed finding of its own, and the shipped copy's row does not list it.
 
 [Non-shipping paths](../../docs/reference/saga-schema.md#non-shipping-paths) in the Saga reference
 lists the directories.
