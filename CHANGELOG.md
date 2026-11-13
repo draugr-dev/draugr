@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.176.0] - 2026-11-13
+
+### Changed
+
+- **A CI test panel agrees with the exit code on a pull request.** On a scan given `--base` and a gate on new findings, the JUnit report fails only the new findings that met the gate, each marked `new since <revision>`. A control where the change failed nothing passes on one test.
+
+- **A failed test in the JUnit report names the upgrade to make.** Where several failing findings sit on one package, each names the one release that clears them all, not the release its own advisory named.
+
+- **A Kubernetes check the benchmark leaves to a person is no longer a finding.** It takes no band and does not count toward the gate. The coverage line counts these checks, `--evidence` lists them, and `report.json` and SARIF carry them as `unsettledChecks`, an excluded one with its reason. A `--base` report from an earlier release lists them as fixed once.
+
+- **Copy a rule id from any view into `config.exclude`.** `--view compact` and `--view actions` print rule ids whole, however long, so one copied from a row matches the finding it came from. Under a run that listed findings, `TRY` names `config.exclude`, where a rule that does not apply is set aside with a reason.
+
+### Fixed
+
+- **The Kubernetes check for pods and containers with no security context (CIS 5.6.3) now finds them on a live cluster.** The API server gives every pod an empty `securityContext: {}`, and the check counted that as one being applied, so it passed every workload. A security context that sets nothing now counts as none.
+
 ## [0.175.0] - 2026-11-13
 
 ### Added
@@ -7119,7 +7135,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.175.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.176.0...HEAD
+[0.176.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.0
 [0.175.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.175.0
 [0.174.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.174.0
 [0.173.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.173.0

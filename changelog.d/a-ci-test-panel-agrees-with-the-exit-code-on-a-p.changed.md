@@ -1,1 +1,0 @@
-- **A CI test panel agrees with the exit code on a pull request.** On a scan given `--base` and a gate on new findings, the JUnit report fails only the new findings that met the gate, each marked `new since <revision>`. A control where the change failed nothing passes on one test.
