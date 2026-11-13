@@ -42,7 +42,7 @@ func TestAChecksLeftForAPersonAreNotFindings(t *testing.T) {
 	}
 	for i, cluster := range []string{"kubernetes/staging", "kubernetes/production"} {
 		u := rep.UnsettledChecks[i]
-		if u.Location != cluster || u.RuleID != "draugr/cis/5.1.10" || u.Kind != sarif.UnsettledManual ||
+		if u.Location != cluster || u.RuleID != "draugr/cis/5.1.10" || u.Kind != sarif.UnsettledManual || u.Control != "kubernetes" ||
 			u.Title != "Minimize access to the proxy sub-resource of nodes" || u.Scanner != "draugr-k8s-policies" {
 			t.Errorf("unsettled[%d] = %+v, want 5.1.10 on %s with its title", i, u, cluster)
 		}

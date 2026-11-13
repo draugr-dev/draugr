@@ -49,7 +49,7 @@ func setUnsettledApart(controls map[string]plugin.ControlResult) (leftSuppressed
 				title = r.Message
 			}
 			unsettled = append(unsettled, sarif.UnsettledCheck{
-				Scanner: r.Tool, RuleID: r.RuleID, Title: title,
+				Scanner: r.Tool, RuleID: r.RuleID, Title: title, Control: name,
 				Component: r.Component, Location: r.Location.URI,
 				Kind: sarif.UnsettledManual, Suppression: r.Suppression,
 			})

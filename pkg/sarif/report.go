@@ -868,6 +868,9 @@ type UnsettledCheck struct {
 	RuleID  string `json:"ruleId"`
 	// Title is the check as the benchmark words it.
 	Title string `json:"title,omitempty"`
+	// Control is the control the check belongs to. A run's checks of every control are written to
+	// one SARIF run, which says nothing about which control any of them is.
+	Control string `json:"control,omitempty"`
 	// Component and Location are whose check it was and what it read, the cluster.
 	Component string `json:"component,omitempty"`
 	Location  string `json:"location"`

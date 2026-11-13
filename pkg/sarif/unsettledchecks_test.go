@@ -15,7 +15,7 @@ func TestUnsettledChecksSurviveTheFileOutsideTheResults(t *testing.T) {
 			"draugr/cis/5.1.10": {ShortDescription: "Minimize access to the proxy sub-resource of nodes"},
 		}, UnsettledChecks: []UnsettledCheck{
 			{Scanner: "draugr-k8s-policies", RuleID: "draugr/cis/5.1.10", Title: "Minimize access to the proxy sub-resource of nodes",
-				Component: "api", Location: "kubernetes/staging", Kind: UnsettledManual},
+				Control: "kubernetes", Component: "api", Location: "kubernetes/staging", Kind: UnsettledManual},
 		}},
 		Report{Tool: "kube-bench", Rules: map[string]Rule{
 			"kube-bench/cis/5.1.11": {ShortDescription: "Minimize access to the approval sub-resource"},
