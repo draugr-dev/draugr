@@ -335,9 +335,10 @@ with `severityFrom` where a minimum severity, KEV, EPSS or reachability analysis
 
 The lists are in a fixed order of kind, which [says nothing about
 urgency](../concepts/what-to-fix-first.md), so a reply names the head of each list that applies.
-Every action in every list is returned; the console shows three per list. `limit` caps each list.
+Every action in every list is returned; the console shows three per list. `limit` caps each list
+except `image`, which is never cut.
 
-`kind` returns one of the lists: `bump`, `code`, `infrastructure`, `credential`, `wait` or
+`kind` returns one of the lists: `image`, `bump`, `code`, `infrastructure`, `credential`, `wait` or
 `decide`. `limit` then applies to that list, and `totalActions` and `totalClears` count it. Any
 other value is an error naming the valid kinds.
 

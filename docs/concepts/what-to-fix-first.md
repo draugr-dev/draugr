@@ -37,7 +37,8 @@ The actions are split by who does the work, into these lists:
 
 | List | What it holds |
 |---|---|
-| **Bump a dependency** | an upgrade to the release that fixes a dependency, in a repository or an image you build, or a move of an image or repository somebody else publishes when any of its findings has a fix published |
+| **Update an image you do not build** | a move to a newer image, for an image the descriptor declares `builtBy: upstream`, when any of its findings has a fix published |
+| **Bump a dependency** | an upgrade to the release that fixes a dependency, in a repository or an image you build, or a move of a repository somebody else publishes when any of its findings has a fix published |
 | **Change the code** | a change to the application's code or its server's configuration, from `sast`, `dast`, `headers` and `tls`, or a change to the build that signs an image, from `provenance` |
 | **Change the infrastructure** | a change to infrastructure code or a live setting, from `iac`, `kubernetes` and `cloud` |
 | **Rotate a credential** | a committed secret to remove and then rotate, from `secrets` |
@@ -51,9 +52,10 @@ Every action is in exactly one list.
 
 `WHAT TO DO` counts every action and every finding across the lists. Each list shows its first
 three and ends with `… and N actions not listed`. `--top N` shows the first `N` of each list and
-`--top 0` shows every action. A list with nothing in it is left out. The MCP `fix_list` tool returns
-the same lists without the console's cut of three, with each line of code as an action of its own, and
-its `kind` returns one of them.
+`--top 0` shows every action. **Update an image you do not build** is never cut. A list with nothing
+in it is left out. The MCP `fix_list` tool returns the same lists without the console's cut of three,
+with each line of code as an action of its own; its `limit` cuts every list but the images, and its
+`kind` returns one of them.
 
 ## Rows are actions, not findings
 
@@ -65,7 +67,7 @@ three rows makes the repetitive work crowd out everything else.
 |---|---|---|
 | `sca` | component, package and installed version | upgrade this dependency |
 | `images`, when you build it | component, package and installed version | upgrade it in your image |
-| `images`, when somebody else builds it | image | take a newer image |
+| `images`, when somebody else builds it | image | update the image |
 | `images`, OS layer past end of life | operating system release | move the base |
 | `secrets` | rule | remove the credential and rotate it |
 | `licenses`, when somebody else builds it | image or repository | review the licenses it carries |
@@ -194,12 +196,13 @@ images:
     builtBy: upstream        # self (default), or upstream
 ```
 
-On `upstream`, every vulnerability in the image becomes one action. *take a newer image*, instead of
+On `upstream`, every vulnerability in the image becomes one action, *update the image*, instead of
 one row per vulnerable library. Nobody can upgrade a package inside an image they do not build, and
 the reference to the image is theirs to move, to a rebuilt image or to a supported base. So the
-action is in **Bump a dependency** when any of its findings has a fix published, and in **Wait for a
-release** only when none has. The row names no target version: the fixes Draugr knows are versions of
-packages inside the image, not of the image. Its licenses become a second action, a review of what
+action is in **Update an image you do not build** when any of its findings has a fix published, and
+in **Wait for a release** only when none has. Its findings read `update <image>` in the Fix column of
+`--view compact` and `fix update <image>` in the default view. The row names no target version: the
+fixes Draugr knows are versions of packages inside the image, not of the image. Its licenses become a second action, a review of what
 the image carries, because a newer image carries the same licenses.
 
 On `self` (the default), a package inside the image is yours, and the rows say to upgrade it.

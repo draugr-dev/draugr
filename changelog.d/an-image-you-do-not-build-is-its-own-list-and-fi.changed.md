@@ -1,0 +1,1 @@
+- **An image you do not build is its own list, and FIX FIRST says to update it.** For an image declared `builtBy: upstream`, `--view actions` opens with Update an image you do not build, which `--top` never cuts, `fix_list` returns it as kind `image`, and FIX FIRST gives `update <image>` rather than upgrading a package inside it.

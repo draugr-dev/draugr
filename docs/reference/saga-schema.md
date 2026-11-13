@@ -265,7 +265,7 @@ exactly as dangerous, and what differs is who can end it.
 
 Nobody can upgrade a library inside an image they do not build. The fix is a newer image, or a wait
 for whoever publishes it, so for an `upstream` image the fix list groups every finding in it into
-one action, *take a newer image*, instead of listing each library as something to upgrade.
+one action, *update the image*, instead of listing each library as something to upgrade.
 
 The same holds for a repository, and licenses are where it is felt most. A denied license in the
 dependency tree of a repository you do not publish is not a license you chose and not one you can

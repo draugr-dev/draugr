@@ -143,7 +143,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s | %s | %s |\n",
 			dash(f.priority), sev, ruleLink(f), f.tool, component, labeledWhere(f, whereShown(f.location)),
-			dash(upgradeLabel(f)), findingTitle(f))
+			dash(markdownUpgrade(f)), findingTitle(f))
 	}
 	if len(s.findings) > markdownTopN {
 		_, _ = fmt.Fprintf(w, "\n_…and %s more._\n", english.Count(len(s.findings)-markdownTopN, "finding"))
@@ -553,4 +553,15 @@ func writeSignalRows(w io.Writer, d Data, s summary) {
 	for _, note := range notes {
 		_, _ = fmt.Fprintf(w, "_%s_\n\n", note)
 	}
+}
+
+// markdownUpgrade is the Upgrade cell: the package and the release that clears it, or for a package
+// in an image somebody else builds, the package and the image to update, since nobody reading can
+// upgrade the package inside it.
+func markdownUpgrade(f finding) string {
+	if u := imageUpdate(f); u != "" {
+		name, _ := packageFix(f, true)
+		return name + " · " + u
+	}
+	return upgradeLabel(f)
 }

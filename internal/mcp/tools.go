@@ -1224,10 +1224,10 @@ type FixListInput struct {
 	// tie on every key, so a cut falls at an arbitrary place among them. The actions are returned
 	// without their findings, so every list whole is small next to what a summary of the findings
 	// costs.
-	Limit int `json:"limit,omitempty" jsonschema:"maximum actions per list; every action when omitted"`
+	Limit int `json:"limit,omitempty" jsonschema:"maximum actions per list, except the image list, which is never cut; every action when omitted"`
 	// Kind narrows the answer to one list, the way the console shows a list per kind of work. Asked
 	// what a developer should change first, the code list answers it.
-	Kind string `json:"kind,omitempty" jsonschema:"only the list for one kind of work: bump (upgrade a dependency), code (change the application's code or its server's configuration), infrastructure (change infrastructure code or a live setting), credential (remove and rotate a committed secret), wait (for somebody else's release) or decide (accept or replace, e.g. a license). Omit for every list"`
+	Kind string `json:"kind,omitempty" jsonschema:"only the list for one kind of work: image (update an image the descriptor says somebody else builds), bump (upgrade a dependency), code (change the application's code or its server's configuration), infrastructure (change infrastructure code or a live setting), credential (remove and rotate a committed secret), wait (for somebody else's release) or decide (accept or replace, e.g. a license). Omit for every list"`
 }
 
 // FixListOutput is the work a report implies, rather than the findings in it, as the lists the
@@ -1236,7 +1236,7 @@ type FixListInput struct {
 // The counts mean what the console's headings mean: Clears is what the actions returned clear, each
 // finding counted once, and the totals say what the limit left out.
 type FixListOutput struct {
-	Lists  []FixList `json:"lists" jsonschema:"one list per kind of work, ordered bump, code, infrastructure, credential, wait, decide; a kind with no action has no list"`
+	Lists  []FixList `json:"lists" jsonschema:"one list per kind of work, ordered image, bump, code, infrastructure, credential, wait, decide; a kind with no action has no list"`
 	Clears int       `json:"clears" jsonschema:"findings the returned actions clear between them, each counted once"`
 	// TotalActions and TotalClears are every list whole, so a reply can say how much the actions
 	// returned leave.
@@ -1252,7 +1252,7 @@ type FixListOutput struct {
 // published CVE carries exploitation evidence, so a single sequence puts every exploited dependency
 // above every flaw in the project's own code, and the two are different people's work.
 type FixList struct {
-	Kind skald.ActionKind `json:"kind" jsonschema:"bump, code, infrastructure, credential, wait or decide"`
+	Kind skald.ActionKind `json:"kind" jsonschema:"image, bump, code, infrastructure, credential, wait or decide"`
 	Name string           `json:"name" jsonschema:"the list's name as the console prints it"`
 	// Actions are the list's actions, or its first Limit when one is set.
 	Actions      []report.Action `json:"actions" jsonschema:"things to do, most urgent first: by priority, then exploitation, then severity, then how many findings each clears"`
@@ -1295,7 +1295,9 @@ func FixListTool(_ context.Context, _ *mcp.CallToolRequest, in FixListInput) (*m
 	for _, l := range report.ListsOf(actions) {
 		list := FixList{Kind: l.Kind, Name: l.Kind.ListName(), TotalActions: len(l.Actions),
 			TotalClears: report.Cleared(l.Actions), Actions: l.Actions}
-		if in.Limit > 0 && len(list.Actions) > in.Limit {
+		// The images somebody else builds are never cut, as the console never cuts them: each is a
+		// whole image, and the list exists so the largest reductions are not left out.
+		if in.Limit > 0 && len(list.Actions) > in.Limit && l.Kind != skald.KindImage {
 			list.Actions, cut = list.Actions[:in.Limit], true
 		}
 		// Without their findings. The most urgent actions of a real project carry hundreds of them,

@@ -67,6 +67,12 @@ func fixListRun() engine.Result {
 			jquery("storefront", "minor", "CVE-2020-11022", "3.5.0", "P1", 12),
 			jquery("storefront", "minor", "CVE-2020-11023", "3.5.0", "P2", 12),
 			jquery("api", "", "CVE-2020-11022", "3.5.0", "P1", 3),
+			// A second library, so the bumps are a list longer than the console shows by default.
+			{RuleID: "CVE-2021-23337", Tool: "trivy", Priority: "P2", Level: sarif.LevelError,
+				Component: "api", Message: "CVE-2021-23337 in lodash",
+				Location: sarif.Location{URI: "web/package-lock.json", StartLine: 40},
+				Package: &sarif.Package{Name: "lodash", Version: "4.17.20", FixedVersion: "4.17.21",
+					Ecosystem: "npm", PURL: "pkg:npm/lodash@4.17.20"}},
 			// The same flaw retire.js reported, counted under trivy's finding.
 			{RuleID: "retire-jquery-11022", Tool: "retirejs", Priority: "P1", Component: "api",
 				Location:    sarif.Location{URI: "web/package-lock.json", StartLine: 3},
@@ -344,8 +350,9 @@ func TestFixListKeepsEachControlsAction(t *testing.T) {
 		clears  int
 	}
 	want := map[string]row{
-		"Update python:3.8-slim":                             {"images", skald.KindBump, 3},
-		"Update chainguard/static:latest":                    {"images", skald.KindBump, 1},
+		"Update python:3.8-slim":                             {"images", skald.KindImage, 3},
+		"Update chainguard/static:latest":                    {"images", skald.KindImage, 1},
+		"Upgrade lodash 4.17.20":                             {"sca", skald.KindBump, 1},
 		"Review the licenses in python:3.8-slim":             {"licenses", skald.KindDecide, 2},
 		"Review the licenses in chainguard/static:latest":    {"licenses", skald.KindDecide, 1},
 		"Remove and rotate the AWS access key if it is real": {"secrets", skald.KindCredential, 1},
@@ -373,5 +380,26 @@ func TestFixListKeepsEachControlsAction(t *testing.T) {
 	// Two components, two owners: api's jquery is its own action beside storefront's step.
 	if got["Upgrade jquery 1.8.3"] != 2 {
 		t.Errorf("jquery 1.8.3 in two components should be two actions, got %d", got["Upgrade jquery 1.8.3"])
+	}
+}
+
+// TestFixListNeverCutsTheImageList: a limit cuts every list but the images somebody else builds,
+// as the console's --top does, so an assistant asked for the first action of each list still hears
+// of every image.
+func TestFixListNeverCutsTheImageList(t *testing.T) {
+	_, out, err := FixListTool(context.Background(), nil, FixListInput{Path: writeRunSARIF(t, fixListRun()), Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Lists) == 0 || out.Lists[0].Kind != skald.KindImage {
+		t.Fatalf("the image list should come first: %+v", out.Lists)
+	}
+	for _, l := range out.Lists {
+		switch {
+		case l.Kind == skald.KindImage && len(l.Actions) != 2:
+			t.Errorf("the image list returned %d of its 2 actions under a limit of 1", len(l.Actions))
+		case l.Kind != skald.KindImage && len(l.Actions) > 1:
+			t.Errorf("%s returned %d actions under a limit of 1", l.Kind, len(l.Actions))
+		}
 	}
 }

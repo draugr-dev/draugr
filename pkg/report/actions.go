@@ -620,11 +620,11 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 	//
 	// Before the package case, because a finding is both: it names a package, and the package is
 	// not the unit of work here.
-	case f.builtUpstream && f.control == "images" && f.location != "":
+	case builtUpstreamImage(f) != "":
 		// The image is the title, so the row does not repeat it below, and the reason it is the
 		// unit of work goes in the meta as one word rather than a clause on every line. Its kind is
 		// decided over every finding it clears, by upstreamKind, once the action is whole.
-		return "image\x00" + f.location, "Update " + displayLocation(f), skald.KindWait, false
+		return "image\x00" + f.location, "Update " + builtUpstreamImage(f), skald.KindWait, false
 
 	// The same argument one level up, for a repository somebody else publishes. The unit of work is
 	// their software, not a file inside it: keying on the location here would title the action
@@ -1554,19 +1554,51 @@ func upstreamUnit(f finding) string {
 	return f.component
 }
 
+// builtUpstreamImage is the image a finding is in, as the reader names it, when the descriptor says
+// somebody else builds that image; empty for every other finding.
+//
+// The unit of work for such a finding is the image: nobody running the scan can upgrade a package
+// inside it. The fix list groups on it and FIX FIRST names it as the fix, through this one test, so
+// the two never disagree about which findings it covers.
+func builtUpstreamImage(f finding) string {
+	if !f.builtUpstream || f.control != "images" || f.location == "" {
+		return ""
+	}
+	return displayLocation(f)
+}
+
+// imageUpdate is the fix for a finding in an image somebody else builds where a newer release
+// can clear it: "update <image>". Empty where the finding is in no such image, and where no fixed
+// version is published, which leaves the finding's own phrase saying why nothing is to be had.
+func imageUpdate(f finding) string {
+	image := builtUpstreamImage(f)
+	if image == "" || f.pkg == nil || f.pkg.FixedVersion == "" {
+		return ""
+	}
+	return "update " + image
+}
+
 // upstreamKind is the kind of work an action on an image or a repository somebody else publishes
 // is, decided over every finding it clears; any other action keeps its own.
 //
 // The reader does not build it, and does choose which one they pull: the reference in their
-// Dockerfile, descriptor or manifest is theirs to move. So it is a bump when any finding it clears
+// Dockerfile, descriptor or manifest is theirs to move. So it is work when any finding it clears
 // has a fixed version published somewhere, because a newer release or a supported base clears it,
 // and a wait only when none has, because no release yet would.
+//
+// The work for an image is its own list, ahead of the bumps. One image routinely clears more than
+// every package bump together, and inside the bumps it read as one more package to upgrade. A
+// repository somebody else publishes stays a bump: it is a dependency, and taking a newer one is.
 func upstreamKind(a action) skald.ActionKind {
-	if !strings.HasPrefix(a.key, "image\x00") && !strings.HasPrefix(a.key, "upstream\x00") {
+	image := strings.HasPrefix(a.key, "image\x00")
+	if !image && !strings.HasPrefix(a.key, "upstream\x00") {
 		return a.kind
 	}
 	for _, f := range a.findings {
 		if f.pkg != nil && f.pkg.FixedVersion != "" {
+			if image {
+				return skald.KindImage
+			}
 			return skald.KindBump
 		}
 	}
