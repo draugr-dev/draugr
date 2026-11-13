@@ -18,4 +18,5 @@ WHAT TO DO  2 actions clear 3 findings
 TRY
   --view compact         one line each, to see how much there is
   --view findings        the findings themselves, one row each
+  config.exclude         set aside a rule by its id as printed, with a reason
   draugr explain <rule>  what a rule means and how to fix it, from .draugr/out

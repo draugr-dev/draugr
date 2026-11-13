@@ -1,0 +1,1 @@
+- **Copy a rule id from any view into `config.exclude`.** `--view compact` and `--view actions` print rule ids whole, however long, so one copied from a row matches the finding it came from. Under a run that listed findings, `TRY` names `config.exclude`, where a rule that does not apply is set aside with a reason.

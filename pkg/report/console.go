@@ -573,8 +573,9 @@ func renderFixFirst(w io.Writer, col tui.Painter, fs []finding, compact bool, bl
 			// argued with, even though the name of the argument only appears in the default view.
 			band(f, true),
 			// A rule id names a finding; it doesn't explain it. The link is where a reader finds
-			// out what it means, and it costs no width.
-			{Text: shortRuleID(f.ruleID), URL: f.helpURI},
+			// out what it means, and it costs no width. Whole, however long, because config.exclude
+			// matches an id exactly and the reader copies it from here.
+			{Text: f.ruleID, URL: f.helpURI},
 		}
 		if has("Repository") {
 			cells = append(cells, tui.PlainCell(dash(shortRepository(f.repository))))
@@ -1081,36 +1082,6 @@ func movements(f finding) []string {
 		return []string{moveUntouched}
 	}
 	return out
-}
-
-// ruleIDWidth caps the Rule column. Some scanners use long namespaced ids. Semgrep's run past a
-// hundred characters, and one of those pushes every column after it off the screen, which costs the
-// reader the location and the scanner to show a namespace they didn't need.
-const ruleIDWidth = 44
-
-// shortRuleID fits a rule id into the compact table's column and an action's row by dropping the
-// front. Namespaced ids put the general part first and the specific part last
-// ("yaml.github-actions.security.<name>"), so the tail is the half worth keeping. The default
-// findings view prints the id whole, because config.exclude matches it exactly, and so do the JSON
-// and SARIF reports; the hyperlink on a shortened id still resolves.
-//
-// It cuts on a dot where one fits. Cutting purely by width lands mid-word and the result reads as
-// corruption rather than truncation, "…ction-tag.github-actions-mutable-action-tag" invites the
-// reader to wonder what went wrong, where "…github-actions-mutable-action-tag" plainly says there
-// is more in front.
-func shortRuleID(id string) string {
-	r := []rune(id)
-	if len(r) <= ruleIDWidth {
-		return id
-	}
-	cut := len(r) - (ruleIDWidth - 1) // the widest tail that fits after the ellipsis
-	if dot := strings.IndexRune(string(r[cut:]), '.'); dot >= 0 {
-		// A dot inside the visible tail; start just after it so the fragment is whole segments.
-		if tail := string(r[cut:])[dot+1:]; tail != "" {
-			return "…" + tail
-		}
-	}
-	return "…" + string(r[cut:])
 }
 
 // messageWidth keeps the explanation to one line. Wrapping it would compete with the table for
@@ -2052,6 +2023,9 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 			row("--view actions", "the same findings as a list of things to do")
 		}
 		if len(s.findings) > 0 {
+			// The other answer to a finding besides changing the code: deciding it does not apply.
+			// Fixed text, and the id as the rows print it, which config.exclude matches exactly.
+			row(excludeRowWhat, excludeRowSays)
 			// explain reads the run's report, so a run that wrote none says what it needs; offered
 			// bare, the next command the reader types fails with "no scan report here".
 			switch {
@@ -2074,6 +2048,13 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	_, _ = fmt.Fprintln(w, heading(col, "Try"))
 	t.Render(w)
 }
+
+// excludeRowWhat and excludeRowSays are the TRY row naming where a rule that does not apply is set
+// aside, under a run that listed findings.
+const (
+	excludeRowWhat = "config.exclude"
+	excludeRowSays = "set aside a rule by its id as printed, with a reason"
+)
 
 // htmlReportFlags is what to type for an HTML report: -o where the run writes no report files, and
 // otherwise --report with the formats it already writes, because --report replaces the list it is
@@ -2621,7 +2602,7 @@ func actionRef(col tui.Painter, a action) string {
 	if !ok || f.ruleID == "" || a.atOneLine() || a.titleHidesRule() {
 		return ""
 	}
-	ref := col.Link(f.helpURI, shortRuleID(f.ruleID))
+	ref := col.Link(f.helpURI, f.ruleID)
 	if more := a.count() - 1; more > 0 {
 		ref += fmt.Sprintf(" +%d", more)
 	}
@@ -2631,43 +2612,48 @@ func actionRef(col tui.Painter, a action) string {
 // ruleLine is the line under the title of an action for one line of code: each scanner, then the
 // rules of its that flag the line, each linked to what the scanner published about it. Fitted into
 // room by naming fewer rules and counting the rest, the way a row counts the locations it does not
-// name. Narrower than one rule and the count, the first rule alone, and the count of findings on
-// the line below still says there are more.
+// name. Each id is whole, because config.exclude matches an id exactly and a reader copies it from
+// here. So the line names every rule that still fits, a short id after a long one that did not,
+// and narrower than the first rule and the count, it runs past room rather than cut the id.
 func ruleLine(col tui.Painter, a action, room int) string {
 	groups := a.rulesByTool()
 	total := 0
 	for _, g := range groups {
 		total += len(g.rules)
 	}
-	for shown := total; shown > 0; shown-- {
-		if utf8.RuneCountInString(namedRules(tui.Plain(), groups, shown, total)) <= room {
-			return namedRules(col, groups, shown, total)
-		}
-	}
 	if total == 0 {
 		return ""
 	}
-	if first := namedRules(tui.Plain(), groups, 1, 1); utf8.RuneCountInString(first) <= room {
-		return namedRules(col, groups, 1, 1)
+	named := make([]bool, total)
+	for i := range named {
+		named[i] = true
+		if utf8.RuneCountInString(namedRules(tui.Plain(), groups, named)) > room {
+			named[i] = false
+		}
 	}
-	return col.Paint(cDim, elide(namedRules(tui.Plain(), groups, 1, 1), room))
+	if !slices.Contains(named, true) {
+		named[0] = true
+	}
+	return namedRules(col, groups, named)
 }
 
-// namedRules writes the first shown of total rules, by scanner, and counts the rest.
-func namedRules(col tui.Painter, groups []toolRules, shown, total int) string {
+// namedRules writes the rules named marks, by scanner, in the order rulesByTool gives them, and
+// counts the rest.
+func namedRules(col tui.Painter, groups []toolRules, named []bool) string {
 	parts := make([]string, 0, len(groups)+1)
-	named := 0
+	i, rest := 0, 0
 	for _, g := range groups {
-		if named == shown {
-			break
-		}
 		names := make([]string, 0, len(g.rules))
 		for _, f := range g.rules {
-			if named == shown {
-				break
+			if named[i] {
+				names = append(names, col.Link(f.helpURI, f.ruleID))
+			} else {
+				rest++
 			}
-			names = append(names, col.Link(f.helpURI, shortRuleName(f.ruleID)))
-			named++
+			i++
+		}
+		if len(names) == 0 {
+			continue
 		}
 		part := strings.Join(names, ", ")
 		if g.tool != "" {
@@ -2675,7 +2661,7 @@ func namedRules(col tui.Painter, groups []toolRules, shown, total int) string {
 		}
 		parts = append(parts, part)
 	}
-	if rest := total - shown; rest > 0 {
+	if rest > 0 {
 		parts = append(parts, col.Paint(cDim, fmt.Sprintf("and %d more", rest)))
 	}
 	return strings.Join(parts, col.Paint(cDim, " · "))
@@ -2727,6 +2713,11 @@ func fitDetail(col tui.Painter, a action, room, named int) string {
 		kept = append(kept, p)
 	}
 	if len(kept) == 0 {
+		if len(places) == 0 {
+			// Only the rule id, and no room for it. Cut, it would name a rule config.exclude does
+			// not match, so the row goes without it.
+			return ""
+		}
 		return elide(parts[0], max(room, minTitleWidth))
 	}
 	return join(kept, "")

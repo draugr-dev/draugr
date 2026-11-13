@@ -70,4 +70,5 @@ TRY
   --report json,sarif,html -o .draugr/out  every finding in one searchable page
   --view compact                           one line each, to see how much there is
   --view actions                           the same findings as a list of things to do
+  config.exclude                           set aside a rule by its id as printed, with a reason
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out

@@ -429,22 +429,24 @@ func TestASASTFindingWithoutALineGroupsByRule(t *testing.T) {
 	}
 }
 
-// The line of rules fits its room by naming fewer and counting the rest.
+// The line of rules fits its room by naming fewer and counting the rest, and names each whole,
+// because config.exclude matches an id exactly. Narrower than the first rule, it still names that one and counts the rest.
 func TestTheRuleLineFitsItsRoom(t *testing.T) {
 	in := appPy()[:4]
 	sortFindings(in)
 	got, _ := groupActions(in, nil)
+	const use = "python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use"
 	for _, c := range []struct {
 		room int
 		want string
 	}{
-		{120, "Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true"},
-		{93, "Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true"},
-		{92, "Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use · and 1 more"},
-		{60, "Bandit: B602 · Semgrep: subprocess-injection · and 2 more"},
-		{40, "Bandit: B602 · and 3 more"},
-		{20, "Bandit: B602"},
-		{8, "Bandit:…"},
+		{241, "Bandit: B602 · Semgrep: python.flask.security.injection.subprocess-injection.subprocess-injection, python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use, python.lang.security.audit.subprocess-shell-true.subprocess-shell-true"},
+		{240, "Bandit: B602 · Semgrep: python.flask.security.injection.subprocess-injection.subprocess-injection, python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use · and 1 more"},
+		{120, "Bandit: B602 · Semgrep: python.flask.security.injection.subprocess-injection.subprocess-injection · and 2 more"},
+		{109, "Bandit: B602 · Semgrep: " + use + " · and 2 more"},
+		{90, "Bandit: B602 · and 3 more"},
+		{20, "Bandit: B602 · and 3 more"},
+		{8, "Bandit: B602 · and 3 more"},
 	} {
 		if line := ruleLine(tui.Plain(), got[0], c.room); line != c.want {
 			t.Errorf("room %d: %q, want %q", c.room, line, c.want)
@@ -452,6 +454,22 @@ func TestTheRuleLineFitsItsRoom(t *testing.T) {
 	}
 	if line := ruleLine(tui.Plain(), action{key: lineKey, findings: []finding{{location: "a.py:1"}}}, 40); line != "" {
 		t.Errorf("findings without a rule list none: %q", line)
+	}
+}
+
+// A short id after a long one that did not fit is still named: the count is only what has no room.
+func TestTheRuleLineNamesAShortIDPastALongOne(t *testing.T) {
+	long := "python.lang.security.dangerous-system-call.dangerous-system-call"
+	got, _ := groupActions([]finding{
+		codeFinding("Semgrep", long, "P1", sarif.LevelError, "app/app.py:16", "Found user-controlled data used in a system call"),
+		codeFinding("Bandit", "B605", "P1", sarif.LevelError, "app/app.py:16", "Starting a process with a shell."),
+	}, nil)
+	if len(got) != 1 {
+		t.Fatalf("want one action for the line, got %q", titles(got))
+	}
+	line := ruleLine(tui.Plain(), got[0], 40)
+	if !strings.Contains(line, "B605") || !strings.HasSuffix(line, "and 1 more") || strings.Contains(line, "dangerous-system-call") {
+		t.Errorf("room 40: %q, want B605 named and the long id counted", line)
 	}
 }
 
@@ -466,7 +484,7 @@ func TestTheConsoleListsALinesRules(t *testing.T) {
 	renderActions(&b, tui.Plain(), actions, false)
 	want := "" +
 		"  P1  Fix “subprocess call with shell=True identified, security issue”\n" +
-		"      Bandit: B602 · Semgrep: subprocess-injection, dangerous-subprocess-use, subprocess-shell-true\n" +
+		"      Bandit: B602 · and 3 more\n" +
 		"      4 findings · app/app.py:23\n"
 	if !strings.HasPrefix(b.String(), want) {
 		t.Errorf("got:\n%s\nwant it to open with:\n%s", b.String(), want)
