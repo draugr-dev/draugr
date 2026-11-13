@@ -559,7 +559,7 @@ own property bag:
 |---|---|
 | `draugr/provenance` | What each scanner said about its own run, the standard applied, the scope, how much of it could be decided. An entry stating `coverage` carries `component`, the component whose tree it describes |
 | `decided` | The classifications this run settled, whether or not a finding resulted |
-| `unsettledChecks` | The checks a scanner left for a person, in the shape `report.json` gives them. They are not in `results`; their rules are in the run's `rules` |
+| `unsettledChecks` | The checks a scanner left for a person: `scanner`, `ruleId`, `title`, `component`, `location`, `kind`, and `suppression`, the exclusion's reason and source, where a `config.exclude` rule names one. They are not in `results`; their rules are in the run's `rules` |
 | `consulted` | The datasets the run ranked with: the exploitability feeds it had loaded, and `dependency-health` when its lookup answered. Each entry gives the signal, the day the copy was obtained, whether it was older than the run's `maxAge`, how many records it held, the EPSS threshold, and what set it |
 
 **`decided` and `consulted` both exist to separate "looked and found nothing" from "never
