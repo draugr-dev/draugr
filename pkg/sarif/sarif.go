@@ -743,129 +743,150 @@ func FromSARIF(data []byte) (Report, error) {
 	}
 	var out Report
 	for i, run := range log.Runs {
-		if i == 0 {
-			out.Tool = run.Tool.Driver.Name
-		}
-		// The run's own account of itself, read back rather than dropped. A consumer that reloads a
-		// report, `draugr diff`, most of all. Has to be able to tell a scan of everything from a scan of
-		// part of it, and the results alone never say which it was.
-		out.Provenance = append(out.Provenance, provenanceFrom(run.Properties)...)
-		// And the rest of the run's account: which controls it settled, and which exploitability
-		// datasets it had loaded. Both exist to separate "looked and found nothing" from "never
-		// looked", and a read that drops them turns every reloaded report into the second.
-		out.addDecided(decidedFrom(run.Properties))
-		out.addConsulted(consultedFrom(run.Properties))
-		// SARIF lets a result omit its level and inherit it from the rule's
-		// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
-		// we can resolve a result's severity from its ruleId.
-		ruleLevel := make(map[string]Level, len(run.Tool.Driver.Rules))
-		// Rules also carry a numeric "security-severity" (CVSS-style) that results inherit
-		// by ruleId, the way many tools (e.g. Trivy) express severity.
-		ruleScore := make(map[string]float64, len(run.Tool.Driver.Rules))
-		// And a one-line summary, used to rescue results whose message is a field dump
-		// rather than a sentence. See readableMessage.
-		ruleSummary := make(map[string]string, len(run.Tool.Driver.Rules))
-		for _, rule := range run.Tool.Driver.Rules {
-			if rule.DefaultConfiguration != nil && rule.DefaultConfiguration.Level != "" {
-				ruleLevel[rule.ID] = Level(rule.DefaultConfiguration.Level)
-			}
-			if score, ok := parseSecuritySeverity(rule.Properties); ok {
-				ruleScore[rule.ID] = score
-			}
-			if sum := rule.ShortDescription.text(); sum != "" {
-				ruleSummary[rule.ID] = sum
-			}
-			// Keep what the scanner said about the rule. It's the only description of a finding that isn't
-			// specific to one occurrence of it, and every downstream reader, terminal, editor, pull
-			// request. Is better off for having it.
-			out.addRule(rule.ID, Rule{
-				Name:             rule.Name,
-				ShortDescription: rule.ShortDescription.text(),
-				FullDescription:  rule.FullDescription.text(),
-				Help:             rule.Help.text(),
-				HelpURI:          rule.HelpURI,
-			})
-		}
+		rr := out.readRun(i, run)
 		for _, sr := range run.Results {
-			level := Level(sr.Level)
-			if level == "" {
-				// Resolution order per SARIF 2.1.0: the result's own level, then its rule's
-				// defaultConfiguration.level, then "warning". Some tools (e.g. Gitleaks) omit
-				// it entirely and fall through to the default.
-				if rl, ok := ruleLevel[sr.RuleID]; ok {
-					level = rl
-				} else {
-					level = LevelWarning
-				}
-			}
-			// Prefer the per-result originating tool (properties.tool, written when Draugr
-			// emits a single "Draugr" run) over the run's driver name, so round-tripping
-			// Draugr's own SARIF preserves each finding's scanner.
-			tool := run.Tool.Driver.Name
-			if sr.Properties != nil && sr.Properties.Tool != "" {
-				tool = sr.Properties.Tool
-			}
-			res := Result{
-				Tool:    tool,
-				RuleID:  sr.RuleID,
-				Level:   level,
-				Message: readableMessage(sr.Message.Text, ruleSummary[sr.RuleID]),
-				Detail:  occurrenceLine(sr.Message.Text),
-				// Read back, so a report Draugr wrote and then re-read carries the same identity
-				// it left with. A field that survives writing but not reading is one that silently
-				// disappears the first time anything round-trips a report.
-				PartialFingerprints: sr.PartialFingerprints,
-			}
-			if len(sr.Locations) > 0 {
-				res.Location.URI = sr.Locations[0].PhysicalLocation.ArtifactLocation.URI
-				if region := sr.Locations[0].PhysicalLocation.Region; region != nil {
-					res.Location.StartLine = region.StartLine
-				}
-			}
-			// A numeric score on the result overrides the rule's; otherwise inherit it.
-			if score, ok := parseSecuritySeverity(sr.Properties); ok {
-				res.Score, res.HasScore = score, true
-			} else if score, ok := ruleScore[sr.RuleID]; ok {
-				res.Score, res.HasScore = score, true
-			}
-			if sr.Properties != nil {
-				res.Priority = sr.Properties.Priority
-				if sr.Properties.Detail != "" {
-					res.Detail = sr.Properties.Detail
-				}
-				// Read back, not only written. Both are part of Fingerprint, and a report is written and
-				// re-read by `draugr diff` on every pull request, so dropping them here made two components
-				// sharing a repository, or two repositories in one component, collapse into a single finding
-				// at exactly the moment it mattered.
-				res.Control = sr.Properties.Control
-				res.Component = sr.Properties.Component
-				res.Exposure = sr.Properties.Exposure
-				res.Criticality = sr.Properties.Criticality
-				res.UpgradePolicy = sr.Properties.UpgradePolicy
-				res.Labels = sr.Properties.Labels
-				res.Repository = sr.Properties.Repository
-				res.Image = sr.Properties.Image
-				res.OperatingSystem = sr.Properties.OperatingSystem
-				res.Layer = sr.Properties.Layer
-				res.OSEndOfLife = sr.Properties.OSEndOfLife
-				res.ProviderOperated = sr.Properties.ProviderOperated
-				res.BuiltUpstream = sr.Properties.BuiltUpstream || sr.Properties.ImageBuiltUpstream
-				res.Historical = sr.Properties.Historical
-				res.NonShipping = sr.Properties.NonShipping
-				res.Package = sr.Properties.Package
-				res.Reachability = sr.Properties.Reachability
-				res.Correlation = sr.Properties.Correlation
-				res.Escalation = sr.Properties.Escalation
-				res.Exploited = sr.Properties.Exploited
-				res.Rating = sr.Properties.Rating
-				res.PriorityFloor = sr.Properties.PriorityFloor
-				res.SeverityFloor = sr.Properties.SeverityFloor
-			}
-			res.Suppression = readSuppression(sr.Suppressions)
-			out.Results = append(out.Results, res)
+			out.Results = append(out.Results, rr.result(sr))
 		}
 	}
 	return out, nil
+}
+
+// runReader converts one run's results, holding what each result inherits from its run: the
+// driver's name and, by rule, a level, a score and a one-line summary.
+type runReader struct {
+	driver      string
+	ruleLevel   map[string]Level
+	ruleScore   map[string]float64
+	ruleSummary map[string]string
+}
+
+// readRun adds what run i says about itself, apart from its results, to r, and returns the
+// reader for its results.
+func (r *Report) readRun(i int, run sarifRun) runReader {
+	if i == 0 {
+		r.Tool = run.Tool.Driver.Name
+	}
+	// The run's own account of itself, read back rather than dropped. A consumer that reloads a
+	// report, `draugr diff`, most of all. Has to be able to tell a scan of everything from a scan of
+	// part of it, and the results alone never say which it was.
+	r.Provenance = append(r.Provenance, provenanceFrom(run.Properties)...)
+	// And the rest of the run's account: which controls it settled, and which exploitability
+	// datasets it had loaded. Both exist to separate "looked and found nothing" from "never
+	// looked", and a read that drops them turns every reloaded report into the second.
+	r.addDecided(decidedFrom(run.Properties))
+	r.addConsulted(consultedFrom(run.Properties))
+	// SARIF lets a result omit its level and inherit it from the rule's
+	// defaultConfiguration. Some tools (e.g. Semgrep) rely on this. Index the rules so
+	// we can resolve a result's severity from its ruleId.
+	ruleLevel := make(map[string]Level, len(run.Tool.Driver.Rules))
+	// Rules also carry a numeric "security-severity" (CVSS-style) that results inherit
+	// by ruleId, the way many tools (e.g. Trivy) express severity.
+	ruleScore := make(map[string]float64, len(run.Tool.Driver.Rules))
+	// And a one-line summary, used to rescue results whose message is a field dump
+	// rather than a sentence. See readableMessage.
+	ruleSummary := make(map[string]string, len(run.Tool.Driver.Rules))
+	for _, rule := range run.Tool.Driver.Rules {
+		if rule.DefaultConfiguration != nil && rule.DefaultConfiguration.Level != "" {
+			ruleLevel[rule.ID] = Level(rule.DefaultConfiguration.Level)
+		}
+		if score, ok := parseSecuritySeverity(rule.Properties); ok {
+			ruleScore[rule.ID] = score
+		}
+		if sum := rule.ShortDescription.text(); sum != "" {
+			ruleSummary[rule.ID] = sum
+		}
+		// Keep what the scanner said about the rule. It's the only description of a finding that isn't
+		// specific to one occurrence of it, and every downstream reader, terminal, editor, pull
+		// request. Is better off for having it.
+		r.addRule(rule.ID, Rule{
+			Name:             rule.Name,
+			ShortDescription: rule.ShortDescription.text(),
+			FullDescription:  rule.FullDescription.text(),
+			Help:             rule.Help.text(),
+			HelpURI:          rule.HelpURI,
+		})
+	}
+	return runReader{driver: run.Tool.Driver.Name, ruleLevel: ruleLevel, ruleScore: ruleScore, ruleSummary: ruleSummary}
+}
+
+// result converts one result of the run.
+func (rr runReader) result(sr sarifResult) Result {
+	level := Level(sr.Level)
+	if level == "" {
+		// Resolution order per SARIF 2.1.0: the result's own level, then its rule's
+		// defaultConfiguration.level, then "warning". Some tools (e.g. Gitleaks) omit
+		// it entirely and fall through to the default.
+		if rl, ok := rr.ruleLevel[sr.RuleID]; ok {
+			level = rl
+		} else {
+			level = LevelWarning
+		}
+	}
+	// Prefer the per-result originating tool (properties.tool, written when Draugr
+	// emits a single "Draugr" run) over the run's driver name, so round-tripping
+	// Draugr's own SARIF preserves each finding's scanner.
+	tool := rr.driver
+	if sr.Properties != nil && sr.Properties.Tool != "" {
+		tool = sr.Properties.Tool
+	}
+	res := Result{
+		Tool:    tool,
+		RuleID:  sr.RuleID,
+		Level:   level,
+		Message: readableMessage(sr.Message.Text, rr.ruleSummary[sr.RuleID]),
+		Detail:  occurrenceLine(sr.Message.Text),
+		// Read back, so a report Draugr wrote and then re-read carries the same identity
+		// it left with. A field that survives writing but not reading is one that silently
+		// disappears the first time anything round-trips a report.
+		PartialFingerprints: sr.PartialFingerprints,
+	}
+	if len(sr.Locations) > 0 {
+		res.Location.URI = sr.Locations[0].PhysicalLocation.ArtifactLocation.URI
+		if region := sr.Locations[0].PhysicalLocation.Region; region != nil {
+			res.Location.StartLine = region.StartLine
+		}
+	}
+	// A numeric score on the result overrides the rule's; otherwise inherit it.
+	if score, ok := parseSecuritySeverity(sr.Properties); ok {
+		res.Score, res.HasScore = score, true
+	} else if score, ok := rr.ruleScore[sr.RuleID]; ok {
+		res.Score, res.HasScore = score, true
+	}
+	if sr.Properties != nil {
+		res.Priority = sr.Properties.Priority
+		if sr.Properties.Detail != "" {
+			res.Detail = sr.Properties.Detail
+		}
+		// Read back, not only written. Both are part of Fingerprint, and a report is written and
+		// re-read by `draugr diff` on every pull request, so dropping them here made two components
+		// sharing a repository, or two repositories in one component, collapse into a single finding
+		// at exactly the moment it mattered.
+		res.Control = sr.Properties.Control
+		res.Component = sr.Properties.Component
+		res.Exposure = sr.Properties.Exposure
+		res.Criticality = sr.Properties.Criticality
+		res.UpgradePolicy = sr.Properties.UpgradePolicy
+		res.Labels = sr.Properties.Labels
+		res.Repository = sr.Properties.Repository
+		res.Image = sr.Properties.Image
+		res.OperatingSystem = sr.Properties.OperatingSystem
+		res.Layer = sr.Properties.Layer
+		res.OSEndOfLife = sr.Properties.OSEndOfLife
+		res.ProviderOperated = sr.Properties.ProviderOperated
+		res.BuiltUpstream = sr.Properties.BuiltUpstream || sr.Properties.ImageBuiltUpstream
+		res.Historical = sr.Properties.Historical
+		res.NonShipping = sr.Properties.NonShipping
+		res.Package = sr.Properties.Package
+		res.Reachability = sr.Properties.Reachability
+		res.Correlation = sr.Properties.Correlation
+		res.Escalation = sr.Properties.Escalation
+		res.Exploited = sr.Properties.Exploited
+		res.Rating = sr.Properties.Rating
+		res.PriorityFloor = sr.Properties.PriorityFloor
+		res.SeverityFloor = sr.Properties.SeverityFloor
+	}
+	res.Suppression = readSuppression(sr.Suppressions)
+	return res
 }
 
 // fieldDump matches the opening of a message that is a list of fields rather than a sentence,

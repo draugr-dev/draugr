@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"strings"
@@ -179,10 +180,48 @@ func TestTheMergedGitleaksReportIsTheOneTheWholeDocumentGives(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
-		if !bytes.Equal(got, want) {
+		if !sameJSON(t, got, want) {
 			t.Errorf("%s:\n got %s\nwant %s", c.name, got, want)
 		}
 	}
+}
+
+// sameJSON reports whether two documents hold the same values, numbers as written, with a member
+// whose value is null counted as absent. Neither the order of members nor how a character is
+// escaped changes what a SARIF reader takes from a report, and the streamed merge writes each
+// member as Gitleaks did rather than re-encoding the whole document.
+func sameJSON(t *testing.T, a, b []byte) bool {
+	t.Helper()
+	va, err := decodeJSON(a)
+	if err != nil {
+		t.Fatalf("decode %s: %v", a, err)
+	}
+	vb, err := decodeJSON(b)
+	if err != nil {
+		t.Fatalf("decode %s: %v", b, err)
+	}
+	return reflect.DeepEqual(withoutNulls(va), withoutNulls(vb))
+}
+
+// withoutNulls is v with every object member whose value is null removed.
+func withoutNulls(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		out := map[string]any{}
+		for k, e := range x {
+			if e != nil {
+				out[k] = withoutNulls(e)
+			}
+		}
+		return out
+	case []any:
+		out := make([]any, len(x))
+		for i, e := range x {
+			out[i] = withoutNulls(e)
+		}
+		return out
+	}
+	return v
 }
 
 // What a report has to be shaped as to be compared is what decoding it into its runs and their

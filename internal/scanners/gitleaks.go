@@ -1,9 +1,11 @@
 package scanners
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
 	"sync"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -57,6 +59,8 @@ func NewGitleaks() plugin.Scanner {
 		return gitleaksExec(ctx, dir, argv)
 	}, sharedGitleaksVersion.version)
 	s.parse = parseGitleaks
+	s.parseFile = parseGitleaksFile
+	s.secretsFile = gitleaksSecretsFile
 	return s
 }
 
@@ -73,6 +77,22 @@ func parseGitleaks(out []byte, _ string, _ plugin.Config) (sarif.Report, error) 
 	if err != nil {
 		return sarif.Report{}, err
 	}
+	return withCommitOnly(report), nil
+}
+
+// parseGitleaksFile is parseGitleaks for the report at path, read one result at a time. A history
+// pass's report grows with the history and runs to gigabytes, and what the run keeps is the
+// findings, not the document.
+func parseGitleaksFile(path, _ string, _ plugin.Config) (sarif.Report, error) {
+	report, err := sarif.FromSARIFFile(path)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	return withCommitOnly(report), nil
+}
+
+// withCommitOnly keeps of each finding's partial fingerprints only the commit.
+func withCommitOnly(report sarif.Report) sarif.Report {
 	for i := range report.Results {
 		kept := map[string]string{}
 		if sha := report.Results[i].PartialFingerprints["commitSha"]; sha != "" {
@@ -83,7 +103,7 @@ func parseGitleaks(out []byte, _ string, _ plugin.Config) (sarif.Report, error) 
 			report.Results[i].PartialFingerprints = kept
 		}
 	}
-	return report, nil
+	return report
 }
 
 // gitleaksSecrets returns the secret each result in a Gitleaks SARIF report matched, in report
@@ -118,6 +138,43 @@ func gitleaksSecrets(out []byte) []string {
 			}
 			secrets = append(secrets, secret)
 		}
+	}
+	return secrets
+}
+
+// gitleaksSecretsFile is gitleaksSecrets for the report at path, read one result at a time. A
+// report that cannot be read gives nil, as output that does not decode does.
+func gitleaksSecretsFile(path string) []string {
+	f, err := os.Open(path) // #nosec G304 -- a report path a Gitleaks run of this scan wrote
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = f.Close() }()
+	var secrets []string
+	err = walkGitleaksResults(bufio.NewReader(f), func(raw json.RawMessage) error {
+		var r struct {
+			Locations []struct {
+				PhysicalLocation struct {
+					Region struct {
+						Snippet struct {
+							Text string `json:"text"`
+						} `json:"snippet"`
+					} `json:"region"`
+				} `json:"physicalLocation"`
+			} `json:"locations"`
+		}
+		if err := json.Unmarshal(raw, &r); err != nil {
+			return err
+		}
+		secret := ""
+		if len(r.Locations) > 0 {
+			secret = r.Locations[0].PhysicalLocation.Region.Snippet.Text
+		}
+		secrets = append(secrets, secret)
+		return nil
+	})
+	if err != nil {
+		return nil
 	}
 	return secrets
 }

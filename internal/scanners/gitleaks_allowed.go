@@ -95,15 +95,9 @@ func gitleaksRun(run func(ctx context.Context, dir string, argv []string) ([]byt
 		if err != nil {
 			return nil, err
 		}
-		reported, err := readGitleaksRelative(path, dir)
-		if err != nil {
-			return nil, err
-		}
-		merged, err := withGitleaksResults(reported, append(added, allowed...))
-		if err != nil {
-			return nil, err
-		}
-		return out, os.WriteFile(path, merged, 0o600) // #nosec G703 -- the report path this run was given, read above
+		// Rewritten as a stream rather than read whole: the reported run's report is the largest
+		// thing a history pass makes, and what is added is a key's worth per result set aside.
+		return out, rewriteGitleaksReport(path, dir, append(added, allowed...))
 	}
 }
 
@@ -137,30 +131,6 @@ func gitleaksIgnoreOutOfReach(argv []string, dir, empty string) ([]string, bool)
 		return nil, false
 	}
 	return append(out, gitleaksIgnorePathArg, empty), true
-}
-
-// readGitleaksRelative reads a Gitleaks SARIF report with each location's path made relative to
-// dir, so a run given the checkout's absolute path compares with one given ".".
-func readGitleaksRelative(path, dir string) ([]byte, error) {
-	data, err := os.ReadFile(path) // #nosec G304 -- a report path a Gitleaks run of this scan wrote
-	if err != nil {
-		return nil, err
-	}
-	doc, err := decodeJSON(data)
-	if err != nil {
-		return nil, fmt.Errorf("read its report: %w", err)
-	}
-	// Anything not shaped as SARIF is left as it is; the walk of the report has refused it already.
-	d, _ := doc.(map[string]any)
-	runs, _ := d["runs"].([]any)
-	for _, run := range runs {
-		r, _ := run.(map[string]any)
-		results, _ := r["results"].([]any)
-		for _, res := range results {
-			gitleaksRelative(res, dir)
-		}
-	}
-	return json.Marshal(doc)
 }
 
 // withGitleaksResults adds results to the first run of a Gitleaks SARIF report. A report with
