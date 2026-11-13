@@ -65,6 +65,11 @@ type repoScanner struct {
 	// from a commit. One pass over history alone reports every finding at the path it had when it
 	// was introduced, so anything since renamed looks like something already dealt with.
 	historyArgs func(dir string, cfg plugin.Config) []string
+	// parseFile, when set, reads the history pass's report from its file rather than whole, and
+	// secretsFile reads the secrets from it the same way. For a tool whose history report grows
+	// with the history.
+	parseFile   func(path, dir string, cfg plugin.Config) (sarif.Report, error)
+	secretsFile func(path string) []string
 	// secrets, when set, returns the secret each result in one pass's output matched, in the order
 	// decode returns those results, with "" where the output does not say. It is how a history
 	// finding is recognized as a credential the tree pass already reported (see dropStillInTree).
@@ -106,26 +111,80 @@ func (s repoScanner) runReporting(ctx context.Context, dir string, argv []string
 
 // runToReport is runReporting with the run given, for a pass that runs the tool its own way.
 func runToReport(ctx context.Context, dir string, argv []string, run func(ctx context.Context, dir string, argv []string) ([]byte, error)) ([]byte, error) {
-	i := slices.Index(argv, ReportPathToken)
-	if i < 0 {
+	if !slices.Contains(argv, ReportPathToken) {
 		return run(ctx, dir, argv)
 	}
-	f, err := os.CreateTemp("", "draugr-report-*.sarif")
+	path, remove, err := runToReportFile(ctx, dir, argv, run)
 	if err != nil {
 		return nil, err
 	}
-	path := f.Name()
-	if err := f.Close(); err != nil {
-		return nil, err
-	}
-	defer func() { _ = os.Remove(path) }()
+	defer remove()
+	return os.ReadFile(path) // #nosec G304 -- a path runToReportFile just created
+}
 
+// runToReportFile runs argv as runToReport does and leaves the report in a file, returning its
+// path and what removes it, for a report too large to hold whole. A tool that writes its report
+// to standard output has that written to the file.
+func runToReportFile(ctx context.Context, dir string, argv []string, run func(ctx context.Context, dir string, argv []string) ([]byte, error)) (string, func(), error) {
+	f, err := os.CreateTemp("", "draugr-report-*.sarif")
+	if err != nil {
+		return "", nil, err
+	}
+	path := f.Name()
+	remove := func() { _ = os.Remove(path) }
+	if err := f.Close(); err != nil {
+		remove()
+		return "", nil, err
+	}
+	i := slices.Index(argv, ReportPathToken)
+	if i < 0 {
+		out, err := run(ctx, dir, argv)
+		if err == nil {
+			err = os.WriteFile(path, out, 0o600)
+		}
+		if err != nil {
+			remove()
+			return "", nil, err
+		}
+		return path, remove, nil
+	}
 	argv = slices.Clone(argv)
 	argv[i] = path
 	if _, err := run(ctx, dir, argv); err != nil {
-		return nil, err
+		remove()
+		return "", nil, err
 	}
-	return os.ReadFile(path) // #nosec G304 -- a path this function just created
+	return path, remove, nil
+}
+
+// readHistory reads a history pass's report from path, and the secret each result matched where
+// the scanner reports them. A scanner that reads its report from the file does so one result at a
+// time; any other reads it whole.
+func (s repoScanner) readHistory(path, dir string, cfg plugin.Config) (sarif.Report, []string, error) {
+	if s.parseFile != nil {
+		report, err := s.parseFile(path, dir, cfg)
+		if err != nil {
+			return sarif.Report{}, nil, fmt.Errorf("parse %s output: %w", s.info.Name, err)
+		}
+		var secrets []string
+		if s.secretsFile != nil {
+			secrets = s.secretsFile(path)
+		}
+		return report, secrets, nil
+	}
+	out, err := os.ReadFile(path) // #nosec G304 -- a report path this scan created
+	if err != nil {
+		return sarif.Report{}, nil, err
+	}
+	report, err := s.decode(out, dir, cfg)
+	if err != nil {
+		return sarif.Report{}, nil, err
+	}
+	var secrets []string
+	if s.secrets != nil {
+		secrets = s.secrets(out)
+	}
+	return report, secrets, nil
 }
 
 // runInventoried runs argv as runReporting does and, when the scanner has an inventory, has the
@@ -339,20 +398,23 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	var historyErr error
 	if s.historyArgs != nil {
 		if argv := s.historyArgs(dir, cfg); len(argv) > 0 {
-			hist, err := s.runReporting(ctx, dir, argv)
+			// Left on disk rather than read: a history pass's report grows with the history, and
+			// readHistory takes what it needs from the file.
+			path, remove, err := runToReportFile(ctx, dir, argv, s.run)
 			switch {
 			case err != nil && ctx.Err() != nil:
 				return sarif.Report{}, fmt.Errorf("run %s over the history of %s: %w", s.info.Name, repo.Source(), err)
 			case err != nil:
 				historyErr = historyFailed(s.info.Name, repo.Source(), err)
 			default:
-				histReport, err := s.decode(hist, dir, cfg)
+				histReport, histSecrets, err := s.readHistory(path, dir, cfg)
+				remove()
 				if err != nil {
 					return sarif.Report{}, err
 				}
 				if s.secrets != nil {
 					histReport.Results = dropStillInTree(dir,
-						report.Results, s.secrets(out), histReport.Results, s.secrets(hist))
+						report.Results, s.secrets(out), histReport.Results, histSecrets)
 				}
 				histReport.Results = scopeHistory(histReport.Results, dir, scope)
 				report = sarif.Merge(report, histReport)

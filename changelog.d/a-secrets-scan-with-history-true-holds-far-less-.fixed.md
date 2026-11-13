@@ -1,0 +1,1 @@
+- **A secrets scan with `history: true` holds far less memory once Gitleaks finishes.** Draugr reads the history report one finding at a time instead of decoding the whole file. On a history of two million findings, its own peak fell from 23.5 GB to 8.4 GB. What Gitleaks itself takes while it walks the history is unchanged.
