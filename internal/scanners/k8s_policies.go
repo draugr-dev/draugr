@@ -12,6 +12,7 @@ import (
 	authzv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -550,7 +551,7 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 
 			// 5.6.3. A container with no securityContext at all has accepted every default,
 			// which is the state the rest of these checks exist to move you off.
-			if sc == nil && pod.Spec.SecurityContext == nil {
+			if setsNothing(sc) && setsNothing(pod.Spec.SecurityContext) {
 				noSecurityContext = append(noSecurityContext, at)
 			}
 			// 5.2.12. A host port binds the node's network namespace whatever the pod says.
@@ -610,6 +611,18 @@ func evaluatePodSecurity(pods []corev1.Pod, accounts []corev1.ServiceAccount) ma
 		"5.6.3":  verdictFrom(noSecurityContext, "with no securityContext at all"),
 		"5.6.4":  verdictFrom(defaultNamespace, "in the default namespace"),
 	}
+}
+
+// setsNothing reports whether a pod's or a container's securityContext is absent or sets none of its
+// fields, for 5.6.3.
+//
+// Present is not the same as set. The API server defaults a pod's securityContext to an empty
+// object, so every pod read from a cluster carries one, and a manifest may write `securityContext: {}`
+// on a container. Either applies nothing. Compared semantically, so an empty list such as
+// `supplementalGroups: []` counts as unset too.
+func setsNothing[T corev1.PodSecurityContext | corev1.SecurityContext](sc *T) bool {
+	var zero T
+	return sc == nil || equality.Semantic.DeepEqual(*sc, zero)
 }
 
 // runsAsRoot implements 5.2.7.

@@ -1,0 +1,1 @@
+- **The Kubernetes check for pods and containers with no security context (CIS 5.6.3) now finds them on a live cluster.** The API server gives every pod an empty `securityContext: {}`, and the check counted that as one being applied, so it passed every workload. A security context that sets nothing now counts as none.
