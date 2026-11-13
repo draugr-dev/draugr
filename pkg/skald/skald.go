@@ -63,6 +63,10 @@ type jsonReport struct {
 	// with every check and the reason. A check whose read was denied can pass, fail or say nothing,
 	// so its absence from the findings is not a result.
 	UnreadChecks []unreadChecksReport `json:"unreadChecks,omitempty"`
+	// UnsettledChecks are the checks a scanner left for a person, one entry each. They are not
+	// findings and are not counted in priorities or the gate; an entry config.exclude names carries
+	// the reason given, which is how a review is recorded.
+	UnsettledChecks []unsettledCheckReport `json:"unsettledChecks,omitempty"`
 	// NotChecked is what the run was meant to examine and did not: a declared surface whose every
 	// control is off, or, on a run with no descriptor, files that call for a scanner this machine
 	// cannot run. Listed whether or not the gate fails on it.
@@ -854,6 +858,19 @@ type unreadChecksReport struct {
 	Reason     string   `json:"reason"`
 }
 
+type unsettledCheckReport struct {
+	Component string `json:"component,omitempty"`
+	Control   string `json:"control"`
+	Scanner   string `json:"scanner"`
+	// RuleID is the rule the check reports under, as config.exclude takes it.
+	RuleID   string `json:"ruleId"`
+	Title    string `json:"title,omitempty"`
+	Location string `json:"location"`
+	// Kind is why it was not decided: "manual", a check the benchmark leaves to a person.
+	Kind       string           `json:"kind"`
+	Suppressed *suppressionNote `json:"suppressed,omitempty"`
+}
+
 type unreadFileReport struct {
 	Repository string `json:"repository,omitempty"`
 	Path       string `json:"path"`
@@ -1130,6 +1147,21 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			Component: g.Component, Control: g.Control, Service: g.Group, Checks: append([]string{}, g.Checks...),
 			PartlyRead: g.PartlyRead, Reason: g.Reason,
 		})
+	}
+
+	names := make([]string, 0, len(run.Controls))
+	for name := range run.Controls {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		for _, u := range run.Controls[name].Report.UnsettledChecks {
+			doc.UnsettledChecks = append(doc.UnsettledChecks, unsettledCheckReport{
+				Component: u.Component, Control: name, Scanner: u.Scanner, RuleID: u.RuleID,
+				Title: u.Title, Location: u.Location, Kind: u.Kind,
+				Suppressed: suppressionOf(sarif.Result{Suppression: u.Suppression}),
+			})
+		}
 	}
 
 	doc.Priorities, doc.Suppressed, doc.Findings = summarizePriorities(run, minPriority)

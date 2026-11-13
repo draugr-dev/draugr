@@ -1,0 +1,1 @@
+- **A Kubernetes check the benchmark leaves to a person is no longer a finding.** It takes no band and does not count toward the gate. The coverage line counts these checks, `--evidence` lists them, and `report.json` and SARIF carry them as `unsettledChecks`, an excluded one with its reason. A `--base` report from an earlier release lists them as fixed once.

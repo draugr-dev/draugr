@@ -1801,6 +1801,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.Correlated = correlated
 	res.Suppressed += alsoSuppressed
 	res.Reachability = recountReachability(res.Controls, res.Reachability)
+	// After correlation, so a check two scanners report is listed once.
+	res.Suppressed -= setUnsettledApart(res.Controls)
 	// Counted after everything that creates suppressions, so what is left carrying the tool's own
 	// origin is exactly what a scanner silenced rather than what this project decided.
 	res.Silenced = countSilenced(res.Controls)

@@ -170,9 +170,8 @@ The count is the flattering way to describe this mode. In `cis-1.12`:
 
 So 23 of them are prompts for a human with nothing behind them, and none of the 34 counts toward
 a compliance score. kube-bench reports a check it does not score as `WARN` when it fails, the
-status it also gives a manual check, so this mode's output is a list of warnings: failures of
-checks with an audit command, and prompts, which carry the
-[`undecided`](../../docs/reference/report-schema.md) mark.
+status it also gives a manual check, and the check's type tells them apart: a failure of a check
+with an audit command is a finding, at warning, and a manual check is listed as left for a person.
 
 Two consequences worth being direct about:
 
@@ -209,15 +208,15 @@ decides more of the 34 than a shell pipeline can. It is the default.
 |---|---|---|
 | `FAIL`, scored | error | yes |
 | `WARN` on a check with an audit command | warning | yes |
-| `WARN` on a manual check | warning | yes, marked `undecided` |
+| `WARN` on a manual check |, | **no**, listed as left for a person |
 | `PASS`, `INFO` |, | **no** |
 
 A scored `FAIL` is the benchmark saying the cluster is out of compliance and counting it.
 kube-bench reports a check it does not score as `WARN` when its audit fails it, so a `WARN` on a
 check with an audit command is a decided failure. A `WARN` on a manual check, one kube-bench runs
-no audit for, is a prompt for a person to review it, and the finding is marked
-[`undecided`](../../docs/reference/report-schema.md). Reporting a manual check as an error would
-make a clean cluster impossible.
+no audit for, is a prompt for a person to review it. It is listed as left for a person
+([`unsettledChecks`](../../docs/reference/report-schema.md)) rather than reported as a finding:
+nothing was seen to fail, and nothing changed in the cluster clears it.
 
 Passing checks are not findings. A report listing three hundred passes buries the dozen failures,
 which is the same reasoning that keeps permissive licenses out of the `licenses` control.

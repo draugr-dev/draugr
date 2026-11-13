@@ -75,6 +75,14 @@ objects at fault, keeps the default's band, low where every one is
 [the distribution's](../scanners/draugr-k8s-policies.md), and carries `also found by kube-bench`.
 Excluding either scanner's rule id sets both copies aside.
 
+A check the benchmark leaves to a person is not a finding. Nothing was seen to fail and nothing
+changed in the cluster clears it, so it takes no band and does not count toward the gate. The
+coverage line under MEASURED AGAINST counts these checks, `--evidence` lists each by rule id and
+title, and `report.json` carries them as
+[`unsettledChecks`](../../docs/reference/report-schema.md). A check one scanner left for a person
+and the other decided is not listed. A `config.exclude` rule naming one records its review: the
+check stays listed with the reason given and is counted as excluded.
+
 Two benchmark revisions number section 5 differently, such as `k3s-cis-1.9` and `cis-1.12`, so
 checks from scanners auditing different revisions are never joined, and MEASURED AGAINST names
 each scanner's benchmark.
@@ -103,8 +111,9 @@ it, rather than how its nodes were installed.
 
 **Read that count with its caveat.** Section 5 is the benchmark's advisory section: in `cis-1.12`
 none of its 34 checks are scored, and only 11 carry an audit command. The rest are prompts for a
-human to go and look. So the default mode reports a small number of automated findings alongside a
-list of things to review, and a cluster it calls clean has not been measured against the scored
+human to go and look. So the default mode reports a small number of automated findings, counts the
+checks left for a person beside its coverage and lists them under `--evidence`, and a cluster it calls
+clean has not been measured against the scored
 parts of the benchmark. Those live in sections 1–4, and `kubeBenchJob` is how you reach them.
 
 The other 95 read a node's own filesystem, and are available through
