@@ -1032,11 +1032,12 @@ asks nothing unless `--policy` is passed.
 ## `draugr explain <rule-id>`
 
 Print what a scan's own report holds about one rule: its description, the detail its scanner
-published, where the scan found it (up to five locations), and its reference link.
+published, where the scan found it (up to five locations), its reference link, and the report it
+read, with when that report was written.
 
 ```bash
 draugr scan draugr.saga.yaml -o out/
-draugr explain kube-bench/cis/4.3.1 -r out/results.sarif
+draugr explain kube-bench/cis/4.3.1 -r out/
 ```
 
 ```
@@ -1052,13 +1053,18 @@ LOCATION
 
 REFERENCE
   https://www.cisecurity.org/benchmark/kubernetes
+
+REPORT
+  out/results.sarif · written 2026-11-12 23:41 UTC
 ```
 
-`DETAIL` is left out when the scanner published nothing beyond the description.
+`DETAIL` is left out when the scanner published nothing beyond the description. `REPORT` names the
+file read: a checkout can hold an older report, such as one a `file` publisher committed under
+`.draugr/out`, and `explain` reads the first it finds.
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-r, --report` | - | The `results.sarif` to read. Without it, the first that exists of `.draugr/out/results.sarif`, `results.sarif`, `draugr-out/results.sarif` and `.draugr-out/results.sarif` |
+| `-r, --report` | - | The `results.sarif` to read, or the directory a scan wrote with `-o`, whose `results.sarif` is read. Without it, the first that exists of `.draugr/out/results.sarif`, `results.sarif`, `draugr-out/results.sarif` and `.draugr-out/results.sarif` |
 
 The id can be given in full, or by its trailing `/`-separated segments: `4.3.1` and `cis/4.3.1`
 both find `kube-bench/cis/4.3.1`, and `4.3` finds nothing. An id copied from a finding works as
