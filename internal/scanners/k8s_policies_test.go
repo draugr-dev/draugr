@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -917,4 +918,48 @@ func coverageOf(r sarif.Report) string {
 		}
 	}
 	return ""
+}
+
+// 5.6.3 reads pods as the API server returns them. The server defaults a pod's securityContext to
+// an empty object, so a pod that sets nothing arrives with `securityContext: {}`, and a check that
+// asks only whether the field is present passes every pod on a live cluster. A context with none
+// of its fields set has applied nothing, on the pod or on a container.
+func TestNoSecurityContextReadsPodsAsTheAPIReturnsThem(t *testing.T) {
+	t.Parallel()
+
+	decode := func(spec string) corev1.Pod {
+		t.Helper()
+		var p corev1.Pod
+		if err := json.Unmarshal([]byte(spec), &p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	pods := []corev1.Pod{
+		decode(`{"metadata":{"namespace":"shop","name":"bare"},
+			"spec":{"securityContext":{},"containers":[{"name":"app"}]}}`),
+		decode(`{"metadata":{"namespace":"shop","name":"empty-both"},
+			"spec":{"securityContext":{},"containers":[{"name":"app","securityContext":{}}]}}`),
+		decode(`{"metadata":{"namespace":"shop","name":"empty-groups"},
+			"spec":{"securityContext":{"supplementalGroups":[]},"containers":[{"name":"app"}]}}`),
+		decode(`{"metadata":{"namespace":"pay","name":"pod-level"},
+			"spec":{"securityContext":{"runAsNonRoot":true},"containers":[{"name":"app"}]}}`),
+		decode(`{"metadata":{"namespace":"pay","name":"container-level"},
+			"spec":{"securityContext":{},"containers":[{"name":"app","securityContext":{"readOnlyRootFilesystem":true}}]}}`),
+	}
+
+	v := evaluatePodSecurity(pods, nil)["5.6.3"]
+	if v.Compliant {
+		t.Fatal("5.6.3 passed pods whose securityContext sets nothing")
+	}
+	for _, name := range []string{"shop/bare/app", "shop/empty-both/app", "shop/empty-groups/app"} {
+		if !strings.Contains(v.Detail, name) {
+			t.Errorf("5.6.3 should name %s, got %q", name, v.Detail)
+		}
+	}
+	for _, name := range []string{"pod-level", "container-level"} {
+		if strings.Contains(v.Detail, name) {
+			t.Errorf("5.6.3 named %s, which sets a security context: %q", name, v.Detail)
+		}
+	}
 }
