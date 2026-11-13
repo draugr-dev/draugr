@@ -857,7 +857,9 @@ $ draugr scan . --controls secrets --working-tree --evidence
 ```
 
 The result is **not reproducible**: nobody else can check out what was scanned. These scans are
-**never cached**, because two runs at one revision can read different files.
+**never cached**, because two runs at one revision can read different files. The same holds for an
+[SBOM](saga-schema.md#sbom-generation) the run writes: it lists the packages in the copy the scanners
+read, uncommitted changes included, so two SBOMs of one commit can differ.
 
 It reads a **copy**, not your checkout, so scanners cannot write into your files and `paths` /
 `ignore` scoping prunes the copy. The copy holds `git ls-files -co --exclude-standard`: tracked
