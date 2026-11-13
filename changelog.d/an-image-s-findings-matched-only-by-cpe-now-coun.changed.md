@@ -1,0 +1,1 @@
+- **An image's findings matched only by CPE now count by default.** On an Alpine image these are flaws the NVD lists and Alpine's own data does not, and most are real and unpatched. `config.controls.images.cpeMatches: suppress` sets them aside as before. `sca` still suppresses its CPE-only matches by default.

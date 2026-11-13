@@ -67,15 +67,20 @@ with the registry's answer, and, where a login would change it, the `docker logi
 `cpeMatches` decides whether a finding counts when [`grype`](../scanners/grype.md) matched it only
 through a CPE, a product identifier built from the package's name and version. On an Alpine image,
 Grype looks in the NVD by CPE for a flaw Alpine's own data does not list, and the match is either a
-wrong one or a real flaw Alpine has not assessed. `suppress`, the default, lists each under ACCEPTED
-with the reason `matched by CPE only`, out of the counts and the gate. `report` counts each, with
-`cpe` beside its package. A component's setting replaces the project's.
+wrong one or a real flaw Alpine has not assessed. `report`, the default, counts each, with `cpe`
+beside its package. `suppress` lists each under ACCEPTED with the reason `matched by CPE only`, out
+of the counts and the gate. A component's setting replaces the project's.
+
+The default is `report` because most of these matches are real. Checked one by one on an Alpine 3.22
+image with `sqlite-libs` and `python3`, 22 of 25 were flaws in the image that Alpine had not
+patched, four of them P1, and 3 were wrong matches, such as a flaw in the `sqlite3` shell on an
+image with no shell. Nothing in Grype's match tells the two apart, so `suppress` hides both.
 
 ```yaml
 config:
   controls:
     images:
-      cpeMatches: report
+      cpeMatches: suppress   # set aside every finding matched only by CPE, real ones included
 ```
 
 [CPE matches](../../docs/reference/saga-schema.md#cpe-matches) in the Saga reference says which

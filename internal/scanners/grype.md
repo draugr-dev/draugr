@@ -73,7 +73,7 @@ matching. Set `byCve: false` to see the identifier Grype matched on.
 **Draugr marks a match Grype made only through a CPE.** On an Alpine package, Grype looks in the NVD
 by CPE for a flaw Alpine's own data does not list. Draugr reads the match details from Grype's JSON
 report and marks a finding whose every match is such a CPE match `cpe`, which
-`config.controls.images.cpeMatches` decides; see
+`config.controls.images.cpeMatches` decides, counting them by default; see
 [CPE matches](../../docs/reference/saga-schema.md#cpe-matches). A binary Grype identified by its
 contents is not marked.
 

@@ -170,11 +170,11 @@ func TestImagesReportsCPEMatchesResolvesPerComponent(t *testing.T) {
 		wantReport bool
 		wantSource string
 	}{
-		{"default", in("images", nil, nil), "web", false, project},
+		{"default", in("images", nil, nil), "web", true, project},
 		{"project", in("images", report, nil), "web", true, project},
 		{"component over project", in("images", report, suppress), "web", false, `components["web"].controls.images.cpeMatches`},
 		{"another component", in("images", report, suppress), "api", true, project},
-		{"sca decides nothing here", in("sca", report, report), "web", false, project},
+		{"sca decides nothing here", in("sca", suppress, suppress), "web", true, project},
 	} {
 		got, from := policy.ReportsCPEMatches(tc.model, tc.component)
 		if got != tc.wantReport || from != tc.wantSource {

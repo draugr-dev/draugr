@@ -80,7 +80,7 @@ var scaOptionSchema = json.RawMessage(`{
       ],
       "description": "Whether findings in provided and system dependencies, which the runtime supplies, count. A component's setting replaces the project's."
     },
-    ` + cpeMatchesProperty + `,
+    ` + cpeMatchesProperty(devSuppress) + `,
     "ownPackages": {
       "type": "string",
       "default": "suppress",
@@ -94,17 +94,26 @@ var scaOptionSchema = json.RawMessage(`{
   }
 }`)
 
-// cpeMatchesProperty describes cpeMatches where it sits, as a property of a control's schema. sca and
-// images each take it, because a match Grype made only through a CPE reaches both.
-const cpeMatchesProperty = `"cpeMatches": {
+// cpeMatchesProperty describes cpeMatches where it sits, as a property of a control's schema, with
+// def as that control's default. sca and images each take it, because a match Grype made only
+// through a CPE reaches both, and they default differently: see Images.ReportsCPEMatches.
+func cpeMatchesProperty(def string) string {
+	suppress, report := "", ""
+	if def == devReport {
+		report = " The default."
+	} else {
+		suppress = " The default."
+	}
+	return `"cpeMatches": {
       "type": "string",
-      "default": "suppress",
+      "default": "` + def + `",
       "anyOf": [
-        { "const": "suppress", "description": "Each finding matched only by CPE stays in the report, suppressed with the reason matched by CPE only, and out of the counts and the gate. The default." },
-        { "const": "report", "description": "Each finding matched only by CPE is counted, marked cpe." }
+        { "const": "suppress", "description": "Each finding matched only by CPE stays in the report, suppressed with the reason matched by CPE only, and out of the counts and the gate.` + suppress + `" },
+        { "const": "report", "description": "Each finding matched only by CPE is counted, marked cpe.` + report + `" }
       ],
       "description": "Whether findings Grype matched only through a CPE built from the package's name count: on a package type it has no matcher for, such as dart-pub and pod, and on an Alpine apk package, for a flaw Alpine's own data does not list. A component's setting replaces the project's."
     }`
+}
 
 // ReportsProvidedDependencies resolves providedDependencies for one component, and names the key
 // that decided it: the component's setting first, then the project's, and with neither written the

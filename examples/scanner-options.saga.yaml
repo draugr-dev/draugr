@@ -24,9 +24,10 @@ config:
   controls:
     images:
       enabled: true
-      cpeMatches: report                             # suppress (default) | report: whether a
-                                                     # finding Grype matched only by CPE, such as
-                                                     # on an Alpine apk package, counts
+      cpeMatches: suppress                           # report (default) | suppress: whether a
+                                                     # finding Grype matched only by CPE, on an
+                                                     # Alpine apk package, counts. suppress also
+                                                     # sets aside real flaws Alpine has not assessed
       trivy:
         pkgTypes: [library]                          # os | library. Both by default. Narrow it to
                                                      # library when a platform team owns the base

@@ -374,11 +374,27 @@ func alpineOutcome(t *testing.T, res engine.Result, component, image string) (co
 	return counted, suppressed, sources
 }
 
-// By default every finding Grype matched on an Alpine package only by CPE stays in the report,
-// suppressed by the setting, in each image of each component, and the one it matched in Alpine's data
-// is counted.
-func TestAlpineCPEOnlyMatchesAreSuppressedByDefault(t *testing.T) {
+// By default every finding Grype matched on an Alpine package only by CPE is counted, in each image of
+// each component, beside the one it matched in Alpine's data. Most such matches are flaws in the
+// image that Alpine has not assessed, and nothing in the match tells them from the wrong ones.
+func TestAlpineCPEOnlyMatchesAreCountedByDefault(t *testing.T) {
 	res := runAlpineCPEOnly(t, nil, nil)
+	for _, target := range [][2]string{{"api", alpineImageRef}, {"api", "registry.example/worker:1.0"}, {"lib", "registry.example/lib:1.0"}} {
+		counted, suppressed, _ := alpineOutcome(t, res, target[0], target[1])
+		if len(counted) != alpineCPEOnly+1 || suppressed != 0 {
+			t.Errorf("%v: counted %d and set aside %d, want %d and 0", target, len(counted), suppressed, alpineCPEOnly+1)
+		}
+	}
+	if res.CPEMatches != 0 {
+		t.Errorf("CPEMatches %d, want 0", res.CPEMatches)
+	}
+}
+
+// cpeMatches: suppress keeps every finding Grype matched on an Alpine package only by CPE in the
+// report, suppressed by the setting, in each image of each component, and the one it matched in
+// Alpine's data is counted.
+func TestAlpineCPEOnlyMatchesSuppressSetsThemAside(t *testing.T) {
+	res := runAlpineCPEOnly(t, saga.ControllerSettings{"cpeMatches": "suppress"}, nil)
 	for _, target := range [][2]string{{"api", alpineImageRef}, {"api", "registry.example/worker:1.0"}, {"lib", "registry.example/lib:1.0"}} {
 		counted, suppressed, sources := alpineOutcome(t, res, target[0], target[1])
 		if !slices.Equal(counted, []string{alpineCounted}) || suppressed != alpineCPEOnly {
