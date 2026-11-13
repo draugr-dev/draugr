@@ -196,7 +196,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one level")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0,
-		"max scan jobs to run in parallel (0 = auto, one per CPU); reported as stats.concurrency (also scan.jobs in draugr.config.yaml)")
+		"max scan jobs to run in parallel (0 = auto, one per CPU or per 2 GiB of memory, whichever is fewer); reported as stats.concurrency (also scan.jobs in draugr.config.yaml)")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
 	// Built from the registry, not restated. --format already does this; --report listed its
@@ -408,7 +408,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	feedProv := enrichment.Feeds
 
 	if opts.jobs < 0 {
-		return fmt.Errorf("--jobs must be >= 0 (0 = auto, one per CPU)")
+		return fmt.Errorf("--jobs must be >= 0 (0 = auto)")
 	}
 	if opts.top < 0 {
 		return fmt.Errorf("--top must be >= 0 (0 = show all)")
@@ -1279,8 +1279,8 @@ func (o *scanOptions) tipsOff() bool {
 }
 
 // scanSettingsFrom folds scan.* under the flags of the same name, by the rule outputOptionsFrom
-// follows: a typed flag wins whatever its value, so `--jobs 0` asks for one job per CPU over a
-// configured cap.
+// follows: a typed flag wins whatever its value, so `--jobs 0` asks for the automatic default over
+// a configured cap.
 func scanSettingsFrom(opts *scanOptions, cfg config.ScanSettings) {
 	if cfg.Jobs != nil && !opts.setFlags["jobs"] {
 		opts.jobs = *cfg.Jobs

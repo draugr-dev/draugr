@@ -17,7 +17,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -389,8 +388,8 @@ func WithAllowedEffects(kinds []string) Option {
 	return func(e *Engine) { e.allowEffects = kinds }
 }
 
-// New creates an Engine over the given registry. By default it runs up to NumCPU jobs
-// concurrently.
+// New creates an Engine over the given registry. By default it runs as many jobs at once as
+// toolexec.DefaultJobs gives for this machine.
 func New(reg *Registry, opts ...Option) *Engine {
 	e := &Engine{reg: reg, concurrency: defaultConcurrency(), build: version.Build()}
 	for _, opt := range opts {
@@ -403,12 +402,10 @@ func New(reg *Registry, opts ...Option) *Engine {
 // rather than whatever processes the test binary has run.
 var peakToolMemory = toolexec.PeakMemory
 
-func defaultConcurrency() int {
-	if n := runtime.NumCPU(); n > 0 {
-		return n
-	}
-	return 1
-}
+// defaultConcurrency is how many jobs run at once when nobody chose: one per CPU or per two GiB of
+// memory this process may use, whichever is fewer (toolexec.DefaultJobs). A variable so a test can
+// hold it to a machine of its own.
+var defaultConcurrency = toolexec.DefaultJobs
 
 // PlannedJob is a scan job tagged with the control that produced it and the risk
 // classification of the component it targets (empty for project-scoped controls).
@@ -799,7 +796,7 @@ type Stats struct {
 	// (in-run singleflight), rather than scanning or hitting the persistent cache.
 	Deduped int
 	// Concurrency is the maximum number of scan jobs run in parallel for this run (the
-	// effective value after applying WithConcurrency or the NumCPU default).
+	// effective value after applying WithConcurrency or the machine default).
 	Concurrency int
 	// PeakToolMemory is the largest resident memory, in bytes, that any single tool process
 	// reached, read from the operating system once the jobs and SBOMs are done. One process, not a
@@ -1380,6 +1377,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	for _, pj := range planned {
 		unfinished[pj.Job.Scanner]++
 	}
+	// The jobs not yet finished, for toolexec.WithJobs: a job's tools get the bound divided among the
+	// jobs that can run beside it, and the last of a run's jobs gets it whole. Jobs whose scanners
+	// take turns at a resource (ScannerInfo.Exclusive) count once per resource, since only one of
+	// them runs at a time.
+	remaining := newUnfinishedJobs(e.reg, planned)
 	for jobIndex, pj := range planned {
 		if ctx.Err() != nil {
 			canceled = true
@@ -1466,6 +1468,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			// the jobs the pool runs at once, and one for a scanner whose jobs take turns.
 			mu.Lock()
 			sharers := min(unfinished[pj.Job.Scanner], cap(sem))
+			beside := min(remaining.atOnce(), cap(sem))
 			mu.Unlock()
 			if sc, ok := e.reg.Scanner(pj.Job.Scanner); ok && sc.Info().Exclusive != "" {
 				sharers = 1
@@ -1473,11 +1476,12 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			defer func() {
 				mu.Lock()
 				unfinished[pj.Job.Scanner]--
+				remaining.finish(pj.Job.Scanner)
 				mu.Unlock()
 			}()
 
 			jobStart := time.Now()
-			jobCtx, span := tracer.Start(plugin.WithSharers(ctx, sharers), "engine.scan", trace.WithAttributes(
+			jobCtx, span := tracer.Start(toolexec.WithJobs(plugin.WithSharers(ctx, sharers), beside), "engine.scan", trace.WithAttributes(
 				attribute.String("control", pj.Control),
 				attribute.String("scanner", pj.Job.Scanner),
 			))

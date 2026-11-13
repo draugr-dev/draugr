@@ -121,7 +121,7 @@ func configFields() map[string]map[string]any {
 			"description": "How a scan runs on this machine.",
 		},
 		"scan.jobs": {
-			"description": "How many scan jobs run at once. `0` means one per CPU. Overridden by `--jobs`.",
+			"description": "How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`.",
 			"minimum":     0,
 		},
 		"log": {

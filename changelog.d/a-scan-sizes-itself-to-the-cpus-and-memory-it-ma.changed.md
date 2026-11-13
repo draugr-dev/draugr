@@ -1,0 +1,1 @@
+- **A scan sizes itself to the CPUs and memory it may use.** By default it runs one job per CPU or per 2 GiB of memory, whichever is fewer, within a container's limits rather than the host's core count, and the jobs running at once share each tool's thread bound instead of each taking all of it.

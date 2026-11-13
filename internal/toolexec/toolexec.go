@@ -83,7 +83,7 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 func command(ctx context.Context, dir string, argv, env []string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir
-	cmd.Env = environ(env)
+	cmd.Env = environ(ctx, env)
 	inOwnGroup(cmd)
 	// Output() waits for the tool's pipes to close as well as for the tool, and a process the tool
 	// started and that left its group, a daemon, can hold them open after the tool is gone. The wait

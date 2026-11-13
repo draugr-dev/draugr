@@ -252,9 +252,11 @@ affects. Two things it cannot cover:
 
 ## Tuning parallelism
 
-By default Draugr runs up to one scan job per CPU. But scanners like Trivy and Semgrep are
-themselves multi-threaded, so on a busy or small machine that default can oversubscribe the box and
-*slow the run down*, dial it down with `-j`. On a big CI runner you can dial it up.
+By default Draugr runs one scan job per CPU or one per 2 GiB of memory, whichever is fewer. The CPUs
+and the memory are the ones Draugr may use, so a container's CPU and memory limits lower the default
+rather than the host's size deciding it. The jobs running at once also share each tool's own thread
+bound rather than each taking all of it. On a busy machine, lower it with `-j`. On a big CI runner
+you can raise it.
 
 ```bash
 draugr scan draugr.saga.yaml -j 4      # cap parallelism
@@ -263,7 +265,7 @@ draugr scan draugr.saga.yaml -j 1      # serial: deterministic output, handy for
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU) |
+| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer) |
 
 `scan.jobs` in [`draugr.config.yaml`](configuration.md#scan) sets the same cap for every scan on a
 machine, and a typed `-j` wins over it.

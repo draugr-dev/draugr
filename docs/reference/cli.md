@@ -593,7 +593,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
+| `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
 | `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -632,8 +632,9 @@ available fields). `html`, `junit` and the GitLab formats are files, written wit
 `-o`. To render several formats and deliver them somewhere in one run, declare
 [`config.publishers`](saga-schema.md#configpublishers) in the Saga.
 
-**Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs up to one scan job per CPU. Trivy and
-Semgrep are multi-threaded themselves, so on a small or busy machine a lower `-j` can finish
+**Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs one scan job per CPU or one per 2 GiB
+of memory, whichever is fewer, counting the CPUs and memory it may use under a container's limits.
+Trivy and Semgrep are multi-threaded themselves, so on a busy machine a lower `-j` can finish
 sooner; `-j 1` runs serially. Each tool's own threads have a bound of their own, under *Each
 tool's own parallelism*. The run's JSON `stats` reports the effective `concurrency` alongside
 `jobs` (total jobs), `scans`, `cacheHits` and `deduped`.
@@ -651,11 +652,12 @@ beside the duration when it is five seconds or more and at least a quarter of th
 `-p=n` added after the flags already in `GOFLAGS`, so a Go tool runs on at most n threads and a Go
 build it starts, such as govulncheck's package load, runs at most n compile processes. To use a
 different bound, set `GOMAXPROCS`, or `-p=<n>` in `GOFLAGS`, before running `draugr scan`; Draugr
-passes either one on unchanged. `-j` does not change n: each of the jobs running at once starts
-its tools under n. govulncheck and gosec take turns, so only one of them is loading Go packages at
-any moment across the run, on any number of repositories. Within its turn, gosec loads two
-packages at once, each building with `-p` at half of n, rounded down, so its compile processes
-also stay within n. A run with
+passes either one on unchanged. The jobs running at once share n: each starts its tools under n
+divided by the jobs that can run beside it, rounded down and at least 1, so a job running alone,
+such as the last of a run, keeps all of n. govulncheck and gosec take turns, so only one of them is
+loading Go packages at any moment across the run, on any number of repositories, and their jobs
+count as one. Within its turn, gosec loads two packages at once, each building with `-p` at half of
+its job's share, rounded down, so its compile processes also stay within that share. A run with
 several such loads takes longer than loads in parallel would, and each job's wait is in
 `stats.orderWaitsMs`.
 
@@ -2204,7 +2206,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `output.top` | a whole number of 0 or more | 10 for scan, every row for diff | How many rows a console report lists. `0` keeps the command's own default, a cap for `scan` and every row for `diff`. Overridden by `--top`. |
 | `output.view` | findings, actions or compact | findings | What a console report shows. Overridden by `--view`. |
 | `publish.apiUrl` | a URL | none | Where the `draugr-api` publisher posts when `$DRAUGR_API_URL` is unset. In a project's draugr.config.yaml it is used only on the origin of `publish.apiUrl` in `~/.draugr/config.yaml`, or one `$DRAUGR_API_ORIGINS` lists. Never holds a token. |
-| `scan.jobs` | a whole number of 0 or more; 0, one per CPU | 0 | How many scan jobs run at once. `0` means one per CPU. Overridden by `--jobs`. |
+| `scan.jobs` | a whole number of 0 or more; 0, sized to the machine | 0 | How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`. |
 | `tools.<tool>.version` | a release, such as 0.69.3 | Draugr's pin | The version to install, e.g. `0.69.3`. |
 <!-- end of generated config keys -->
 

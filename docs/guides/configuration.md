@@ -195,11 +195,11 @@ output:
 
 ```yaml
 scan:
-  jobs: 4            # scan jobs run at once; 0 is one per CPU, the default
+  jobs: 4            # scan jobs run at once; 0 is the automatic default
 ```
 
 `jobs` is the default for `--jobs` on every scan the machine runs. A project's `jobs: 0` restores
-one per CPU over the machine's cap. See [tuning parallelism](caching-and-performance.md#tuning-parallelism)
+the automatic default over the machine's cap. See [tuning parallelism](caching-and-performance.md#tuning-parallelism)
 for choosing a number.
 
 ### `log`
