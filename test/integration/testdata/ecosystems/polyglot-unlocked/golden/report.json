@@ -64,7 +64,7 @@
     {
       "component": "polyglot-unlocked",
       "control": "licenses",
-      "read": 1,
+      "read": 0,
       "scanners": [
         "trivy-license"
       ],
@@ -95,6 +95,7 @@
           "repository": "./polyglot-unlocked"
         },
         {
+          "partly": true,
           "path": "requirements.txt",
           "reason": "records no license for 1 package",
           "repository": "./polyglot-unlocked"

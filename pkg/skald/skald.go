@@ -829,9 +829,11 @@ type dependencyFilesReport struct {
 	Control   string `json:"control"`
 	// Scanners are the scanners that accounted for what they read.
 	Scanners []string `json:"scanners"`
-	// Read counts the files at least one of them took packages from. Always 0 for iac, whose
+	// Read counts the files at least one of them took every package from. Always 0 for iac, whose
 	// scanner lists only the Terraform files calling a module it could not load.
-	Read   int                `json:"read"`
+	Read int `json:"read"`
+	// Unread are the files they did not read in full, those read in part marked Partly. A file is
+	// counted once, under Read or under Unread.
 	Unread []unreadFileReport `json:"unread,omitempty"`
 	// Missed are the files a scanner read no packages from where another of these scanners read
 	// them, one entry per file and scanner. Read counts them and Unread does not list them.
@@ -853,6 +855,8 @@ type unreadFileReport struct {
 	Repository string `json:"repository,omitempty"`
 	Path       string `json:"path"`
 	Reason     string `json:"reason"`
+	// Partly marks a file the scans took some packages from and not all; Reason says what was left.
+	Partly bool `json:"partly,omitempty"`
 }
 
 // missedFileReport is a dependency file one scanner of a control read no packages from while
@@ -1102,7 +1106,12 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			Component: cov.Component, Control: cov.Control, Scanners: cov.Scanners, Read: cov.Read,
 		}
 		for _, u := range cov.Unread {
-			files.Unread = append(files.Unread, unreadFileReport{Repository: u.Repository, Path: u.Path, Reason: u.Reason})
+			if u.Partly {
+				files.Read-- // the engine counts a file read in part as read; here it is counted once
+			}
+			files.Unread = append(files.Unread, unreadFileReport{
+				Repository: u.Repository, Path: u.Path, Reason: u.Reason, Partly: u.Partly,
+			})
 		}
 		for _, m := range cov.Missed {
 			files.Missed = append(files.Missed, missedFileReport{

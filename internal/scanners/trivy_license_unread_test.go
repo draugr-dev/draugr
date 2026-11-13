@@ -124,13 +124,13 @@ func TestLockfileWithNoLicenseIsReadInPartForLicenses(t *testing.T) {
 		read      int
 	}{
 		{"native", []engine.UnreadInput{
-			{Repository: "native", Path: "rb/Gemfile.lock", Reason: "records no licenses for 2 packages", Kind: "bundler"},
-			{Repository: "native", Path: "rs/codec/Cargo.lock", Reason: "records no licenses for 3 packages", Kind: "cargo"},
-			{Repository: "native", Path: "rs/store/Cargo.lock", Reason: "records no licenses for 2 packages", Kind: "cargo"},
+			{Repository: "native", Path: "rb/Gemfile.lock", Reason: "records no licenses for 2 packages", Kind: "bundler", Partly: true},
+			{Repository: "native", Path: "rs/codec/Cargo.lock", Reason: "records no licenses for 3 packages", Kind: "cargo", Partly: true},
+			{Repository: "native", Path: "rs/store/Cargo.lock", Reason: "records no licenses for 2 packages", Kind: "cargo", Partly: true},
 		}, 3},
 		{"mixed", []engine.UnreadInput{
-			{Repository: "mixed", Path: "cs/App/packages.lock.json", Reason: "licenses of 2 packages not read" + dotnet, Kind: "nuget"},
-			{Repository: "mixed", Path: "cs/Legacy/packages.config", Reason: "licenses of 3 packages not read" + dotnet, Kind: "nuget"},
+			{Repository: "mixed", Path: "cs/App/packages.lock.json", Reason: "licenses of 2 packages not read" + dotnet, Kind: "nuget", Partly: true},
+			{Repository: "mixed", Path: "cs/Legacy/packages.config", Reason: "licenses of 3 packages not read" + dotnet, Kind: "nuget", Partly: true},
 		}, 3},
 	} {
 		lic := inputsOf(t, res, tc.component, "licenses")

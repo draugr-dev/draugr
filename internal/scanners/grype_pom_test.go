@@ -178,9 +178,9 @@ func checkPomCoverage(t *testing.T, got, want map[string]engine.InputCoverage, c
 // both controls whatever Grype read.
 func TestAPomGrypeReadIsCaveatedBesideTrivy(t *testing.T) {
 	got, console := runPomScan(t, "grype-fs", "trivy-fs")
-	shopPom := []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom}}
+	shopPom := []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Partly: true}}
 	// trivy-license names the file's format, which the report folds a component's files by.
-	shopLicensePom := []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Kind: "pom"}}
+	shopLicensePom := []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Kind: "pom", Partly: true}}
 	checkPomCoverage(t, got, map[string]engine.InputCoverage{
 		"shop/sca":         {Component: "shop", Control: "sca", Scanners: []string{"grype-fs", "trivy-fs"}, Read: 1, Unread: shopPom},
 		"shop/licenses":    {Component: "shop", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1, Unread: shopLicensePom},
@@ -199,11 +199,11 @@ func TestAPomGrypeReadAloneNamesNoAction(t *testing.T) {
 	grypeReason := string(manifests.TransitiveNotReadByGrype)
 	checkPomCoverage(t, got, map[string]engine.InputCoverage{
 		"shop/sca": {Component: "shop", Control: "sca", Scanners: []string{"grype-fs"}, Read: 1,
-			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: grypeReason}}},
+			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: grypeReason, Partly: true}}},
 		"shop/licenses": {Component: "shop", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1,
-			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Kind: "pom"}}},
+			Unread: []engine.UnreadInput{{Repository: "shop", Path: "pom.xml", Reason: unresolvedPom, Kind: "pom", Partly: true}}},
 		"billing/sca": {Component: "billing", Control: "sca", Scanners: []string{"grype-fs"}, Read: 1,
-			Unread: []engine.UnreadInput{{Repository: "billing", Path: "pom.xml", Reason: grypeReason}}},
+			Unread: []engine.UnreadInput{{Repository: "billing", Path: "pom.xml", Reason: grypeReason, Partly: true}}},
 		"billing/licenses": {Component: "billing", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 1},
 	}, console,
 		"unread-files · licenses · shop / pom.xml transitive dependencies not resolved, run mvn dependency:resolve",

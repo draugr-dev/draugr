@@ -24,10 +24,11 @@ type InputCoverage struct {
 	// Scanners are the scanners that accounted for what they read, sorted. A scanner that does not
 	// account says nothing either way and is not named.
 	Scanners []string
-	// Read counts the dependency files at least one of them took packages from.
+	// Read counts the dependency files at least one of them took packages from, the files read in
+	// part included.
 	Read int
 	// Unread are the files none of them did, by repository and path, and the files they read in
-	// part, which Read counts too.
+	// part, which Read counts too and which are marked Partly.
 	Unread []UnreadInput
 	// Missed are the files a scanner took no packages from where another scanner of the control
 	// took some, one entry per file and scanner, by repository, path and scanner. Read counts them,
@@ -61,6 +62,8 @@ type UnreadInput struct {
 	Reason string
 	// Kind is the scanner's name for the file's format (sarif.Input.Kind), empty where none said.
 	Kind string
+	// Partly marks a file a scan took some packages from and not all, which Read counts as read.
+	Partly bool
 }
 
 // MissedInput is a dependency file one scanner of a control read no packages from while another
@@ -166,7 +169,7 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 				continue
 			}
 			cov.Read++
-			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason, Kind: a.kinds[f]})
+			cov.Unread = append(cov.Unread, UnreadInput{Repository: f.repository, Path: f.path, Reason: reason, Kind: a.kinds[f], Partly: true})
 		}
 		for f, byScanner := range a.missed {
 			if len(a.read[f]) == 0 && len(a.partlyBy[f]) == 0 {
