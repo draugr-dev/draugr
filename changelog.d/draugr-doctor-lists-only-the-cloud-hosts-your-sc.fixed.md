@@ -1,1 +1,0 @@
-- **`draugr doctor` lists only the cloud hosts your scan contacts.** Its NETWORK list gave every cloud's hosts to any descriptor enabling the `cloud` control, so an Azure-only allowlist was told to open AWS hosts, and the reverse. It now lists the hosts of the clouds your components' accounts are in.

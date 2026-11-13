@@ -1,1 +1,0 @@
-- **A Grype or Syft failure to read an image says why.** The control's row gave the start of the tool's message, cut before the cause, then a blank line. It now gives the cause the sources Grype tried share, such as `oci-registry: dial tcp 127.0.0.1:32769: connect: connection refused`, and names the sources that failed otherwise.

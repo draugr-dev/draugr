@@ -1,1 +1,0 @@
-- **The `tls` control tests every protocol on a host whose certificate fails, and reads the certificate itself.** A failing chain no longer stops the TLS 1.0, 1.1 and 1.3 checks. SHA-1 or MD5 intermediates, a missing SAN, a chain out of order and a key Go refuses are each reported as what they are.

@@ -1,1 +1,0 @@
-- **A scan says when it did not read KEV or EPSS.** `SIGNALS` lists each one the run did not read and the flag that reads it, in every view, `--view compact` included, so a run that checked nothing for exploitation no longer reads as one that found nothing exploited.

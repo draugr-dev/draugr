@@ -1,1 +1,0 @@
-- **`draugr explain` reads the directory a scan wrote, and says which report it read.** `-r out/` reads `out/results.sarif`, so the directory given to `-o` works as typed. The answer ends with the report's path and when it was written, so one left over from an older run is not mistaken for the latest.
