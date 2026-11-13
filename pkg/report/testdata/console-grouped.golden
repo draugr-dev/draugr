@@ -12,7 +12,7 @@ Change the code  3 actions clear 4 findings
   P1  Fix CVE-2019-20477 “PyYAML: command execution through python/object/ap…”
       component payments · control sca · 1 finding · app/requirements.txt:4 · CVE-2019-20477
   P2  Fix “Detected user input flowing into a raw SQL string”
-      Semgrep: tainted-sql-string · Bandit: B608
+      Semgrep: python.flask.security.injection.tainted-sql-string.tainted-sql-string · Bandit: B608
       control sast · 2 findings · app/main.py:42
   … and 1 action not listed
 
@@ -67,4 +67,5 @@ TRY
   --report json,sarif,html -o .draugr/out  every finding in one searchable page
   --view compact                           one line each, to see how much there is
   --view findings                          the findings themselves, one row each
+  config.exclude                           set aside a rule by its id as printed, with a reason
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out

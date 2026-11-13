@@ -232,7 +232,7 @@ hides work you could have done; the reverse costs a row you skip.
 | the band | the highest band among the findings this one action clears |
 | the action | what to do, naming the thing and the version in hand |
 | the summary | the scanner's description of the rule, under an action that names a rule |
-| the rules | under an action for a line of code, the rules that flag it, by scanner and starting with the rule that titles the row, and a count of those that do not fit |
+| the rules | under an action for a line of code, the rules that flag it, by scanner, each id whole, as many as fit, and a count of the rest |
 | the component | which component the action belongs to, named when the list spans more than one |
 | the control | which control the findings came from, named when the actions span more than one |
 | the lines | how many lines of code the row stands for, on a row standing for several |
@@ -269,7 +269,9 @@ title, is titled with the rule's name, and the description is on the line under 
 
 Each row names one rule identifier, linked to whatever the scanner published about it, and counts
 the rest. A row for a line of code names the rules that flag it, by scanner, and counts those that
-do not fit. To read what a check means and how to fix it:
+do not fit. Every id is printed whole, so one copied from a row matches in
+[`config.exclude`](../reference/saga-schema.md#configexclude). To read what a check means and how to
+fix it:
 
 ```bash
 draugr explain kube-bench/cis/4.3.1

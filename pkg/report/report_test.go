@@ -489,53 +489,46 @@ func TestConsoleLinksTheScannerPublishedHelpURI(t *testing.T) {
 	}
 }
 
-// A long namespaced rule id must not push the columns after it off the screen.
-func TestShortRuleID(t *testing.T) {
-	short := "CVE-2021-36159"
-	if got := shortRuleID(short); got != short {
-		t.Errorf("shortRuleID(%q) = %q, want it untouched", short, got)
-	}
+// An id a reader copies from --view compact or --view actions goes into config.exclude, which
+// matches it exactly. Each view prints a long Semgrep id so that, pasted there, it matches the
+// finding it came from.
+func TestCompactAndActionsPrintRuleIDsConfigExcludeMatches(t *testing.T) {
 	long := "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
-	got := shortRuleID(long)
-	if len([]rune(got)) > ruleIDWidth {
-		t.Errorf("len(%q) = %d, want at most %d", got, len([]rune(got)), ruleIDWidth)
+	result := func(uri string, line int) sarif.Result {
+		return sarif.Result{RuleID: long, Level: sarif.LevelError, Priority: "P2", Tool: "semgrep",
+			Location: sarif.Location{URI: uri, StartLine: line}}
 	}
-	// The tail is the specific half. That's what has to survive.
-	if !strings.HasSuffix(got, "github-actions-mutable-action-tag") {
-		t.Errorf("got %q, want the tail of the id kept", got)
-	}
-	if !strings.HasPrefix(got, "…") {
-		t.Errorf("got %q, want it marked as shortened", got)
-	}
-	// The whole point: cut on a separator, not mid-word. "…ction-tag.github-…" reads as
-	// corruption; a whole segment reads as truncation.
-	if got != "…github-actions-mutable-action-tag" {
-		t.Errorf("got %q, want the cut on a dot boundary", got)
+	for _, view := range []View{ViewCompact, ViewActions} {
+		// Two files, so the action names its rule rather than giving it a line of its own.
+		d := Data{View: view, Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"sast": {Report: sarif.Report{Results: []sarif.Result{
+				result(".github/workflows/ci.yml", 12), result(".github/workflows/release.yml", 30)}}},
+		}}}
+		out := renderConsole(t, d)
+		var printed []string
+		for _, field := range strings.Fields(out) {
+			if strings.Contains(field, "mutable-action-tag") {
+				printed = append(printed, field)
+			}
+		}
+		if len(printed) == 0 {
+			t.Fatalf("%s: the rule is not named:\n%s", view, out)
+		}
+		for _, id := range printed {
+			if !(saga.ExcludeRule{Rules: []string{id}}).Matches(".github/workflows/ci.yml", long) {
+				t.Errorf("%s prints %q, which config.exclude does not match to %q:\n%s", view, id, long, out)
+			}
+		}
 	}
 }
 
-func TestShortRuleIDFallsBackWhenNoSeparatorFits(t *testing.T) {
-	// A single long unsegmented id has no dot to cut on. Trimming by width is then the only
-	// option, and is still better than pushing every later column off the screen.
+// An action whose detail is only its rule id, with no room for it, leaves the id off rather than
+// printing part of it.
+func TestFitDetailLeavesOffAnIDItCannotPrintWhole(t *testing.T) {
 	long := strings.Repeat("x", 80)
-	got := shortRuleID(long)
-	if len([]rune(got)) != ruleIDWidth {
-		t.Errorf("len(%q) = %d, want exactly %d", got, len([]rune(got)), ruleIDWidth)
-	}
-	if !strings.HasPrefix(got, "…") {
-		t.Errorf("got %q, want it marked as shortened", got)
-	}
-}
-
-func TestShortRuleIDKeepsAWholeSegmentEvenWhenTwoWouldNotFit(t *testing.T) {
-	// The dot search runs inside the visible tail, so a boundary just past the cut is used rather
-	// than one before it. Otherwise the result would exceed the column.
-	got := shortRuleID("a.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.cccccccccccccccccccccccccccccc")
-	if len([]rune(got)) > ruleIDWidth {
-		t.Errorf("len(%q) = %d, want at most %d", got, len([]rune(got)), ruleIDWidth)
-	}
-	if strings.Contains(strings.TrimPrefix(got, "…"), "b") {
-		t.Errorf("got %q, want a clean segment boundary", got)
+	a := action{upstream: true, findings: []finding{{ruleID: long}, {ruleID: long}}}
+	if got := fitDetail(tui.Plain(), a, 20, 1); got != "" {
+		t.Errorf("fitDetail = %q, want nothing rather than part of the id", got)
 	}
 }
 

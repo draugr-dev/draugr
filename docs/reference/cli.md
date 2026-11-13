@@ -330,6 +330,16 @@ them in place:
 | `--report json,sarif,html -o .draugr/out` | A block stopped short, at `… and 4 more` or `… and 4 findings not listed`, or `--top 0` listed every finding, and the run writes no HTML report. In every view, `--view compact` included. The run it suggests writes the HTML report beside the files `draugr explain`, `--base` and `draugr diff` read, where `explain` looks for them. With `-o` set, the row is `--report` with the formats the run writes and `html`, because `--report` replaces its default |
 | `--evidence` | A caveat row stands for several files, such as `Cargo.lock ×2`, and `--evidence` is off |
 
+Under a run that listed findings, in the findings and actions views, `TRY` also names
+[`config.exclude`](saga-schema.md#configexclude), where a rule that does not apply is set aside:
+
+```
+  config.exclude  set aside a rule by its id as printed, with a reason
+```
+
+Every view prints a rule id whole, however long, so an id copied from a row matches as
+`config.exclude` reads it.
+
 A run that writes report files lists them under `REPORTS`, above `TRY`, each as a path and what it is
 for, the HTML report first:
 
@@ -969,6 +979,7 @@ WHAT TO DO  2 actions clear 15 findings
 TRY
   --view compact         one line each, to see how much there is
   --view findings        the findings themselves, one row each
+  config.exclude         set aside a rule by its id as printed, with a reason
   draugr explain <rule>  what a rule means and how to fix it, from .draugr/out
 draugr: fails on P3: 15 new findings since b5bcb4b
 ```
@@ -1085,9 +1096,9 @@ file read: a checkout can hold an older report, such as one a `file` publisher c
 
 The id can be given in full, or by its trailing `/`-separated segments: `4.3.1` and `cis/4.3.1`
 both find `kube-bench/cis/4.3.1`, and `4.3` finds nothing. An id copied from a finding works as
-printed. The `--view compact` table and the actions view print a long id with a leading `…`, and
-that form works too, as does the name alone: `…security.missing-user.missing-user` and
-`missing-user` both find `dockerfile.security.missing-user.missing-user`. A whole id also matches
+printed. The end of an id after a leading `…` works too, as does the name alone:
+`…security.missing-user.missing-user` and `missing-user` both find
+`dockerfile.security.missing-user.missing-user`. A whole id also matches
 regardless of case. An abbreviation matching more than one rule lists them rather than choosing
 one.
 
