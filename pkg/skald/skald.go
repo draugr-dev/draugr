@@ -460,8 +460,9 @@ type NewFindings struct {
 	// Introduced are the findings this run reports and the base does not, without a second
 	// scanner's copy of one already counted.
 	Introduced []sarif.Result
-	// Tripped reports whether any of them met FailOnNew. False where FailOnNew is empty.
-	Tripped bool
+	// Tripped are the introduced findings that met FailOnNew, the ones the gate failed the run on.
+	// Empty where none did, and where FailOnNew is empty.
+	Tripped []sarif.Result
 }
 
 // gateReport is the gate as the JSON document states it.
@@ -539,7 +540,7 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	}
 	if failOnNew != "" {
 		out.Verdict = string(norn.Pass)
-		if n.Tripped {
+		if len(n.Tripped) > 0 {
 			out.Verdict = string(norn.Fail)
 		}
 	}

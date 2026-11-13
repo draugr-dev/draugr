@@ -115,7 +115,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 		findings: &skald.NewFindings{
 			Base:       sarif.RepositoriesIn([]sarif.Report{g.base}),
 			Introduced: compared.Counted().New,
-			Tripped:    len(compared.Tripped) > 0,
+			Tripped:    compared.Tripped,
 		},
 		result:  compared,
 		tripped: len(compared.Tripped),

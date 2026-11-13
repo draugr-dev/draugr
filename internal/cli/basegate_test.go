@@ -580,3 +580,37 @@ func (c *countingScanner) Scan(context.Context, plugin.Target, plugin.Config) (s
 	*c.scanned = true
 	return sarif.Report{Tool: "staged"}, nil
 }
+
+// A run judged on its change writes a JUnit report that fails what the exit status failed on. The
+// gate is medium severity, which api's new warning meets and its new note does not, and the note is
+// web's CVE-WEB in every field but its component and repository, so a match on less than those
+// would fail web's unchanged copy or pass api's.
+func TestAJudgedRunsJUnitFailsWhatItIntroduced(t *testing.T) {
+	path := twoComponentSaga(t, "")
+	s, reg := stagedPair()
+	base := scanBase(t, path, reg)
+	introduce(s)
+
+	out := t.TempDir()
+	err := runScan(context.Background(), path, scanOptions{outputDir: out, noPublish: true, base: base,
+		failOnNew: "medium", reports: []string{"junit"}}, reg, &bytes.Buffer{})
+	if err == nil || !strings.Contains(err.Error(), "1 new finding since") {
+		t.Fatalf("exit = %v, want the one new finding at medium", err)
+	}
+	data, rerr := os.ReadFile(filepath.Join(out, "report.junit.xml")) // #nosec G304 -- this test's own temp file
+	if rerr != nil {
+		t.Fatal(rerr)
+	}
+	junit := string(data)
+	if got := strings.Count(junit, "<failure "); got != 1 {
+		t.Errorf("%d failures, want 1:\n%s", got, junit)
+	}
+	if !strings.Contains(junit, `<testcase name="CVE-NEW @ go.mod:1" classname="sca/staged">`) {
+		t.Errorf("api's new warning is not the failing testcase:\n%s", junit)
+	}
+	for _, absent := range []string{"CVE-OLD", "CVE-WEB"} {
+		if strings.Contains(junit, absent) {
+			t.Errorf("%s is listed, and the change failed nothing on it:\n%s", absent, junit)
+		}
+	}
+}

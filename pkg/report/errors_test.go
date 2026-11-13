@@ -560,7 +560,7 @@ func TestReportJSONCarriesTheGateOnNewFindings(t *testing.T) {
 	d.Gate.New = &skald.NewFindings{
 		Base:       []sarif.RepositoryRef{{URL: "https://example.com/api.git", Revision: "3f2a9c1"}},
 		Introduced: []sarif.Result{{RuleID: "CVE-1", Priority: "P2"}},
-		Tripped:    true,
+		Tripped:    []sarif.Result{{RuleID: "CVE-1", Priority: "P2"}},
 	}
 	out := renderWith(t, jsonReporter{}, d)
 	for _, want := range []string{`"failOnNew": "P2"`, `"commit": "3f2a9c1"`, `"p2": 1`, `"verdict": "fail"`} {

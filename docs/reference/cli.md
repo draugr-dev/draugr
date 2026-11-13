@@ -961,6 +961,11 @@ how many findings are new and the gate, then what changed. The policy, MEASURED 
 blocks are unchanged. A failed run's last line names the gate, the new findings that met it and
 the base.
 
+`--report junit` fails the findings the exit code fails on, the new ones that met the gate, and each
+failure's message ends `new since <revision>`. A control with no such finding gets one passing test,
+`nothing new at <gate> since <revision>`. Findings that were already there, and new ones below the
+gate, are not in the JUnit report; the console, `report.json` and the HTML report still list them.
+
 ```console
 $ draugr scan --base base/results.sarif --fail-on-new P3 --view actions --no-publish
 DRAUGR  FAIL  shop  3.894s

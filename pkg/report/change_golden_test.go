@@ -116,7 +116,7 @@ func changeData(view report.View, changed bool) report.Data {
 			New: &skald.NewFindings{
 				Base:       sarif.RepositoriesIn([]sarif.Report{baseReport}),
 				Introduced: compared.Counted().New,
-				Tripped:    len(compared.Tripped) > 0,
+				Tripped:    compared.Tripped,
 			},
 			BasePath: "base/results.sarif",
 			WholeRun: norn.Fail,

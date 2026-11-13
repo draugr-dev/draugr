@@ -427,7 +427,7 @@ var formatSummaries = map[string]string{
 	"evidence": "The console report plus what makes it defensible: tools, revisions, and what each control measured against.",
 	"html":     "A self-contained page, for attaching to a ticket or an audit.",
 	"json":     "The whole run as one document, for a platform or a script.",
-	"junit":    "One failed test per finding, for a CI test panel.",
+	"junit":    "One failed test per finding, or per new finding that met a gate on new findings, and one test in error per control with a scan error, for a CI test panel.",
 	"markdown": "The report as prose and tables, for a merge request comment or a wiki.",
 	"sarif":    "SARIF 2.1.0, which code scanning and editors read.",
 	"template": "Your own layout, from --template or --template-file.",
