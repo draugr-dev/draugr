@@ -16,17 +16,17 @@ _Nothing yet._
 
 ### Changed
 
-- **A CI test panel agrees with the exit code on a pull request.** On a scan given `--base` and a gate on new findings, the JUnit report fails only the new findings that met the gate, each marked `new since <revision>`. A control where the change failed nothing passes on one test.
+- **The JUnit report matches the exit code on a pull request.** With `--base` and a gate on new findings, only the new findings that met the gate fail, each marked `new since <revision>`. A control with no new failing finding reports one passing test.
 
-- **A failed test in the JUnit report names the upgrade to make.** Where several failing findings sit on one package, each names the one release that clears them all, not the release its own advisory named.
+- **A failed JUnit test names the upgrade to make.** When several failing findings sit on one package, each test names the single release that clears all of them, not the release its own advisory named.
 
-- **A Kubernetes check the benchmark leaves to a person is no longer a finding.** It takes no band and does not count toward the gate. The coverage line counts these checks, `--evidence` lists them, and `report.json` and SARIF carry them as `unsettledChecks`, an excluded one with its reason. A `--base` report from an earlier release lists them as fixed once.
+- **Kubernetes checks the CIS benchmark leaves to a person no longer count as findings.** They get no priority and cannot fail the gate. `--evidence` lists them, the coverage line counts them, and `report.json` and SARIF carry them as `unsettledChecks`. A `--base` report from an earlier release shows them as fixed on the first comparison.
 
-- **Copy a rule id from any view into `config.exclude`.** `--view compact` and `--view actions` print rule ids whole, however long, so one copied from a row matches the finding it came from. Under a run that listed findings, `TRY` names `config.exclude`, where a rule that does not apply is set aside with a reason.
+- **`--view compact` and `--view actions` print rule ids in full**, so an id copied from a row matches its finding in `config.exclude`. After a run that lists findings, the `TRY` hints point to `config.exclude`, where a rule that does not apply is set aside with a reason.
 
 ### Fixed
 
-- **The Kubernetes check for pods and containers with no security context (CIS 5.6.3) now finds them on a live cluster.** The API server gives every pod an empty `securityContext: {}`, and the check counted that as one being applied, so it passed every workload. A security context that sets nothing now counts as none.
+- **CIS 5.6.3 (pods and containers with no security context) now reports on a live cluster.** A security context that sets nothing, such as the empty `securityContext: {}` the API server adds to every pod, counts as none, so workloads that set none fail the check. A cluster that passed 5.6.3 before may now show findings.
 
 ## [0.175.0] - 2026-11-13
 
