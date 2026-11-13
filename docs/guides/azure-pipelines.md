@@ -141,7 +141,10 @@ the delta. See [gate PRs on new findings](pr-diff.md) for how findings are match
 
 `--report junit` writes `report.junit.xml`, and `PublishTestResults@2` renders each finding as a
 failed test, control and scanner as the suite, rule and location as the name. Each failure carries
-the description and a link to the advisory, so a CVE number is something you can follow.
+the description, the upgrade that clears every failing finding on that package, and a link to the
+advisory, so a CVE number is something you can follow. With `--base` and a [gate on new
+findings](../reference/cli.md#gating-on-new-findings), only the new findings that met the gate fail,
+which are the ones the exit code fails on.
 
 Two conditions matter:
 

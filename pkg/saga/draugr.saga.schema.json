@@ -3321,7 +3321,7 @@
             },
             {
               "const": "junit",
-              "description": "One failed test per finding, for a CI test panel."
+              "description": "One failed test per finding, or per new finding that met a gate on new findings, and one test in error per control with a scan error, for a CI test panel."
             },
             {
               "const": "markdown",

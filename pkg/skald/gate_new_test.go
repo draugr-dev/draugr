@@ -56,7 +56,7 @@ func twoRepositories() []sarif.RepositoryRef {
 func TestTheGateStatesTheComparisonAndItsVerdict(t *testing.T) {
 	got := gateBlock(t, &Gate{
 		FailOnNew: "P2",
-		New:       &NewFindings{Base: twoRepositories(), Introduced: introducedIn(), Tripped: true},
+		New:       &NewFindings{Base: twoRepositories(), Introduced: introducedIn(), Tripped: introducedIn()[:1]},
 	})
 	if got["failOnNew"] != "P2" {
 		t.Errorf("failOnNew = %v, want P2", got["failOnNew"])

@@ -16,7 +16,8 @@ import (
 //
 // The XML records every finding as a failure regardless of the gate's --fail-on threshold. It is
 // a faithful list of what was found. The overall build's pass/fail is still governed by draugr's
-// exit code, not this file.
+// exit code, not this file. A run the gate on new findings judged is the exception: it fails only
+// the new findings that met that gate, the ones its exit code failed on.
 type junitReporter struct{}
 
 func (junitReporter) Format() string { return "junit" }
@@ -101,35 +102,74 @@ func (junitReporter) Render(w io.Writer, d Data) error {
 	}
 	sort.Strings(order)
 
+	// On a run the gate on new findings judged, the panel judges the change as the exit code does: the
+	// new findings that met the gate fail, and nothing else is listed. A finding already there at the
+	// base, or new and below the gate, is not a test this change failed, and a panel holding a
+	// thousand of them as failures or skips hides the few the change did fail among them. The
+	// console and the other reports still list every finding.
+	judged := d.Gate.judgesChange()
+	fails := func(finding) bool { return true }
+	nothingNew := ""
+	if judged {
+		tripped := map[string]bool{}
+		for _, r := range d.Gate.New.Tripped {
+			tripped[r.Fingerprint()] = true
+		}
+		fails = func(f finding) bool { return tripped[f.fingerprint] }
+		nothingNew = fmt.Sprintf("nothing new at %s since %s", ThresholdWords(d.Gate.FailOnNew), d.Gate.baseName())
+	}
+
+	// The failing findings on each package, so every one of them names the upgrade that clears them
+	// all rather than the release its own advisory named.
+	upgrades := map[string][]finding{}
+	for _, control := range order {
+		for _, f := range byControl[control] {
+			if k := junitUpgradeKey(f); k != "" && fails(f) {
+				upgrades[k] = append(upgrades[k], f)
+			}
+		}
+	}
+
 	root := junitTestsuites{Name: "draugr"}
 	for _, control := range order {
-		fs := byControl[control]
+		var failing []finding
+		for _, f := range byControl[control] {
+			if fails(f) {
+				failing = append(failing, f)
+			}
+		}
 		suite := junitTestsuite{Name: control}
 		switch {
 		case d.Run.Incomplete(control):
-			// No "no findings" testcase beside it: a passing test for a control that did not run in
-			// full is the green tick the error exists to withhold.
+			// No passing testcase beside it: a passing test for a control that did not run in full
+			// is the green tick the error exists to withhold.
 			suite.TestCases = append(suite.TestCases, junitScanError(control, d.Run.ScanErrors[control]))
 			suite.Tests++
 			suite.Errors++
-		case len(fs) == 0:
-			suite.TestCases = append(suite.TestCases, junitTestCase{
-				Name: "no findings", ClassName: control,
-			})
+		case len(failing) > 0:
+		case judged:
+			suite.TestCases = append(suite.TestCases, junitTestCase{Name: nothingNew, ClassName: control})
+			suite.Tests = 1
+		default:
+			suite.TestCases = append(suite.TestCases, junitTestCase{Name: "no findings", ClassName: control})
 			suite.Tests = 1
 		}
-		for _, f := range fs {
+		for _, f := range failing {
 			name := f.ruleID
 			if f.location != "" {
 				name = fmt.Sprintf("%s @ %s", f.ruleID, f.location)
+			}
+			msg := junitFailureMessage(f)
+			if judged {
+				msg += ", new since " + d.Gate.baseName()
 			}
 			suite.TestCases = append(suite.TestCases, junitTestCase{
 				Name:      name,
 				ClassName: fmt.Sprintf("%s/%s", control, f.tool),
 				Failure: &junitFailure{
-					Message: junitFailureMessage(f),
+					Message: msg,
 					Type:    string(f.level),
-					Body:    junitFailureBody(f),
+					Body:    junitFailureBody(f, junitUpgrade(f, upgrades[junitUpgradeKey(f)])),
 				},
 			})
 			suite.Tests++
@@ -159,14 +199,41 @@ func (junitReporter) Render(w io.Writer, d Data) error {
 // The URL goes on its own line, bare. A test panel is not a place to be clever with formatting,
 // several of them linkify a bare URL, and the ones that do not leave something a reader can copy
 // rather than a CVE number they have to retype into a search engine.
-func junitFailureBody(f finding) string {
-	if f.helpURI == "" {
-		return f.message
+func junitFailureBody(f finding, upgrade string) string {
+	var parts []string
+	for _, p := range []string{f.message, upgrade, f.helpURI} {
+		if p != "" {
+			parts = append(parts, p)
+		}
 	}
-	if f.message == "" {
-		return f.helpURI
+	return strings.Join(parts, "\n\n")
+}
+
+// junitUpgradeKey is the upgrade a finding shares with the others on the same package in the same
+// place, or "" for a finding about no package.
+func junitUpgradeKey(f finding) string {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return ""
 	}
-	return f.message + "\n\n" + f.helpURI
+	return strings.Join([]string{f.control, f.component, f.repository, f.location, f.pkg.Name, f.pkg.Version}, "\x00")
+}
+
+// junitUpgrade is what to upgrade to clear a failing finding: the release that clears every failing
+// finding on its package, where one can be worked out, and the finding's own fix otherwise.
+func junitUpgrade(f finding, failing []finding) string {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return ""
+	}
+	if len(failing) > 1 {
+		if target := upgradeTarget(failing); target != "" {
+			return fmt.Sprintf("Upgrade %s %s → %s to clear all %d failing findings on this package.",
+				f.pkg.Name, f.pkg.Version, target, len(failing))
+		}
+	}
+	if f.pkg.FixedVersion == "" {
+		return upgradeLabel(f) + "."
+	}
+	return "Upgrade " + upgradeLabel(f) + "."
 }
 
 // junitFailureMessage builds a short, scannable one-liner for the test panel.

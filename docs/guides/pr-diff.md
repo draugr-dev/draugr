@@ -451,7 +451,8 @@ gate on new findings, its console prints the change in the layout `draugr diff` 
 line on a failure names the gate, the new findings that met it and the base's revision, as
 `draugr: fails on <band>: <n> new findings since <revision>`. The whole run's outcome against
 `--fail-on` decides nothing, and the `report.json` the scan writes and publishes records it as
-`gate.wholeRun` beside the gate, the base and the verdict. See [gating on new
+`gate.wholeRun` beside the gate, the base and the verdict. Its JUnit report fails only the new
+findings that met the gate, the ones the exit code failed on. See [gating on new
 findings](../reference/cli.md#gating-on-new-findings).
 
 ## Post the delta as a PR comment
