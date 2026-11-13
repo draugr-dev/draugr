@@ -1,1 +1,0 @@
-- **report.json counts each dependency file once.** A file read in part, such as a lockfile that records no licenses, was counted in `dependencyFiles[].read` and also listed under `unread`. It is now listed under `unread` only, marked `partly: true`, so `read` plus the files in `unread` is the number of files.

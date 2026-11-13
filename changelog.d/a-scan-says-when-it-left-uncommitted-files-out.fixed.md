@@ -1,1 +1,0 @@
-- **A scan says when it left uncommitted files out.** A local checkout with uncommitted changes is listed under `CAVEATS` as `uncommitted-files` in every view, with `--working-tree` to read them, and `failOnCaveats` can fail a run on it. Draugr's own reports folder is not counted.

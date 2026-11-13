@@ -12,6 +12,54 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.175.0] - 2026-11-13
+
+### Added
+
+- **The `tls` control reports weak cipher suites a server accepts beside current ones.** RC4, 3DES, RSA key exchange and CBC are each tested on every endpoint and reported as their own rule, so one kept for an old client can be excluded on its own.
+
+### Changed
+
+- **A scan sizes itself to the CPUs and memory it may use.** By default a scan runs one job per CPU or per 2 GiB of memory, whichever is fewer, and counts its container's limits rather than the host's cores. Jobs running together split each scanner's thread limit instead of each taking all of it.
+
+- **An image's findings matched only by CPE now count by default.** A CPE match is made from the package's name and version alone. On an Alpine image these are flaws the NVD lists and Alpine's own data does not, most of them real and unpatched, so an image can show more findings after upgrading. `config.controls.images.cpeMatches: suppress` sets them aside as before. `sca` still suppresses its CPE-only matches by default.
+
+- **An image you do not build is its own list, and FIX FIRST says to update it.** For an image declared `builtBy: upstream`, `--view actions` opens with Update an image you do not build, which `--top` never cuts, and FIX FIRST gives `update <image>` rather than upgrading a package inside it. The MCP `fix_list` tool returns it as kind `image`.
+
+- **`draugr explain` reads the directory a scan wrote, and says which report it read.** `-r out/` reads `out/results.sarif`, so the directory given to `-o` works as typed. The answer ends with the report's path and when it was written, so one left over from an older run is not mistaken for the latest.
+
+- **Every view points to the HTML report when there are more findings than it lists, and a run names the reports it wrote.** `--view compact` and `--top 0` now suggest it too. The suggested command, `--report json,sarif,html -o .draugr/out`, also writes the files `draugr explain` and `--base` read, in the folder `explain` looks in. Written reports are listed under REPORTS as paths.
+
+- **The first line of a scan is the verdict, the project and the time, and what qualifies the verdict moves to the line under the band counts.** A scope, a partial result and the base a change was measured against print there, and the time spent refreshing scanner data is named only under `--evidence`.
+
+- **The `tls` control tests every protocol on a host whose certificate fails, and reads the certificate itself.** A failing chain no longer stops the TLS 1.0, 1.1 and 1.3 checks. SHA-1 or MD5 intermediates, a missing SAN, a chain out of order and a key too weak to use are each reported as what they are.
+
+### Fixed
+
+- **A finding's row lists only the copies that count.** When a package is a runtime dependency in one lockfile and a suppressed development dependency in another, the development copy no longer appears as another location of the runtime finding or in its "also found by". It stays under ACCEPTED, which now counts it as a suppressed finding.
+
+- **A Grype or Syft failure to read an image says why.** The control's row now gives the cause, such as `oci-registry: dial tcp 127.0.0.1:32769: connect: connection refused`, where it used to cut the tool's message before it. When the sources Grype tried failed for different reasons, it names each one.
+
+- **A scan holds less disk while it runs.** Each repository checkout is removed as soon as the last job reading it ends, the SBOM reads the scanners' checkout instead of cloning again, and a run removes the read-only checkouts a killed run left in the temporary directory. Under `--working-tree` the SBOM now lists the working tree the scan judged.
+
+- **A scan keeps Go dependency lookups on your machine when your local Go vulnerability database is stale.** A copy fetched with `draugr feeds update govulndb` and older than 24 hours, or `config.exploitability.maxAge`, is fetched again before the scan, as Trivy's and Grype's databases are. govulncheck queries vuln.go.dev only when that fetch fails, and the warning says why.
+
+- **A scan says when it did not read KEV or EPSS, the lists of flaws known to be exploited and likely to be.** `SIGNALS` lists each one the run did not read and the flag that reads it, in every view, `--view compact` included, so a run that checked nothing for exploitation no longer reads as one that found nothing exploited.
+
+- **A scan says when it left uncommitted files out.** A local checkout with uncommitted changes is listed under `CAVEATS` as `uncommitted-files` in every view, with `--working-tree` to read them, and `config.gate.failOnCaveats` can fail a run on it. Draugr's own reports folder is not counted.
+
+- **A secrets scan with `history: true` holds far less memory once Gitleaks finishes.** Draugr reads the history report one finding at a time instead of decoding the whole file. On a history of two million findings, its own peak fell from 23.5 GB to 8.4 GB. What Gitleaks itself takes while it walks the history is unchanged.
+
+- **`draugr doctor` lists only the cloud hosts your scan contacts.** Its NETWORK list gave every cloud's hosts to any descriptor enabling the `cloud` control, so an Azure-only allowlist was told to open AWS hosts, and the reverse. It now lists the hosts of the clouds your components' accounts are in.
+
+- **report.json counts each dependency file once.** A file read in part, such as a lockfile that records no licenses, was counted in `dependencyFiles[].read` and also listed under `unread`. It is now listed under `unread` only, marked `partly: true`, so `read` plus the files in `unread` is the number of files.
+
+- **report.json names the Trivy vulnerability database a scan used.** When a scan refreshed the database, `scanners[].version` for the Trivy scanners kept the date of the copy it replaced. It now agrees with `scannerData`, and cached results are keyed on the new database.
+
+- **Running kube-bench beside the default no longer counts a Kubernetes check twice.** A section 5 check both kube-bench and the default Kubernetes scanner report is now one finding, marked `also found by kube-bench`. A kube-bench `WARN` on a check with an audit command now counts as a failure, and one on a manual check is marked `undecided`.
+
+- **The `tls` control names the certificate when that is what failed.** A server that refused the TLS 1.2+ handshake for another reason, and whose certificate failed on the TLS 1.0-1.1 retry, was reported as `tls-no-shared-cipher`, sending the reader to the cipher suites. The retry's certificate failure is now the finding.
+
 ## [0.174.0] - 2026-11-12
 
 ### Added
@@ -7071,7 +7119,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.174.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.175.0...HEAD
+[0.175.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.175.0
 [0.174.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.174.0
 [0.173.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.173.0
 [0.172.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.172.0
