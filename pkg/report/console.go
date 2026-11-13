@@ -1178,6 +1178,11 @@ func wrapLines(msg string, width, maxLines int) []string {
 			break
 		}
 	}
+	// A message that ended in a token longer than the line has nothing left, and an empty last
+	// line would print as a blank one under the row.
+	if msg == "" {
+		return lines
+	}
 	if len(msg) > width {
 		msg = elide(msg, width)
 	}
