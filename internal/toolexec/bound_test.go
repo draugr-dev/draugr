@@ -101,7 +101,7 @@ func TestADividedRunStartsWithItsShare(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "")
 	t.Setenv("GOFLAGS", "-tags=aaa")
 	n := Parallelism()
-	count, env := Divide(2)
+	count, env := Divide(context.Background(), 2)
 	if want := min(2, n); count != want {
 		t.Errorf("Divide(2) runs %d commands, want %d", count, want)
 	}

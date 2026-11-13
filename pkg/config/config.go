@@ -99,8 +99,8 @@ type File struct {
 
 // ScanSettings configures how a scan runs.
 type ScanSettings struct {
-	// Jobs caps how many scan jobs run at once, as --jobs does. Zero is one per CPU, the built-in
-	// default. A pointer, so a more specific file's `0` restores the default over a less specific
+	// Jobs caps how many scan jobs run at once, as --jobs does. Zero is the built-in default, one
+	// per CPU or per 2 GiB of memory, whichever is fewer. A pointer, so a more specific file's `0` restores the default over a less specific
 	// file's cap.
 	Jobs *int `yaml:"jobs,omitempty"`
 }

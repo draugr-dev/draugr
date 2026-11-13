@@ -64,7 +64,7 @@ var machineKeys = map[string]struct{ accepts, def string }{
 	"output.top":           {acceptsCount, "10 for scan, every row for diff"},
 	"output.view":          {list(viewNames()), "findings"},
 	"publish.apiUrl":       {"a URL", "none"},
-	"scan.jobs":            {acceptsCount + "; 0, one per CPU", "0"},
+	"scan.jobs":            {acceptsCount + "; 0, sized to the machine", "0"},
 	"tools.<tool>.version": {"a release, such as 0.69.3", "Draugr's pin"},
 }
 

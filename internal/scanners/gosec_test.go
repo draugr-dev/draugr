@@ -51,9 +51,8 @@ func TestGosecArgsRunsOncePerModule(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("runs = %v, want one per module", got)
 	}
-	loads := strconv.Itoa(min(gosecLoads, toolexec.Parallelism()))
 	for i, m := range []string{"service", "tools"} {
-		want := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", "-concurrency", loads, filepath.Join(dir, m, "...")}
+		want := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", filepath.Join(dir, m, "...")}
 		if !slices.Equal(got[i], want) {
 			t.Errorf("run %d = %v, want %v", i, got[i], want)
 		}
@@ -212,5 +211,37 @@ func TestExecArgvInDirSetsCwd(t *testing.T) {
 	}
 	if _, err := execArgvInDir(context.Background(), "", nil); err == nil {
 		t.Error("empty argv should error")
+	}
+}
+
+// gosec loads packages from the job's share of the bound: alone, two at once when the bound allows,
+// and beside more jobs than the bound, one, with -p at one.
+func TestGosecLoadsFromTheJobsShareOfTheBound(t *testing.T) {
+	t.Setenv("GOFLAGS", "")
+	var argv, env []string
+	run := gosecBounded(func(_ context.Context, _ string, a, e []string) ([]byte, error) {
+		argv, env = a, e
+		return nil, nil
+	})
+	n := toolexec.Parallelism()
+	for _, tc := range []struct {
+		jobs      int
+		wantLoads int
+		wantP     int
+	}{
+		{jobs: 1, wantLoads: min(gosecLoads, n), wantP: max(1, n/min(gosecLoads, n))},
+		{jobs: n + 1, wantLoads: 1, wantP: 1},
+	} {
+		ctx := toolexec.WithJobs(context.Background(), tc.jobs)
+		if _, err := run(ctx, "", []string{"gosec", "-fmt", "sarif", "./..."}); err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"gosec", "-concurrency", strconv.Itoa(tc.wantLoads), "-fmt", "sarif", "./..."}
+		if !slices.Equal(argv, want) {
+			t.Errorf("%d jobs: argv = %v, want %v", tc.jobs, argv, want)
+		}
+		if wantEnv := []string{"GOFLAGS=-p=" + strconv.Itoa(tc.wantP)}; !slices.Equal(env, wantEnv) {
+			t.Errorf("%d jobs: env = %v, want %v", tc.jobs, env, wantEnv)
+		}
 	}
 }

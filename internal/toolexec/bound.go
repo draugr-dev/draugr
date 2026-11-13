@@ -1,6 +1,7 @@
 package toolexec
 
 import (
+	"context"
 	"math"
 	"os"
 	"runtime"
@@ -18,8 +19,9 @@ import (
 // and each job's tool still uses every core.
 //
 // So every tool run is given one bound, n, as GOMAXPROCS and as -p in GOFLAGS, unless the caller
-// already chose either. A run of -j jobs then has at most -j × n threads and compile processes.
-// A tool that runs several `go` commands at once divides n among them (Divide), since each
+// already chose either. The jobs running at once divide n among them (WithJobs), so together they
+// run about n threads and compile processes, or one each where more jobs than n run. A tool that
+// runs several `go` commands at once divides n among them (Divide), since each
 // command would otherwise build with all of it.
 
 // memoryPerUnit is the memory each unit of the bound is allowed: one compile process of a large
@@ -47,11 +49,58 @@ func bound(cores int, memory uint64) int {
 	return max(1, min(n, cores))
 }
 
-// environ is the environment a tool runs with: the caller's, then extra, then the bound wherever
-// neither of those chose it.
-func environ(extra []string) []string {
+// memoryPerJob is the memory each scan job running at once is allowed by default. Most of a job's
+// memory is its tool's: across 230 scans of open-source repositories, the largest single tool
+// process in a scan stayed under 1.2 GiB in three scans of four. A job loading Go packages can take
+// far more, which the bound sizes separately, and those jobs take turns across a run.
+const memoryPerJob = 2 << 30
+
+// DefaultJobs is how many scan jobs a run starts at once when nobody chose: one per CPU this
+// process may use, or one per memoryPerJob of the memory it may use, whichever is fewer, and at
+// least one. The CPUs are GOMAXPROCS, which the Go runtime lowers to a container's CPU limit, and
+// the memory is the lower of the machine's and a cgroup's limit, so a pod given four CPUs on a
+// 64-core node runs four jobs rather than 64.
+func DefaultJobs() int { return jobs(runtime.GOMAXPROCS(0), totalMemory()) }
+
+// jobs is DefaultJobs on a machine with cores CPUs and memory bytes of memory, where zero memory
+// means the operating system did not report it and the CPUs alone decide.
+func jobs(cores int, memory uint64) int {
+	n := cores
+	if memory > 0 {
+		n = min(n, int(min(memory/memoryPerJob, math.MaxInt32))) // #nosec G115 -- clamped to an int32
+	}
+	return max(1, n)
+}
+
+// sharedKey is the context key under which a job's count of jobs running beside it travels.
+type sharedKey struct{}
+
+// WithJobs returns a context saying that n scan jobs, the one running under it included, run at
+// once, so the bound its tools get is a share of the machine's rather than all of it.
+func WithJobs(ctx context.Context, n int) context.Context {
+	return context.WithValue(ctx, sharedKey{}, n)
+}
+
+// Bound is the parallelism a tool run under ctx is given: the bound divided among the jobs running
+// at once (WithJobs), rounded down and at least one. Without that, each of j jobs would give its
+// tool the whole bound, j times what the machine was sized for. A job running alone keeps it all.
+func Bound(ctx context.Context) int {
+	return share(ctx, parallelism())
+}
+
+// share is n divided among the jobs ctx says run at once, at least one.
+func share(ctx context.Context, n int) int {
+	if j, ok := ctx.Value(sharedKey{}).(int); ok && j > 1 {
+		return max(1, n/j)
+	}
+	return n
+}
+
+// environ is the environment a tool runs with under ctx: the caller's, then extra, then the job's
+// bound wherever neither of those chose it.
+func environ(ctx context.Context, extra []string) []string {
 	env := append(os.Environ(), extra...)
-	return append(env, boundEnv(env, parallelism())...)
+	return append(env, boundEnv(env, Bound(ctx))...)
 }
 
 // boundEnv is what a run whose environment is env adds for the bound n: GOMAXPROCS where env sets
@@ -75,7 +124,7 @@ func buildBound(env []string, p int) []string {
 	return []string{"GOFLAGS=" + strings.TrimSpace(goflags+" -p="+strconv.Itoa(p))}
 }
 
-// Divide shares the bound among the `go` commands one tool runs at once, for a tool that runs up to
+// Divide shares the job's bound (Bound) among the `go` commands one tool runs at once, for a tool that runs up to
 // commands of them. It returns how many the tool should run at once, commands or the bound where
 // that is fewer and at least one, and the environment that tool runs with: GOFLAGS with -p at the
 // bound divided by that many, rounded down and at least one, after the caller's other flags. Each
@@ -86,8 +135,8 @@ func buildBound(env []string, p int) []string {
 // GOMAXPROCS stays the whole bound, because it sizes the tool's own threads and not its builds. A
 // caller whose GOFLAGS sets -p keeps it, and the environment is then empty: that caller chose each
 // command's parallelism, and the count returned still bounds how many commands run.
-func Divide(commands int) (concurrent int, env []string) {
-	return divide(os.Environ(), parallelism(), commands)
+func Divide(ctx context.Context, commands int) (concurrent int, env []string) {
+	return divide(os.Environ(), Bound(ctx), commands)
 }
 
 // divide is Divide for a run whose environment is env under the bound n.

@@ -343,13 +343,15 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 // load no package with a Go toolchain Draugr supports.
 const gosecLoads = 2
 
-// gosecBounded runs gosec with the bound divided among the packages it loads at once: GOFLAGS
-// with -p at the bound over gosecLoads, as toolexec.Divide gives it, layered over the caller's
-// environment.
+// gosecBounded runs gosec with the job's bound divided among the packages it loads at once, as
+// toolexec.Divide gives it: -concurrency at how many it loads, and GOFLAGS with -p at the bound over
+// that many, layered over the caller's environment. Here rather than in gosecArgs because the
+// job's bound is a share of the machine that only the job's context knows.
 func gosecBounded(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
-		_, env := toolexec.Divide(gosecLoads)
-		return run(ctx, dir, argv, env)
+		loads, env := toolexec.Divide(ctx, gosecLoads)
+		withLoads := append([]string{argv[0], "-concurrency", strconv.Itoa(loads)}, argv[1:]...)
+		return run(ctx, dir, withLoads, env)
 	}
 }
 
@@ -365,11 +367,10 @@ func gosecBounded(run func(ctx context.Context, dir string, argv, env []string) 
 //     excluded is indistinguishable from one nobody ever made: the report reads clean, and the
 //     question asked of an exclusion later, who decided this was acceptable, has nothing to
 //     answer from.
-//   - -concurrency is how many packages gosec loads at once, from the same division of the bound
-//     as the -p its run is given (gosecLoads).
+//   - -concurrency, how many packages gosec loads at once, is added by gosecBounded, from the same
+//     division of the job's bound as the -p its run is given (gosecLoads).
 func gosecArgs(dir string, cfg plugin.Config) [][]string {
-	loads, _ := toolexec.Divide(gosecLoads)
-	base := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions", "-concurrency", strconv.Itoa(loads)}
+	base := []string{"gosec", "-fmt", "sarif", "-no-fail", "-track-suppressions"}
 	if v := commaList(cfg, "include"); v != "" {
 		base = append(base, "-include="+v)
 	}
