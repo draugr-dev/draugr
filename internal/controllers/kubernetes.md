@@ -62,12 +62,22 @@ turned off; a non-default runs only when turned on:
 | Key | Scanner | |
 |---|---|---|
 | `draugrK8sPolicies` | [`draugr-k8s-policies`](../scanners/draugr-k8s-policies.md) | section 5 through the Kubernetes API, **the default**. No `kubectl`, nothing to install, seconds on a large cluster |
-| `kubeBench` | [`kube-bench`](../scanners/kube-bench.md) | section 5 by exec'ing kube-bench. Same 11 checks decided; the reference the native reader is checked against |
+| `kubeBench` | [`kube-bench`](../scanners/kube-bench.md) | section 5 by exec'ing kube-bench, which decides the checks carrying an audit command and refers the rest to a person; the reference the native reader is checked against |
 | `kubeBenchJob` | [`kube-bench-job`](../scanners/kube-bench-job.md) | sections 1–4, from a privileged Job inside the cluster |
 
 Enabling the Job does **not** replace the section-5 scanner. The Job does not run `policies`, so
 a component that swapped one for the other would report a pass on half a benchmark; the default
 keeps running alongside it.
+
+With `kubeBench` on, the default and kube-bench both report section 5, and a check both report is
+one finding. Wherever the default decided the check, the finding is the default's: it names the
+objects at fault, keeps the default's band, low where every one is
+[the distribution's](../scanners/draugr-k8s-policies.md), and carries `also found by kube-bench`.
+Excluding either scanner's rule id sets both copies aside.
+
+Two benchmark revisions number section 5 differently, such as `k3s-cis-1.9` and `cis-1.12`, so
+checks from scanners auditing different revisions are never joined, and MEASURED AGAINST names
+each scanner's benchmark.
 
 The whole benchmark, which is what most people want:
 

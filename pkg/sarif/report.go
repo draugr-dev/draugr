@@ -85,6 +85,13 @@ type Result struct {
 	// a reader can tell a flaw in what ships from the same flaw in a test fixture. Whether a marked
 	// finding counts is the control's nonShippingPaths setting; the mark is there either way.
 	NonShipping string `json:"nonShipping,omitempty"`
+	// Undecided marks a benchmark check the scanner could not settle and refers to a person, such as
+	// one the benchmark scores as a manual check. It is a check left to review rather than something
+	// the run found: nothing was seen to fail.
+	//
+	// Where two scanners report one check, a copy that reached a verdict is counted in preference to
+	// one that did not, so a check one scanner decided is not ranked by another's referral of it.
+	Undecided bool `json:"undecided,omitempty"`
 	// PriorityFloor explains a band the component's classification alone does not account for.
 	//
 	// Some findings are not bounded by where the component sits. A leaked credential is valid

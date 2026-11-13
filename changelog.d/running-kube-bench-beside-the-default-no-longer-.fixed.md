@@ -1,0 +1,1 @@
+- **Running kube-bench beside the default no longer counts a Kubernetes check twice.** A section 5 check both scanners report is now one finding, counted under the copy that decided it and marked `also found by kube-bench`. A kube-bench `WARN` on a check with an audit command now counts as a failure, and one on a manual check is marked `undecided`.
