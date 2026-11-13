@@ -597,6 +597,9 @@ type kubeBenchFinding struct {
 	Status     string `json:"status"`
 	Scored     bool   `json:"scored"`
 	Remedy     string `json:"remediation"`
+	// Type is "manual" for a check the benchmark leaves to a person, and empty for one whose audit
+	// decides it.
+	Type string `json:"type"`
 	// ActualValue is what the check's audit printed, and Reason kube-bench's account of an audit
 	// that exited non-zero, which quotes the output in place of ActualValue. Both are read only to
 	// tell a check that read something from one that read nothing; neither reaches a reader.
@@ -680,9 +683,9 @@ func (r kubeBenchRead) group(location string) string {
 
 // unreadReason says why a check read nothing, or "" when it read something or did not decide.
 //
-// Only a PASS or a FAIL is a verdict that reading nothing makes empty. A WARN refers the check to a
-// person whatever its audit printed, and stays a finding. Two cases, each a verdict with nothing
-// behind it:
+// Only a verdict is made empty by reading nothing, and kubeBenchDecided says which results are
+// verdicts. A manual check refers the check to a person whatever its audit printed, and stays a
+// finding. Two cases, each a verdict with nothing behind it:
 //
 //   - A control-plane check on a node with no control-plane role. The files and processes it reads
 //     are on another machine, so kube-bench finds none and fails it. The worker holds no API server
@@ -691,7 +694,7 @@ func (r kubeBenchRead) group(location string) string {
 //     command did not run, so a PASS is as empty as a FAIL: a check that a flag is absent passes
 //     when its audit prints no flags.
 func (r kubeBenchRead) unreadReason(nodeType string, res kubeBenchFinding) string {
-	if !kubeBenchDecided(res.Status) {
+	if !kubeBenchDecided(res) {
 		return ""
 	}
 	if r.roleKnown && !r.controlPlane && controlPlaneNodeType(nodeType) {
@@ -816,7 +819,7 @@ func reportFromKubeBench(
 				//
 				// WARN is kube-bench's "needs manual review", which is not a verdict: a check it
 				// could not settle is not a dissent from a scanner that could.
-				if decided := kubeBenchDecided(res.Status); decided {
+				if decided := kubeBenchDecided(res); decided {
 					report.Decided = append(report.Decided, sarif.Taxon{
 						Taxonomy: cisKubernetesTaxonomy,
 						ID:       res.TestNumber,
@@ -837,6 +840,7 @@ func reportFromKubeBench(
 					Message:          desc,
 					Location:         sarif.Location{URI: location},
 					ProviderOperated: providerOperated && providerRunsIt(ctl.NodeType, res.TestNumber),
+					Undecided:        !kubeBenchDecided(res),
 				})
 				report.Rules[ruleID] = sarif.Rule{
 					Name:             ctl.Text,
@@ -867,12 +871,17 @@ func reportFromKubeBench(
 // clean cluster impossible. kubeBenchDecided reports whether a status is a verdict rather than a
 // referral.
 //
-// PASS and FAIL are conclusions. WARN is kube-bench's way of saying a human has to look, and INFO
-// is context. Neither settles the control, so neither can contradict a scanner that did.
-func kubeBenchDecided(status string) bool {
-	switch strings.ToUpper(status) {
+// PASS and FAIL are conclusions, and so is a WARN on a check whose audit decides it: kube-bench
+// reports an unscored check that fails as WARN, which is every check in section 5, so the status
+// alone cannot tell a failure from a referral. The check's type can. A manual check is kube-bench
+// saying a human has to look, and INFO is context. Neither settles the control, so neither can
+// contradict a scanner that did.
+func kubeBenchDecided(res kubeBenchFinding) bool {
+	switch strings.ToUpper(res.Status) {
 	case "PASS", "FAIL":
 		return true
+	case "WARN":
+		return !strings.EqualFold(res.Type, "manual")
 	}
 	return false
 }

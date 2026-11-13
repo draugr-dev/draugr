@@ -2676,8 +2676,8 @@ func recountReachability(controls map[string]plugin.ControlResult, s Reachabilit
 	}
 	var out ReachabilitySummary
 	for _, cr := range controls {
-		// Grouped as applyCorrelation grouped them, per control and by correlationGroups.
-		groups := correlationGroups(cr.Report.Results)
+		// Grouped as applyCorrelation grouped them, per control and by flawGroups.
+		groups := flawGroups(cr.Report)
 		strongest := make([]*sarif.Reachability, len(groups))
 		groupOf := map[int]int{}
 		for g, idxs := range groups {
@@ -2888,35 +2888,50 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSuppressed int) {
 	for name, cr := range controls {
 		results := cr.Report.Results
+		pickCheck := func(results []sarif.Result, idxs []int) int {
+			return countedCheckOf(results, cr.Report.Rules, idxs)
+		}
 		for _, idxs := range correlationGroups(results) {
-			if len(idxs) < 2 {
-				continue
-			}
-			parts := [][]int{idxs}
-			// A decision about the flaw applies to every scanner's copy of it.
-			if reason := suppressionIn(results, idxs); reason != nil {
-				for _, i := range idxs {
-					if !results[i].Suppressed() {
-						copied := *reason
-						results[i].Suppression = &copied
-						extraSuppressed++
-					}
-				}
-			} else {
-				parts = apartSetAside(results, idxs)
-			}
-			for _, part := range parts {
-				if len(part) < 2 {
-					continue
-				}
-				groups++
-				correlate(results, part)
-			}
+			g, extra := correlateGroup(results, idxs, strongestOf)
+			groups, extraSuppressed = groups+g, extraSuppressed+extra
+		}
+		for _, idxs := range checkGroups(results, cr.Report.Rules) {
+			g, extra := correlateGroup(results, idxs, pickCheck)
+			groups, extraSuppressed = groups+g, extraSuppressed+extra
 		}
 
 		counts := cr.Report.Counts()
 		cr.Summary = plugin.Summary{Errors: counts.Error, Warnings: counts.Warning, Notes: counts.Note}
 		controls[name] = cr
+	}
+	return groups, extraSuppressed
+}
+
+// correlateGroup counts one flaw's copies once, under the copy pick chooses, and says how many
+// groups it counted and how many copies a decision about the flaw newly excused.
+func correlateGroup(results []sarif.Result, idxs []int, pick func([]sarif.Result, []int) int) (groups, extraSuppressed int) {
+	if len(idxs) < 2 {
+		return 0, 0
+	}
+	parts := [][]int{idxs}
+	// A decision about the flaw applies to every scanner's copy of it.
+	if reason := suppressionIn(results, idxs); reason != nil {
+		for _, i := range idxs {
+			if !results[i].Suppressed() {
+				copied := *reason
+				results[i].Suppression = &copied
+				extraSuppressed++
+			}
+		}
+	} else {
+		parts = apartSetAside(results, idxs)
+	}
+	for _, part := range parts {
+		if len(part) < 2 {
+			continue
+		}
+		groups++
+		correlate(results, part, pick(results, part))
 	}
 	return groups, extraSuppressed
 }
@@ -2941,9 +2956,8 @@ func apartSetAside(results []sarif.Result, idxs []int) [][]int {
 	return parts
 }
 
-// correlate counts one flaw's copies once, under the strongest, which names the others.
-func correlate(results []sarif.Result, idxs []int) {
-	primary := strongestOf(results, idxs)
+// correlate counts one flaw's copies once, under primary, which names the others.
+func correlate(results []sarif.Result, idxs []int, primary int) {
 	var others []sarif.Observation
 	for _, i := range idxs {
 		if i == primary {
@@ -2964,6 +2978,142 @@ func correlate(results []sarif.Result, idxs []int) {
 			results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Tool}
 		}
 	}
+}
+
+// flawGroups is every set of a control's findings that correlation counts once: the copies of one
+// vulnerability in one dependency, and the copies of one benchmark check on one target.
+// applyCorrelation reads the two apart, because it picks the counted copy of each differently.
+//
+// The two never share a finding. A vulnerability key needs a package and a vulnerability, which a
+// benchmark check carries neither of, and checkGroups leaves out any finding correlationKeyOf keys.
+func flawGroups(rep sarif.Report) [][]int {
+	return append(correlationGroups(rep.Results), checkGroups(rep.Results, rep.Rules)...)
+}
+
+// checkKey identifies one check of one benchmark revision, read from one target.
+type checkKey struct {
+	component, repository, image, location string
+	// check is the taxon's key, which carries the benchmark revision: a check number means a
+	// different thing between revisions, so 5.1.1 of two revisions is two checks.
+	check string
+}
+
+// checkGroups sorts a control's findings into the benchmark checks that more than one scanner
+// reported, each check's findings ascending and the checks in the order of their first finding.
+//
+// Two scanners can audit one benchmark: kube-bench and Draugr's own policies scanner both read
+// section 5 of the CIS Kubernetes Benchmark. Their rule ids differ on purpose, since an id belongs to
+// the tool that emitted it, so the rule's taxon is what says the two findings are one check. Without
+// it every check both scanners report is counted twice.
+//
+// A check is joined only where each scanner reported it once. A scanner that maps several of its
+// own checks to one benchmark number, or reports one check per resource, has said those are
+// several findings, and which of them another scanner's copy belongs with cannot be known. Those
+// stay counted apart, which is what they were before.
+//
+// Only a benchmark's checks join, never a class of flaw: two findings of one CWE are two flaws.
+func checkGroups(results []sarif.Result, rules map[string]sarif.Rule) [][]int {
+	var order []checkKey
+	members := map[checkKey][]int{}
+	for i, res := range results {
+		if _, keyed := correlationKeyOf(res); keyed {
+			continue
+		}
+		check, ok := benchmarkCheckOf(rules[res.RuleID])
+		if !ok {
+			continue
+		}
+		key := checkKey{
+			component: res.Component, repository: res.Repository, image: res.Image,
+			location: res.Location.URI, check: check,
+		}
+		if _, seen := members[key]; !seen {
+			order = append(order, key)
+		}
+		members[key] = append(members[key], i)
+	}
+	var groups [][]int
+	for _, key := range order {
+		idxs := members[key]
+		tools := map[string]bool{}
+		once := true
+		for _, i := range idxs {
+			if tools[results[i].Tool] {
+				once = false
+				break
+			}
+			tools[results[i].Tool] = true
+		}
+		if once && len(tools) > 1 {
+			groups = append(groups, idxs)
+		}
+	}
+	return groups
+}
+
+// countedCheckOf chooses which scanner's copy of one benchmark check is counted.
+//
+// A copy that decided the check comes before one that referred it to a person, so a check one
+// scanner settled is ranked by that verdict and not by another scanner's prompt to review it.
+//
+// Then a copy that says what failed comes before one that restates the check. kube-bench's copy of a
+// section 5 check is the check's title at one level for every check, while Draugr's names the objects
+// at fault and ranks the check by whose they are, lower where they are all the distribution's. Taking
+// the stronger of the two would raise a check on the strength of a level that rates nothing, and list
+// it without the objects a reader has to change.
+//
+// Between copies that are alike in both, the stronger counts, as it does for a vulnerability.
+func countedCheckOf(results []sarif.Result, rules map[string]sarif.Rule, idxs []int) int {
+	best := idxs[0]
+	for _, i := range idxs[1:] {
+		if a, b := results[i].SetAsideBySetting(), results[best].SetAsideBySetting(); a != b {
+			if !a {
+				best = i
+			}
+			continue
+		}
+		if a, b := results[i].Undecided, results[best].Undecided; a != b {
+			if !a {
+				best = i
+			}
+			continue
+		}
+		if a, b := restatesCheck(results[i], rules), restatesCheck(results[best], rules); a != b {
+			if !a {
+				best = i
+			}
+			continue
+		}
+		if strongerFinding(results[i], results[best]) {
+			best = i
+		}
+	}
+	return best
+}
+
+// restatesCheck reports whether a finding says no more than its rule's description of the check.
+func restatesCheck(res sarif.Result, rules map[string]sarif.Rule) bool {
+	return strings.TrimSpace(res.Message) == strings.TrimSpace(rules[res.RuleID].ShortDescription)
+}
+
+// benchmarkCheckOf is the one benchmark check a rule implements, keyed with its revision, and false
+// for a rule that implements none or more than one.
+//
+// A CIS benchmark numbers checks, and its taxonomy is named for it ("CIS-Kubernetes", "CIS Amazon
+// Web Services Foundations Benchmark"). A check without its revision is left out, because its number
+// alone could name another check in another revision.
+func benchmarkCheckOf(rule sarif.Rule) (string, bool) {
+	var found string
+	for _, t := range rule.Taxa {
+		if !strings.HasPrefix(t.Taxonomy, "CIS") || t.ID == "" || t.Version == "" {
+			continue
+		}
+		if found != "" && found != t.Key() {
+			return "", false
+		}
+		found = t.Key()
+	}
+	return found, found != ""
 }
 
 // correlationKey identifies one flaw in one dependency in one repository or image.

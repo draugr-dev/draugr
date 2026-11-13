@@ -437,8 +437,9 @@ func TestDidNotRunReason(t *testing.T) {
 }
 
 // On a k3s node, a check whose command was not found is unread whether kube-bench passed or failed
-// it. A check that a flag is absent passes on an empty line. A WARN stays a finding for a person to
-// review.
+// it. A check that a flag is absent passes on an empty line. 1.2.3 is unscored, so kube-bench reports
+// its failure as WARN; its audit ran no command either, so it is unread too. A manual check runs no
+// audit and stays a finding for a person to review.
 func TestAChecksMissingCommandMakesItUnread(t *testing.T) {
 	t.Parallel()
 	const out = `{"Controls":[{"id":"1","version":"k3s-cis-1.9","node_type":"master","tests":[
@@ -447,7 +448,11 @@ func TestAChecksMissingCommandMakesItUnread(t *testing.T) {
 	   "reason":"failed to run: \"journalctl -m -u k3s | grep anonymous-auth\", output: \"/bin/sh: journalctl: not found\\n\", error: exit status 1"},
 	  {"test_number":"1.2.2","test_desc":"token-auth-file","status":"PASS","scored":true,"actual_value":"/bin/sh: journalctl: not found"},
 	  {"test_number":"1.2.3","test_desc":"DenyServiceExternalIPs","status":"WARN","scored":false,"actual_value":"/bin/sh: journalctl: not found"},
-	  {"test_number":"1.1.13","test_desc":"admin.conf permissions","status":"PASS","scored":true,"actual_value":"permissions=600"}]}]}]}`
+	  {"test_number":"1.1.13","test_desc":"admin.conf permissions","status":"PASS","scored":true,"actual_value":"permissions=600"}]}]},
+	 {"id":"5","version":"k3s-cis-1.9","node_type":"policies","tests":[
+	 {"section":"5.1","results":[
+	  {"test_number":"5.1.2","test_desc":"Minimize access to secrets (Manual)","status":"WARN","scored":false,"type":"manual",
+	   "reason":"Test marked as a manual test"}]}]}]}`
 	doc, err := decodeKubeBench([]byte(out))
 	if err != nil {
 		t.Fatal(err)
@@ -462,11 +467,11 @@ func TestAChecksMissingCommandMakesItUnread(t *testing.T) {
 			t.Errorf("unchecked %+v, want journalctl not found on node k3s-server", u)
 		}
 	}
-	if !slices.Equal(unread, []string{"1.2.1", "1.2.2"}) {
-		t.Errorf("unread = %v, want 1.2.1 and 1.2.2", unread)
+	if !slices.Equal(unread, []string{"1.2.1", "1.2.2", "1.2.3"}) {
+		t.Errorf("unread = %v, want 1.2.1, 1.2.2 and 1.2.3", unread)
 	}
-	if len(rep.Results) != 1 || rep.Results[0].RuleID != "kube-bench/cis/1.2.3" {
-		t.Errorf("findings = %+v, want only the WARN", rep.Results)
+	if len(rep.Results) != 1 || rep.Results[0].RuleID != "kube-bench/cis/5.1.2" || !rep.Results[0].Undecided {
+		t.Errorf("findings = %+v, want only the manual check, undecided", rep.Results)
 	}
 	if len(rep.Decided) != 1 || rep.Decided[0].ID != "1.1.13" {
 		t.Errorf("decided = %+v, want only 1.1.13", rep.Decided)

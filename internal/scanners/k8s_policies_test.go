@@ -198,6 +198,9 @@ func TestK8sPoliciesReportsEveryCheck(t *testing.T) {
 		if !strings.Contains(r.Message, "requires manual review") {
 			t.Errorf("%s should be a manual prompt on a compliant cluster, got %q", r.RuleID, r.Message)
 		}
+		if !r.Undecided {
+			t.Errorf("%s is a prompt for a person and should be marked undecided", r.RuleID)
+		}
 	}
 }
 
@@ -217,6 +220,9 @@ func TestK8sPoliciesDecidesWhatItCan(t *testing.T) {
 	found := map[string]string{}
 	for _, r := range rep.Results {
 		found[r.RuleID] = r.Message
+		if r.RuleID == "draugr/cis/5.1.1" && r.Undecided {
+			t.Error("5.1.1 was decided and should not be marked undecided")
+		}
 	}
 	if msg := found["draugr/cis/5.1.1"]; !strings.Contains(msg, "ci-admin") {
 		t.Errorf("5.1.1 should name the offending binding, got %q", msg)

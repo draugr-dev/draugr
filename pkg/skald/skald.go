@@ -297,6 +297,9 @@ type findingReport struct {
 	// documentation, examples or tests: docs, example or test. Absent for a finding in shipped code
 	// and for a control that does not mark one, such as secrets.
 	NonShipping string `json:"nonShipping,omitempty"`
+	// Undecided says the finding is a benchmark check the scanner referred to a person rather than
+	// decided, so nothing was seen to fail. Absent on every finding a scanner reached a verdict on.
+	Undecided bool `json:"undecided,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
@@ -1243,6 +1246,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		CPEMatch:      res.Package != nil && res.Package.CPEMatch,
 		Own:           res.Package != nil && res.Package.Own,
 		NonShipping:   res.NonShipping,
+		Undecided:     res.Undecided,
 	}
 }
 

@@ -473,6 +473,8 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 				Level:    level,
 				Message:  message,
 				Location: sarif.Location{URI: location},
+				// A check this scanner does not implement is a prompt for a person, not a dissent.
+				Undecided: !implemented,
 			})
 		}
 		report.Rules[ruleID] = sarif.Rule{
