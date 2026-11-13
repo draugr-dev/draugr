@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 )
@@ -21,6 +22,10 @@ import (
 // "only reads" is a property of each tool, and sharing a directory would quietly make one
 // scanner's write another's input. A tool that writes now fails where it writes, which is a bug
 // report rather than a corrupted neighboring scan.
+//
+// A checkout is removed when the last use the run declared for it has ended, so a run's disk holds
+// the checkouts still in use rather than every one it made. Where the temporary directory is a
+// tmpfs, that disk is memory.
 type Pool struct {
 	mu      sync.Mutex
 	entries map[string]*entry
@@ -33,26 +38,96 @@ type entry struct {
 	// clean removes this checkout. Held by the pool rather than the caller: several scanners share
 	// the directory, so the last one to finish is not the one that knows nobody else needs it.
 	clean func()
+	// declared is set once a use of this key has been declared with Expect. Only a declared key
+	// is removed before Close: without a declaration the pool cannot tell the last user from the
+	// first of several still to come.
+	declared bool
+	// expected counts the declared uses that have not ended.
+	expected int
+	// inUse counts callers between Checkout and the release it returned. A tree is never removed
+	// under one of them, declared or not.
+	inUse int
 }
 
 // NewPool returns an empty pool. Close it when the run ends.
-func NewPool() *Pool { return &Pool{entries: map[string]*entry{}} }
+//
+// The first pool a process makes also removes what dead runs left in the temporary directory, so
+// a run killed for memory does not leave its checkouts on disk for good.
+func NewPool() *Pool {
+	sweepOnce.Do(func() { SweepStale(os.TempDir()) })
+	return &Pool{entries: map[string]*entry{}}
+}
 
-// Checkout returns the shared tree for key, materializing it on first request.
+var sweepOnce sync.Once
+
+// Key names one checkout: what is fetched, at which revision, whether it is the working tree, and
+// what of it is kept. Every caller sharing a pool spells its keys with this, so the use the engine
+// declares and the checkout a scanner asks for are the same entry.
+//
+// The URL rather than the target's identity, because the identity names a repository by its
+// remote, and two local paths with one remote are two different trees on disk.
+func Key(url, revision string, workingTree bool, scope Scope) string {
+	return fmt.Sprintf("%s@%s worktree=%t history=%t paths=%q ignore=%q",
+		url, revision, workingTree, scope.History, scope.Paths, scope.Ignore)
+}
+
+// Expect declares one use of key that has not ended yet. Once every declared use has ended with
+// Done and no caller holds the tree, the checkout is removed. A key nobody declared stays until
+// Close. Safe on a nil pool, which declares nothing.
+func (p *Pool) Expect(key string) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	e := p.entryLocked(key)
+	e.declared = true
+	e.expected++
+}
+
+// Done ends one use declared with Expect, and removes the checkout if it was the last.
+func (p *Pool) Done(key string) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	e, ok := p.entries[key]
+	if !ok || e.expected == 0 {
+		p.mu.Unlock()
+		return
+	}
+	e.expected--
+	gone := p.detachIfUnusedLocked(key, e)
+	p.mu.Unlock()
+	if gone {
+		remove(e)
+	}
+}
+
+// Checkout returns the shared tree for key, materializing it on first request, and a release to
+// call when the caller has finished reading it.
 //
 // Callers that arrive while the first is still cloning wait for it rather than starting their own.
 // A failed checkout is remembered too. Five scanners should report one unreachable repository once,
 // not attempt it five times over.
-//
-// The returned cleanup is a no-op: the pool owns the directory until Close.
 func (p *Pool) Checkout(ctx context.Context, key string, materialize func(context.Context) (Tree, func(), error)) (Tree, func(), error) {
 	p.mu.Lock()
-	e, ok := p.entries[key]
-	if !ok {
-		e = &entry{}
-		p.entries[key] = e
-	}
+	e := p.entryLocked(key)
+	e.inUse++
 	p.mu.Unlock()
+
+	var released sync.Once
+	release := func() {
+		released.Do(func() {
+			p.mu.Lock()
+			e.inUse--
+			gone := p.detachIfUnusedLocked(key, e)
+			p.mu.Unlock()
+			if gone {
+				remove(e)
+			}
+		})
+	}
 
 	e.once.Do(func() {
 		tree, clean, err := materialize(ctx)
@@ -64,25 +139,55 @@ func (p *Pool) Checkout(ctx context.Context, key string, materialize func(contex
 		}
 	})
 	if e.err != nil {
+		release()
 		return Tree{}, func() {}, e.err
 	}
-	return e.tree, func() {}, nil
+	return e.tree, release, nil
 }
 
-// Close removes every checkout the pool materialized.
+// entryLocked returns key's entry, adding an empty one. Called with p.mu held.
+func (p *Pool) entryLocked(key string) *entry {
+	e, ok := p.entries[key]
+	if !ok {
+		e = &entry{}
+		p.entries[key] = e
+	}
+	return e
+}
+
+// detachIfUnusedLocked takes e out of the pool when its declared uses have all ended and nobody
+// holds it, and reports whether it did. The caller removes it after letting go of p.mu, because
+// removing a tree is slow and the other scanners should not wait on it. A later Checkout of the
+// same key materializes a new one. Called with p.mu held.
+func (p *Pool) detachIfUnusedLocked(key string, e *entry) bool {
+	if !e.declared || e.expected > 0 || e.inUse > 0 || p.entries[key] != e {
+		return false
+	}
+	delete(p.entries, key)
+	return true
+}
+
+// Close removes every checkout the pool still holds.
 func (p *Pool) Close() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _, e := range p.entries {
-		if e.clean == nil {
-			continue
-		}
-		// Undo the freeze first: a directory without write permission cannot have its entries
-		// removed, so cleanup would silently leave the tree on disk.
-		thaw(e.tree.Dir)
-		e.clean()
-	}
+	entries := p.entries
 	p.entries = map[string]*entry{}
+	p.mu.Unlock()
+	for _, e := range entries {
+		remove(e)
+	}
+}
+
+// remove deletes an entry's checkout. Nobody can reach the entry any longer, so its once has
+// either run or never will, and nothing else touches its fields.
+func remove(e *entry) {
+	if e.clean == nil {
+		return
+	}
+	// Undo the freeze first: a directory without write permission cannot have its entries
+	// removed, so cleanup would silently leave the tree on disk.
+	thaw(e.tree.Dir)
+	e.clean()
 }
 
 // freeze makes a tree read-only, best effort.

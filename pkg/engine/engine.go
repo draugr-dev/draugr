@@ -30,6 +30,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
@@ -1373,6 +1374,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		mu.Unlock()
 	}
 
+	// Declared before any job starts, so the run's checkouts are removed as the last job reading
+	// each one ends rather than all at once when the run does.
+	checkouts := e.declareCheckouts(ctx, planned, model)
+
 	gates := newRateGates()
 	// The jobs of each scanner not yet finished, for plugin.Sharers: a job learns how many runs of its
 	// tool it shares the machine with, and the last of them learns it has the machine to itself.
@@ -1388,6 +1393,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		wg.Add(1)
 		go func(pj PlannedJob, jobIndex int) {
 			defer wg.Done()
+			// The job has stopped reading its checkout, however it stopped: a cache hit, a failure
+			// and a canceled wait included. Deferred early, so it runs after the job's other steps.
+			if key, ok := checkouts[jobIndex]; ok {
+				defer git.PoolFrom(ctx).Done(key)
+			}
 			// Deferred before the job's other steps, so it runs after all of them: a job waiting to
 			// read after this one starts once this one's slot is free and its outcome recorded.
 			defer close(finished[jobIndex])
@@ -2147,41 +2157,26 @@ func (e *Engine) generateSBOMs(ctx context.Context, model saga.Model) ([]sbom.Do
 
 	var docs []sbom.Document
 	var failed []SBOMFailure
-	seen := make(map[string]bool)
-
-	for i := range model.Components {
-		comp := &model.Components[i]
-		var targets []plugin.Target
-		for _, r := range comp.Repositories {
-			targets = append(targets, plugin.RepositoryTarget{
-				URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
-				Paths: r.Paths, Ignore: r.Ignore,
+	pool := git.PoolFrom(ctx)
+	for _, st := range e.sbomTargets(model) {
+		if ctx.Err() != nil {
+			// One failure for the rest of the run rather than one per target it never reached:
+			// the reason belongs to the run, and repeating it per target adds nothing.
+			failed = append(failed, SBOMFailure{Scope: saga.SBOMScopeComponent, Format: format, Reason: ctx.Err().Error()})
+			return docs, failed
+		}
+		doc, err := e.sbomGen.Generate(ctx, st.component, st.target, cfg.Format)
+		if key, ok := sbomCheckoutKey(st.target); ok {
+			pool.Done(key)
+		}
+		if err != nil {
+			failed = append(failed, SBOMFailure{
+				Scope: saga.SBOMScopeComponent, Component: st.component, Target: sbom.TargetName(st.target),
+				Format: format, Reason: err.Error(),
 			})
+			continue
 		}
-		for _, img := range comp.Images {
-			targets = append(targets, plugin.ImageTarget{Ref: img.Image, Digest: img.Digest})
-		}
-		for _, t := range targets {
-			if ctx.Err() != nil {
-				// One failure for the rest of the run rather than one per target it never reached:
-				// the reason belongs to the run, and repeating it per target adds nothing.
-				failed = append(failed, SBOMFailure{Scope: saga.SBOMScopeComponent, Format: format, Reason: ctx.Err().Error()})
-				return docs, failed
-			}
-			if seen[t.Identity()] {
-				continue
-			}
-			seen[t.Identity()] = true
-			doc, err := e.sbomGen.Generate(ctx, comp.Name, t, cfg.Format)
-			if err != nil {
-				failed = append(failed, SBOMFailure{
-					Scope: saga.SBOMScopeComponent, Component: comp.Name, Target: sbom.TargetName(t),
-					Format: format, Reason: err.Error(),
-				})
-				continue
-			}
-			docs = append(docs, doc)
-		}
+		docs = append(docs, doc)
 	}
 
 	if scope.Project() {

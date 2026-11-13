@@ -482,8 +482,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 
 	// One checkout per repository for this run, shared by every scanner that asks for the same one.
-	// Owned by the invocation rather than the engine: the lifetime is this run's, and pkg/engine
-	// orchestrates targets in general. It should not learn about git to make repositories cheaper.
+	// Owned by the invocation rather than the engine: no checkout outlives this run. The engine
+	// declares which jobs will read each one, so each is removed when the last of them is done.
 	pool := git.NewPool()
 	defer pool.Close()
 	ctx = git.WithPool(ctx, pool)

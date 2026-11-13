@@ -42,7 +42,7 @@ func Checkout(ctx context.Context, url, revision string, scope Scope) (tree Tree
 	if notRepository(ctx, url) {
 		return Tree{}, nil, errNotRepository
 	}
-	dir, err := os.MkdirTemp("", "draugr-repo-")
+	dir, err := os.MkdirTemp("", tempPrefix(repoPrefix))
 	if err != nil {
 		return Tree{}, nil, err
 	}
@@ -327,7 +327,7 @@ func CheckoutWorkingTree(ctx context.Context, path string, scope Scope) (Tree, f
 	if notRepository(ctx, path) {
 		return Tree{}, nil, errNotRepository
 	}
-	dir, err := os.MkdirTemp("", "draugr-worktree-")
+	dir, err := os.MkdirTemp("", tempPrefix(worktreePrefix))
 	if err != nil {
 		return Tree{}, nil, err
 	}

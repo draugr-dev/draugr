@@ -32,7 +32,7 @@ func PathsAt(ctx context.Context, url, revision string, paths []string) (string,
 		return commit, pathsIn(ctx, url, commit, keep)
 	}
 
-	dir, err := os.MkdirTemp("", "draugr-tree-")
+	dir, err := os.MkdirTemp("", tempPrefix(treePrefix))
 	if err != nil {
 		return "", err
 	}

@@ -31,11 +31,13 @@ var _ pkgsbom.Generator = (*Generator)(nil)
 type Generator struct {
 	run      runner
 	checkout checkouter
+	// workingTree copies a local repository as it is on disk, for a run under --working-tree.
+	workingTree func(ctx context.Context, path string, scope git.Scope) (git.Tree, func(), error)
 }
 
 // New returns a Generator that shells out to Syft and clones with git.
 func New() *Generator {
-	return &Generator{run: runSyft, checkout: git.Checkout}
+	return &Generator{run: runSyft, checkout: git.Checkout, workingTree: git.CheckoutWorkingTree}
 }
 
 // syftEnv is the environment Syft runs with, layered over the parent's. Syft otherwise asks
@@ -89,8 +91,7 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 	var src, label, sourceName, checkoutDir string
 	switch target := t.(type) {
 	case plugin.RepositoryTarget:
-		tree, cleanup, err := g.checkout(ctx, target.URL, target.Revision,
-			git.Scope{Paths: target.Paths, Ignore: target.Ignore})
+		tree, cleanup, err := g.checkoutOf(ctx, target)
 		if err != nil {
 			return pkgsbom.Document{}, fmt.Errorf("checkout %s: %w", target.Source(), err)
 		}
@@ -122,6 +123,25 @@ func (g *Generator) Generate(ctx context.Context, component string, t plugin.Tar
 		Component: component, Target: label, Format: format,
 		Bytes: stripCheckoutPath(out, checkoutDir),
 	}, nil
+}
+
+// checkoutOf materializes target's tree: the run's shared checkout when the context carries a pool,
+// the one the scanners reading the same tree read, and a clone of its own otherwise.
+//
+// Under --working-tree the target is the repository as it is on disk, as it is for every scanner,
+// so the inventory lists what the run judged rather than the commit underneath it.
+func (g *Generator) checkoutOf(ctx context.Context, target plugin.RepositoryTarget) (git.Tree, func(), error) {
+	scope := git.Scope{Paths: target.Paths, Ignore: target.Ignore}
+	materialize := func(ctx context.Context) (git.Tree, func(), error) {
+		if target.WorkingTree {
+			return g.workingTree(ctx, target.URL, scope)
+		}
+		return g.checkout(ctx, target.URL, target.Revision, scope)
+	}
+	if pool := git.PoolFrom(ctx); pool != nil {
+		return pool.Checkout(ctx, git.Key(target.URL, target.Revision, target.WorkingTree, scope), materialize)
+	}
+	return materialize(ctx)
 }
 
 // stripCheckoutPath rewrites the temporary clone out of a generated document.
