@@ -17,7 +17,7 @@ const (
 var imagesOptionSchema = json.RawMessage(`{
   "type": "object",
   "properties": {
-    ` + cpeMatchesProperty + `
+    ` + cpeMatchesProperty(devReport) + `
   }
 }`)
 
@@ -63,10 +63,17 @@ func (Images) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, er
 }
 
 // ReportsCPEMatches resolves cpeMatches for one component, and names the key that decided it: the
-// component's setting first, then the project's, and with neither written the default, suppress, named
+// component's setting first, then the project's, and with neither written the default, report, named
 // by the project's key.
+//
+// Report by default, where sca suppresses. An image's CPE-only matches are Alpine packages Grype
+// matched in the NVD for a flaw Alpine's own data does not list, and checked one by one on an
+// Alpine image most were flaws in the image and unpatched, P1s among them, beside a few wrong
+// matches that nothing in the match tells apart. Suppressing them hides the real ones with the
+// wrong. sca's come mostly from a package type with no matcher of its own, where a CPE built from
+// the name gives a project's own package the advisories of whatever product shares its name.
 func (Images) ReportsCPEMatches(model saga.Model, component string) (bool, string) {
-	return controlSetting(model, component, imagesControl, cpeMatchesKey, false)
+	return controlSetting(model, component, imagesControl, cpeMatchesKey, true)
 }
 
 // Aggregate merges the scan reports and summarizes findings by severity.

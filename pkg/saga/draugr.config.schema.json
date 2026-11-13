@@ -185,14 +185,14 @@
           "anyOf": [
             {
               "const": "suppress",
-              "description": "Each finding matched only by CPE stays in the report, suppressed with the reason matched by CPE only, and out of the counts and the gate. The default."
+              "description": "Each finding matched only by CPE stays in the report, suppressed with the reason matched by CPE only, and out of the counts and the gate."
             },
             {
               "const": "report",
-              "description": "Each finding matched only by CPE is counted, marked cpe."
+              "description": "Each finding matched only by CPE is counted, marked cpe. The default."
             }
           ],
-          "default": "suppress",
+          "default": "report",
           "description": "Whether findings Grype matched only through a CPE built from the package's name count: on a package type it has no matcher for, such as dart-pub and pod, and on an Alpine apk package, for a flaw Alpine's own data does not list. A component's setting replaces the project's.",
           "type": "string"
         },

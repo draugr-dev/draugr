@@ -671,16 +671,23 @@ a match on an Alpine package is either a wrong match or a real flaw Alpine has n
 Draugr cannot tell which, so `suppress` sets aside both and `report` counts both. The packages of a
 Debian or RPM-based image are matched through their distribution's data and carry no mark.
 
+The defaults differ, because the matches do. `sca` suppresses: its CPE-only matches come mostly from
+a package type with no matcher, where a name gives a project's own package another product's
+advisories. `images` reports: on an Alpine image most are real, 22 of 25 on one checked one by one,
+four of them P1, and `suppress` would hide them with the 3 wrong ones.
+
 | Value | Each finding matched only by CPE |
 |---|---|
-| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `matched by CPE only`, and out of the counts and the gate |
-| `report` | Is counted, with `cpe` beside its package |
+| `suppress`, the default for `sca` | Stays in the report and in `report.json`, suppressed with the reason `matched by CPE only`, and out of the counts and the gate |
+| `report`, the default for `images` | Is counted, with `cpe` beside its package |
 
 ```yaml
 config:
   controls:
     sca:
       cpeMatches: report       # count findings Grype matched only by CPE
+    images:
+      cpeMatches: suppress     # set aside an image's, real flaws Alpine has not assessed included
 components:
   - name: mobile
     controls:
