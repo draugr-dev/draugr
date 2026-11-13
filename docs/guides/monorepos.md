@@ -117,9 +117,10 @@ draugr scan draugr.saga.yaml --labels team=web
 ```
 
 ```console
-DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components)  7.9s
+DRAUGR  FAIL  draugr-demo 1.0  7.9s
 
  8 P1 1 P2 0 P3 0 P4
+ Scoped to 1 of 3 components.
 
 CONTROLS
   iac       pass   no findings

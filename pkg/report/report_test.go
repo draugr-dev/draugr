@@ -1641,15 +1641,16 @@ func scopedData() Data {
 }
 
 func TestConsoleQualifiesAScopedVerdict(t *testing.T) {
-	// A reader who takes one line from this report takes the verdict line, so a PASS covering a
-	// third of the release must not be readable on its own.
+	// A PASS covering a third of the release must not be readable on its own, so the line under the
+	// verdict says what it covered, and the verdict line stays the verdict.
 	var b bytes.Buffer
 	if err := (consoleReporter{}).Render(&b, scopedData()); err != nil {
 		t.Fatal(err)
 	}
-	head, _, _ := strings.Cut(b.String(), "\n")
-	if !strings.Contains(head, "1 of 3 components") {
-		t.Errorf("the verdict line should say what it covered:\n%s", head)
+	head, rest, _ := strings.Cut(b.String(), "\n")
+	if strings.Contains(head, "components") ||
+		!strings.HasPrefix(strings.TrimLeft(rest, "\n"), " Scoped to 1 of 3 components.") {
+		t.Errorf("the line under the verdict should say what it covered, and only there:\n%s", b.String())
 	}
 }
 

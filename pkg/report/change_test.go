@@ -18,7 +18,7 @@ import (
 type stubChange struct{ listed bool }
 
 func (stubChange) WriteStrips(w io.Writer, label string, whole [4]int) {
-	_, _ = fmt.Fprintf(w, " %s %v\n\n", label, whole)
+	_, _ = fmt.Fprintf(w, " %s %v\n", label, whole)
 }
 
 func (s stubChange) WriteListing(w io.Writer, view View, top int) bool {
@@ -66,8 +66,8 @@ func TestAJudgedRunUnderNoGateSaysTheVerdictDecidesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"DRAUGR  FAIL  shop  change since main/results.sarif · 1 new · fails on high severity",
-		"whole run [0 0 0 0]",
+		"DRAUGR  FAIL  shop\n",
+		"whole run [0 0 0 0]\n Change since main/results.sarif · 1 new · fails on high severity\n\n",
 		"Gate off (--no-gate) · this verdict does not decide the exit code.",
 		"LISTING  top 5",
 	} {

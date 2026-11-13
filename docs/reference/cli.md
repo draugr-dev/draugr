@@ -437,19 +437,20 @@ draugr: --labels team=nope matches no component (this descriptor uses team=platf
 draugr: --labels squad=web matches no component (no component declares label "squad")
 ```
 
-The selector is resolved to component names before the run starts, so the verdict line, the
+The selector is resolved to component names before the run starts, so the console's scope line, the
 component list and the SARIF analysis category all describe what was covered. `results.sarif` also
 records the selector itself.
 
 The scope flags apply to one run and change nothing in the descriptor.
 
-**A scoped run still gates**, and its verdict line names the scope:
+**A scoped run still gates**, and the line under its band counts names the scope:
 
 ```console
 $ draugr scan --components web --controls secrets
-DRAUGR  FAIL  storefront 1.0  (scope: 1 of 3 components; secrets)  567ms
+DRAUGR  FAIL  storefront 1.0  567ms
 
  5 P1 0 P2 0 P3 0 P4
+ Scoped to 1 of 3 components and the secrets control.
 
 CONTROLS
   secrets  FAIL   5 P1
@@ -933,19 +934,20 @@ draugr scan draugr.saga.yaml -o main/ --no-publish     # on main, kept as an art
 draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P3
 ```
 
-The console prints the change in the layout `draugr diff` uses. The verdict line names the base's
-revision, how many findings are new and the gate. Band counts for new and unchanged findings
-follow, then for the whole run, then what changed. The policy, MEASURED AGAINST, errors and caveats
+The console prints the change in the layout `draugr diff` uses. Band counts for new and unchanged
+findings follow the verdict line, then for the whole run, then a line naming the base's revision,
+how many findings are new and the gate, then what changed. The policy, MEASURED AGAINST, errors and caveats
 blocks are unchanged. A failed run's last line names the gate, the new findings that met it and
 the base.
 
 ```console
 $ draugr scan --base base/results.sarif --fail-on-new P3 --view actions --no-publish
-DRAUGR  FAIL  shop  change since b5bcb4b · 15 new · fails on P3  3.894s
+DRAUGR  FAIL  shop  3.894s
 
  new        0 P1 0 P2 15 P3 0 P4
  unchanged  0 P1 0 P2 1 P3 0 P4
  whole run  0 P1 0 P2 16 P3 0 P4
+ Change since b5bcb4b · 15 new · fails on P3
 
 WHAT TO DO  2 actions clear 15 findings
   P3  Upgrade urllib3 1.26.5 → 2.8.0  control sca · 10 findings

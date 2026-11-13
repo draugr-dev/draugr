@@ -126,8 +126,8 @@ func TestErrorsAreCappedUnlessTopZero(t *testing.T) {
 	}
 }
 
-// A run that accepted its errors says so beside the verdict, with how much it did not reach where
-// that is known.
+// A run that accepted its errors says so on the line under the verdict, with how much it did not
+// reach where that is known, and the title line keeps the verdict alone.
 func TestAcceptedErrorsMarkTheVerdictPartial(t *testing.T) {
 	d := Data{
 		AcceptedErrors: true,
@@ -137,15 +137,17 @@ func TestAcceptedErrorsMarkTheVerdictPartial(t *testing.T) {
 			{Kind: "image", Target: "ghcr.io/acme/api:1", Status: engine.TargetReached},
 		}},
 	}
-	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, "PASS  partial · 1 of 2 targets not reached") {
-		t.Errorf("the header does not say the pass is partial:\n%s", out)
+	out := renderWith(t, consoleReporter{}, d)
+	if first, rest, _ := strings.Cut(out, "\n"); strings.Contains(first, "artial") ||
+		!strings.HasPrefix(strings.TrimLeft(rest, "\n"), " Partial: 1 of 2 targets not reached, and the run accepted it.") {
+		t.Errorf("the line under the verdict does not say the pass is partial, or the title does:\n%s", out)
 	}
 	d.Run.Targets = d.Run.Targets[1:]
-	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, "PASS  partial · scan errors accepted") {
+	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, " Partial: the run accepted its scan errors.") {
 		t.Errorf("errors accepted with every target reached must still mark the pass:\n%s", out)
 	}
 	d.AcceptedErrors = false
-	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, "partial") {
+	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, "artial") {
 		t.Errorf("a run that accepted nothing is marked partial:\n%s", out)
 	}
 }

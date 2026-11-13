@@ -986,6 +986,14 @@ func writeBandRows(w io.Writer, col tui.Painter, r Result) {
 
 // drawBandRows draws the strips writeBandRows lists, each only where it has something in it.
 func drawBandRows(w io.Writer, col tui.Painter, rows []bandRow) {
+	if drawBandLines(w, col, rows) {
+		_, _ = fmt.Fprintln(w)
+	}
+}
+
+// drawBandLines draws drawBandRows' strips without the blank line after them, and reports whether
+// it drew any.
+func drawBandLines(w io.Writer, col tui.Painter, rows []bandRow) bool {
 	width := 0
 	for _, row := range rows {
 		if row.counts != ([4]int{}) {
@@ -999,9 +1007,7 @@ func drawBandRows(w io.Writer, col tui.Painter, rows []bandRow) {
 		label := fmt.Sprintf("%-*s", width, row.label)
 		_, _ = fmt.Fprintf(w, " %s  %s\n", col.Paint(tui.StyleMuted, label), col.BandChips(row.counts))
 	}
-	if width > 0 {
-		_, _ = fmt.Fprintln(w)
-	}
+	return width > 0
 }
 
 // bandRow is one labeled strip of band counts.

@@ -21,9 +21,10 @@ type ScanView struct {
 var _ fixlist.ChangeView = ScanView{}
 
 // WriteStrips draws a band strip for each state a finding can be in against the base, then one
-// more labeled strip with the counts in whole.
+// more labeled strip with the counts in whole. No blank line follows, so the scan's report can put
+// what qualifies the counts directly beneath them.
 func (v ScanView) WriteStrips(w io.Writer, label string, whole [4]int) {
-	drawBandRows(w, tui.For(w), append(bandRows(v.Result.Counted()), bandRow{label, whole}))
+	drawBandLines(w, tui.For(w), append(bandRows(v.Result.Counted()), bandRow{label, whole}))
 }
 
 // WriteListing draws what changed in the view asked for, capped at top rows where top is

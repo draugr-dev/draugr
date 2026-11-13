@@ -1,0 +1,1 @@
+- **The first line of a scan is the verdict, the project and the time.** A scope, a partial result and the base a change was measured against now print on the line under the band counts, and the time spent refreshing scanner data is named only under `--evidence`.

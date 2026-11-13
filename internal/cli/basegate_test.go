@@ -251,30 +251,30 @@ func TestABaseRunIsJudgedOnItsChange(t *testing.T) {
 		// err is the whole exit message, empty for a run that exits 0.
 		err               string
 		verdict, wholeRun string
-		header            string
+		header, note      string
 	}{
 		{
 			name: "the whole run passes and the change fails", failOnNew: "P3",
 			err:     "fails on P3: 2 new findings since aaaa111, bbbb222",
 			verdict: "fail", wholeRun: "pass",
-			header: "DRAUGR  FAIL  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on P3",
+			header: "DRAUGR  FAIL  shop 1.0", note: "Change since aaaa111, bbbb222 · 2 new · fails on P3",
 		},
 		{
 			name: "the whole run fails and the change passes", failOn: "low", failOnNew: "P1",
 			verdict: "pass", wholeRun: "fail",
-			header: "DRAUGR  PASS  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on P1",
+			header: "DRAUGR  PASS  shop 1.0", note: "Change since aaaa111, bbbb222 · 2 new · fails on P1",
 		},
 		{
 			name: "both pass", failOnNew: "P1",
 			verdict: "pass", wholeRun: "pass",
-			header: "DRAUGR  PASS  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on P1",
+			header: "DRAUGR  PASS  shop 1.0", note: "Change since aaaa111, bbbb222 · 2 new · fails on P1",
 		},
 		{
 			// The whole run's failure decides nothing, so the message names the change alone.
 			name: "both fail", failOn: "low", failOnNew: "low",
 			err:     "fails on low severity: 2 new findings since aaaa111, bbbb222",
 			verdict: "fail", wholeRun: "fail",
-			header: "DRAUGR  FAIL  shop 1.0  change since aaaa111, bbbb222 · 2 new · fails on low severity",
+			header: "DRAUGR  FAIL  shop 1.0", note: "Change since aaaa111, bbbb222 · 2 new · fails on low severity",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -294,8 +294,12 @@ func TestABaseRunIsJudgedOnItsChange(t *testing.T) {
 			case tc.err != "" && (err == nil || err.Error() != tc.err):
 				t.Fatalf("exit = %v, want %q", err, tc.err)
 			}
-			if first, _, _ := strings.Cut(console.String(), "\n"); !strings.HasPrefix(first, tc.header) {
-				t.Errorf("verdict line = %q, want it to open %q", first, tc.header)
+			first, _, _ := strings.Cut(console.String(), "\n")
+			if !strings.HasPrefix(first, tc.header) || strings.Contains(first, "since") {
+				t.Errorf("verdict line = %q, want it to open %q and name no base", first, tc.header)
+			}
+			if !strings.Contains(console.String(), "\n "+tc.note+"\n") {
+				t.Errorf("no line under the strips says %q:\n%s", tc.note, console.String())
 			}
 			if verdict := reportVerdict(t, out); verdict != tc.verdict {
 				t.Errorf("report.json verdict = %q, want %q, the verdict the exit status came from", verdict, tc.verdict)
@@ -326,7 +330,7 @@ func TestABaseWithNoGateOnNewFindingsJudgesTheWholeRun(t *testing.T) {
 	if err == nil || err.Error() != "policy verdict: fail" {
 		t.Fatalf("exit = %v, want the whole run's policy verdict", err)
 	}
-	if strings.Contains(console.String(), "change since") || !strings.Contains(console.String(), "CONTROLS") {
+	if strings.Contains(console.String(), "Change since") || !strings.Contains(console.String(), "CONTROLS") {
 		t.Errorf("a run with no gate on new findings printed the change:\n%s", console.String())
 	}
 	if verdict := reportVerdict(t, out); verdict != "fail" {
@@ -386,8 +390,8 @@ func TestAJudgedRunThePolicyFailsNamesThePolicy(t *testing.T) {
 	if want := "the organization's policy fails this run: threshold (PCI scope)"; err == nil || err.Error() != want {
 		t.Fatalf("exit = %v, want %q", err, want)
 	}
-	if first, _, _ := strings.Cut(out.String(), "\n"); !strings.Contains(first, "FAIL") || !strings.Contains(first, "nothing new") {
-		t.Errorf("verdict line = %q, want a FAIL on a change with nothing new", first)
+	if first, _, _ := strings.Cut(out.String(), "\n"); !strings.Contains(first, "FAIL") || !strings.Contains(out.String(), "· nothing new ·") {
+		t.Errorf("want a FAIL on a change with nothing new:\n%s", out.String())
 	}
 }
 

@@ -78,9 +78,10 @@ belongs to the component that imports it. A component can import several files, 
 
 ```console
 $ draugr scan --controls sast --components api --top 3
-DRAUGR  FAIL  draugr-demo 1.0  (scope: 1 of 3 components; sast)  9.19s
+DRAUGR  FAIL  draugr-demo 1.0  9.19s
 
  9 P1 6 P2 6 P3 0 P4
+ Scoped to 1 of 3 components and the sast control.
 
 CONTROLS
   sast  FAIL   9 P1 6 P2 6 P3
