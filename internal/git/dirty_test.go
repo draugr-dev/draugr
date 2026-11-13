@@ -57,3 +57,33 @@ func TestUncommittedFiles(t *testing.T) {
 		t.Errorf("not a repository: got %d, want 0", n)
 	}
 }
+
+// Reports Draugr writes inside the repository are its own output, not work the scan left out: the
+// default folder whether or not this run writes there, and the folder this run writes to. A file
+// the reader added beside them still counts, and a folder outside the repository changes nothing.
+func TestUncommittedFilesLeavesOutDraugrsOwnReports(t *testing.T) {
+	repo, _ := initRepo(t)
+	write := func(rel string) {
+		t.Helper()
+		p := filepath.Join(repo, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("x\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".draugr/out/report.json")
+	write("reports/results.sarif")
+	ctx := WithOwnOutput(context.Background(), filepath.Join(repo, "reports"), t.TempDir(), "")
+	if n := UncommittedFiles(ctx, repo); n != 0 {
+		t.Errorf("only Draugr's reports: got %d, want 0", n)
+	}
+	if n := UncommittedFiles(context.Background(), repo); n != 1 {
+		t.Errorf("a folder this run does not write to: got %d, want 1", n)
+	}
+	write(".draugr/fragments/web.yaml")
+	if n := UncommittedFiles(ctx, repo); n != 1 {
+		t.Errorf("a fragment beside the reports: got %d, want 1", n)
+	}
+}

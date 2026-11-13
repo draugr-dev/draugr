@@ -14,6 +14,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -847,6 +848,9 @@ type summary struct {
 	// rather than nothing on this page.
 	bySignal map[string]int
 	floored  int
+	// matchable is how many findings name a CVE, the findings KEV and EPSS could raise. Counted over
+	// every finding, for the reason onKEV is.
+	matchable int
 	// onKEV is how many findings KEV lists, whether or not it raised them. Counted over every
 	// finding, for the reason bySignal is.
 	onKEV int
@@ -962,6 +966,9 @@ func summarize(d Data) summary {
 			}
 			if exploitedOf(res) != nil {
 				s.onKEV++
+			}
+			if exploit.Matchable(res.RuleID) {
+				s.matchable++
 			}
 			if res.PriorityFloor != "" {
 				s.floored++

@@ -6,6 +6,10 @@ CONTROLS
   dast      ERROR  did not run
             nuclei: executable file not found in $PATH
 
+SIGNALS
+  KEV   not read · --kev auto reads it
+  EPSS  not read · --epss auto reads it
+
 ACCEPTED
   config.exclude  2 findings suppressed · 1 expired and no longer suppressing
               expired 2026-01-31 · draugr.saga.yaml:31 · waiting on the upstream release

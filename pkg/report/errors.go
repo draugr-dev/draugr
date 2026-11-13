@@ -149,6 +149,9 @@ type caveat struct {
 	// image it names, by their own paths: what is a label, shortened or folded for a reader.
 	controls  []string
 	locations []sarif.NotificationLocation
+	// repository says the caveat is about a repository rather than a component, so its heading
+	// names no component.
+	repository bool
 }
 
 // unreadDetail is a service's row: the checks with no result, the checks read in part, and the
@@ -197,6 +200,7 @@ func caveats(d Data) []caveat {
 			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports,
 			controls: u.controls, locations: []sarif.NotificationLocation{{URI: u.file}}})
 	}
+	out = append(out, uncommittedCaveats(d.Repositories)...)
 	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
 		for _, r := range unreadRows(g) {
 			by := strings.Join(r.controls, ", ")
@@ -211,6 +215,66 @@ func caveats(d Data) []caveat {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].component < out[j].component })
 	return out
+}
+
+// uncommittedCaveats is a row for each local repository whose uncommitted changes the scan did not
+// read, because it read the committed revision.
+//
+// A caveat because it is the shortfall a reader does not expect: they fix a finding, scan again,
+// and the finding is still there. Named by repository only where more than one has changes left
+// out, since one row with a name nobody needs pushes the reason along the line.
+func uncommittedCaveats(repos []RepositoryProvenance) []caveat {
+	var dirty []RepositoryProvenance
+	for _, r := range repos {
+		if !r.WorkingTree && r.Uncommitted > 0 {
+			dirty = append(dirty, r)
+		}
+	}
+	out := make([]caveat, 0, len(dirty))
+	for _, r := range dirty {
+		what := english.Count(r.Uncommitted, "uncommitted file")
+		if len(dirty) > 1 {
+			what = repositoryName(r.URL) + ": " + what
+		}
+		detail := "not in the committed revision"
+		if rev := r.Short(); rev != "" {
+			detail = "not in commit " + rev
+		}
+		out = append(out, caveat{what: what, detail: detail + " · --working-tree reads them",
+			key: saga.CaveatUncommittedFiles, repository: true})
+	}
+	return out
+}
+
+// cleanRunLine is what a run with no findings and no control in error closes on, in every human
+// format, and whether it closes on a tick.
+//
+// A caveat is a part of the run that was not checked, so a tick after one would read as a clean
+// result for that part too. Uncommitted files left out are the exception that says where the tick
+// stops: the run did check the commit, and a developer's checkout nearly always holds an
+// uncommitted file, so withholding the tick would take it from nearly every local clean run. The
+// line names the commit instead, which the caveat above says the files are not in. A gate that
+// fails on uncommitted-files gets no tick.
+func cleanRunLine(d Data) (line string, tick bool) {
+	cs := caveats(d)
+	if len(cs) == 0 {
+		return "No findings. ✓", true
+	}
+	var dirty []RepositoryProvenance
+	for _, c := range cs {
+		if c.key != saga.CaveatUncommittedFiles || c.fails(d) {
+			return noFindingsWithCaveats, false
+		}
+	}
+	for _, r := range d.Repositories {
+		if !r.WorkingTree && r.Uncommitted > 0 {
+			dirty = append(dirty, r)
+		}
+	}
+	if len(dirty) == 1 && dirty[0].Short() != "" {
+		return "No findings in commit " + dirty[0].Short() + ". ✓", true
+	}
+	return "No findings in what is committed. ✓", true
 }
 
 // reason is detail without the controls it closes with, which the console's group heading names.
@@ -229,6 +293,9 @@ func (c caveat) heading() string {
 	parts := []string{string(c.key)}
 	if c.by != "" {
 		parts = append(parts, c.by)
+	}
+	if c.repository {
+		return strings.Join(parts, " · ")
 	}
 	return strings.Join(append(parts, cmp.Or(c.component, "no component")), " · ")
 }

@@ -1576,15 +1576,16 @@ func TestRepositoryRowsReadAsAClauseNotAnAlarm(t *testing.T) {
 	if len(got) != 1 || got[0][0] != "github.com/acme/api" {
 		t.Errorf("got %q", got)
 	}
+	// Uncommitted files the scan left out are a caveat, said once, under CAVEATS.
 	got = repositoryRows([]RepositoryProvenance{
 		{URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 7}})
-	if len(got) != 1 || got[0][1] != "commit abc123de · 7 uncommitted files not included" {
+	if len(got) != 1 || got[0][1] != "commit abc123de" {
 		t.Errorf("got %q", got)
 	}
 	// One file is one file. A report that says "1 uncommitted files" was written by a program.
 	got = repositoryRows([]RepositoryProvenance{
-		{URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 1}})
-	if !strings.Contains(got[0][1], "1 uncommitted file ") {
+		{URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 1, WorkingTree: true}})
+	if !strings.Contains(got[0][1], "1 uncommitted file,") {
 		t.Errorf("got %q", got)
 	}
 	if len(repositoryRows(nil)) != 0 {
@@ -1620,14 +1621,15 @@ func TestRepositoryRowSaysWhenTheTreeIsNotReproducible(t *testing.T) {
 	committed := repositoryRows([]RepositoryProvenance{{
 		URL: "https://github.com/acme/api", Revision: "abc123def456", Uncommitted: 2,
 	}})
-	if committed[0][1] != "commit abc123de · 2 uncommitted files not included" {
+	// What a committed scan left out is a caveat, said once, under CAVEATS.
+	if committed[0][1] != "commit abc123de" {
 		t.Errorf("got %q", committed)
 	}
-	// A checkout with no remote carries both clauses: why it has no name, and what is not in it.
+	// A checkout with no remote says why it has no name.
 	local := repositoryRows([]RepositoryProvenance{{
 		URL: ".", Revision: "abc123def456", Uncommitted: 2,
 	}})
-	if local[0][1] != "commit abc123de · no git remote · 2 uncommitted files not included" {
+	if local[0][1] != "commit abc123de · no git remote" {
 		t.Errorf("got %q", local)
 	}
 }

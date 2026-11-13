@@ -23,6 +23,10 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
     checkout/go.mod  gosec needs Go
     checkout/go.mod  govulncheck needs Go
 
+SIGNALS
+  KEV   not read · --kev auto reads it
+  EPSS  not read · --epss auto reads it
+
 FIX FIRST  all 2, by priority
   P1  critical  CVE-2019-20477
       PyYAML: command execution through python/object/apply constructor in FullLoader

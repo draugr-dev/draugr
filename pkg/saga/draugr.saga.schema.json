@@ -2040,6 +2040,10 @@
               {
                 "const": "unbound-imports",
                 "description": "An imported SARIF file that states no revision, so nothing shows it describes the code being scanned."
+              },
+              {
+                "const": "uncommitted-files",
+                "description": "A local repository with uncommitted changes the scan did not read, because it read the committed revision. --working-tree reads them."
               }
             ],
             "type": "string"

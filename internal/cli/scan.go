@@ -255,6 +255,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err != nil {
 		return err
 	}
+	// The reports this run writes are its own output. Written inside a repository it scans, they
+	// are not work the scan left out, and counting them would say so.
+	ctx = git.WithOwnOutput(ctx, opts.outputDir)
 	model := resolved.Model
 	if zc != nil {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).

@@ -391,7 +391,9 @@ SIGNALS
 ```
 
 `SIGNALS` counts over the whole run, whatever `--top` and `--min-priority` list. A signal that moved
-nothing prints `nothing raised`, and KEV prints `nothing listed`. The HTML and markdown reports add
+nothing prints `nothing raised`, and KEV prints `nothing listed`. A dataset the run did not read prints
+`not read` and the flag that reads it, where the run has a CVE it could have raised; the compact view
+keeps those rows and drops the rest. The HTML and markdown reports add
 how each signal moves a finding and the EPSS threshold the run used. Under `--evidence`, the copy of
 each feed and its fetch date:
 

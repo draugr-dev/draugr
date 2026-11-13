@@ -88,7 +88,9 @@ draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept pa
 
 A run with no findings and at least one caveat closes on
 `No findings. The run did not check what its caveats name.` in place of `No findings. ✓`. With an
-ERROR and a caveat, the ERROR line is printed.
+ERROR and a caveat, the ERROR line is printed. Where the only caveat is uncommitted files the scan
+left out, the run did check the commit, so it closes on `No findings in commit 3d33b20a. ✓`, unless
+`gate.failOnCaveats` lists `uncommitted-files`.
 
 When one of a control's scanners fails beside another that reported, the control is still `ERROR`
 and fails in `report.json`, and `controls[].reported` lists the scanners that reported.

@@ -25,6 +25,9 @@ type signalRow struct {
 	// Links are the counts in Did that name findings in the list, each with the narrowing that
 	// shows them. The HTML report makes each one a link to the findings it counts.
 	Links []signalLink
+	// Unread is a dataset the run did not read and could have, the one kind of row the compact view
+	// keeps: it says the bands are less than they could be, which a dense view never drops.
+	Unread bool
 }
 
 // signalLink is one count in a row's Did: the words as Did holds them, the key a finding carries in
@@ -35,8 +38,9 @@ type signalLink struct {
 
 // didLine is one line a signal contributes to the section, and the counts in it that name findings.
 type didLine struct {
-	text  string
-	links []signalLink
+	text   string
+	links  []signalLink
+	unread bool
 }
 
 // plainDid is a line with no count to follow.
@@ -122,7 +126,7 @@ var signalKinds = []signalKind{
 		},
 		did: kevDid,
 	},
-	{name: "EPSS", moves: epssMoves, did: feedDid(exploit.SignalEPSS, "raised by EPSS")},
+	{name: "EPSS", moves: epssMoves, did: feedDid(exploit.SignalEPSS, "raised by EPSS", "--epss auto")},
 	{
 		// Named as a finding's mark names them, so a reader can match the row to the marks it counts.
 		name: "malicious",
@@ -174,22 +178,23 @@ func signals(d Data, s summary) (rows []signalRow, notes []string) {
 	for _, k := range signalKinds {
 		did, n := k.did(d, s)
 		for _, line := range did {
-			rows = append(rows, signalRow{Name: k.name, Moves: k.moves(d), Did: line.text, Links: line.links})
+			rows = append(rows, signalRow{Name: k.name, Moves: k.moves(d), Did: line.text, Links: line.links, Unread: line.unread})
 		}
 		notes = append(notes, n...)
 	}
 	return rows, notes
 }
 
-// feedDid is what an exploitability dataset did: listed whenever the run consulted it.
+// feedDid is what an exploitability dataset did: listed whenever the run consulted it, and as not
+// read where it could have raised something. flag is what reads it.
 //
 // "nothing raised" is a result rather than an absence. Without it the only way to learn a feed
 // changed nothing is to read every finding looking for a mark that is not there.
-func feedDid(name, title string) func(Data, summary) ([]didLine, []string) {
+func feedDid(name, title, flag string) func(Data, summary) ([]didLine, []string) {
 	return func(d Data, s summary) ([]didLine, []string) {
 		n := s.bySignal[name]
 		if n == 0 && !consulted(d, name) {
-			return nil, nil
+			return notRead(s, flag), nil
 		}
 		return []didLine{raisedLine(n, "", raisedKey(name), title)}, nil
 	}
@@ -205,7 +210,7 @@ func kevDid(d Data, s summary) ([]didLine, []string) {
 	// A finding KEV raised is one it lists, so a raise is never counted without a listing.
 	if s.onKEV == 0 {
 		if !consulted(d, exploit.SignalKEV) {
-			return nil, nil
+			return notRead(s, "--kev auto"), nil
 		}
 		return []didLine{plainDid("nothing listed")}, nil
 	}
@@ -217,6 +222,20 @@ func kevDid(d Data, s summary) ([]didLine, []string) {
 		line.links = append(line.links, signalLink{Text: raised, Key: raisedKey(exploit.SignalKEV), Title: "raised by KEV"})
 	}
 	return []didLine{line}, nil
+}
+
+// notRead is the row for a dataset the run did not read, where the run has a finding the dataset
+// could have raised: a finding naming a CVE, which is what KEV and EPSS are keyed on.
+//
+// A scan reads neither unless a flag or config.exploitability asks, so nothing is fetched without
+// somebody choosing it. Without this row, a run that read neither says nothing about either, and
+// "nothing here is being exploited" cannot be told from "nobody checked". A run with no CVE has
+// nothing either could raise, and gets no row.
+func notRead(s summary, flag string) []didLine {
+	if s.matchable == 0 {
+		return nil
+	}
+	return []didLine{{text: "not read · " + flag + " reads it", unread: true}}
 }
 
 // healthDid is what one of dependency health's two signals did: listed whenever the lookup answered,

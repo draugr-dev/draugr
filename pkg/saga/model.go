@@ -248,10 +248,14 @@ const (
 	// CaveatUnboundImports is an imported SARIF file that states no revision, so nothing shows it
 	// describes the code being scanned.
 	CaveatUnboundImports CaveatKind = "unbound-imports"
+	// CaveatUncommittedFiles is a local repository with uncommitted changes the scan did not read,
+	// because it read the committed revision. --working-tree reads them.
+	CaveatUncommittedFiles CaveatKind = "uncommitted-files"
 )
 
 // CaveatKinds are the values gate.failOnCaveats accepts, in the order the report names them.
-var CaveatKinds = []CaveatKind{CaveatNotChecked, CaveatNotMeasured, CaveatUnreadFiles, CaveatUnreadChecks, CaveatUnboundImports}
+var CaveatKinds = []CaveatKind{CaveatNotChecked, CaveatNotMeasured, CaveatUnreadFiles, CaveatUnreadChecks, CaveatUnboundImports,
+	CaveatUncommittedFiles}
 
 // Valid reports whether k is a known kind of caveat.
 func (k CaveatKind) Valid() bool { return slices.Contains(CaveatKinds, k) }
