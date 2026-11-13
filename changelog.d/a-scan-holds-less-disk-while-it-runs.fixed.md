@@ -1,0 +1,1 @@
+- **A scan holds less disk while it runs.** Each repository checkout is removed as soon as the last job reading it ends, the SBOM reads the scanners' checkout instead of cloning again, and a run removes the read-only checkouts a killed run left in the temporary directory. Under `--working-tree` the SBOM now lists the working tree the scan judged.

@@ -268,8 +268,9 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		}
 	}
 	// Share the checkout with the other scanners in this run when there is a pool to share it
-	// through. Keyed on the target's identity, which already accounts for everything that changes
-	// the tree: url, revision, scope, and whether it is a working tree.
+	// through. Keyed with git.Key, which names everything that changes the tree: url, revision,
+	// scope, and whether it is a working tree. The engine declares each planned job under the same
+	// key, which is what lets the pool remove the checkout once the last job reading it is done.
 	//
 	// Without a pool, a scanner used directly, or a test. It clones for itself, as it always did.
 	materialize := func(ctx context.Context) (git.Tree, func(), error) {
@@ -279,15 +280,11 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	var cleanup func()
 	var err error
 	if pool := git.PoolFrom(ctx); pool != nil {
-		// The identity comes from the target, and history is asked for by a scanner's config, so it has
-		// to be added here. Without it a run where one scanner wants history and another does not would
-		// share whichever checkout was materialized first, and half the time that is the shallow one,
+		// History is asked for by a scanner's config, so it is part of the scope the key names.
+		// Without it a run where one scanner wants history and another does not would share
+		// whichever checkout was materialized first, and half the time that is the shallow one,
 		// which reports clean over a history nobody read.
-		key := repo.Identity()
-		if scope.History {
-			key += "+history"
-		}
-		tree, cleanup, err = pool.Checkout(ctx, key, materialize)
+		tree, cleanup, err = pool.Checkout(ctx, git.Key(repo.URL, repo.Revision, repo.WorkingTree, scope), materialize)
 	} else {
 		tree, cleanup, err = materialize(ctx)
 	}
