@@ -1,1 +1,0 @@
-- **A failed test in the JUnit report names the upgrade to make.** Where several failing findings sit on one package, each names the one release that clears them all, not the release its own advisory named.
