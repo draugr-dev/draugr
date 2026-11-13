@@ -16,37 +16,37 @@ _Nothing yet._
 
 ### Added
 
-- **The `tls` control reports weak cipher suites a server accepts beside current ones.** RC4, 3DES, RSA key exchange and CBC are each asked about on every endpoint and reported as their own rule, so one kept for an old client can be excluded on its own.
+- **The `tls` control reports weak cipher suites a server accepts beside current ones.** RC4, 3DES, RSA key exchange and CBC are each tested on every endpoint and reported as their own rule, so one kept for an old client can be excluded on its own.
 
 ### Changed
 
-- **A scan sizes itself to the CPUs and memory it may use.** By default it runs one job per CPU or per 2 GiB of memory, whichever is fewer, within a container's limits rather than the host's core count, and the jobs running at once share each tool's thread bound instead of each taking all of it.
+- **A scan sizes itself to the CPUs and memory it may use.** By default a scan runs one job per CPU or per 2 GiB of memory, whichever is fewer, and counts its container's limits rather than the host's cores. Jobs running together split each scanner's thread limit instead of each taking all of it.
 
-- **An image's findings matched only by CPE now count by default.** On an Alpine image these are flaws the NVD lists and Alpine's own data does not, and most are real and unpatched. `config.controls.images.cpeMatches: suppress` sets them aside as before. `sca` still suppresses its CPE-only matches by default.
+- **An image's findings matched only by CPE now count by default.** A CPE match is made from the package's name and version alone. On an Alpine image these are flaws the NVD lists and Alpine's own data does not, most of them real and unpatched, so an image can show more findings after upgrading. `config.controls.images.cpeMatches: suppress` sets them aside as before. `sca` still suppresses its CPE-only matches by default.
 
-- **An image you do not build is its own list, and FIX FIRST says to update it.** For an image declared `builtBy: upstream`, `--view actions` opens with Update an image you do not build, which `--top` never cuts, `fix_list` returns it as kind `image`, and FIX FIRST gives `update <image>` rather than upgrading a package inside it.
+- **An image you do not build is its own list, and FIX FIRST says to update it.** For an image declared `builtBy: upstream`, `--view actions` opens with Update an image you do not build, which `--top` never cuts, and FIX FIRST gives `update <image>` rather than upgrading a package inside it. The MCP `fix_list` tool returns it as kind `image`.
 
 - **`draugr explain` reads the directory a scan wrote, and says which report it read.** `-r out/` reads `out/results.sarif`, so the directory given to `-o` works as typed. The answer ends with the report's path and when it was written, so one left over from an older run is not mistaken for the latest.
 
-- **Every view points to the HTML report when there are more findings than it lists, and a run names the reports it wrote.** `--view compact` and `--top 0` now suggest it too. The suggestion, `--report json,sarif,html -o .draugr/out`, also writes the files `draugr explain` and `--base` read, where `explain` looks for them. Written reports are listed under REPORTS as paths.
+- **Every view points to the HTML report when there are more findings than it lists, and a run names the reports it wrote.** `--view compact` and `--top 0` now suggest it too. The suggested command, `--report json,sarif,html -o .draugr/out`, also writes the files `draugr explain` and `--base` read, in the folder `explain` looks in. Written reports are listed under REPORTS as paths.
 
-- **The first line of a scan is the verdict, the project and the time.** A scope, a partial result and the base a change was measured against now print on the line under the band counts, and the time spent refreshing scanner data is named only under `--evidence`.
+- **The first line of a scan is the verdict, the project and the time, and what qualifies the verdict moves to the line under the band counts.** A scope, a partial result and the base a change was measured against print there, and the time spent refreshing scanner data is named only under `--evidence`.
 
-- **The `tls` control tests every protocol on a host whose certificate fails, and reads the certificate itself.** A failing chain no longer stops the TLS 1.0, 1.1 and 1.3 checks. SHA-1 or MD5 intermediates, a missing SAN, a chain out of order and a key Go refuses are each reported as what they are.
+- **The `tls` control tests every protocol on a host whose certificate fails, and reads the certificate itself.** A failing chain no longer stops the TLS 1.0, 1.1 and 1.3 checks. SHA-1 or MD5 intermediates, a missing SAN, a chain out of order and a key too weak to use are each reported as what they are.
 
 ### Fixed
 
 - **A finding's row lists only the copies that count.** When a package is a runtime dependency in one lockfile and a suppressed development dependency in another, the development copy no longer appears as another location of the runtime finding or in its "also found by". It stays under ACCEPTED, which now counts it as a suppressed finding.
 
-- **A Grype or Syft failure to read an image says why.** The control's row gave the start of the tool's message, cut before the cause, then a blank line. It now gives the cause the sources Grype tried share, such as `oci-registry: dial tcp 127.0.0.1:32769: connect: connection refused`, and names the sources that failed otherwise.
+- **A Grype or Syft failure to read an image says why.** The control's row now gives the cause, such as `oci-registry: dial tcp 127.0.0.1:32769: connect: connection refused`, where it used to cut the tool's message before it. When the sources Grype tried failed for different reasons, it names each one.
 
 - **A scan holds less disk while it runs.** Each repository checkout is removed as soon as the last job reading it ends, the SBOM reads the scanners' checkout instead of cloning again, and a run removes the read-only checkouts a killed run left in the temporary directory. Under `--working-tree` the SBOM now lists the working tree the scan judged.
 
-- **A scan keeps Go dependency lookups on your machine when your local Go vulnerability database is stale.** A copy fetched with `draugr feeds update govulndb` and older than the limit is fetched again before the scan, as Trivy's and Grype's databases are. govulncheck queries vuln.go.dev only when that fetch fails, and the warning says why.
+- **A scan keeps Go dependency lookups on your machine when your local Go vulnerability database is stale.** A copy fetched with `draugr feeds update govulndb` and older than 24 hours, or `config.exploitability.maxAge`, is fetched again before the scan, as Trivy's and Grype's databases are. govulncheck queries vuln.go.dev only when that fetch fails, and the warning says why.
 
-- **A scan says when it did not read KEV or EPSS.** `SIGNALS` lists each one the run did not read and the flag that reads it, in every view, `--view compact` included, so a run that checked nothing for exploitation no longer reads as one that found nothing exploited.
+- **A scan says when it did not read KEV or EPSS, the lists of flaws known to be exploited and likely to be.** `SIGNALS` lists each one the run did not read and the flag that reads it, in every view, `--view compact` included, so a run that checked nothing for exploitation no longer reads as one that found nothing exploited.
 
-- **A scan says when it left uncommitted files out.** A local checkout with uncommitted changes is listed under `CAVEATS` as `uncommitted-files` in every view, with `--working-tree` to read them, and `failOnCaveats` can fail a run on it. Draugr's own reports folder is not counted.
+- **A scan says when it left uncommitted files out.** A local checkout with uncommitted changes is listed under `CAVEATS` as `uncommitted-files` in every view, with `--working-tree` to read them, and `config.gate.failOnCaveats` can fail a run on it. Draugr's own reports folder is not counted.
 
 - **A secrets scan with `history: true` holds far less memory once Gitleaks finishes.** Draugr reads the history report one finding at a time instead of decoding the whole file. On a history of two million findings, its own peak fell from 23.5 GB to 8.4 GB. What Gitleaks itself takes while it walks the history is unchanged.
 
@@ -56,7 +56,7 @@ _Nothing yet._
 
 - **report.json names the Trivy vulnerability database a scan used.** When a scan refreshed the database, `scanners[].version` for the Trivy scanners kept the date of the copy it replaced. It now agrees with `scannerData`, and cached results are keyed on the new database.
 
-- **Running kube-bench beside the default no longer counts a Kubernetes check twice.** A section 5 check both scanners report is now one finding, counted under the copy that decided it and marked `also found by kube-bench`. A kube-bench `WARN` on a check with an audit command now counts as a failure, and one on a manual check is marked `undecided`.
+- **Running kube-bench beside the default no longer counts a Kubernetes check twice.** A section 5 check both kube-bench and the default Kubernetes scanner report is now one finding, marked `also found by kube-bench`. A kube-bench `WARN` on a check with an audit command now counts as a failure, and one on a manual check is marked `undecided`.
 
 - **The `tls` control names the certificate when that is what failed.** A server that refused the TLS 1.2+ handshake for another reason, and whose certificate failed on the TLS 1.0-1.1 retry, was reported as `tls-no-shared-cipher`, sending the reader to the cipher suites. The retry's certificate failure is now the finding.
 
