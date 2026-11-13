@@ -829,3 +829,35 @@ func TestAKilledToolIsNamed(t *testing.T) {
 		t.Errorf("a canceled run: %v, want an error that is not ErrKilled", err)
 	}
 }
+
+// Grype and Syft list every source they tried for an image, most of which do not apply. The cause the
+// sources share is what a reader acts on, here a registry that refused the connection, and the
+// sources that failed otherwise are named after it.
+func TestFirstLineGivesTheCauseOfAnImageNoSourceProvided(t *testing.T) {
+	stderr, err := os.ReadFile("testdata/grype-unresolved-image.stderr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := firstLine(string(stderr))
+	want := "… docker, oci-registry, oci-model: dial tcp 127.0.0.1:32769: connect: connection refused; containerd, snap: other errors"
+	if got != want {
+		t.Errorf("firstLine =\n%q\nwant\n%q", got, want)
+	}
+}
+
+// A list item that is not a source's error, or a source that does not apply, gives no cause, and a
+// list of only those leaves the announcement as it was.
+func TestProviderCausesLeavesOutSourcesThatDoNotApply(t *testing.T) {
+	rest := []string{
+		"- podman: podman not available: no host address",
+		`- snap: snap file "x" does not exist`,
+		"- additionally, the following providers failed with file does not exist: docker-archive",
+	}
+	if got := providerCauses(rest); got != nil {
+		t.Errorf("providerCauses = %q, want none", got)
+	}
+	if got := providerCauses([]string{"- oci-registry: GET https://r/v2/: unexpected status: 401 Unauthorized"}); len(got) != 1 ||
+		got[0] != "oci-registry: GET https://r/v2/: unexpected status: 401 Unauthorized" {
+		t.Errorf("providerCauses = %q", got)
+	}
+}

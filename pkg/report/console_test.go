@@ -128,6 +128,21 @@ func TestWrapMessageKeepsURLsWhole(t *testing.T) {
 	}
 }
 
+// A message ending in a token longer than the line, an image reference, ends with that token: an
+// empty line after it would print as a blank one under the control's row.
+func TestWrapMessageEndsWithoutABlankLine(t *testing.T) {
+	ref := "localhost:32769/repro-alpine:1@sha256:281ac37b78fbfb4bc6fb951b44b306c8873bf16f54d889b231010193b13fcf3c"
+	got := wrapMessage("run grype: could not resolve "+ref, 40)
+	if len(got) == 0 || got[len(got)-1] != ref {
+		t.Errorf("wrapMessage = %q, want the reference as the last line", got)
+	}
+	for _, line := range got {
+		if line == "" {
+			t.Errorf("an empty line in %q", got)
+		}
+	}
+}
+
 // TestWrapMessageElidesAtAWordBoundary: a fragment of a word reads as a different word, and a
 // truncated identifier looks like a real one.
 func TestWrapMessageElidesAtAWordBoundary(t *testing.T) {

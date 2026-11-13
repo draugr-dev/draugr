@@ -1,0 +1,9 @@
+[0001] ERROR [31mfailed to catalog: errors occurred attempting to resolve 'localhost:32769/no-such-image:1@sha256:0000000000000000000000000000000000000000000000000000000000000001':
+  - snap: snap file "localhost:32769/no-such-image:1@sha256:0000000000000000000000000000000000000000000000000000000000000001" does not exist
+  - docker: pull failed: Error response from daemon: Get "http://localhost:32769/v2/": dial tcp 127.0.0.1:32769: connect: connection refused
+  - podman: podman not available: no host address
+  - containerd: pull failed: connection error: desc = "transport: Error while dialing: dial unix /run/containerd/containerd.sock: connect: permission denied"
+  - oci-registry: failed to get image descriptor from registry: Get "https://localhost:32769/v2/": dial tcp 127.0.0.1:32769: connect: connection refused; Get "http://localhost:32769/v2/": dial tcp 127.0.0.1:32769: connect: connection refused
+  - oci-model: failed to fetch descriptor: Get "https://localhost:32769/v2/": dial tcp 127.0.0.1:32769: connect: connection refused; Get "http://localhost:32769/v2/": dial tcp 127.0.0.1:32769: connect: connection refused
+  - snap: failed to check if snap exists: find API request failed with status code 429
+  - additionally, the following providers failed with file does not exist: docker-archive, oci-archive, oci-dir, singularity, local-file, local-directory[0m

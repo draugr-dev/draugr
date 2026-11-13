@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -381,6 +382,9 @@ func withCauses(first string, rest []string) string {
 	}
 	causes := bullets(rest)
 	if len(causes) == 0 {
+		causes = providerCauses(rest)
+	}
+	if len(causes) == 0 {
 		causes = goDiagnostics(rest)
 	}
 	if len(causes) == 0 {
@@ -400,6 +404,72 @@ func bullets(rest []string) []string {
 		items = append(items, strings.TrimSpace(item))
 	}
 	return items
+}
+
+// providerCauses reads the `- ` list Grype and Syft print when no source could provide an image:
+// one line per source they tried, `- docker: pull failed: …`, `- oci-registry: …`, then
+// `- additionally, the following providers failed with file does not exist: …`.
+//
+// Most of those lines say a source does not apply, a snap file that does not exist or a podman that
+// is not installed, and printed in order they push the one that answers the question off the end:
+// the registry refused the connection, or asked for a login. So a source that does not apply is
+// left out, each other source is reduced to its cause, the last three links of its first error, and
+// the cause the most sources share is given with their names. Sources that failed some other way
+// are named after it, so a reader knows there was more and where to look.
+func providerCauses(rest []string) []string {
+	type group struct {
+		cause     string
+		providers []string
+	}
+	var groups []*group
+	byCause := map[string]*group{}
+	for _, line := range rest {
+		item, ok := strings.CutPrefix(line, "- ")
+		if !ok {
+			break
+		}
+		provider, msg, ok := strings.Cut(item, ": ")
+		if !ok || strings.Contains(provider, " ") || strings.Contains(msg, "does not exist") || strings.Contains(msg, "not available") {
+			continue
+		}
+		first, _, _ := strings.Cut(msg, "; ")
+		links := strings.Split(first, ": ")
+		cause := strings.Trim(strings.Join(links[max(0, len(links)-3):], ": "), `"' `)
+		g := byCause[cause]
+		if g == nil {
+			g = &group{cause: cause}
+			byCause[cause] = g
+			groups = append(groups, g)
+		}
+		if !slices.Contains(g.providers, provider) {
+			g.providers = append(g.providers, provider)
+		}
+	}
+	if len(groups) == 0 {
+		return nil
+	}
+	top := groups[0]
+	for _, g := range groups[1:] {
+		if len(g.providers) > len(top.providers) {
+			top = g
+		}
+	}
+	out := []string{strings.Join(top.providers, ", ") + ": " + top.cause}
+	var rest2 []string
+	for _, g := range groups {
+		if g == top {
+			continue
+		}
+		for _, p := range g.providers {
+			if !slices.Contains(rest2, p) && !slices.Contains(top.providers, p) {
+				rest2 = append(rest2, p)
+			}
+		}
+	}
+	if len(rest2) > 0 {
+		out = append(out, strings.Join(rest2, ", ")+": other errors")
+	}
+	return out
 }
 
 // goDiagnostic is a compiler diagnostic, `file.go:line:col: message`, capturing the file and the
