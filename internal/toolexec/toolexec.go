@@ -56,7 +56,9 @@ func RunCombinedWithEnv(ctx context.Context, dir string, argv, env []string) ([]
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
-	out, err := command(ctx, dir, argv, env).CombinedOutput()
+	cmd := command(ctx, dir, argv, env)
+	out, err := cmd.CombinedOutput()
+	recordPeak(ctx, cmd.ProcessState)
 	log(ctx, argv, dir, started, out, err)
 	return out, explain(ctx, argv[0], err)
 }
@@ -72,7 +74,9 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 		return nil, errors.New("empty command")
 	}
 	started := time.Now()
-	out, err := command(ctx, dir, argv, env).Output()
+	cmd := command(ctx, dir, argv, env)
+	out, err := cmd.Output()
+	recordPeak(ctx, cmd.ProcessState)
 	log(ctx, argv, dir, started, out, err)
 	return out, explain(ctx, argv[0], err)
 }
@@ -138,6 +142,7 @@ func RunWithLog(ctx context.Context, dir string, argv, env []string, stream Log)
 	held := &keptLines{keep: stream.Keep}
 	cmd.Stderr = held
 	out, err := cmd.Output()
+	recordPeak(ctx, cmd.ProcessState)
 	kept := held.Bytes()
 	// Output() fills the exit error's Stderr only when it captured the stream itself, and explain and
 	// log read it from there.

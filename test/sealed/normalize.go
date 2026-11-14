@@ -97,8 +97,11 @@ func ReportNormalizer(replace map[string]string) Normalizer {
 			{"scannerData", "*", "downloaded"}, {"scannerData", "*", "tooOld"},
 		},
 		// Written only when a job had to wait, for another job's work or for a tool cache another
-		// job held, which depends on which job finished first.
-		Drop:    [][]string{{"stats", "orderWaitsMs"}, {"stats", "toolWaitsMs"}},
+		// job held, which depends on which job finished first. Draugr's own memory and each job's
+		// tool memory are the machine's, and a job served from the cache has no entry, so which jobs
+		// are listed depends on the cache too.
+		Drop: [][]string{{"stats", "orderWaitsMs"}, {"stats", "toolWaitsMs"},
+			{"stats", "peakDraugrMemoryBytes"}, {"stats", "jobMemory"}},
 		Sort:    [][]string{{"scanners"}},
 		Replace: replace,
 	}

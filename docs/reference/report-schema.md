@@ -458,6 +458,31 @@ reference](cli.md) describes under *Each tool's own parallelism*.
 jq '.stats.peakToolMemoryBytes / 1073741824' out/report.json   # in GiB
 ```
 
+`stats.peakDraugrMemoryBytes` is the largest resident memory, in bytes, Draugr's own process
+reached, the tools left out. Draugr holds every finding the tools report and reads their reports,
+so a run's memory is this figure as well as the tools'. Like `peakToolMemoryBytes`, it covers the
+life of the Draugr process, and it is absent where the operating system does not report it.
+
+`stats.jobMemory` lists, for each job that ran a tool, the largest resident memory one of its tool
+processes reached, together with the processes that one started and waited for, such as Semgrep's
+workers or a Go build's compile processes. A job served from the cache, or by an identical scan
+another job of the run made, ran no tool and has no entry. A job whose tool failed, or was killed
+when memory ran out, has one.
+
+| Field | Meaning |
+|---|---|
+| `scanner`, `control` | the job's scanner and control |
+| `component` | the job's component, absent for a project-wide control |
+| `kind`, `target` | the target, as `targets` names it |
+| `peakBytes` | the largest resident memory of one of the job's tool processes, in bytes |
+
+Neither figure is a sum of what ran at the same time: jobs overlap, and Draugr's peak and a tool's
+need not fall at the same moment.
+
+```bash
+jq '.stats.jobMemory | max_by(.peakBytes)' out/report.json   # the job whose tool took the most
+```
+
 ## Effects
 
 `effects` records the [scanner effects](../trust-and-operations/what-a-scan-does.md) the run

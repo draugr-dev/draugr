@@ -74,12 +74,43 @@ func memoryMax(file string) uint64 {
 	return n
 }
 
+// selfPeakMemory reads this process's own largest resident set from getrusage(2), which Linux
+// reports in kilobytes.
+func selfPeakMemory() (uint64, bool) {
+	var ru syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
+		return 0, false
+	}
+	return kilobytes(ru.Maxrss)
+}
+
+// processPeak reads the largest resident set of an exited process, and of the processes it waited
+// for, from what wait4(2) reported for it, in kilobytes on Linux.
+func processPeak(state *os.ProcessState) (uint64, bool) {
+	if state == nil {
+		return 0, false
+	}
+	ru, ok := state.SysUsage().(*syscall.Rusage)
+	if !ok || ru == nil {
+		return 0, false
+	}
+	return kilobytes(ru.Maxrss)
+}
+
+// kilobytes is a maxrss in kilobytes as bytes, and false where it is not positive.
+func kilobytes(maxrss int64) (uint64, bool) {
+	if maxrss <= 0 {
+		return 0, false
+	}
+	return uint64(maxrss) * 1024, true // #nosec G115 -- positive, checked above
+}
+
 // peakChildMemory reads the largest resident set of the waited-for children from getrusage(2),
 // which Linux reports in kilobytes.
 func peakChildMemory() (uint64, bool) {
 	var ru syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_CHILDREN, &ru); err != nil || ru.Maxrss <= 0 {
+	if err := syscall.Getrusage(syscall.RUSAGE_CHILDREN, &ru); err != nil {
 		return 0, false
 	}
-	return uint64(ru.Maxrss) * 1024, true // #nosec G115 -- positive, checked above
+	return kilobytes(ru.Maxrss)
 }

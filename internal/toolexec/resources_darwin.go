@@ -2,6 +2,7 @@ package toolexec
 
 import (
 	"encoding/binary"
+	"os"
 	"syscall"
 )
 
@@ -18,6 +19,29 @@ func totalMemory() uint64 {
 	var b [8]byte
 	copy(b[:], v)
 	return binary.LittleEndian.Uint64(b[:])
+}
+
+// selfPeakMemory reads this process's own largest resident set from getrusage(2), which macOS
+// reports in bytes.
+func selfPeakMemory() (uint64, bool) {
+	var ru syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil || ru.Maxrss <= 0 {
+		return 0, false
+	}
+	return uint64(ru.Maxrss), true // #nosec G115 -- positive, checked above
+}
+
+// processPeak reads the largest resident set of an exited process, and of the processes it waited
+// for, from what wait4(2) reported for it, in bytes on macOS.
+func processPeak(state *os.ProcessState) (uint64, bool) {
+	if state == nil {
+		return 0, false
+	}
+	ru, ok := state.SysUsage().(*syscall.Rusage)
+	if !ok || ru == nil || ru.Maxrss <= 0 {
+		return 0, false
+	}
+	return uint64(ru.Maxrss), true // #nosec G115 -- positive, checked above
 }
 
 // peakChildMemory reads the largest resident set of the waited-for children from getrusage(2),

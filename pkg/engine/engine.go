@@ -403,6 +403,9 @@ func New(reg *Registry, opts ...Option) *Engine {
 // rather than whatever processes the test binary has run.
 var peakToolMemory = toolexec.PeakMemory
 
+// peakOwnMemory reads Stats.PeakOwnMemory, a variable for the same reason.
+var peakOwnMemory = toolexec.OwnPeakMemory
+
 // defaultConcurrency is how many jobs run at once when nobody chose: one per CPU or per two GiB of
 // memory this process may use, whichever is fewer (toolexec.DefaultJobs). A variable so a test can
 // hold it to a machine of its own.
@@ -806,6 +809,16 @@ type Stats struct {
 	// Recorded because a run that came close to exhausting the machine otherwise finishes looking
 	// like any other, and the next, larger one is the run that fails.
 	PeakToolMemory uint64
+	// PeakOwnMemory is the largest resident memory, in bytes, Draugr's own process reached, read
+	// with PeakToolMemory and leaving the tools out. Zero where the platform does not report it.
+	// Draugr holds what the tools report, and reads and decodes their output, so a run's memory is
+	// this as well as the tools'.
+	PeakOwnMemory uint64
+	// JobMemory is, for each job that ran a tool, the largest resident memory one of its tool
+	// processes reached, with the processes that process waited for, sorted by scanner, then
+	// target. A job served from the cache, or by another job's identical scan, ran none and has no
+	// entry.
+	JobMemory []JobMemory
 	// Duration is wall-clock for the whole run, and ByControl is how long each control's jobs
 	// took summed across them. Reported because "why is this slow" is a question a job count
 	// cannot answer: with concurrency the parts do not add up to the whole, and the control
@@ -909,6 +922,29 @@ type FailedScan struct {
 	Target string
 	// Detail is the scanner's error, the same text as the control's ScanErrors entry for it.
 	Detail string
+}
+
+// JobMemory is the largest resident memory, in bytes, one tool process of a job reached, with the
+// processes that process waited for, such as a Go build's compile processes or Semgrep's workers.
+type JobMemory struct {
+	// Scanner, Control and Component are the job's; Component is empty for a project-wide control.
+	Scanner   string
+	Control   string
+	Component string
+	// Kind and Target name the target as Targets names it. Both are empty for a job with no target.
+	Kind   string
+	Target string
+	// PeakBytes is the largest resident memory of one of the job's tool processes.
+	PeakBytes uint64
+}
+
+// jobMemoryFor records the memory of a job's tools.
+func jobMemoryFor(pj PlannedJob, peak uint64) JobMemory {
+	m := JobMemory{Scanner: pj.Job.Scanner, Control: pj.Control, Component: pj.Component, PeakBytes: peak}
+	if pj.Job.Target != nil {
+		m.Kind, m.Target = outcomeIdentity(pj.Job.Target)
+	}
+	return m
 }
 
 // failedScanFor records the scanner behind a failed job.
@@ -1491,10 +1527,21 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			}()
 
 			jobStart := time.Now()
-			jobCtx, span := tracer.Start(toolexec.WithJobs(plugin.WithSharers(ctx, sharers), beside), "engine.scan", trace.WithAttributes(
-				attribute.String("control", pj.Control),
-				attribute.String("scanner", pj.Job.Scanner),
-			))
+			// The job's own tool processes report their memory here, a failed or killed one too,
+			// which is the job a reader most needs the figure for.
+			var jobPeak toolexec.MemoryPeak
+			defer func() {
+				if peak := jobPeak.Bytes(); peak > 0 {
+					mu.Lock()
+					stats.JobMemory = append(stats.JobMemory, jobMemoryFor(pj, peak))
+					mu.Unlock()
+				}
+			}()
+			jobCtx, span := tracer.Start(toolexec.WithMemoryPeak(toolexec.WithJobs(plugin.WithSharers(ctx, sharers), beside), &jobPeak),
+				"engine.scan", trace.WithAttributes(
+					attribute.String("control", pj.Control),
+					attribute.String("scanner", pj.Job.Scanner),
+				))
 			defer span.End()
 
 			scanner, ok := e.reg.Scanner(pj.Job.Scanner)
@@ -1698,6 +1745,11 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 
 	stats.Duration = time.Since(runStart)
 	stats.PeakToolMemory, _ = peakToolMemory()
+	stats.PeakOwnMemory, _ = peakOwnMemory()
+	slices.SortFunc(stats.JobMemory, func(a, b JobMemory) int {
+		return cmp.Or(cmp.Compare(a.Scanner, b.Scanner), cmp.Compare(a.Kind, b.Kind), cmp.Compare(a.Target, b.Target),
+			cmp.Compare(a.Control, b.Control), cmp.Compare(a.Component, b.Component))
+	})
 	stats.ToolWaits = waits.Totals()
 	stats.OrderWaits = orderWaits.Totals()
 	stats.DataRefresh = refreshed
