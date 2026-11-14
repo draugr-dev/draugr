@@ -1,0 +1,1 @@
+- **One leaked key is one thing to do.** When the secrets scanner and a code scanner both flag the same line, the fix list shows a single action under credentials, at the more urgent of the two priorities, clearing both findings, instead of two actions for the one key.
