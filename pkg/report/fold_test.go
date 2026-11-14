@@ -7,7 +7,10 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -127,14 +130,26 @@ func TestAFoldedRowNamesItsRepositoryWhereTheListSpansSeveral(t *testing.T) {
 }
 
 func TestAListCountsItsRowsAndTheirLines(t *testing.T) {
-	line := func(path string) action { return lineAction("P1", "api", "r", path, "Handle the returned error") }
+	line := func(path string, fingerprints ...string) action {
+		a := lineAction("P1", "api", "r", path, "Handle the returned error")
+		a.findings = nil
+		if len(fingerprints) == 0 {
+			fingerprints = []string{path}
+		}
+		for _, fp := range fingerprints {
+			a.findings = append(a.findings, finding{control: "sast", priority: "P1", component: "api", repository: "r",
+				location: path, fingerprint: fp})
+		}
+		return a
+	}
 	rule := action{key: "iac\x00x", title: "Fix x"}
 	for _, c := range []struct {
 		name string
 		as   []action
 		want string
 	}{
-		{"folded", []action{line("a.go:1"), line("a.go:2")}, "1 action on 2 lines"},
+		{"folded", []action{line("a.go:1", "1", "2"), line("a.go:2", "3")}, "1 action on 2 lines"},
+		{"folded, a finding a line", []action{line("a.go:1", "1"), line("a.go:2", "2")}, "1 action"},
 		{"nothing folded", []action{line("a.go:1")}, "1 action"},
 		{"not every row is about lines", []action{line("a.go:1"), line("a.go:2"), rule}, "2 actions"},
 	} {
@@ -147,6 +162,8 @@ func TestAListCountsItsRowsAndTheirLines(t *testing.T) {
 	}
 }
 
+// A row standing for several lines counts them where they differ from its findings. Where every
+// line holds one finding, the two counts are one number, said once.
 func TestAConsoleRowSaysHowManyLinesItStandsFor(t *testing.T) {
 	var b bytes.Buffer
 	renderActions(&b, tui.Plain(), []action{
@@ -157,11 +174,19 @@ func TestAConsoleRowSaysHowManyLinesItStandsFor(t *testing.T) {
 	if strings.Count(out, "Handle the returned error") != 1 {
 		t.Errorf("the title should print once:\n%s", out)
 	}
-	if !strings.Contains(out, "2 lines · 2 findings · a.go:1,2") {
-		t.Errorf("want the lines named:\n%s", out)
+	if !strings.Contains(out, "      2 findings · a.go:1,2") || strings.Contains(out, "2 lines") {
+		t.Errorf("want one count:\n%s", out)
 	}
 	if strings.Contains(out, "control sast") {
 		t.Errorf("one control's rows should not repeat it:\n%s", out)
+	}
+
+	b.Reset()
+	twice := lineAction("P3", "", "r", "a.go:1", "Handle the returned error")
+	twice.findings = append(twice.findings, twice.findings[0])
+	renderActions(&b, tui.Plain(), []action{twice, lineAction("P3", "", "r", "a.go:2", "Handle the returned error")}, false)
+	if !strings.Contains(b.String(), "2 lines · 3 findings · a.go:1,2") {
+		t.Errorf("want the lines named where they differ from the findings:\n%s", b.String())
 	}
 }
 
@@ -252,5 +277,63 @@ func TestALineNoOtherSharesARowWithIsOnItsOwn(t *testing.T) {
 	}
 	if len(foldLines(as)) != 3 {
 		t.Errorf("the rows lineRows describes should be the rows foldLines prints")
+	}
+}
+
+// The heading over the lists leaves out a part one list holds whole, which that list's heading
+// counts, and keeps a part two lists share.
+func TestTheHeadingOverTheListsSaysNoCountOneListSays(t *testing.T) {
+	act := func(kind skald.ActionKind, title, fp string) action {
+		return action{key: fp, kind: kind, title: title, findings: []finding{{fingerprint: fp}}}
+	}
+	fix := act(skald.KindCode, "Pin actions to a full commit SHA", "1")
+	query := act(skald.KindCode, "Pass outside data as query parameters", "2")
+	key := act(skald.KindCredential, "Check for a credential, and rotate any you find", "3")
+	url := act(skald.KindCode, "Check who can set the URL", "4")
+	lists := func(as ...action) map[skald.ActionKind][]action {
+		m := map[skald.ActionKind][]action{}
+		for _, a := range as {
+			m[a.kind] = append(m[a.kind], a)
+		}
+		return m
+	}
+	all := []action{fix, query, key, url}
+	if got := acrossLists(all, lists(all...)); got != "2 checks on 2 findings" {
+		t.Errorf("every change in one list, checks in two: got %q", got)
+	}
+	if got := acrossLists(all[:3], lists(all[:3]...)); got != "" {
+		t.Errorf("every change in one list, every check in another: got %q, want no count", got)
+	}
+	bump := act(skald.KindBump, "Upgrade jinja2", "5")
+	all = append(all, bump)
+	if got := acrossLists(all, lists(all...)); got != "3 actions clear 3 findings · 2 checks on 2 more" {
+		t.Errorf("changes in two lists: got %q", got)
+	}
+}
+
+// A Check action ends in a change or in a recorded exclusion, which the actions view says once
+// under its heading, and only on a run that has one.
+func TestTheActionsViewSaysOnceHowACheckEnds(t *testing.T) {
+	check := func(uri string, line int) sarif.Result {
+		return sarif.Result{RuleID: "javascript.lang.security.detect-child-process.detect-child-process",
+			Level: sarif.LevelError, Priority: "P2", Tool: "semgrep",
+			Location: sarif.Location{URI: uri, StartLine: line}}
+	}
+	run := func(results ...sarif.Result) string {
+		return renderConsole(t, Data{View: ViewActions, Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"sast": {Report: sarif.Report{Results: results}},
+		}}})
+	}
+	withChecks := run(check("app/run.js", 12), check("app/jobs.js", 40))
+	if n := strings.Count(withChecks, checkEnding); n != 1 {
+		t.Errorf("the check's ending is said %d times, want once:\n%s", n, withChecks)
+	}
+	if !strings.Contains(withChecks, "Check who can set the command and its arguments") {
+		t.Fatalf("no Check row in the fixture:\n%s", withChecks)
+	}
+	without := run(sarif.Result{RuleID: "python.lang.security.audit.eval-detected.eval-detected", Level: sarif.LevelError,
+		Priority: "P2", Tool: "semgrep", Location: sarif.Location{URI: "app/x.py", StartLine: 3}})
+	if strings.Contains(without, checkEnding) {
+		t.Errorf("a run with no Check row says how one ends:\n%s", without)
 	}
 }

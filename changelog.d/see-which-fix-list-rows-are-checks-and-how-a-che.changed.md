@@ -1,0 +1,1 @@
+- **See which fix list rows are checks, and how a check ends.** In `--view actions`, a Check row (one asking you to look before you change anything) is counted apart from the changes, so a heading no longer says it clears findings, and one line says a check ends in a change or in config.exclude with a reason.
