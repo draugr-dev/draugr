@@ -147,6 +147,14 @@ func TestCosignClassifiesEveryOutcome(t *testing.T) {
 		{"uncovered and signed", plugin.Config{"unmatched": "observe"},
 			[]func([]string) ([]byte, []byte, int, error){ok(signedJSON)},
 			"", ""},
+		// A signature from an identity nobody declared is not coverage. Requiring coverage and
+		// accepting any signature would pass an image signed by whoever pushed it.
+		{"uncovered and signed, warned", plugin.Config{"unmatched": "warn"},
+			[]func([]string) ([]byte, []byte, int, error){ok(signedJSON)},
+			"provenance-not-covered", ""},
+		{"uncovered and signed, failed", plugin.Config{"unmatched": "fail"},
+			[]func([]string) ([]byte, []byte, int, error){ok(signedJSON)},
+			"provenance-not-covered", ""},
 		{"uncovered and cosign could not answer", plugin.Config{"unmatched": "observe"},
 			[]func([]string) ([]byte, []byte, int, error){exits(1)},
 			"", "reading the signature"},
@@ -190,6 +198,45 @@ func TestCosignRanksAnUnexpectedIdentityAboveAnAbsence(t *testing.T) {
 	// identity runs to about 95, so whatever comes first is what a reader gets.
 	if !strings.Contains(a.Message, "chainguard-images/images") {
 		t.Errorf("the message should name who did sign: %q", a.Message)
+	}
+}
+
+// unmatched: fail with no signers declared, over two images: one signed by an identity nobody
+// declared and one carrying nothing. Both are gaps in coverage and both fail, the signed one naming
+// who signed it so a reader can declare that signer or refuse it. The identity is still recorded
+// for the account of the run, because it is the value a signer for the image would declare.
+func TestCosignRequiredCoverageFailsASignedImageNoSignerCovers(t *testing.T) {
+	cfg := plugin.Config{"unmatched": "fail"}
+	signed, _ := stubCosign(t, ok(signedJSON))
+	unsigned, _ := stubCosign(t, exits(cosignExitNoSignature))
+
+	reports := map[string]sarif.Report{}
+	for ref, s := range map[string]*cosignVerifier{
+		"cgr.dev/chainguard/static:latest": signed,
+		"docker.io/library/alpine:3.19":    unsigned,
+	} {
+		rep, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: ref}, cfg)
+		if err != nil {
+			t.Fatalf("%s: %v", ref, err)
+		}
+		reports[ref] = rep
+	}
+
+	for ref, rep := range reports {
+		if len(rep.Results) != 1 || rep.Results[0].RuleID != "provenance-not-covered" ||
+			rep.Results[0].Level != sarif.LevelError {
+			t.Errorf("%s: results = %v, want one provenance-not-covered at error", ref, rep.Results)
+		}
+	}
+	got := reports["cgr.dev/chainguard/static:latest"]
+	if msg := got.Results[0].Message; !strings.Contains(msg, "chainguard-images/images") {
+		t.Errorf("the finding should name who signed the image: %q", msg)
+	}
+	if desc := got.Provenance[0].Describe(); !strings.Contains(desc, "https://github.com/chainguard-images/images") {
+		t.Errorf("account = %q, want the identity found recorded in full", desc)
+	}
+	if msg := reports["docker.io/library/alpine:3.19"].Results[0].Message; !strings.Contains(msg, "no signature") {
+		t.Errorf("an unsigned image should say it carries nothing: %q", msg)
 	}
 }
 

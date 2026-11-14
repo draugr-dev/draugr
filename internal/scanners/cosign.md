@@ -80,11 +80,15 @@ already been made.
 |---|---|---|
 | `provenance-unexpected-identity` | error | a signer was expected and the artifact is signed by a different workload |
 | `provenance-unsigned` | error | a signer was expected and no signature is in the registry |
-| `provenance-not-covered` | warning or error | no signer covers this image, it carries no signature, and `unmatched` is `warn` or `fail` |
+| `provenance-not-covered` | warning or error | no signer covers this image and `unmatched` is `warn` or `fail`, whether or not it carries a signature |
 
 An image no signer covers produces **no finding** under the default `unmatched: observe`. What was
 found is recorded in the control's account of the run instead: the identity on each signed image,
 and a count of the ones carrying none.
+
+Under `warn` or `fail`, a signature on an image no signer covers does not make it covered. It
+shows only that somebody signed, and anybody can. The finding names the identity found, so the
+image can be given a signer or refused.
 
 A note per image would be the obvious alternative and is the wrong shape. Most of what a project
 runs is published by somebody else, so an inventory of fourteen images becomes fourteen rows about

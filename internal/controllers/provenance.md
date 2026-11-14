@@ -98,7 +98,9 @@ scan depends on it.
 2. Otherwise, the signer whose `images` patterns match. `*` matches any run of characters,
    including `/`.
 3. An image no signer matches is **observed**: the identity found is reported and nothing is
-   checked. `unmatched` decides what that absence is worth.
+   checked. `unmatched` decides what that absence is worth, whether or not the image carries a
+   signature: under `warn` or `fail`, an image signed by an identity no signer names is a gap in
+   coverage like an unsigned one, because a signature from anybody is not provenance.
 
 Two signers matching one image is a validation error. Requiring more than one signature on an
 artifact is a real thing to want and a different one; it should be asked for rather than arrived at

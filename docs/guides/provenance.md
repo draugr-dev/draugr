@@ -303,6 +303,11 @@ config:
       unmatched: fail     # observe (the default) | warn | fail
 ```
 
+An image is covered when a signer covers it, not when it carries a signature. Under `warn` or
+`fail`, an image signed by an identity no signer names reports `provenance-not-covered` like an
+unsigned one, and the finding names the identity found. Anybody can sign an image, so a signature
+from somebody nobody declared shows nothing about where it came from.
+
 Do not start here. Among the two thousand most-downloaded npm packages, the ones publishing from
 GitHub Actions with provenance enabled are a small minority, and container images are no further
 ahead. A control that fails on every third-party image is a control somebody switches off in its

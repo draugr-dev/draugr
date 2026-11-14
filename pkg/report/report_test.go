@@ -1963,7 +1963,7 @@ func TestTheFixSaysWhereTheProblemLives(t *testing.T) {
 		// Three rules on one control, three different next steps.
 		{"provenance", "provenance-unexpected-identity", "find out what signed the image before running it"},
 		{"provenance", "provenance-unsigned", "sign the image in the build that publishes it, or ask its publisher to"},
-		{"provenance", "provenance-not-covered", "declare a signer for the image, or accept it unsigned"},
+		{"provenance", "provenance-not-covered", "declare a signer that covers the image, or accept it uncovered"},
 		{"provenance", "a-rule-added-later", "check the signature"},
 	} {
 		got := fixPhrase(finding{control: c.control, ruleID: c.rule})

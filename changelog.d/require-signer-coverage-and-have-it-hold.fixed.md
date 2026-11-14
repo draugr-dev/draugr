@@ -1,0 +1,1 @@
+- **Require signer coverage and have it hold.** With `unmatched: warn` or `fail`, `provenance` now reports an image no signer covers even when it carries a signature, and names the identity that signed it. Until now an image signed by anybody passed.

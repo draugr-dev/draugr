@@ -1387,7 +1387,9 @@ is the failure this control exists to catch, and it is refused rather than treat
 
 **Which signer covers an image:** the one its `signedBy` names, or the one whose `images` patterns
 match. Two signers matching one image is refused; narrow the patterns, or name one with `signedBy`.
-An image no signer covers is observed, and `unmatched` decides what that absence is worth.
+An image no signer covers is observed, and `unmatched` decides what that absence is worth. Under
+`warn` or `fail` that holds for a signed image as much as an unsigned one: a signature from an
+identity no signer names is not coverage.
 
 A component's signers are **added to** the project's rather than replacing them, the same way the
 license policy is unioned. A component that replaced the list could stop checking most of what it
