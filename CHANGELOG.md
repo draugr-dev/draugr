@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.177.0] - 2026-11-14
+
+### Changed
+
+- **The Kubernetes control decides nine more CIS checks the benchmark marks manual.** Who can bind, escalate or impersonate, create persistent volumes or service account tokens, use `nodes/proxy`, approve certificates or change admission webhooks; namespaces with no NetworkPolicy; secrets in environment variables; and whether a policy mechanism is in place. Five checks are left for a person, not fourteen.
+
 ## [0.176.1] - 2026-11-14
 
 ### Fixed
@@ -7141,7 +7147,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.176.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.177.0...HEAD
+[0.177.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.177.0
 [0.176.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.1
 [0.176.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.0
 [0.175.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.175.0
