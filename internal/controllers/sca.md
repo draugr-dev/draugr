@@ -14,6 +14,26 @@ Plans one scan per repository declared on a component (each is checked out and s
 dependency vulnerabilities), then aggregates + deduplicates findings into a per-control
 result with a severity summary.
 
+## Malicious and deprecated packages
+
+Draugr can also mark a finding whose package is known to be malicious or deprecated. Turn it on with:
+
+```yaml
+config:
+  dependencyHealth:
+    enabled: true
+```
+
+It is off by default because it sends data off the machine. Once the scanners finish, Draugr sends
+the names and versions of the packages the run found to [deps.dev](https://deps.dev), and nothing
+else: no source, no findings, no descriptor. A finding in a package the OSSF Malicious Packages
+Project has flagged is raised to critical and marked `↑ malicious`, and one in a version its
+publisher has deprecated goes up one level, marked `↑ deprecated`. It covers the ecosystems deps.dev
+indexes (Cargo, Go, Maven, npm, NuGet, PyPI, RubyGems), not operating-system packages in an image.
+[Prioritization](../../docs/concepts/prioritization.md#dependency-health) has how each mark moves a
+finding, and the [schema reference](../../docs/reference/saga-schema.md#dependency-health-configdependencyhealth)
+the full block.
+
 ## Development dependencies
 
 `devDependencies` decides whether a finding in a development dependency counts. `suppress`, the
