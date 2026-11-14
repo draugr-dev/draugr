@@ -1075,9 +1075,9 @@ asks nothing unless `--policy` is passed.
 
 ## `draugr explain <rule-id>`
 
-Print what a scan's own report holds about one rule: its description, the detail its scanner
-published, where the scan found it (up to five locations), its reference link, and the report it
-read, with when that report was written.
+Print what a scan's own report holds about one rule: its description, the detail or the fix its
+scanner published, where the scan found it (up to five locations), its reference link, and the
+report it read, with when that report was written.
 
 ```bash
 draugr scan draugr.saga.yaml -o out/
@@ -1088,7 +1088,7 @@ draugr explain kube-bench/cis/4.3.1 -r out/
 kube-bench/cis/4.3.1
 Ensure that the kube-proxy metrics service is bound to localhost
 
-DETAIL
+FIX
   Modify or remove any values which bind the metrics service to a non-localhost address.
   The default value is 127.0.0.1:10249.
 
@@ -1102,7 +1102,10 @@ REPORT
   out/results.sarif · written 2026-11-12 23:41 UTC
 ```
 
-`DETAIL` is left out when the scanner published nothing beyond the description. `REPORT` names the
+The section under the description is `FIX` where the scanner publishes its remediation there, as
+Prowler, kube-bench and draugr-k8s-policies do, and `DETAIL`, what the rule finds, for every other
+scanner. It is wrapped to the terminal, and left out when the scanner published nothing beyond the
+description. `REPORT` names the
 file read: a checkout can hold an older report, such as one a `file` publisher committed under
 `.draugr/out`, and `explain` reads the first it finds.
 
