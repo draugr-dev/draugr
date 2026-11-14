@@ -149,6 +149,44 @@ func TestOfflineTrivyConfigCannotFetchModules(t *testing.T) {
 	}
 }
 
+// Trivy reads the remote modules it keeps under the temporary directory before it tries to fetch
+// one, so each scan runs with a TMPDIR of its own: it exists while Trivy runs, is never the system's
+// or another scan's, and is gone afterwards. Online and offline alike.
+func TestTrivyConfigKeepsModulesInADirectoryOfItsOwn(t *testing.T) {
+	prior := execWithStderr
+	t.Cleanup(func() { execWithStderr = prior; netpolicy.SetOffline(false) })
+	var dirs []string
+	execWithStderr = func(_ context.Context, _ string, _ []string, env []string) ([]byte, []byte, error) {
+		var tmp string
+		for _, e := range env {
+			if v, ok := strings.CutPrefix(e, "TMPDIR="); ok {
+				tmp = v
+			}
+		}
+		if tmp == "" || tmp == os.TempDir() {
+			t.Errorf("TMPDIR = %q, want a directory of the scan's own", tmp)
+		} else if fi, err := os.Stat(tmp); err != nil || !fi.IsDir() {
+			t.Errorf("TMPDIR %s is not a directory while Trivy runs: %v", tmp, err)
+		}
+		dirs = append(dirs, tmp)
+		return []byte(trivyMisconfigSARIF), nil, nil
+	}
+	for _, offline := range []bool{false, true} {
+		netpolicy.SetOffline(offline)
+		if _, _, err := trivyConfigExec(t.Context(), t.TempDir(), []string{"trivy", "config"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(dirs) != 2 || dirs[0] == dirs[1] {
+		t.Fatalf("TMPDIRs = %v, want one per scan", dirs)
+	}
+	for _, d := range dirs {
+		if _, err := os.Stat(d); !os.IsNotExist(err) {
+			t.Errorf("%s is left behind after the scan: %v", d, err)
+		}
+	}
+}
+
 // The two logs are what Trivy 0.74.0 wrote at --debug, reduced to the lines about module calls.
 //
 // trivy-module-calls.log is one tree of three root modules. infra/a calls 33 local modules, the

@@ -148,17 +148,18 @@ Every run, and the checks warm, passes `--skip-version-check` and `--disable-tel
 makes no version-check or telemetry request to `check.trivy.dev`. A Trivy older than 0.63.0 has
 neither flag and makes no such request.
 
-**One job at a time.** Trivy downloads a remote module into one directory under the system's
-temporary directory, with no lock, so two jobs using the same module lose its findings: one fails to
-load it, or reads the directory while the other is still writing and reports nothing from it, with no
-error. So a run takes `trivy-config` jobs one at a time. Two runs on one machine that share a
-temporary directory, such as parallel jobs on a self-hosted runner, can still race; give each its own
-`TMPDIR`.
-
 **Terraform modules**, from the host each `module` block's `source` names: `registry.terraform.io`
-for a registry address, or the git host for a `git::` or GitHub source. Trivy downloads them into
-`.aqua/cache` under the system temporary directory. A module with a local `source` path is read from the checkout.
+for a registry address, or the git host for a `git::` or GitHub source. A module with a local
+`source` path is read from the checkout.
+
+Trivy keeps the modules it downloads in `.aqua/cache` under the temporary directory, and reads that
+cache before it fetches. Draugr runs each scan with `TMPDIR` set to a directory of its own and
+removes it afterwards, so a scan reads only the modules it fetched itself. A module some other
+program cached is never checked, a scan writes nothing another program reads, and a commit gives the
+same findings on a laptop as on a fresh runner. Every scan fetches the modules it calls again. A
+run takes `trivy-config` jobs one at a time.
 
 With `--offline`, Draugr runs the scan through a closed proxy and allows git only the `file`
-transport, so no module is downloaded and each remote one is reported unread. To scan what a
-module defines, vendor it into the repository, or allow the hosts its `source` names.
+transport, so no module is downloaded and each remote one is reported unread, whatever an earlier
+online scan downloaded. To scan what a module defines, vendor it into the repository, or allow
+the hosts its `source` names.
