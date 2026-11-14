@@ -33,6 +33,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
+	"github.com/draugr-dev/draugr/internal/versionorder"
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -3196,10 +3197,11 @@ type correlationKey struct {
 // ecosystems and the purl is what both tools agree on. And the repository or the image, because a
 // component can hold several of each and the same dependency in two of them is two things to fix.
 //
-// A package with no purl is keyed on what it does carry, its ecosystem, name and version: Grype
-// reports a library it identified inside a binary that way, and the same flaw in the same version
-// in two DLLs is one thing to fix, as it is in two lockfiles. Such a key never meets a purl, so it
-// joins only the copies a scanner reported the same way.
+// A package with no purl is keyed on what it does carry, its ecosystem, name and version
+// (packageNameKey): Grype reports a library it identified inside a binary that way, and a Cargo
+// workspace member, and the same flaw in the same version in two DLLs is one thing to fix, as it is
+// in two lockfiles. correlationGroups joins such a copy to the one purl-keyed copy of the same
+// package.
 //
 // A finding with no package, no vulnerability identity, or a package short of those facts does not
 // correlate. That is most of them, a leaked credential, a misconfigured resource, and inventing a
@@ -3211,16 +3213,57 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 	}
 	pkg := correlationPURL(res.Package.PURL)
 	if pkg == "" {
-		p := res.Package
-		if p.Ecosystem == "" || p.Name == "" || p.Version == "" {
+		var ok bool
+		if pkg, ok = packageNameKey(res.Package); !ok {
 			return correlationKey{}, false
 		}
-		pkg = "\x00" + p.Ecosystem + "\x00" + p.Name + "\x00" + p.Version
 	}
 	return correlationKey{
 		component: res.Component, repository: res.Repository, image: res.Image,
 		pkg: pkg, vuln: vuln,
 	}, true
+}
+
+// packageNameKey keys a package on its package URL type, name and version, and false for a package
+// short of any of them.
+//
+// The type comes from the package URL where there is one, and otherwise from the ecosystem the
+// scanner reported, in the URL's terms: Trivy calls a Cargo package's ecosystem cargo and Grype
+// calls it rust-crate, and both mean pkg:cargo. An ecosystem with no known URL type is kept as the
+// scanner wrote it, so its copies meet only those reported the same way. A Go module's path and a
+// Python package's name are folded as their package URLs fold them, since one scanner may write the
+// name as published and another as the URL spells it.
+func packageNameKey(p *sarif.Package) (string, bool) {
+	kind := purlType(p.PURL)
+	if kind == "" {
+		if kind = versionorder.PURLType(p.Ecosystem); kind == "" {
+			kind = p.Ecosystem
+		}
+	}
+	if kind == "" || p.Name == "" || p.Version == "" {
+		return "", false
+	}
+	name := p.Name
+	switch kind {
+	case "golang":
+		name = strings.ToLower(name)
+	case "pypi":
+		name = strings.ReplaceAll(strings.ToLower(name), "_", "-")
+	}
+	return "\x00" + kind + "\x00" + name + "\x00" + p.Version, true
+}
+
+// purlType is a package URL's type, lowercased, and empty for anything that is not a package URL.
+func purlType(purl string) string {
+	rest, ok := strings.CutPrefix(purl, "pkg:")
+	if !ok {
+		return ""
+	}
+	t, _, ok := strings.Cut(rest, "/")
+	if !ok {
+		return ""
+	}
+	return strings.ToLower(t)
 }
 
 // correlationGroups sorts a control's findings into the flaws correlation counts once each: the
@@ -3237,6 +3280,12 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 // Two flaws are not joined where one scanner reported each of them. That scanner has said the two
 // identifiers are two findings, and joining them on another scanner's alias would count one of its
 // findings under the other, taking a flaw out of the count.
+//
+// A copy keyed without a package URL joins the copies keyed on one where both name the same package
+// (packageNameKey): Grype gives a Cargo workspace member no package URL and Trivy gives it
+// pkg:cargo/<name>@<version>, and both report one flaw. It joins only where exactly one URL-keyed
+// flaw has that name. Two would mean the scanners wrote two URLs for what reads as one package, and
+// picking one of them would be a guess.
 func correlationGroups(results []sarif.Result) [][]int {
 	parent := make([]int, len(results))
 	keys := make([]correlationKey, len(results))
@@ -3273,6 +3322,44 @@ func correlationGroups(results []sarif.Result) [][]int {
 		}
 		tools[r][results[i].Tool] = true
 	}
+	join := func(i, j int) {
+		a, b := root(i), root(j)
+		if a == b || sharesTool(tools[a], tools[b]) {
+			return
+		}
+		parent[b] = a
+		for tool := range tools[b] {
+			tools[a][tool] = true
+		}
+		delete(tools, b)
+	}
+
+	// The URL-keyed flaw each package name names, or -1 where more than one does.
+	named := map[correlationKey]int{}
+	for i := range results {
+		if !keyed[i] || results[i].Package.PURL == "" {
+			continue
+		}
+		k := keys[i]
+		var ok bool
+		if k.pkg, ok = packageNameKey(results[i].Package); !ok {
+			continue
+		}
+		if j, seen := named[k]; seen && (j < 0 || root(j) != root(i)) {
+			named[k] = -1
+		} else if !seen {
+			named[k] = i
+		}
+	}
+	for i := range results {
+		if !keyed[i] || results[i].Package.PURL != "" {
+			continue
+		}
+		if j, seen := named[keys[i]]; seen && j >= 0 {
+			join(j, i)
+		}
+	}
+
 	for i := range results {
 		if !keyed[i] {
 			continue
@@ -3280,19 +3367,9 @@ func correlationGroups(results []sarif.Result) [][]int {
 		for _, id := range results[i].AliasVulnerabilityIDs() {
 			other := keys[i]
 			other.vuln = id
-			j, seen := first[other]
-			if !seen {
-				continue
+			if j, seen := first[other]; seen {
+				join(i, j)
 			}
-			a, b := root(i), root(j)
-			if a == b || sharesTool(tools[a], tools[b]) {
-				continue
-			}
-			parent[b] = a
-			for tool := range tools[b] {
-				tools[a][tool] = true
-			}
-			delete(tools, b)
 		}
 	}
 

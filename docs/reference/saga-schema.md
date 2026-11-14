@@ -751,8 +751,9 @@ Set `report` where the repository holds a published package's source under its p
 as a fork of a crate taken by path through `[patch]`. An advisory against that version then describes
 code in the checkout.
 
-Grype gives a Cargo workspace member no package URL, so its finding and Trivy's about the same flaw
-are not counted as one. With `report`, the flaw is counted once for each scanner.
+Grype gives a Cargo workspace member no package URL and Trivy gives it one. The two findings about the
+same flaw are still counted as one, matched on the package's type, name and version, and with
+`report` Grype's is listed beside Trivy's.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies.
@@ -983,6 +984,10 @@ adds `upstream=`, naming the source package (`login` from `shadow`); an epoch is
 Trivy's URL and a version prefix in Grype's; and Alpine's `distro` carries an `alpine-` prefix in
 Grype's alone. None of the three makes two packages of one, and each finding keeps the URL its
 scanner wrote.
+
+A package one scanner wrote no URL for, such as a Cargo workspace member in Grype's report, is
+matched on its type, name and version: Grype's `rust-crate` and Trivy's `cargo` are both
+`pkg:cargo`. Where two different URLs fit, it is left unmatched rather than joined to a guess.
 
 **An exclusion covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whichever tool
 found it: a decision about a vulnerability is a decision about the vulnerability, not about one

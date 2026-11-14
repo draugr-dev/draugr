@@ -138,12 +138,42 @@ func TestEveryScannersSpellingNamesOneEcosystem(t *testing.T) {
 		"Debian":    {"debian", "ubuntu", "deb"},
 		"Alpine":    {"alpine", "apk"},
 		"Red Hat":   {"redhat", "rpm"},
+		"Pub":       {"pub", "dart-pub"},
 	} {
 		for _, s := range spellings {
 			if got := Ecosystem("", s); got != want {
 				t.Errorf("Ecosystem(%q) = %q, want %q", s, got, want)
 			}
 		}
+	}
+}
+
+// A package with no URL is compared with one that has by the URL's type, so every spelling of an
+// ecosystem has to give the type that ecosystem's URLs carry.
+func TestPURLTypeOfEachScannersSpelling(t *testing.T) {
+	for want, spellings := range map[string][]string{
+		"cargo":    {"cargo", "rust-crate", "rustbinary"},
+		"npm":      {"npm", "yarn", "pnpm", "bun", "node-pkg"},
+		"pypi":     {"pip", "poetry", "python", "python-pkg"},
+		"golang":   {"gomod", "go-module", "gobinary"},
+		"maven":    {"pom", "java-archive"},
+		"gem":      {"bundler", "gem"},
+		"composer": {"composer", "php-composer"},
+		"nuget":    {"nuget", "dotnet", "dotnet-core"},
+		"pub":      {"pub", "dart-pub"},
+		"deb":      {"debian", "ubuntu", "deb"},
+		"apk":      {"alpine", "wolfi", "chainguard", "apk"},
+		"rpm":      {"redhat", "amazon", "rocky", "rpm"},
+		"":         {"", "binary", "conda-pkg"},
+	} {
+		for _, s := range spellings {
+			if got := PURLType(s); got != want {
+				t.Errorf("PURLType(%q) = %q, want %q", s, got, want)
+			}
+		}
+	}
+	if got := PURLType(" Rust-Crate "); got != "cargo" {
+		t.Errorf("PURLType ignores case and space: got %q", got)
 	}
 }
 
