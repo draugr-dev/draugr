@@ -36,8 +36,9 @@ config:
         find. The material is fake and was never valid anywhere.
 ```
 
-The record of who accepted a finding is the commit that wrote its exclusion. A scan's `report.json`
-names each exclusion's file and line and the last commit to change that line, and `draugr scan
+Who accepted a finding is whoever approved the change that wrote its exclusion, recorded in that
+change's review where the branch requires one. A scan's `report.json` names each exclusion's file
+and line and the last commit to change that line, whose author wrote the line, and `draugr scan
 --evidence` prints it under **Decisions**. The [report
 schema](../reference/report-schema.md#what-each-exclusion-carries) says when that history is
 reliable, and [Full history](../reference/report-schema.md#full-history) how to check out enough

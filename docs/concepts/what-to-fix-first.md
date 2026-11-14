@@ -119,7 +119,8 @@ last the ones that belong to a provider.
 nobody here can fix it would weaken a build gate as a side effect of annotating a descriptor, and
 the risk is unchanged either way: a vulnerable control plane is exactly as dangerous whether or not
 the fix is yours to apply. Deciding that a finding is acceptable is what
-[exclusions](../reference/saga-schema.md) are for, and they record who decided.
+[exclusions](../reference/saga-schema.md) are for, and each carries its reason and the commit that
+last changed it.
 
 So `operatedBy` and `builtBy` change what is *recommended* and in what order, never what a finding
 is worth.

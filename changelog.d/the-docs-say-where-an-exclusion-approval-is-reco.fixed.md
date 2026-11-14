@@ -1,0 +1,1 @@
+- **The docs say where an exclusion approval is recorded.** They said an exclusion git author is who decided it was acceptable. The author is who wrote the line; the approval is the review of the change that added it, which exists only where the branch requires a review.
