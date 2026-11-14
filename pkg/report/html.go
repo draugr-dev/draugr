@@ -1176,11 +1176,13 @@ func toHTMLAction(a action) htmlAction {
 	if a.step != nil && !a.step.applies {
 		out.NotApplied, out.Ecosystem = string(a.step.policy), ecosystemName(a)
 	}
+	// Each rule by its whole id, as the console's line under an action prints it: config.exclude
+	// matches the id whole, and a short name copied from here would set nothing aside.
 	if a.atOneLine() || a.titleHidesRule() {
 		for _, g := range a.rulesByTool() {
 			names := make([]string, 0, len(g.rules))
 			for _, f := range g.rules {
-				names = append(names, shortRuleName(f.ruleID))
+				names = append(names, f.ruleID)
 			}
 			out.Rules = append(out.Rules, htmlToolRules{Tool: g.tool, Rules: names})
 		}
@@ -2175,7 +2177,7 @@ const htmlDoc = `<!doctype html>
   {{if .Components}}<a class="tab" href="#components">Components</a>{{end}}
   {{if .Caveats.Groups}}<a class="tab{{if .Caveats.Fail}} err{{end}}" href="#caveats">Caveats</a>{{end}}
   {{if .Errors}}<a class="tab err" href="#errors">Errors</a>{{end}}
-  {{if or .Suppressed .Decisions .Unmatched .Excluded}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
+  {{if or .Suppressed .Decisions .Unmatched .Excluded .Findings}}<a class="tab" href="#suppressed">Accepted</a>{{end}}
   {{if or .Gate .SBOMCount .Slowest .Scanned .Provenance .Exploitability}}<a class="tab" href="#timing">Evidence</a>{{end}}
   <a class="tab" href="#about">About</a>
   <span class="spacer"></span>
@@ -2515,15 +2517,32 @@ prints each scanner's full output.</p>
 </div>{{end}}
 {{define "paging"}}<button type="button" class="next" hidden></button><p class="rest" hidden></p>{{end}}
 {{define "nomatch"}}<p class="nomatch" hidden><b>Nothing here matches.</b><span>Take a narrowing off to widen it.</span></p>{{end}}
+{{/* How a rule that does not apply is set aside: the entry the descriptor takes, with the id as a
+     row prints it. Shown under every run with findings, not only one that already set something
+     aside, because a reader who has never written an exclusion is the one who needs the syntax. */}}
+{{define "exclude-how"}}<p class="note">To set a rule aside, add an entry under <code class="cmd">config.exclude</code>
+in the descriptor, with the rule id whole as this report prints it, or with <code class="cmd">*</code> for any run
+of characters. Its findings stay in this report, marked suppressed with the reason. The
+<a href="https://draugr.dev/docs/latest/reference/saga-schema/#configexclude" target="_blank" rel="noopener noreferrer">reference for config.exclude</a>
+lists the other fields.</p>
+<pre class="cmd">config:
+  exclude:
+    - rules: [&lt;full rule id&gt;]
+      reason: &lt;why it does not apply&gt;</pre>{{end}}
 
-{{if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded}}
+{{if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded .Findings}}
 <details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
+{{- if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded}}
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
 {{- if not (or .Suppressed .Imported .Silenced)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
+{{- else}}
+<p class="note">Nothing in this run is set aside.</p>
+{{- end}}
+{{template "exclude-how"}}
 {{if or .Decisions .Excluded}}{{with .Accepted}}
 <div class="tools" id="accepted-tools" hidden>
   <div class="bar">

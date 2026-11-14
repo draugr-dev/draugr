@@ -1,0 +1,1 @@
+- **Copy a config.exclude entry straight from the output.** TRY now prints the entry's two required lines, the full rule id and the reason, and the HTML report shows the same block on every run with findings, so you can set a rule aside without the docs. The HTML fix list prints rule ids whole, the form an exclusion matches.

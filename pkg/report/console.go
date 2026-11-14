@@ -2026,6 +2026,9 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 			// The other answer to a finding besides changing the code: deciding it does not apply.
 			// Fixed text, and the id as the rows print it, which config.exclude matches exactly.
 			row(excludeRowWhat, excludeRowSays)
+			for _, line := range excludeEntry {
+				row(line, "")
+			}
 			// explain reads the run's report, so a run that wrote none says what it needs; offered
 			// bare, the next command the reader types fails with "no scan report here".
 			switch {
@@ -2050,11 +2053,20 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 }
 
 // excludeRowWhat and excludeRowSays are the TRY row naming where a rule that does not apply is set
-// aside, under a run that listed findings.
+// aside, under a run that listed findings. It fits 80 columns beside the widest command TRY offers.
 const (
 	excludeRowWhat = "config.exclude"
-	excludeRowSays = "set aside a rule by its id as printed, with a reason"
+	excludeRowSays = "set aside; findings stay, suppressed"
 )
+
+// excludeEntry is the entry config.exclude takes, as it is written under the key. Every field it
+// shows is required. rules matches a finding's rule id whole, or with `*` for any run of characters
+// (saga.WildcardMatch), so the entry asks for the full id: the short name an action's title quotes
+// matches nothing.
+var excludeEntry = []string{
+	"  - rules: [<full rule id>]",
+	"    reason: <why it does not apply>",
+}
 
 // htmlReportFlags is what to type for an HTML report: -o where the run writes no report files, and
 // otherwise --report with the formats it already writes, because --report replaces the list it is

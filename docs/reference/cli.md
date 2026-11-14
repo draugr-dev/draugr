@@ -334,11 +334,14 @@ Under a run that listed findings, in the findings and actions views, `TRY` also 
 [`config.exclude`](saga-schema.md#configexclude), where a rule that does not apply is set aside:
 
 ```
-  config.exclude  set aside a rule by its id as printed, with a reason
+  config.exclude                       set aside; findings stay, suppressed
+    - rules: [<full rule id>]
+      reason: <why it does not apply>
 ```
 
 Every view prints a rule id whole, however long, so an id copied from a row matches as
-`config.exclude` reads it.
+`config.exclude` reads it: whole, or with `*` for any run of characters. The short name an
+action's title quotes is not the id, and matches nothing.
 
 A run that writes report files lists them under `REPORTS`, above `TRY`, each as a path and what it is
 for, the HTML report first:
@@ -993,10 +996,12 @@ WHAT TO DO  2 actions clear 15 findings
       requirements.txt:2 · CVE-2024-56201 +4
 
 TRY
-  --view compact         one line each, to see how much there is
-  --view findings        the findings themselves, one row each
-  config.exclude         set aside a rule by its id as printed, with a reason
-  draugr explain <rule>  what a rule means and how to fix it, from .draugr/out
+  --view compact                       one line each, to see how much there is
+  --view findings                      the findings themselves, one row each
+  config.exclude                       set aside; findings stay, suppressed
+    - rules: [<full rule id>]
+      reason: <why it does not apply>
+  draugr explain <rule>                what a rule means and how to fix it, from .draugr/out
 draugr: fails on P3: 15 new findings since b5bcb4b
 ```
 
