@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **CIS 5.2.7 (containers that can run as root) now checks containers that set no security context.** Such a container runs as root unless its pod sets `runAsNonRoot` or a non-zero `runAsUser`, and the check now reports it. A cluster that passed 5.2.7 before may now show findings.
+- **CIS 5.2.7 (containers that can run as root) now checks containers with no `securityContext` of their own.** Such a container runs as root unless its pod sets `runAsNonRoot: true` or a non-zero `runAsUser`, so the check now reports it. A cluster that passed 5.2.7 before may now show findings.
 
 ## [0.176.0] - 2026-11-13
 
