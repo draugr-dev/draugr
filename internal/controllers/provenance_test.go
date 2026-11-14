@@ -39,6 +39,72 @@ func modelWith(settings saga.ControllerSettings, images ...saga.Image) (saga.Mod
 	return m, &m.Components[0]
 }
 
+// A signer naming an image by repository and digest covers the image however the descriptor
+// declares that digest: beside a tag, written into `image`, or under a registry with a port. Two
+// signers, two images declared the first way, each checked against its own signer, and a third
+// image no signer names stays observed.
+func TestASignerNamingTheDigestCoversAnImageDeclaredWithIt(t *testing.T) {
+	t.Parallel()
+	const issuer = "https://accounts.google.com"
+	model, comp := modelWith(
+		signersBlock(
+			keylessSigner("cosign", "ghcr.io/sigstore/cosign/cosign@sha256:aaaa", issuer, "keyless@a.iam.gserviceaccount.com"),
+			keylessSigner("web", "registry.local:5000/acme/web@sha256:bbbb", issuer, "keyless@b.iam.gserviceaccount.com"),
+		),
+		saga.Image{Image: "ghcr.io/sigstore/cosign/cosign:v2.6.1", Digest: "sha256:aaaa"},
+		saga.Image{Image: "registry.local:5000/acme/web:2.0", Digest: "sha256:bbbb"},
+		saga.Image{Image: "ghcr.io/acme/other:1.0", Digest: "sha256:cccc"},
+	)
+	jobs, err := Provenance{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]any{}
+	for _, j := range jobs {
+		got[j.Target.(plugin.ImageTarget).Ref] = j.Config["signer"]
+	}
+	want := map[string]any{
+		"ghcr.io/sigstore/cosign/cosign:v2.6.1": "cosign",
+		"registry.local:5000/acme/web:2.0":      "web",
+		"ghcr.io/acme/other:1.0":                "",
+	}
+	for ref, signer := range want {
+		if got[ref] != signer {
+			t.Errorf("%s: signer = %v, want %q", ref, got[ref], signer)
+		}
+	}
+
+	// The digest written into `image` is matched as written, so the same signer covers it.
+	model, comp = modelWith(
+		signersBlock(keylessSigner("cosign", "ghcr.io/sigstore/cosign/cosign@sha256:aaaa", issuer, "keyless@a.iam.gserviceaccount.com")),
+		saga.Image{Image: "ghcr.io/sigstore/cosign/cosign@sha256:aaaa"},
+	)
+	jobs, err = Provenance{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 || jobs[0].Config["signer"] != "cosign" {
+		t.Errorf("jobs = %+v, want the image checked against cosign", jobs)
+	}
+}
+
+// One image matched by two signers through its two spellings is still two signers on one image,
+// which the control refuses rather than choosing between.
+func TestTwoSpellingsOfOneImageStillRefuseTwoSigners(t *testing.T) {
+	t.Parallel()
+	const issuer = "https://accounts.google.com"
+	model, comp := modelWith(
+		signersBlock(
+			keylessSigner("by-tag", "ghcr.io/acme/api:*", issuer, "keyless@a.iam.gserviceaccount.com"),
+			keylessSigner("by-digest", "ghcr.io/acme/api@sha256:aaaa", issuer, "keyless@b.iam.gserviceaccount.com"),
+		),
+		saga.Image{Image: "ghcr.io/acme/api:1.0", Digest: "sha256:aaaa"},
+	)
+	if _, err := (Provenance{}).Plan(model, comp); err == nil || !strings.Contains(err.Error(), "more than one signer") {
+		t.Errorf("err = %v, want the overlap refused", err)
+	}
+}
+
 // The expectation is resolved by the control and handed to the scanner, so a job carries who is
 // expected rather than a scanner working it out a second time.
 func TestProvenancePlanCarriesTheResolvedSigner(t *testing.T) {

@@ -54,6 +54,10 @@ config:
           name: chainguard-images   # read from the signature on cgr.dev/chainguard/static:latest
 ```
 
+An image declared with a separate `digest:` is written as `<repository>@<digest>`, the digest the
+signature was read against. The control matches a signer's `images` against that form as well as
+against `image` as written, so the signer covers the image it was read from.
+
 Generating a pattern would mean guessing how broad to be, and one that is too broad accepts
 signatures from people the reader did not mean to trust. That passes validation: the schema can
 refuse a signer that recognizes nobody and cannot refuse one that recognizes too many. So what it

@@ -96,7 +96,10 @@ scan depends on it.
 1. An image's `signedBy:` names one, whatever the patterns say. The exception, for the one image
    that came from somewhere else.
 2. Otherwise, the signer whose `images` patterns match. `*` matches any run of characters,
-   including `/`.
+   including `/`. An image declared with a tag and a separate `digest:` is matched under both
+   names, `<repository>:<tag>` as written and `<repository>@<digest>`, so a pattern naming the
+   digest covers it however the digest is declared. That second form is the one
+   `draugr survey provenance` writes.
 3. An image no signer matches is **observed**: the identity found is reported and nothing is
    checked. `unmatched` decides what that absence is worth.
 

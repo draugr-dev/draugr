@@ -1095,6 +1095,28 @@ type Image struct {
 	SignedBy string `yaml:"signedBy,omitempty"`
 }
 
+// PinnedRef names the image by its repository and digest, `<repository>@<digest>`, where `digest`
+// is declared beside it, and returns `image` as written otherwise.
+//
+// One artifact can be declared two ways, `image: <repository>:<tag>` with a separate `digest:`, or
+// with the digest written into `image`, and this is the spelling both arrive at. A tag beside a
+// declared digest is dropped, because the digest is what names the bytes. The tag is cut only
+// after the last slash: a registry with a port puts a colon in the host, and cutting at the first
+// one would name the registry rather than the image.
+func (i Image) PinnedRef() string {
+	if i.Digest == "" {
+		return i.Image
+	}
+	name, _, _ := strings.Cut(i.Image, "@")
+	if slash := strings.LastIndex(name, "/"); strings.Contains(name[slash+1:], ":") {
+		name = name[:slash+1+strings.Index(name[slash+1:], ":")]
+	}
+	if name == "" {
+		return i.Digest
+	}
+	return name + "@" + i.Digest
+}
+
 // BuiltBy says who publishes a thing Draugr scans: a repository, an image, or every target on a
 // component at once.
 type BuiltBy string

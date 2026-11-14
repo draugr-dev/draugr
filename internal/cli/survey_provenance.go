@@ -3,14 +3,12 @@ package cli
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/surveyors"
 	"github.com/draugr-dev/draugr/pkg/plugin"
-	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
 )
 
@@ -63,7 +61,9 @@ func newSurveyProvenanceCommand(opts *surveyOptions) *cobra.Command {
 //
 // A digest where the descriptor pins one, because that is what the signature was read against. A
 // tag can be repointed afterwards, so a signer adopted from one says less than the same signer
-// adopted from a digest, and the command says which it was.
+// adopted from a digest, and the command says which it was. The signer written from it names the
+// image as saga.Image.PinnedRef spells it, which is the spelling the control matches a signer's
+// patterns against whichever way the image declares its digest.
 func declaredImages(opts surveyOptions) ([]string, error) {
 	if !opts.mergesInto() {
 		return nil, fmt.Errorf("--output must name a descriptor that already exists: " +
@@ -77,7 +77,7 @@ func declaredImages(opts surveyOptions) ([]string, error) {
 	var out []string
 	for _, comp := range model.Components {
 		for _, img := range comp.Images {
-			ref := imageRef(img)
+			ref := img.PinnedRef()
 			if ref == "" || seen[ref] {
 				continue
 			}
@@ -91,23 +91,4 @@ func declaredImages(opts surveyOptions) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
-}
-
-// imageRef is the reference to ask the registry about.
-//
-// The tag is cut only after the last slash. A registry carrying a port puts a colon in the host,
-// and cutting at the first one turns `registry.local:5000/acme/api:1.0` into `registry.local`,
-// which is a question about a different thing that the registry answers without complaint.
-func imageRef(img saga.Image) string {
-	if img.Digest == "" {
-		return img.Image
-	}
-	name := img.Image
-	if at := strings.LastIndex(name, "/"); strings.Contains(name[at+1:], ":") {
-		name = name[:at+1+strings.Index(name[at+1:], ":")]
-	}
-	if name == "" {
-		return img.Digest
-	}
-	return name + "@" + img.Digest
 }

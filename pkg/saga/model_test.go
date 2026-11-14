@@ -66,6 +66,32 @@ func TestWhoPublishesATargetResolvesMostSpecificFirst(t *testing.T) {
 	}
 }
 
+// One artifact declared two ways is named one way: by repository and digest wherever a digest is
+// declared beside the image. A registry port is a colon that is not a tag separator, and cutting
+// at the first one would name the registry.
+func TestAnImageDeclaredWithADigestIsNamedByIt(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		img  Image
+		want string
+	}{
+		{"a tag stays a tag", Image{Image: "ghcr.io/acme/api:1.0"}, "ghcr.io/acme/api:1.0"},
+		{"a digest written into image stays as written", Image{Image: "ghcr.io/acme/api@sha256:abc"}, "ghcr.io/acme/api@sha256:abc"},
+		{"a declared digest wins over the tag beside it", Image{Image: "ghcr.io/acme/api:1.0", Digest: "sha256:abc"}, "ghcr.io/acme/api@sha256:abc"},
+		{"a digest with no tag", Image{Image: "ghcr.io/acme/api", Digest: "sha256:abc"}, "ghcr.io/acme/api@sha256:abc"},
+		{"a port and a tag", Image{Image: "registry.local:5000/acme/api:1.0", Digest: "sha256:abc"}, "registry.local:5000/acme/api@sha256:abc"},
+		{"a port and no tag", Image{Image: "registry.local:5000/acme/api", Digest: "sha256:abc"}, "registry.local:5000/acme/api@sha256:abc"},
+		{"a digest in image and beside it", Image{Image: "ghcr.io/acme/api:1.0@sha256:old", Digest: "sha256:abc"}, "ghcr.io/acme/api@sha256:abc"},
+		{"a digest and no image", Image{Digest: "sha256:abc"}, "sha256:abc"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.img.PinnedRef(); got != c.want {
+				t.Errorf("PinnedRef = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
 // A descriptor Draugr writes is indented the way Draugr writes it, so the next edit to one field
 // is a one-line diff rather than a whole-file reindent.
 func TestMarshalWritesTheIndentDraugrUses(t *testing.T) {

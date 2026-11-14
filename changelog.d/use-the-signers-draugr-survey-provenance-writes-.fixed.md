@@ -1,0 +1,1 @@
+- **Use the signers `draugr survey provenance` writes on images declared with `digest:`.** A signer naming `<repository>@<digest>` now covers an image declared with a tag and a separate digest, so the image is checked, not only observed. The survey also names such a signer after the image.

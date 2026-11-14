@@ -167,10 +167,13 @@ func signerName(id, ref string) string {
 			}
 		}
 	}
-	name, _, _ := strings.Cut(ref, ":")
+	// The last path segment, less a digest and a tag. Cutting at the first colon instead would
+	// keep `@sha256` on a reference pinned by digest and name a registry carrying a port.
+	name, _, _ := strings.Cut(ref, "@")
 	if i := strings.LastIndex(name, "/"); i >= 0 {
 		name = name[i+1:]
 	}
+	name, _, _ = strings.Cut(name, ":")
 	if name == "" {
 		return "observed"
 	}

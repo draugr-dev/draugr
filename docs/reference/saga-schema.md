@@ -1397,6 +1397,10 @@ runs while still reading as a policy.
 to `self`, so keying on it would expect the organization's own signer on every sidecar in a
 surveyed namespace.
 
+**An image declared with a separate `digest:`** is matched against a signer's `images` both as
+written and as `<repository>@<digest>`, the form `draugr survey provenance` writes, so a pattern
+naming the digest covers it. Two signers matching it under either name is still two signers.
+
 See the [how-to](../guides/provenance.md) for finding the identity your builds already sign with.
 
 ## License policy (`controls.licenses`)
