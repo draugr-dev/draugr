@@ -1160,6 +1160,13 @@ New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, 
 with what happened to each finding in its own column. Within a band, what needs somebody comes
 before what does not.
 
+A check that lists the objects failing it, such as a `kubernetes` one, is one row however many
+objects it lists. An `OBJECTS` block after the table names every object that joined a check, then
+every object that left one, with the check's rule, component and cluster, one line per object under
+`--view compact`; `--format markdown` lists them under `### Objects`. Where every row is such a
+check and one scanner made them all, the heading names the scanner and the table drops its Scanner
+column. The [diff guide](../guides/pr-diff.md#objects-in-a-check) has an example.
+
 `--view actions` lists the changes as things to do instead: one upgrade per package and one row for
 the lines of code taking the same instruction, titled as `draugr scan --view actions` titles them
 and listing every rule that flags those lines. A row names its component and repository when the actions span several.

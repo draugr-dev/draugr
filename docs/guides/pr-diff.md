@@ -191,6 +191,59 @@ _Gate: fails on any P1 this change introduces._
 somebody would do. `--top` caps the listing, and is `0` by default because a diff is already only
 what one change did.
 
+### Objects in a check
+
+A check that lists the objects failing it, such as a `kubernetes` check naming every pod that runs
+privileged, is one row in `CHANGED` however many objects it lists, and the row's message quotes all
+of them, most of them there before the change. The `OBJECTS` block after the table names the ones
+the change touched: every object that joined a check, then every object that left one, each with
+the check's rule, component and cluster. A check that only lost objects is unchanged and has no row
+in `CHANGED`, so this block is the only place it appears. Here a debug pod was started in `prod`
+and an old one removed from `staging`:
+
+```console
+$ draugr diff base/results.sarif head/results.sarif --view compact
+DRAUGR DIFF  5 new  12 unchanged
+
+ new        0 P1 5 P2 0 P3 0 P4
+ unchanged  0 P1 11 P2 1 P3 0 P4
+
+CHANGED  5 from draugr-k8s-policies, by priority
+  Change  Priority  Severity  Rule              Location
+  + new   P2        high      draugr/cis/5.2.2  kubernetes/prod
+  + new   P2        medium    draugr/cis/5.1.6  kubernetes/prod
+  + new   P2        medium    draugr/cis/5.2.7  kubernetes/prod
+  + new   P2        medium    draugr/cis/5.6.2  kubernetes/prod
+  + new   P2        medium    draugr/cis/5.6.4  kubernetes/prod
+
+OBJECTS  4 joined, 4 left
+  + joined  default/debug-shell      draugr/cis/5.1.6  api · kubernetes/prod
+  + joined  default/debug-shell/app  draugr/cis/5.2.2  api · kubernetes/prod
+  + joined  default/debug-shell/app  draugr/cis/5.2.7  api · kubernetes/prod
+  + joined  default/debug-shell      draugr/cis/5.6.2  api · kubernetes/prod
+  - left    apps/old-debug           draugr/cis/5.1.6  web · kubernetes/staging
+  - left    apps/old-debug/app       draugr/cis/5.2.2  web · kubernetes/staging
+  - left    apps/old-debug/app       draugr/cis/5.2.7  web · kubernetes/staging
+  - left    apps/old-debug           draugr/cis/5.6.2  web · kubernetes/staging
+
+TRY
+  --view actions     the same findings as a list of things to do
+  --fail-on-new P1   no gate was set; this makes the diff decide the exit code
+  --format markdown  the comment a pull request gets
+```
+
+`draugr/cis/5.1.6` in `prod` is a new row in `CHANGED` and a line in `OBJECTS`, because it is one
+check that did both: `default/debug-shell` joined it, which makes it new, and it failed at `base`
+too, for the pods it listed then. `draugr/cis/5.6.4` failed only at `head`, so it is new and has no
+objects to name.
+
+Without `--view compact`, each check's rule and place is a line of its own with its objects under
+it, and a check that both gained and lost objects is named once over each. `--format markdown`
+lists the same objects after the table, under `### Objects`.
+
+When every row in `CHANGED` is a check listing objects and one scanner made them all, the heading
+names that scanner and the table has no Scanner column, in the console and in the comment alike.
+
 ### Moved findings
 
 A moved finding is one that changed component and nothing else. The gate does not read moved

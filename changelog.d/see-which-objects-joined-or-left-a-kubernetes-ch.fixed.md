@@ -1,0 +1,1 @@
+- **See which objects joined or left a Kubernetes check in `draugr diff` and `scan --base`.** An OBJECTS block after CHANGED lists each object that joined a check, then each that left, one line per object under `--view compact`; the pull-request comment lists them too. A check that only lost objects now shows instead of "Nothing changed".
