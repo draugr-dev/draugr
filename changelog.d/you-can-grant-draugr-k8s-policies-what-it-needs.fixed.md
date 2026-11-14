@@ -1,0 +1,1 @@
+- **You can grant draugr-k8s-policies what it needs.** Its page said a refused read never stops a scan, but five do: listing ClusterRoleBindings, ClusterRoles, Roles, ServiceAccounts and Pods. The page now separates required reads from optional ones for whole-cluster and namespace scans, says the built-in view role is not enough, and gives a ClusterRole to apply.
