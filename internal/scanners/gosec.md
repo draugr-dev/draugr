@@ -115,14 +115,15 @@ bare `//nolint`, the text that follows it). Without that text the justification 
 const envToken = "GITHUB_TOKEN" //nolint:gosec // the variable's name, not a value
 ```
 
-A `//nolint`, `// nolint`, `//nolint:all` or a `//nolint:` list naming `gosec` covers, as it does
-in golangci-lint:
+A `//nolint`, `// nolint`, `//nolint:all` or a `//nolint:` list naming `gosec` covers less than it
+does in golangci-lint, so that one comment cannot set aside every finding in a function or a file:
 
-- the line it is on, and every line of the comment block it belongs to;
-- the whole function, statement or declaration that starts on the line directly below it, at the
-  same indentation, with no blank line between, so one directive above a function covers every
-  result inside it;
-- the whole file, when it sits directly above `package`.
+- the line it ends, as a trailing comment;
+- alone on its line, the first line of the statement or declaration directly below it.
+
+A later line of that statement, a function's body under a directive above the function, a whole file
+under a directive above `package`, and a line under a blank line or another comment all stay
+findings. Mark each of those lines, or use `#nosec`.
 
 A `//nolint:` naming only other linters leaves the result a finding.
 

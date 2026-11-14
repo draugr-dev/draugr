@@ -13,19 +13,22 @@ import (
 )
 
 // A Go project that runs gosec through golangci-lint marks a line it reviewed with a `nolint` comment
-// naming gosec, the directive golangci-lint reads, and gosec run on its own reads only `#nosec`. Left as it is,
-// every line the maintainer already reviewed comes back as a new finding, with nothing to say a
-// decision exists. So a gosec result under a `//nolint` that covers gosec is marked suppressed in
+// naming gosec, the directive golangci-lint reads, and gosec run on its own reads only `#nosec`. Left
+// as it is, every line the maintainer already reviewed comes back as a new finding, with nothing to
+// say a decision exists. So a gosec result a `//nolint` covering gosec reaches is marked suppressed in
 // source, as a `#nosec` result is, with the text after the directive as its justification.
 //
-// Where the directive reaches follows golangci-lint, so a line counts as reviewed here exactly when
-// it does there:
+// The directive reaches less here than in golangci-lint, which applies one above a function or above
+// `package` to everything inside it. A comment's say-so can set aside the line it names and no more,
+// or a single line above a function would silence every finding in it. So a directive, bare, `:all`
+// or naming gosec among its linters, covers:
 //
-//   - A comment `//nolint` or `// nolint`, bare, `:all`, or naming gosec among its linters, covers
-//     the lines of its comment group.
-//   - A comment group that ends on the line before a node starting at the group's own column covers
-//     that node too: a function, a statement, a declaration, or the whole file above `package`.
-//   - `//nolint:` naming only other linters covers nothing here.
+//   - the line it ends, as a trailing comment;
+//   - alone on its line, the first line of the statement or declaration that starts on the line
+//     directly below it. A later line of that statement, a function's body, a file, and a line under
+//     a blank line or another comment are not covered.
+//
+// `//nolint:` naming only other linters covers nothing.
 
 // nolintDirective is golangci-lint's test for a nolint comment, applied after the leading slashes
 // and spaces are trimmed.
@@ -34,44 +37,34 @@ var nolintDirective = regexp.MustCompile(`^nolint( |:|$)`)
 // gosecLinterNames are the names golangci-lint accepts for gosec in a `//nolint:` list.
 var gosecLinterNames = map[string]bool{"gosec": true, "gas": true, "all": true}
 
-// nolintRange is the lines of a file a nolint directive covering gosec reaches.
-type nolintRange struct {
-	from, to int
-	// why is the text after the directive, empty where the comment gave none.
-	why string
-}
-
-// markNolintSuppressed marks each unsuppressed result in rep that lies on a line a `//nolint`
-// covering gosec reaches as suppressed in source. Locations are relative to dir. A file that cannot
-// be read or parsed leaves its results as they are: unmarked is the reading that claims nothing.
+// markNolintSuppressed marks each unsuppressed result in rep on a line a `//nolint` covering gosec
+// reaches as suppressed in source. Locations are relative to dir. A file that cannot be read or
+// parsed leaves its results as they are: unmarked is the reading that claims nothing.
 func markNolintSuppressed(rep *sarif.Report, dir string) {
 	if dir == "" {
 		return
 	}
-	files := map[string][]nolintRange{}
+	files := map[string]map[int]string{}
 	for i := range rep.Results {
 		r := &rep.Results[i]
 		uri := r.Location.URI
 		if r.Suppression != nil || r.Location.StartLine == 0 || !filepath.IsLocal(filepath.FromSlash(uri)) {
 			continue
 		}
-		ranges, seen := files[uri]
+		lines, seen := files[uri]
 		if !seen {
-			ranges = nolintRanges(filepath.Join(dir, filepath.FromSlash(uri)))
-			files[uri] = ranges
+			lines = nolintLines(filepath.Join(dir, filepath.FromSlash(uri)))
+			files[uri] = lines
 		}
-		for _, nr := range ranges {
-			if r.Location.StartLine >= nr.from && r.Location.StartLine <= nr.to {
-				r.Suppression = &sarif.Suppression{Kind: "inSource", Justification: nr.why, Origin: sarif.OriginTool}
-				break
-			}
+		if why, ok := lines[r.Location.StartLine]; ok {
+			r.Suppression = &sarif.Suppression{Kind: "inSource", Justification: why, Origin: sarif.OriginTool}
 		}
 	}
 }
 
-// nolintRanges reads the Go file at path and returns the ranges its nolint directives covering
-// gosec reach, nil where it holds none or cannot be read.
-func nolintRanges(path string) []nolintRange {
+// nolintLines reads the Go file at path and returns each line a nolint directive covering gosec
+// reaches, with the directive's justification. Nil where it holds none or cannot be read.
+func nolintLines(path string) map[int]string {
 	src, err := os.ReadFile(path) // #nosec G304 -- a file gosec reported a result in, under the checkout
 	if err != nil {
 		return nil
@@ -81,41 +74,41 @@ func nolintRanges(path string) []nolintRange {
 	if err != nil {
 		return nil
 	}
-	type inline struct {
-		nolintRange
-		col int
-	}
-	var groups []inline
+	tf := fset.File(f.Pos())
+	lines := map[int]string{}
+	var above map[int]string // directive line + 1 -> justification, for a directive alone on its line
 	for _, g := range f.Comments {
 		for _, c := range g.List {
 			why, ok := nolintCoversGosec(c.Text)
 			if !ok {
 				continue
 			}
-			start := fset.Position(g.Pos())
-			groups = append(groups, inline{nolintRange{start.Line, fset.Position(g.End()).Line, why}, start.Column})
+			at := fset.Position(c.Pos())
+			lineStart := tf.Offset(tf.LineStart(at.Line))
+			if strings.TrimSpace(string(src[lineStart:at.Offset])) != "" {
+				lines[at.Line] = why
+				continue
+			}
+			if above == nil {
+				above = map[int]string{}
+			}
+			above[at.Line+1] = why
 		}
 	}
-	if len(groups) == 0 {
-		return nil
-	}
-	ranges := make([]nolintRange, 0, len(groups))
-	for _, g := range groups {
-		ranges = append(ranges, g.nolintRange)
+	if len(above) == 0 {
+		return lines
 	}
 	ast.Inspect(f, func(n ast.Node) bool {
-		if n == nil {
-			return false
-		}
-		start := fset.Position(n.Pos())
-		for _, g := range groups {
-			if g.to == start.Line-1 && g.col == start.Column {
-				ranges = append(ranges, nolintRange{g.from, max(g.to, fset.Position(n.End()).Line), g.why})
+		switch n.(type) {
+		case ast.Stmt, ast.Decl, ast.Spec:
+			line := fset.Position(n.Pos()).Line
+			if why, ok := above[line]; ok {
+				lines[line] = why
 			}
 		}
 		return true
 	})
-	return ranges
+	return lines
 }
 
 // nolintCoversGosec reports whether the comment text is a nolint directive that covers gosec, and

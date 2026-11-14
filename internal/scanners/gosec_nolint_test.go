@@ -44,7 +44,7 @@ const other = "X" NOLINT:errcheck // names another linter only
 
 // read reads a path the operator chose.
 //
-NOLINT:gosec // the operator chose the path
+NOLINT:gosec // the signature only
 func read(p string) {
 	_, _ = os.ReadFile(p)
 }
@@ -54,15 +54,27 @@ func main() {
 	NOLINT:gosec,errcheck
 	x := 1
 	_ = x
-NOLINT:gosec
+NOLINT:all // at another column
 	y := 2
 	_ = y
 	z := 3 SPACED
 	_ = z
+	NOLINT:gosec // the first line only
+	_ = os.Expand(
+		"$HOME", os.Getenv)
+	NOLINT:gosec
+
+	_ = os.Getenv("A")
+	NOLINT:gosec
+	// another comment between
+	_ = os.Getenv("B")
+	_ = os.Expand(
+		NOLINT:gosec
+		"$HOME", os.Getenv)
 }
 `
 
-// Above package, a nolint reaches the whole file.
+// Above package, a nolint reaches the package clause and nothing in the file.
 const nolintTools = `NOLINT:gosec // generated
 package main
 
@@ -70,7 +82,9 @@ const envToken = "GITHUB_TOKEN"
 `
 
 // A gosec result on a line a `nolint` covering gosec reaches is kept and marked as a `#nosec`
-// result is, wherever golangci-lint would read the directive, and in each module's own files.
+// result is, and in each module's own files. The directive reaches its own line, or the first line
+// of the statement or declaration directly below it, and never a function's body, a file, or a line
+// under a blank line or another comment.
 func TestParseGosecMarksWhatNolintCovers(t *testing.T) {
 	dir := writeTree(t, map[string]string{
 		"service/go.mod":  "module example.com/service\n\ngo 1.21\n",
@@ -78,7 +92,7 @@ func TestParseGosecMarksWhatNolintCovers(t *testing.T) {
 		"tools/go.mod":    "module example.com/tools\n\ngo 1.21\n",
 		"tools/main.go":   withNolint(nolintTools),
 	})
-	out := gosecSARIF("main.go", []int{5, 7, 9, 15, 19, 21, 24, 26}, map[int]bool{7: true}) + "\n" +
+	out := gosecSARIF("main.go", []int{5, 7, 9, 14, 15, 19, 21, 24, 26, 29, 30, 33, 36, 39}, map[int]bool{7: true}) + "\n" +
 		gosecSARIF("main.go", []int{4}, nil)
 	rep, err := parseGosec([]byte(out), dir, nil)
 	if err != nil {
@@ -88,12 +102,18 @@ func TestParseGosecMarksWhatNolintCovers(t *testing.T) {
 		"service/main.go:5":  "the variable's name, not a value",
 		"service/main.go:7":  "gosec's own",
 		"service/main.go:9":  "-", // names errcheck only
-		"service/main.go:15": "the operator chose the path",
+		"service/main.go:14": "the signature only",
+		"service/main.go:15": "-", // the function's body
 		"service/main.go:19": "-", // no directive
 		"service/main.go:21": "",  // the statement under a list naming gosec
-		"service/main.go:24": "-", // the directive is not at the statement's column
-		"service/main.go:26": "",  // bare, with a space after the slashes
-		"tools/main.go:4":    "generated",
+		"service/main.go:24": "at another column",
+		"service/main.go:26": "", // bare, with a space after the slashes
+		"service/main.go:29": "the first line only",
+		"service/main.go:30": "-", // a later line of the same statement
+		"service/main.go:33": "-", // under a blank line
+		"service/main.go:36": "-", // under another comment
+		"service/main.go:39": "-", // not the first line of a statement
+		"tools/main.go:4":    "-", // the directive is above package
 	}
 	if len(rep.Results) != len(want) {
 		t.Fatalf("results = %d, want %d", len(rep.Results), len(want))
