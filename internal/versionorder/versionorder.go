@@ -54,7 +54,23 @@ var byReported = map[string]string{
 	"composer": "Packagist", "php-composer": "Packagist",
 	"nuget": "NuGet", "dotnet-core": "NuGet", "packages-props": "NuGet", "dotnet": "NuGet",
 	"jar": "Maven", "pom": "Maven", "gradle": "Maven", "sbt": "Maven", "java-archive": "Maven",
-	"pub": "Pub", "hex": "Hex", "conan": "ConanCenter",
+	"pub": "Pub", "dart-pub": "Pub", "hex": "Hex", "conan": "ConanCenter",
+}
+
+// purlTypeOf maps an ecosystem back to its package URL type, the inverse of byPURLType.
+var purlTypeOf = func() map[string]string {
+	m := make(map[string]string, len(byPURLType))
+	for t, e := range byPURLType {
+		m[e] = t
+	}
+	return m
+}()
+
+// PURLType is the package URL type of the ecosystem a scanner reported, for a package that carries
+// no package URL: "cargo" for Trivy's cargo and Grype's rust-crate, "deb" for Trivy's ubuntu and
+// Grype's deb. Empty for an ecosystem this package does not know.
+func PURLType(reported string) string {
+	return purlTypeOf[byReported[strings.ToLower(strings.TrimSpace(reported))]]
 }
 
 // Ecosystem names the rules that order a package's versions, from its package URL or, without one,

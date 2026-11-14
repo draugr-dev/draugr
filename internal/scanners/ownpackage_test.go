@@ -194,16 +194,23 @@ func TestOwnPackagesAreSuppressedByDefault(t *testing.T) {
 	}
 }
 
-// ownPackages: report counts them, marked own. Grype gives a workspace member no package URL, so its
-// copy is not correlated with Trivy's and the one flaw is counted once by each.
+// ownPackages: report counts them, marked own. Grype gives a workspace member no package URL and
+// Trivy gives it pkg:cargo/telemetry@0.1.0, and the two copies still meet on the URL's type, name and
+// version: the one flaw counts once, under Trivy's copy, and Grype's is listed beside it.
 func TestOwnPackagesReportCountsThem(t *testing.T) {
 	res := runOwnPackages(t, saga.ControllerSettings{"ownPackages": "report"}, nil)
 	counted, setAside := ownFindings(t, res)
-	if !slices.Equal(counted, ownPackageFindings) {
-		t.Errorf("counted %v, want %v", counted, ownPackageFindings)
+	want := []string{"site grype GHSA-69hx-wrc9-h5wq webpack-json", "workspace trivy CVE-2021-29937 telemetry"}
+	if !slices.Equal(counted, want) {
+		t.Errorf("counted %v, want %v", counted, want)
 	}
 	if len(setAside) > 0 {
 		t.Errorf("set aside %v, want none", setAside)
+	}
+	for _, r := range res.Controls["sca"].Report.Results {
+		if r.Tool == "grype" && r.Package.Name == "telemetry" && (!r.Correlated() || r.Package.PURL != "") {
+			t.Errorf("Grype's telemetry: correlated %v, package URL %q; want correlated, with no URL", r.Correlated(), r.Package.PURL)
+		}
 	}
 }
 
@@ -212,7 +219,7 @@ func TestAComponentsOwnPackagesReplacesTheProjects(t *testing.T) {
 	res := runOwnPackages(t, saga.ControllerSettings{"ownPackages": "report"},
 		map[string]saga.ControllerSettings{"site": {"ownPackages": "suppress"}})
 	counted, setAside := ownFindings(t, res)
-	if want := ownPackageFindings[1:]; !slices.Equal(counted, want) {
+	if want := ownPackageFindings[2:]; !slices.Equal(counted, want) {
 		t.Errorf("counted %v, want %v", counted, want)
 	}
 	s, ok := setAside[ownPackageFindings[0]]

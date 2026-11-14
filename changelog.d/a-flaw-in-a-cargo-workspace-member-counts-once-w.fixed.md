@@ -1,0 +1,1 @@
+- **A flaw in a Cargo workspace member counts once when Trivy and Grype both report it.** Grype gives a workspace member no package URL and Trivy gives it one; the two findings are now matched on the package's type, name and version. With `ownPackages: report`, Grype's copy is listed beside Trivy's instead of counted again.
