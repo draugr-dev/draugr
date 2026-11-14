@@ -47,13 +47,13 @@ $ draugr scan --no-publish
 …
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   unread-files · sast · app
-    src/big.js   over 1 MB, not scanned
+    src/big.js   over 1 MB, not scanned · split it if it is source, or add to ignore
     src/slow.js  1 rule timed out, not checked: "slow-0"
 ```
 
 | Reason | What happened | Fix |
 |---|---|---|
-| `over 1 MB, not scanned` | the file is over Semgrep's size limit, and no rule ran on it | exclude it with `ignore:` (usually generated or minified), or split it |
+| `over 1 MB, not scanned · split it if it is source, or add to ignore` | the file is over Semgrep's size limit, which is not a setting, and no rule ran on it | split a source file below the limit, or exclude a file that is not source, usually generated or minified, with `ignore:` |
 | `1 rule timed out, not checked: "x"` | the rule ran out of time on the file; the other rules ran | split the file, or set `config` to a ruleset without the rule |
 | `3 rules timed out, other rules not run: "x", "y", "z"` | three rules timed out, and Semgrep ran no further rule on the file | as above; the rules not run were not checked |
 | `no Go packages` | a `go.mod` gosec found no Go package under, such as a documentation site built with Hugo; gosec analyzed the repository's other modules | expected for a module with no Go code; add its directory to `ignore:` to hide it |

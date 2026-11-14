@@ -48,8 +48,9 @@ type UnreadInput struct {
 	// evaluated, as `32 of 33 module calls checked; "zbad" skipped`. For a Helm chart's Chart.yaml,
 	// what stopped Trivy rendering the chart, as `run helm dependency build; redis not in
 	// charts/`. For a file searched for
-	// secrets, "name has an archive extension", or at the repository root "no files read". For a
-	// source file Semgrep skipped or did not finish, `over 1 MB, not scanned` or the rules that
+	// secrets, "archive extension, not read" and what to do about it, or at the repository root
+	// "no files read". For a source file Semgrep skipped or did not finish, `over 1 MB, not scanned`
+	// and what to do about it, or the rules that
 	// timed out on it, as `1 rule timed out, not checked: "x"`. For a go.mod, why govulncheck could
 	// not load the module.
 	//

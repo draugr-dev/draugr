@@ -94,14 +94,15 @@ func TestACaveatTheGateListsFailsTheRun(t *testing.T) {
 
 // A run whose caveats the console cuts short is offered the HTML report, with -o where it writes no
 // report files and with the formats it already writes where it does, and not offered it where it
-// already writes one. Twelve components each declaring a host no enabled control looks at, past the
-// block's ten rows.
+// already writes one. Twelve components each declaring a host and an image no enabled control looks
+// at: every component keeps a row, and the rest are past the block's ten.
 func TestACutCaveatsBlockOffersTheHTMLReport(t *testing.T) {
 	root := gitRepo(t, "api")
 	body := "project: shop\nconfig:\n  controls:\n    secrets: {}\ncomponents:\n" +
 		"  - name: api\n    repositories: [{url: \"" + filepath.Join(root, "api") + "\"}]\n"
 	for i := range 12 {
-		body += fmt.Sprintf("  - name: web%02d\n    hosts: [{url: \"https://web%02d.example.com\"}]\n", i, i)
+		body += fmt.Sprintf("  - name: web%02d\n    hosts: [{url: \"https://web%02d.example.com\"}]\n"+
+			"    images: [{image: \"registry.example.com/web%02d:1\"}]\n", i, i, i)
 	}
 	path := writeSaga(t, body)
 	for _, c := range []struct {
@@ -119,7 +120,7 @@ func TestACutCaveatsBlockOffersTheHTMLReport(t *testing.T) {
 			t.Fatalf("%s: %v", c.name, err)
 		}
 		out := buf.String()
-		if !strings.Contains(out, "… and 2 more · --top 0 lists every one") {
+		if !strings.Contains(out, "… and 1 more") || !strings.Contains(out, "\n  --top 0 lists every one\n") {
 			t.Fatalf("%s: the caveats block was not cut, so this test checks nothing:\n%s", c.name, out)
 		}
 		offered := strings.Contains(out, "every finding in one searchable page")

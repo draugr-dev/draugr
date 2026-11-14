@@ -35,6 +35,11 @@ const semgrepMaxTargetBytes = 1_000_000
 // semgrepSizeLimit is semgrepMaxTargetBytes as the reason for a skipped file states it.
 const semgrepSizeLimit = "1 MB"
 
+// semgrepSizeReason is the reason a file over the size limit is unread, and what a reader can do
+// about it. The limit is not a setting, so a source file is read once split below it, and a file
+// that is not source, a fixture or a bundle, is accepted unread by the repository's ignore.
+const semgrepSizeReason = "over " + semgrepSizeLimit + ", not scanned · split it if it is source, or add to ignore"
+
 // semgrepTimeoutThreshold is how many rules may time out on one file before Semgrep runs no more
 // rules on it. Semgrep's default, passed explicitly for the same reason: at the threshold, every
 // rule not yet run on the file is left out without an entry of its own, and the reason has to say
@@ -122,7 +127,7 @@ func semgrepUnread(cov semgrepJSON, dir string, covers semgrepLanguages, prefixe
 		if !covers.reads(dir, p) {
 			continue
 		}
-		reasons[p] = append(reasons[p], "over "+semgrepSizeLimit+", not scanned")
+		reasons[p] = append(reasons[p], semgrepSizeReason)
 	}
 	timedOut := map[string][]string{}
 	for _, e := range cov.Errors {

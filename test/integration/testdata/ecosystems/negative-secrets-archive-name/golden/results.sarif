@@ -28,7 +28,7 @@
                 }
               ],
               "message": {
-                "text": "notes.zip.txt: name has an archive extension"
+                "text": "notes.zip.txt: archive extension, not read · rename it if it is text, or add to ignore"
               },
               "properties": {
                 "component": "negative-secrets-archive-name",
@@ -57,7 +57,7 @@
                 }
               ],
               "message": {
-                "text": "release.brief.md: name has an archive extension"
+                "text": "release.brief.md: archive extension, not read · rename it if it is text, or add to ignore"
               },
               "properties": {
                 "component": "negative-secrets-archive-name",

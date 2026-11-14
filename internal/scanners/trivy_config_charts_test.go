@@ -135,8 +135,8 @@ func TestAChartTrivyCouldNotRenderIsACaveat(t *testing.T) {
 	d := report.Data{Project: "p", Run: res}
 	console := renderFormat(t, "console", d)
 	for _, row := range []string{
-		"\n  unread-files · iac · billing\n    charts/web/Chart.yaml  set image.repository in values.yaml; read at templates/deployment.yaml:14\n",
-		"\n  unread-files · iac · shop\n    charts/app/Chart.yaml  run helm dependency build; redis not in charts/\n",
+		"\n  unread-files · iac\n    billing\n      charts/web/Chart.yaml  set image.repository in values.yaml; read at templates/deployment.yaml:14\n",
+		"\n    shop\n      charts/app/Chart.yaml  run helm dependency build; redis not in charts/\n",
 	} {
 		if !strings.Contains(console, row) {
 			t.Errorf("console is missing %q:\n%s", row, console)

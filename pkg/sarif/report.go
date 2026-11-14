@@ -914,9 +914,9 @@ type Input struct {
 	// Unread is why the file contributed no packages, and empty when it was read: "no lockfile",
 	// "no pinned versions", "no packages read", or "not parsed: " and the parser's error. For a
 	// Terraform file, the module blocks it calls that the scanner could not load, as `module "vpc"
-	// not loaded`. For a file searched for secrets, "name has an archive extension", or "no files read" against the repository root.
+	// not loaded`. For a file searched for secrets, "archive extension, not read" and what to do about it, or "no files read" against the repository root.
 	// For a source file, why a SAST scanner did not check all of it, as `over 1 MB, not scanned`
-	// or `1 rule timed out, not checked: "x"`. For a go.mod, why govulncheck could not load the
+	// and what to do about it, or `1 rule timed out, not checked: "x"`. For a go.mod, why govulncheck could not load the
 	// module, as `not loaded by govulncheck: main.go:5:2: undefined: Assets`.
 	//
 	// With Packages above zero, the file was read in part and Unread names what was not read, as

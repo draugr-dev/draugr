@@ -1,0 +1,1 @@
+- **Reach FIX FIRST without scrolling past unread files.** CAVEATS folds the files skipped for one reason into a counted row, shows every group even when the gate fails on them, says what to do about a file over 1 MB or one named like an archive, and fits 80 columns; --top 0 still lists every file.
