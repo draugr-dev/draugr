@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"bufio"
+	"bytes"
 	"maps"
 	"os"
 	"regexp"
@@ -216,6 +217,19 @@ func awsLoggedDenials(path string) map[string]string {
 		}
 	}
 	return out
+}
+
+// awsFromManagement is what answers a member account's Organizations checks: a scan from the
+// organization's management account, or from a delegated administrator, which the row has no room
+// to add and prowler.md names.
+const awsFromManagement = "scan from the management account"
+
+// awsMemberAccount reports whether Prowler's log says the account is neither the organization's
+// management account nor a delegated administrator, which IAM tells it when it asks for the
+// organization's features.
+func awsMemberAccount(path string) bool {
+	data, err := os.ReadFile(path) // #nosec G304 -- a file Prowler wrote into a directory this scan made
+	return err == nil && bytes.Contains(data, []byte("AccountNotManagementOrDelegatedAdministratorException"))
 }
 
 // awsBetterReason prefers a reason naming the action, which is what somebody grants, and between

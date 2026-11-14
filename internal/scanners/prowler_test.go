@@ -430,7 +430,8 @@ func TestProwlerSetsAsideWhatADeniedServiceLeavesUnread(t *testing.T) {
 	if rule.HelpURI == "" || rule.FullDescription == "" || len(rule.Taxa) != 1 || rule.Taxa[0].ID != "3.6" || rule.Taxa[0].Version != "5.0" {
 		t.Errorf("rule = %+v", rule)
 	}
-	want := []sarif.Unchecked{{Scanner: "prowler", Check: "cloudsql_instance_public_ip", Group: "cloudsql", Reason: "denied cloudsql.instances.list"}}
+	want := []sarif.Unchecked{{Scanner: "prowler", Check: "cloudsql_instance_public_ip", Group: "cloudsql", Reason: "denied cloudsql.instances.list",
+		Kind: sarif.UncheckedDenied}}
 	if !slices.Equal(report.Unchecked, want) {
 		t.Errorf("unchecked = %+v, want %+v", report.Unchecked, want)
 	}

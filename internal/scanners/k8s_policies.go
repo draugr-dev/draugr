@@ -86,13 +86,14 @@ func (s draugrK8sPoliciesScanner) Scan(ctx context.Context, target plugin.Target
 	}
 
 	infra, _ := target.(plugin.KubernetesTarget)
+	ctx, refused := withRefusals(ctx)
 	decided, err := evaluatePoliciesSkipping(ctx, client, infra.Namespaces, func(pod *corev1.Pod) bool {
 		return ownedByThisRun(kubeCtx, pod)
 	})
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", draugrK8sPoliciesScannerName, err)
 	}
-	report := policiesReport(decided, clusterScopeLabel(target), infra.Namespaces)
+	report := policiesReport(decided, clusterScopeLabel(target), infra.Namespaces, refused.byCheck)
 
 	// A managed cluster has a section of its benchmark that this scanner does not read. Say so,
 	// rather than letting the report imply the benchmark is only what was assessed. Detection
@@ -410,8 +411,15 @@ func applicableChecks(scoped bool) []cisPolicyCheck {
 
 // policiesReport renders the whole section: a verdict where there is one, a manual prompt
 // everywhere else.
-func policiesReport(decided map[string]policyVerdict, location string, namespaces []string) sarif.Report {
+//
+// refused are the checks a read the credential was refused left undecided: each is listed as unread,
+// with the read, rather than as left for a person, since a grant decides it.
+func policiesReport(decided map[string]policyVerdict, location string, namespaces []string, refused ...map[string]refusedRead) sarif.Report {
 	report := sarif.Report{Tool: draugrK8sPoliciesScannerName, Rules: map[string]sarif.Rule{}}
+	denied := map[string]refusedRead{}
+	for _, r := range refused {
+		maps.Copy(denied, r)
+	}
 
 	// What was measured, against what, and how much of it could be settled. The coverage figure
 	// is the one a reader cannot otherwise get: counting manual-review findings by hand is the
@@ -476,9 +484,16 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 			level = cisPolicyLevel(check.ID)
 		}
 
-		if implemented && verdict.describe != nil {
+		read, wasRefused := denied[check.ID]
+		switch {
+		case implemented && verdict.describe != nil:
 			report.Results = append(report.Results, splitByOwner(ruleID, level, verdict, location))
-		} else {
+		case !implemented && wasRefused:
+			report.Unchecked = append(report.Unchecked, sarif.Unchecked{
+				Scanner: draugrK8sPoliciesScannerName, Check: ruleID, Group: read.resource,
+				Reason: read.Reason(), Kind: sarif.UncheckedDenied,
+			})
+		default:
 			report.Results = append(report.Results, sarif.Result{
 				Tool:     draugrK8sPoliciesScannerName,
 				RuleID:   ruleID,
@@ -771,6 +786,7 @@ func evaluateBroadAccess(ctx context.Context, client kubernetes.Interface, names
 			// cluster-wide, as before.
 			ok, err := allowedForAllAuthenticated(ctx, client, verb, q.resource, namespaces)
 			if err != nil {
+				readFailed(ctx, []string{q.id}, "create", "subjectaccessreviews", err)
 				undecided = true
 				break
 			}

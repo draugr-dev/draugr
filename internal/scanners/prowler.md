@@ -72,7 +72,8 @@ coverage figure counts the checks the installed Prowler runs.
    action the error names, `denied kms:DescribeKey`, or the call where it names none, `denied the
    GetEventSelectors call`. In a member account, `organizations_delegated_administrators` and
    `iam_root_credentials_management_enabled` are then unread with the Organizations denial, rather
-   than missing from the coverage count. `LOG_LEVEL` in the environment overrides `--log-level`, so
+   than missing from the coverage count. No grant to the role clears that denial, so its caveat
+   says `scan from the management account`; a scan from a delegated administrator answers them too. `LOG_LEVEL` in the environment overrides `--log-level`, so
    `ERROR` or `CRITICAL` hides those warnings, and the measured-against line says so.
 4. **A denial is judged per check.** Prowler starts a service by making every call its module
    makes, so a denied call leaves every check of the service in doubt, and is often one some of

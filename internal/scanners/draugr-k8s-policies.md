@@ -118,8 +118,8 @@ cluster in exactly the cases that matter. Draugr submits the same query kube-ben
 
 That creates nothing. The API server answers and discards it, but submitting one needs the `create`
 verb on `subjectaccessreviews`, which a deliberately read-only credential will not have. Being
-refused is expected rather than exceptional, so the check is left for a person, like any other this
-scanner cannot settle.
+refused is expected rather than exceptional, so the check is listed as unread under `CAVEATS`, with
+the read that was denied, like any other check a refused read leaves undecided.
 
 ² Each names the roles that grant the permission, a wildcard included, and who each is bound to:
 `1 role granting permission to bind, escalate or impersonate: role team-a/deployer (bound to
@@ -335,8 +335,9 @@ in two groups:
 
 - A **required** read is one the scan cannot do without. If the API server refuses it, the
   `kubernetes` control reports an error naming the read, and no check is decided.
-- An **optional** read serves particular checks. If it is refused, those checks are left for a person
-  and the scan completes.
+- An **optional** read serves particular checks. If it is refused, the scan completes and those
+  checks are listed as unread under `CAVEATS`, each with the read that was denied, so granting it
+  is the fix. `--evidence` lists them too.
 
 The built-in `view` ClusterRole, the usual read-only grant, is not enough. It cannot read Roles,
 ClusterRoles or their bindings, so a scan of the whole cluster stops at its first read. Grant the
@@ -356,14 +357,14 @@ Required, `list` across all namespaces:
 
 Optional:
 
-| Permission | API group | If refused |
+| Permission | API group | Unread if refused |
 |---|---|---|
-| `list` `rolebindings` | `rbac.authorization.k8s.io` | 5.1.8 to 5.1.13 are left for a person |
-| `list` `namespaces` | core | 5.2.1 and 5.3.2 are left for a person |
-| `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 is left for a person |
-| `list` `validatingwebhookconfigurations` | `admissionregistration.k8s.io` | 5.2.1 is left for a person, unless a namespace enforces a Pod Security level other than `privileged` or a ValidatingAdmissionPolicy is bound |
-| `list` `validatingadmissionpolicybindings` | `admissionregistration.k8s.io` | 5.2.1 is left for a person rather than failed, unless a namespace enforces a Pod Security level other than `privileged` or a Gatekeeper or Kyverno webhook is configured |
-| `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 are left for a person (see ¹ above) |
+| `list` `rolebindings` | `rbac.authorization.k8s.io` | 5.1.8 to 5.1.13 |
+| `list` `namespaces` | core | 5.2.1 and 5.3.2 |
+| `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 |
+| `list` `validatingwebhookconfigurations` | `admissionregistration.k8s.io` | 5.2.1, unless a namespace enforces a Pod Security level other than `privileged` or a ValidatingAdmissionPolicy is bound |
+| `list` `validatingadmissionpolicybindings` | `admissionregistration.k8s.io` | 5.2.1 rather than failed, unless a namespace enforces a Pod Security level other than `privileged` or a Gatekeeper or Kyverno webhook is configured. A cluster serving no v1 API for the bindings leaves 5.2.1 for a person instead |
+| `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 (see ¹ above) |
 | `list` `nodes` | core | an AKS cluster is not recognized, so its Managed Services finding is missing |
 
 ### Scanning namespaces
@@ -375,12 +376,12 @@ Required, `list` in each namespace named: `roles`, `serviceaccounts` and `pods`.
 
 Optional:
 
-| Permission | API group | If refused |
+| Permission | API group | Unread if refused |
 |---|---|---|
-| `list` `rolebindings` | `rbac.authorization.k8s.io` | 5.1.8 and 5.1.13 are left for a person |
-| `get` on each ClusterRole a binding in the namespaces names | `rbac.authorization.k8s.io` | 5.1.8 and 5.1.13 are left for a person |
-| `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 is left for a person |
-| `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 are left for a person |
+| `list` `rolebindings` | `rbac.authorization.k8s.io` | 5.1.8 and 5.1.13 |
+| `get` on each ClusterRole a binding in the namespaces names | `rbac.authorization.k8s.io` | 5.1.8 and 5.1.13 |
+| `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 |
+| `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 |
 
 ### A role to grant
 

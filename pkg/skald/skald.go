@@ -857,6 +857,9 @@ type unreadChecksReport struct {
 	// findings are in the report, and they are not decided.
 	PartlyRead []string `json:"partlyRead,omitempty"`
 	Reason     string   `json:"reason"`
+	// Kind is the reason's kind: "denied", a read the credential was refused, or "precondition", one
+	// the account cannot answer. Absent where the scanner does not say.
+	Kind string `json:"kind,omitempty"`
 }
 
 type unsettledCheckReport struct {
@@ -867,7 +870,8 @@ type unsettledCheckReport struct {
 	RuleID   string `json:"ruleId"`
 	Title    string `json:"title,omitempty"`
 	Location string `json:"location"`
-	// Kind is why it was not decided: "manual", a check the benchmark leaves to a person.
+	// Kind is why it was not decided: "manual", a check the benchmark leaves to a person, or
+	// "no-resources", one with nothing of its kind to check.
 	Kind       string           `json:"kind"`
 	Suppressed *suppressionNote `json:"suppressed,omitempty"`
 }
@@ -1163,7 +1167,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		doc.UnreadChecks = append(doc.UnreadChecks, unreadChecksReport{
 			// An empty list rather than null where every check of the service was read in part.
 			Component: g.Component, Control: g.Control, Service: g.Group, Checks: append([]string{}, g.Checks...),
-			PartlyRead: g.PartlyRead, Reason: g.Reason,
+			PartlyRead: g.PartlyRead, Reason: g.Reason, Kind: g.Kind,
 		})
 	}
 

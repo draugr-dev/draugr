@@ -2070,6 +2070,15 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		}
 		report.Unchecked = unchecked
 	}
+	// A check a scanner left undecided is about the target this job read, as an unread one is.
+	if len(report.UnsettledChecks) > 0 {
+		unsettled := make([]sarif.UnsettledCheck, len(report.UnsettledChecks))
+		copy(unsettled, report.UnsettledChecks)
+		for i := range unsettled {
+			unsettled[i].Component = pj.Component
+		}
+		report.UnsettledChecks = unsettled
+	}
 	if len(report.Results) == 0 {
 		return report
 	}

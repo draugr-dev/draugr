@@ -23,6 +23,13 @@ import (
 // and leaves the count of suppressed findings, since it was never a finding.
 func setUnsettledApart(controls map[string]plugin.ControlResult) (leftSuppressed int) {
 	for name, cr := range controls {
+		// A check the scanner itself listed as unsettled, as Prowler lists one with nothing to check,
+		// carries the control the run filed it under.
+		for i := range cr.Report.UnsettledChecks {
+			if cr.Report.UnsettledChecks[i].Control == "" {
+				cr.Report.UnsettledChecks[i].Control = name
+			}
+		}
 		decided := map[string]bool{}
 		for _, t := range cr.Report.Decided {
 			decided[t.Key()] = true

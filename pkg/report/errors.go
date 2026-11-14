@@ -400,6 +400,7 @@ type shownGroup struct {
 func shownCaveatGroups(d Data) []shownGroup {
 	cs := caveats(d)
 	slices.SortStableFunc(cs, compareGroups)
+	cs = mergeAlike(cs)
 	if consoleFixFirstLimit(d.TopN) >= 0 {
 		cs = foldUnreadByReason(d, cs)
 	}
@@ -506,6 +507,56 @@ func reasonRows(same []caveat) []caveat {
 // foldedByReason reports whether the console drew a row standing for several files of one reason.
 func foldedByReason(shown []caveat) bool {
 	return slices.ContainsFunc(shown, func(c caveat) bool { return c.byReason })
+}
+
+// mergeAlike folds a component's group of unread checks into an earlier one whose rows say exactly
+// what its rows say, so the rows are said once under one line naming every component they apply
+// to: `api, web` under `unread-checks`. Two components reading one cluster or one account with one
+// credential are refused the same reads, and the block would otherwise list each refusal once per
+// component.
+//
+// Unread checks alone. Their components are the few sharing a cluster or an account; a caveat of
+// another kind, such as a host no control looks at, can be alike across dozens of components, which
+// a heading naming each could not hold on one line.
+//
+// cs is in the order compareGroups puts it, so each group is a run of rows.
+func mergeAlike(cs []caveat) []caveat {
+	type group struct{ rows []caveat }
+	var groups []*group
+	for i := 0; i < len(cs); {
+		g := &group{}
+		for j := i; j < len(cs) && sameGroup(cs[j], cs[i]); j++ {
+			g.rows = append(g.rows, cs[j])
+		}
+		i += len(g.rows)
+		if into := slices.IndexFunc(groups, func(o *group) bool { return alikeGroups(o.rows, g.rows) }); into >= 0 {
+			for k := range groups[into].rows {
+				r := &groups[into].rows[k]
+				r.component = cmp.Or(r.component, "no component") + ", " + cmp.Or(g.rows[0].component, "no component")
+			}
+			continue
+		}
+		groups = append(groups, g)
+	}
+	out := make([]caveat, 0, len(cs))
+	for _, g := range groups {
+		out = append(out, g.rows...)
+	}
+	return out
+}
+
+// alikeGroups reports whether two groups of unread checks differ only in their component: the same
+// controls, and the same rows in the same order.
+func alikeGroups(a, b []caveat) bool {
+	if len(a) != len(b) || a[0].key != saga.CaveatUnreadChecks || a[0].repository || b[0].repository {
+		return false
+	}
+	for i := range a {
+		if a[i].key != b[i].key || a[i].by != b[i].by || a[i].what != b[i].what || a[i].detail != b[i].detail {
+			return false
+		}
+	}
+	return true
 }
 
 // fails reports whether the gate lists this caveat's kind in failOnCaveats.
