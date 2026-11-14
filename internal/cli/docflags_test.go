@@ -55,6 +55,7 @@ var notOurs = map[string]string{
 	"--ignorefile":        "Trivy's",
 	"--no-cache":          "Trivy's",
 	"--scan-cache":        "Trivy's, emptying its cache in the guide to handling scan artifacts",
+	"--parallel":          "Trivy's, passed at each job's share of the parallelism bound under --share-workers",
 	"--token":             "Trivy server's, named in a comment about its environment variable",
 	"--config":            "a scanner's own, several of them",
 	"--exitwith":          "a scanner's own exit-code flag, in the extending guide",

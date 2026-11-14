@@ -1,0 +1,1 @@
+- **Trade scan speed for less memory and CPU with `draugr scan --share-workers`.** Semgrep and Trivy then size their worker pools to each job's share of Draugr's parallelism bound rather than to the whole machine. It is off by default, because a long Semgrep job that starts beside many short ones runs slower with it.

@@ -61,7 +61,9 @@ the [SAST glossary entry](../../docs/reference/glossary.md#sast-static-applicati
   so several runs at once each finish less and report fewer findings, different ones from one scan
   to the next. Where a scan has several Semgrep runs going, each gets `--jobs` at the CPUs divided
   among them, never more than Semgrep's own default. A run with no other left takes Semgrep's
-  default.
+  default. Under `draugr scan --share-workers`, each run instead gets `--jobs` at its job's share of
+  the [parallelism bound](../../docs/reference/cli.md#draugr-scan-sagayaml--dir), which the jobs
+  running at once divide among them whatever their scanner.
 
 ## Unread
 

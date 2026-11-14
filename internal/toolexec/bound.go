@@ -89,6 +89,39 @@ func Bound(ctx context.Context) int {
 	return share(ctx, parallelism())
 }
 
+// sharedWorkersKey is the context key under which a run's choice to share worker pools travels
+// (WithSharedWorkers).
+type sharedWorkersKey struct{}
+
+// WithSharedWorkers returns a context under which a tool that sizes a worker pool of its own is
+// held to its job's share of the bound for that pool (Workers), rather than left at its own default.
+//
+// It is a choice for the operator, off by default. A pool such as Semgrep's analysis processes or
+// Trivy's files in flight is sized to the machine whatever else runs, so beside other jobs it holds
+// more memory and CPU than its share. Holding it to the share lowers both, and it makes a long run
+// slower: the share is fixed when the tool starts, so a run that starts beside many short jobs keeps
+// a small pool after they finish.
+func WithSharedWorkers(ctx context.Context) context.Context {
+	return context.WithValue(ctx, sharedWorkersKey{}, true)
+}
+
+// SharesWorkers reports whether ctx asks tools to hold their own worker pools to the job's share
+// (WithSharedWorkers).
+func SharesWorkers(ctx context.Context) bool {
+	on, _ := ctx.Value(sharedWorkersKey{}).(bool)
+	return on
+}
+
+// Workers is how many workers a tool runs under ctx where its own default is def: def, or the bound
+// (Bound) where that is fewer, and at least one.
+//
+// For a tool that sizes a pool of its own, of processes, threads or goroutines, which GOMAXPROCS
+// does not reach on its own: a Python or OCaml tool's processes, or the files a Go tool reads at
+// once. The bound is what the jobs running at once share, whatever their scanner.
+func Workers(ctx context.Context, def int) int {
+	return max(1, min(def, Bound(ctx)))
+}
+
 // share is n divided among the jobs ctx says run at once, at least one.
 func share(ctx context.Context, n int) int {
 	if j, ok := ctx.Value(sharedKey{}).(int); ok && j > 1 {

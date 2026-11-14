@@ -22,6 +22,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/preflight"
 	"github.com/draugr-dev/draugr/internal/registry"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/internal/vexload"
@@ -67,8 +68,11 @@ type scanOptions struct {
 	// setFlags names the flags the user actually typed. Needed because the descriptor supplies
 	// defaults for the same settings, and a flag with a non-zero default. --epss-threshold is
 	// 0.5, cannot be told apart from an unset one by its value.
-	setFlags      map[string]bool
-	jobs          int
+	setFlags map[string]bool
+	jobs     int
+	// shareWorkers holds Semgrep and Trivy to their job's share of the parallelism bound
+	// (toolexec.WithSharedWorkers).
+	shareWorkers  bool
 	format        string
 	template      string
 	templateFile  string
@@ -117,7 +121,7 @@ var scanFlagGroups = []flagGroup{
 		"min-priority", "artifact-min-priority", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
-	{"Running the scan", []string{"jobs", "allow-effects", "no-publish", "policy", "policy-wait"}},
+	{"Running the scan", []string{"jobs", "share-workers", "allow-effects", "no-publish", "policy", "policy-wait"}},
 }
 
 func newScanCommand() *cobra.Command {
@@ -197,6 +201,9 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
 	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0,
 		"max scan jobs to run in parallel (0 = auto, one per CPU or per 2 GiB of memory, whichever is fewer); reported as stats.concurrency (also scan.jobs in draugr.config.yaml)")
+	cmd.Flags().BoolVar(&opts.shareWorkers, "share-workers", false,
+		"hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound, "+
+			"for less memory and CPU and a slower run where a long Semgrep job starts beside many short ones")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
 	// Built from the registry, not restated. --format already does this; --report listed its
@@ -489,7 +496,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// declares which jobs will read each one, so each is removed when the last of them is done.
 	pool := git.NewPool()
 	defer pool.Close()
-	ctx = git.WithPool(ctx, pool)
+	ctx = opts.workerShare(git.WithPool(ctx, pool))
 
 	// The error is deliberately not logged here. Every failure it joins is also recorded against a
 	// control in run.ScanErrors, a planning failure against a pseudo-control precisely so it has
@@ -1279,6 +1286,15 @@ func (o *scanOptions) tipsOff() bool {
 		return o.noTips
 	}
 	return tipsDisabled() || o.noTips
+}
+
+// workerShare is ctx, marked so the tools the run starts hold their own worker pools to their job's
+// share of the parallelism bound where --share-workers asks for it.
+func (o *scanOptions) workerShare(ctx context.Context) context.Context {
+	if o.shareWorkers {
+		return toolexec.WithSharedWorkers(ctx)
+	}
+	return ctx
 }
 
 // scanSettingsFrom folds scan.* under the flags of the same name, by the rule outputOptionsFrom
