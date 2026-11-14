@@ -54,7 +54,7 @@ func NewGitleaks() plugin.Scanner {
 	s.wantsHistory = gitleaksWantsHistory
 	s.historyArgs = gitleaksHistoryArgs
 	s.secrets = gitleaksSecrets
-	s.run = gitleaksRun(s.run, sharedGitleaksVersion.version)
+	s.run = gitleaksRun(gitleaksCSVAsSARIF(s.run), sharedGitleaksVersion.version)
 	s.runLogged = gitleaksTree(func(ctx context.Context, dir string, argv []string) ([]byte, []byte, error) {
 		return gitleaksExec(ctx, dir, argv)
 	}, sharedGitleaksVersion.version)
@@ -198,34 +198,36 @@ func gitleaksWantsHistory(cfg plugin.Config) bool {
 // archive (see gitleaksUnread). The history pass is left at its default: it reads a text file's
 // commits whatever the file's name.
 func gitleaksArgs(dir string, cfg plugin.Config) []string {
-	return append(gitleaksCommand("dir", dir, cfg), gitleaksTraceArgs...)
+	return append(gitleaksCommand("dir", "sarif", dir, cfg), gitleaksTraceArgs...)
 }
 
 // gitleaksHistoryArgs walks the commit history, or returns nothing when history was not asked
-// for. Its findings are marked Historical by the caller.
+// for. Its findings are marked Historical by the caller. It asks for CSV, which costs Gitleaks far
+// less memory to write than SARIF on a long history, and gitleaksCSVAsSARIF turns the report into
+// SARIF before anything reads it.
 func gitleaksHistoryArgs(dir string, cfg plugin.Config) []string {
 	if !gitleaksWantsHistory(cfg) {
 		return nil
 	}
-	return gitleaksCommand("git", dir, cfg)
+	return gitleaksCommand("git", gitleaksHistoryFormat, dir, cfg)
 }
 
 // gitleaksRulesetWarned holds each checkout whose .gitleaks.toml was refused and said so. The tree
 // and history passes each build an argv from the same checkout, and one warning covers both.
 var gitleaksRulesetWarned sync.Map
 
-// gitleaksCommand builds the argv for one mode. `--exit-code 0` keeps the process successful when
-// secrets are found: findings live in the report, not the exit code, and the controller decides
-// severity.
+// gitleaksCommand builds the argv for one mode, writing its report in format. `--exit-code 0` keeps
+// the process successful when secrets are found: findings live in the report, not the exit code,
+// and the controller decides severity.
 //
 // The source is ".", and the tool runs inside the checkout. Gitleaks builds a finding's fingerprint
 // from the path as given, and a `.gitleaksignore` entry is matched against that fingerprint, so a
 // checkout's own path, a temporary directory named afresh on every run, would put every fingerprint
 // out of reach of the entries a developer recorded with `gitleaks dir .` or `gitleaks git .`.
-func gitleaksCommand(mode, dir string, cfg plugin.Config) []string {
+func gitleaksCommand(mode, format, dir string, cfg plugin.Config) []string {
 	argv := []string{
 		"gitleaks", mode, ".",
-		"--report-format", "sarif",
+		"--report-format", format,
 		// Not /dev/stdout: gitleaks opens this path, and opening a process's own fd 1 is not the
 		// same as writing to it. See ReportPathToken.
 		"--report-path", ReportPathToken,
