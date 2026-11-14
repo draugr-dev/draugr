@@ -41,7 +41,7 @@
             }
           ],
           "message": {
-            "text": "Image user should not be 'root'"
+            "text": "Specify at least 1 USER command in Dockerfile with non-root user as argument"
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -54,6 +54,7 @@
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
+            "title": "Image user should not be 'root'",
             "tool": "Trivy"
           },
           "ruleId": "DS-0002"
@@ -74,7 +75,7 @@
             }
           ],
           "message": {
-            "text": "Access to host network"
+            "text": "Deployment 'app' should not set 'spec.template.spec.hostNetwork' to true"
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -87,6 +88,7 @@
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
+            "title": "Access to host network",
             "tool": "Trivy"
           },
           "ruleId": "KSV-0009"
@@ -107,7 +109,7 @@
             }
           ],
           "message": {
-            "text": "Privileged"
+            "text": "Container 'app' of Deployment 'app' should set 'securityContext.privileged' to false"
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -120,6 +122,7 @@
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
+            "title": "Privileged",
             "tool": "Trivy"
           },
           "ruleId": "KSV-0017"
@@ -140,7 +143,7 @@
             }
           ],
           "message": {
-            "text": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address."
+            "text": "Security group rule allows unrestricted ingress from any IP address."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -153,6 +156,7 @@
             "priority": "P1",
             "repository": "./iac",
             "security-severity": "8",
+            "title": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.",
             "tool": "Trivy"
           },
           "ruleId": "AWS-0107"
@@ -173,7 +177,7 @@
             }
           ],
           "message": {
-            "text": "No HEALTHCHECK defined"
+            "text": "Add HEALTHCHECK instruction in your Dockerfile"
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -186,6 +190,7 @@
             "priority": "P3",
             "repository": "./iac",
             "security-severity": "2",
+            "title": "No HEALTHCHECK defined",
             "tool": "Trivy"
           },
           "ruleId": "DS-0026"
@@ -206,7 +211,7 @@
             }
           ],
           "message": {
-            "text": "Restrict container images to trusted registries"
+            "text": "Container app in deployment app (namespace: null) uses an image from an untrusted registry."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -219,6 +224,7 @@
             "priority": "P2",
             "repository": "./iac",
             "security-severity": "5.5",
+            "title": "Restrict container images to trusted registries",
             "tool": "Trivy"
           },
           "ruleId": "KSV-0125"
@@ -239,7 +245,7 @@
             }
           ],
           "message": {
-            "text": "Restrict container images to trusted registries"
+            "text": "Container app in deployment app (namespace: app) uses an image from an untrusted registry."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -252,6 +258,7 @@
             "priority": "P2",
             "repository": "./iac",
             "security-severity": "5.5",
+            "title": "Restrict container images to trusted registries",
             "tool": "Trivy"
           },
           "ruleId": "KSV-0125"
@@ -270,7 +277,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/ksv-0125",
               "id": "KSV-0125",
-              "name": "Misconfiguration",
+              "name": "Restrict container images to trusted registries",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -289,7 +296,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/ksv-0017",
               "id": "KSV-0017",
-              "name": "Misconfiguration",
+              "name": "Privileged",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -308,7 +315,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/ds-0002",
               "id": "DS-0002",
-              "name": "Misconfiguration",
+              "name": "Image user should not be 'root'",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -327,7 +334,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/aws-0107",
               "id": "AWS-0107",
-              "name": "Misconfiguration",
+              "name": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -346,7 +353,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/ksv-0009",
               "id": "KSV-0009",
-              "name": "Misconfiguration",
+              "name": "Access to host network",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -365,7 +372,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/ds-0026",
               "id": "DS-0026",
-              "name": "Misconfiguration",
+              "name": "No HEALTHCHECK defined",
               "properties": {
                 "tags": [
                   "scanner:Trivy"

@@ -41,7 +41,7 @@
             }
           ],
           "message": {
-            "text": "Base image from an untrusted registry"
+            "text": "The base image alpine:3.19 is not from registry.acme.example."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -54,6 +54,7 @@
             "priority": "P1",
             "repository": "./options-trivy-config",
             "security-severity": "8",
+            "title": "Base image from an untrusted registry",
             "tool": "Trivy"
           },
           "ruleId": "DRAUGR-0002"
@@ -74,7 +75,7 @@
             }
           ],
           "message": {
-            "text": "Base image from an untrusted registry"
+            "text": "The base image alpine:3.19 is not from registry.acme.example."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -87,6 +88,7 @@
             "priority": "P1",
             "repository": "./options-trivy-config",
             "security-severity": "8",
+            "title": "Base image from an untrusted registry",
             "tool": "Trivy"
           },
           "ruleId": "DRAUGR-0002"
@@ -107,7 +109,7 @@
             }
           ],
           "message": {
-            "text": "Image user should not be 'root'"
+            "text": "Specify at least 1 USER command in Dockerfile with non-root user as argument"
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -120,6 +122,7 @@
             "priority": "P1",
             "repository": "./options-trivy-config",
             "security-severity": "8",
+            "title": "Image user should not be 'root'",
             "tool": "Trivy"
           },
           "ruleId": "DS-0002",
@@ -149,7 +152,7 @@
             }
           ],
           "message": {
-            "text": "Image names no maintainer"
+            "text": "The image has no maintainer label."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -162,6 +165,7 @@
             "priority": "P2",
             "repository": "./options-trivy-config",
             "security-severity": "5.5",
+            "title": "Image names no maintainer",
             "tool": "Trivy"
           },
           "ruleId": "DRAUGR-0001"
@@ -182,7 +186,7 @@
             }
           ],
           "message": {
-            "text": "Image names no maintainer"
+            "text": "The image has no maintainer label."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"
@@ -195,6 +199,7 @@
             "priority": "P2",
             "repository": "./options-trivy-config",
             "security-severity": "5.5",
+            "title": "Image names no maintainer",
             "tool": "Trivy"
           },
           "ruleId": "DRAUGR-0001"
@@ -212,7 +217,7 @@
                 "text": "Misconfiguration DRAUGR-0001\nType: Dockerfile Security Check\nSeverity: MEDIUM\nCheck: Image names no maintainer\nMessage: The image has no maintainer label.\nLink: [DRAUGR-0001]()\nA Dockerfile with no maintainer label names nobody to ask about the image."
               },
               "id": "DRAUGR-0001",
-              "name": "Misconfiguration",
+              "name": "Image names no maintainer",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -230,7 +235,7 @@
                 "text": "Misconfiguration DRAUGR-0002\nType: Dockerfile Security Check\nSeverity: HIGH\nCheck: Base image from an untrusted registry\nMessage: The base image alpine:3.19 is not from registry.acme.example.\nLink: [DRAUGR-0002]()\nA base image named without a registry is pulled from Docker Hub."
               },
               "id": "DRAUGR-0002",
-              "name": "Misconfiguration",
+              "name": "Base image from an untrusted registry",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
@@ -249,7 +254,7 @@
               },
               "helpUri": "https://avd.aquasec.com/misconfig/ds-0002",
               "id": "DS-0002",
-              "name": "Misconfiguration",
+              "name": "Image user should not be 'root'",
               "properties": {
                 "tags": [
                   "scanner:Trivy"
