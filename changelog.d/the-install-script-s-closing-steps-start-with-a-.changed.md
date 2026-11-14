@@ -1,0 +1,1 @@
+- **The install script's closing steps start with a scan that needs no descriptor.** `draugr tools install`, then `draugr scan .`, as the quickstart teaches, with `draugr init` last for when you want to choose what runs.

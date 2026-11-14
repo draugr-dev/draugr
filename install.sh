@@ -152,7 +152,7 @@ case ":$PATH:" in
      printf '  export PATH="%s:$PATH"\n' "$INSTALL_DIR" ;;
 esac
 
-printf '\nNext:\n'
-printf '  draugr init                                   describe this project in a draugr.saga.yaml\n'
-printf '  draugr tools install --saga draugr.saga.yaml  fetch the scanners it needs, and no others\n'
-printf '  draugr scan                                   scan what the descriptor describes\n\n'
+printf '\nNext, in a repository:\n'
+printf '  draugr tools install  fetch the scanners a scan here runs, and no others\n'
+printf '  draugr scan .         scan it, no descriptor needed\n'
+printf '  draugr init           describe it in a draugr.saga.yaml to choose what runs\n\n'

@@ -57,16 +57,15 @@ repo](install.sh); a download by hand, the GitHub CLI and `go install` are in th
 guide](docs/getting-started/install.md).
 
 ```bash
-draugr init            # describe this project in a draugr.saga.yaml
-draugr tools install   # fetch the scanners it needs, pinned and verified
-draugr scan            # scan what the descriptor describes
+draugr tools install   # fetch the scanners a scan here runs, pinned and verified
+draugr scan .          # scan this repository, no descriptor needed
 ```
 
-`tools install` takes its answer from the descriptor beside it, so a small service gets three
-scanners rather than every one Draugr can provision. `--all` when you are preparing a machine for
-several projects.
+`tools install` reads the tree as `draugr init` does, or the descriptor beside it, so a small service
+gets the few scanners it runs rather than every one Draugr can provision. `--all` when you are
+preparing a machine for several projects.
 
-Then describe what you actually ship:
+Then describe what you actually ship, with `draugr init` writing a first draft:
 
 ```yaml
 project: my-app
