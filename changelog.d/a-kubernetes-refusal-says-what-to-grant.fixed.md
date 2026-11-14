@@ -1,0 +1,1 @@
+- **A Kubernetes refusal says what to grant.** When the API server refuses a read, the errors block now gives the verb, resource, API group and scope, such as cannot list clusterrolebindings (rbac.authorization.k8s.io) at the cluster scope, instead of the scan identity cut off partway through the resource name. report.json keeps the full message.

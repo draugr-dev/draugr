@@ -76,12 +76,35 @@ var identifierOnly = regexp.MustCompile(`^(?:sha256:)?[0-9a-fA-F]{8,}(?:-[0-9a-f
 // quotedSpan matches a single-quoted address or path inside a clause.
 var quotedSpan = regexp.MustCompile(`'[^']*'`)
 
+// kubeForbidden matches the Kubernetes API server's refusal of a request: `User "<identity>" cannot
+// <verb> resource "<resource>" in API group "<group>"`, then `at the cluster scope` or `in the
+// namespace "<namespace>"`. The identity is quoted the way Go quotes a string.
+var kubeForbidden = regexp.MustCompile(
+	`User "(?:[^"\\]|\\.)*" cannot (\S+) resource "([^"]*)" in API group "([^"]*)" (at the cluster scope|in the namespace "[^"]*")`)
+
+// kubeRefusal says what a Kubernetes refusal withheld, from kubeForbidden's match: "cannot list
+// clusterrolebindings (rbac.authorization.k8s.io) at the cluster scope". The core API group is
+// named by an empty string, which is left out rather than shown as "()".
+func kubeRefusal(m []string) string {
+	verb, resource, group, where := m[1], m[2], m[3], m[4]
+	if group != "" {
+		resource += " (" + group + ")"
+	}
+	return "cannot " + verb + " " + resource + " " + where
+}
+
 // shortReason is the part of a failure that says what went wrong, in the scanner's words: its last
 // clause, or the one before when the last only repeats the address. "git clone: exit status 128:
 // remote: Repository not found. fatal: repository 'https://…' not found" says "Repository not
 // found". The whole message is in --format json.
 func shortReason(detail string, width int) string {
 	line := strings.Join(strings.Fields(detail), " ")
+	// The API server's refusal opens with the identity the request was made as, which the reader
+	// chose when they ran the scan and which can take most of the width. What they have to grant is
+	// the verb, the resource, its API group and where, so the reason is those.
+	if m := kubeForbidden.FindStringSubmatch(line); m != nil {
+		return truncate(kubeRefusal(m), width)
+	}
 	parts := strings.Split(line, ": ")
 	reason := strings.TrimSpace(parts[len(parts)-1])
 	// A registry closes its refusal with a reference for its own logs, "CorrelationId: 5bf38f62-…",

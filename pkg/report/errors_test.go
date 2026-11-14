@@ -40,6 +40,19 @@ func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
 		// A registry's request id is not a reason; the clause before it is.
 		{"run trivy: exit status 1: … UNAUTHORIZED: authentication required, visit https://aka.ms/acr/authorization for more information. CorrelationId: 5bf38f62-783a-4cad-a09e-5262470783fa",
 			"authentication required"},
+		// The Kubernetes API server's refusal opens with the identity the scan ran as. The reason is
+		// what the credential lacks: the verb, the resource, its API group and where.
+		{`draugr-k8s-policies: list clusterrolebindings: clusterrolebindings.rbac.authorization.k8s.io is forbidden: User "system:serviceaccount:ft-rbac:ft-view" cannot list resource "clusterrolebindings" in API group "rbac.authorization.k8s.io" at the cluster scope`,
+			"cannot list clusterrolebindings (rbac.authorization.k8s.io) at the cluster scope"},
+		// In a namespace, from the core API group, whose empty name is left out.
+		{`draugr-k8s-policies: list pods: namespace "team-a": pods is forbidden: User "system:serviceaccount:team-a:scanner" cannot list resource "pods" in API group "" in the namespace "team-a"`,
+			`cannot list pods in the namespace "team-a"`},
+		// An authorizer's own note after the refusal, and an identity with an escaped quote in it.
+		{`draugr-k8s-policies: list roles: roles.rbac.authorization.k8s.io is forbidden: User "o\"brien@example.com" cannot list resource "roles" in API group "rbac.authorization.k8s.io" at the cluster scope: RBAC: clusterrole.rbac.authorization.k8s.io "auditor" not found`,
+			"cannot list roles (rbac.authorization.k8s.io) at the cluster scope"},
+		// A refusal still too long for the width keeps its start, the verb and the resource.
+		{`list x: User "u" cannot list resource "verylongresourcenamesthatgoonandon" in API group "some.very.long.group.example.com" in the namespace "a-namespace-with-a-long-name"`,
+			`cannot list verylongresourcenamesthatgoonandon (some.very.long.group.example.co…`},
 	} {
 		if got := shortReason(c.detail, whyWidth); got != c.want {
 			t.Errorf("shortReason(%q) = %q, want %q", c.detail, got, c.want)
