@@ -473,7 +473,11 @@ runs:
           # gate's, which the console diff below reports.
           draugr diff "${diff_args[@]}" --format markdown >>"$GITHUB_STEP_SUMMARY" || true
         fi
-        draugr diff "${diff_args[@]}"
+        # The gate's verdict is this step's outcome, given once every output is written. A gate
+        # that trips is the case a reviewer most needs annotated, so it must not end the step
+        # before the findings it tripped on are handed to code scanning below.
+        gate=0
+        draugr diff "${diff_args[@]}" || gate=$?
 
         # What code scanning receives on a pull request. By default the findings this branch
         # introduced: an upload of the whole repository annotates a reviewer with hundreds they did
@@ -505,7 +509,14 @@ runs:
             if printf '%s' "$diff_help" | grep -- '--repository' >/dev/null; then
               new_args+=(--repository "${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}")
             fi
-            draugr diff "${new_args[@]}" > "$head_out/results-new.sarif"
+            # This diff applies the same gate, and exits non-zero when it trips after writing its
+            # report. Only a run that wrote no SARIF has failed; the verdict is the step above's.
+            new_status=0
+            draugr diff "${new_args[@]}" > "$head_out/results-new.sarif" || new_status=$?
+            if ! grep '"runs"' "$head_out/results-new.sarif" >/dev/null; then
+              echo "::error::draugr diff --format sarif wrote no report (exit ${new_status})."
+              exit "$((new_status == 0 ? 1 : new_status))"
+            fi
             echo "sarif=${head_out}/results-new.sarif" >>"$GITHUB_OUTPUT"
           else
             # Said out loud: the upload is the whole repository, which is what the setting exists
@@ -513,3 +524,4 @@ runs:
             echo "::warning::code-scanning=new needs a Draugr release with 'diff --format sarif'; this one is older, so code scanning receives the complete scan. Pin a newer version, or set code-scanning: all."
           fi
         fi
+        exit "$gate"
