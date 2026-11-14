@@ -1,15 +1,19 @@
 package scanners
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // Grype drops a match its own configuration ignores from the SARIF it writes, with no suppression
@@ -17,23 +21,21 @@ import (
 // look the same in the report. `--show-suppressed` does not help: it applies to the table output
 // alone. The JSON report lists every ignored match, with the rules that ignored it, and Grype
 // writes it in the same invocation as the SARIF when asked for a second output. So the scan runs
-// once, as it did, and the ignored matches are added to the SARIF as suppressed results before
-// anything reads it. From there they travel the path every other scanner's suppressions do.
+// once, as it did, and the ignored matches are added to the report as suppressed results as it is
+// read. From there they travel the path every other scanner's suppressions do.
 
 // grypeExclusionArgs has Grype write its JSON report to path, beside the SARIF on stdout.
 func grypeExclusionArgs(path string) []string {
 	return []string{"-o", "json=" + path}
 }
 
-// runGrypeRecordingExclusions runs a Grype command with the JSON report added, and returns the
-// SARIF with every match Grype's configuration ignored added to it as a suppressed result.
-//
-// dir is the directory Grype runs in, which is where it looks for `.grype.yaml`, and so where the
-// rule that ignored a match is looked for. Empty means the working directory.
+// runGrypeRecordingExclusions runs a Grype command with the JSON report added, and returns the SARIF
+// and the JSON as Grype wrote them, joined as grypeReports.bytes describes. parseGrypeSARIF reads
+// both, adding every match Grype's configuration ignored as a suppressed result.
 //
 // A run that wrote no JSON is an error rather than a report with nothing set aside: an empty
 // list claims the configuration excluded nothing, which Draugr cannot know.
-func runGrypeRecordingExclusions(run func(argv []string) ([]byte, error), dir string, argv []string) ([]byte, error) {
+func runGrypeRecordingExclusions(run func(argv []string) ([]byte, error), argv []string) ([]byte, error) {
 	f, err := os.CreateTemp("", "draugr-grype-*.json")
 	if err != nil {
 		return nil, err
@@ -55,22 +57,41 @@ func runGrypeRecordingExclusions(run func(argv []string) ([]byte, error), dir st
 	if len(doc) == 0 {
 		return nil, errors.New("wrote no JSON report, so what its configuration ignored cannot be reported")
 	}
-	return withGrypeJSON(out, doc, grypeConfigRules(dir))
+	return grypeReports{SARIF: out, JSON: doc}.bytes(), nil
 }
 
-// withGrypeJSON completes Grype's SARIF from the JSON report the same invocation wrote: each
-// reported result gains its own match's package (see withGrypeMatchPackages), and each match the
-// configuration ignored is added as a suppressed result (see withGrypeExclusions).
-func withGrypeJSON(sarifOut, jsonOut []byte, files []grypeRuleFile) ([]byte, error) {
-	var doc grypeDoc
-	if err := json.Unmarshal(jsonOut, &doc); err != nil {
-		return nil, fmt.Errorf("read its JSON report: %w", err)
+// grypeReports are the two reports one Grype invocation writes: the SARIF on stdout and the JSON
+// report beside it, each as Grype wrote it.
+type grypeReports struct {
+	SARIF []byte
+	JSON  []byte
+}
+
+// grypeReportsHead opens the output runGrypeRecordingExclusions returns. The SARIF's length in bytes
+// and a newline follow it, then the SARIF and the JSON.
+//
+// Joined end to end and read once each, rather than the JSON's facts written into the SARIF and the
+// SARIF read back: each report grows with the findings, and every rewrite of one is a decode and an
+// encode of all of it.
+const grypeReportsHead = "draugr-grype-reports "
+
+// bytes is the reports joined as grypeReportsHead describes.
+func (r grypeReports) bytes() []byte {
+	head := grypeReportsHead + strconv.Itoa(len(r.SARIF)) + "\n"
+	out := make([]byte, 0, len(head)+len(r.SARIF)+len(r.JSON))
+	return append(append(append(out, head...), r.SARIF...), r.JSON...)
+}
+
+// readGrypeReports splits output runGrypeRecordingExclusions returned into the two reports, each
+// sharing out's memory rather than copied from it.
+func readGrypeReports(out []byte) (grypeReports, error) {
+	rest, ok := bytes.CutPrefix(out, []byte(grypeReportsHead))
+	size, rest, found := bytes.Cut(rest, []byte("\n"))
+	n, err := strconv.Atoi(string(size))
+	if !ok || !found || err != nil || n < 0 || n > len(rest) {
+		return grypeReports{}, errors.New("not the reports a Grype run returns")
 	}
-	out, err := withGrypeMatchPackages(sarifOut, doc.Matches)
-	if err != nil {
-		return nil, err
-	}
-	return withGrypeExclusions(out, doc, files)
+	return grypeReports{SARIF: rest[:n:n], JSON: rest[n:]}, nil
 }
 
 // grypeDoc is the slice of Grype's JSON report Draugr reads: each match it reported, each it
@@ -191,11 +212,19 @@ func grypeConfigRules(dir string) []grypeRuleFile {
 	return out
 }
 
-// withGrypeExclusions adds each match Grype's configuration ignored to its SARIF, as a result
-// carrying a suppression with origin scanner. SARIF with nothing to add is returned unchanged.
-func withGrypeExclusions(sarifOut []byte, doc grypeDoc, files []grypeRuleFile) ([]byte, error) {
+// withGrypeExclusions adds each match Grype's configuration ignored to report, as a result carrying
+// a suppression with origin scanner, and its rule where report has none of that id. dir is the
+// directory Grype ran in, where it looks for `.grype.yaml`, and so where the rule that ignored a
+// match is looked for. Empty means the working directory.
+//
+// The ignored matches are written as a SARIF document of their own and read by the SARIF reader, so
+// they arrive as Grype's reported results do, and only that document is encoded and decoded.
+func withGrypeExclusions(report *sarif.Report, doc grypeDoc, dir string) error {
 	image := grypeImageRef(doc)
 	var results, rules []any
+	var aliases [][]string
+	var files []grypeRuleFile
+	read, ruled := false, map[any]bool{}
 	for _, m := range doc.IgnoredMatches {
 		applied := slices.DeleteFunc(slices.Clone(m.AppliedIgnoreRules), func(r grypeIgnoreRule) bool {
 			return slices.Contains(grypeDefaultRules, r)
@@ -203,14 +232,49 @@ func withGrypeExclusions(sarifOut []byte, doc grypeDoc, files []grypeRuleFile) (
 		if len(applied) == 0 || m.Vulnerability.ID == "" || m.Artifact.Name == "" {
 			continue
 		}
+		if !read {
+			files, read = grypeConfigRules(dir), true
+		}
 		result, rule := grypeExcludedResult(m, applied, image, files)
 		results = append(results, result)
-		rules = append(rules, rule)
+		aliases = append(aliases, grypeMatchAliases(m))
+		// One rule per id, the first, as Grype writes one per advisory and package name.
+		if !ruled[rule["id"]] {
+			ruled[rule["id"]] = true
+			rules = append(rules, rule)
+		}
 	}
 	if len(results) == 0 {
-		return sarifOut, nil
+		return nil
 	}
-	return appendSARIFResults(sarifOut, "grype", results, rules)
+	out, err := json.Marshal(map[string]any{"version": "2.1.0", "runs": []any{map[string]any{
+		"tool":    map[string]any{"driver": map[string]any{"name": "grype", "rules": rules}},
+		"results": results,
+	}}})
+	if err != nil {
+		return err
+	}
+	ignored, err := sarif.FromSARIF(out)
+	if err != nil {
+		return err
+	}
+	for i := range ignored.Results {
+		ignored.Results[i].Aliases = aliases[i]
+	}
+	if report.Tool == "" {
+		report.Tool = ignored.Tool
+	}
+	for id, rule := range ignored.Rules {
+		if _, ok := report.Rules[id]; ok {
+			continue
+		}
+		if report.Rules == nil {
+			report.Rules = map[string]sarif.Rule{}
+		}
+		report.Rules[id] = rule
+	}
+	report.Results = append(report.Results, ignored.Results...)
+	return nil
 }
 
 // grypeImageRef is the reference an image scan was given, or "" for a directory.
@@ -261,9 +325,6 @@ func grypeExcludedResult(m grypeMatch, applied []grypeIgnoreRule, image string, 
 		}}},
 		"suppressions": []any{suppression},
 		"properties":   map[string]any{"package": grypeMatchPackage(m)},
-	}
-	if aliases := grypeMatchAliases(m); len(aliases) > 0 {
-		result["properties"].(map[string]any)[grypeAliasesProperty] = aliases
 	}
 
 	help := strings.Join([]string{

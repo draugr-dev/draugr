@@ -350,11 +350,7 @@ func TestAnIgnoredGrypeMatchCarriesItsOwnPackage(t *testing.T) {
 	ignored["appliedIgnoreRules"] = []any{map[string]any{"vulnerability": "CVE-2026-118764", "reason": "not reachable"}}
 	reported["matches"], reported["ignoredMatches"] = ms[:1], []any{ignored}
 
-	out, err := withGrypeJSON([]byte(grypeTestSARIF(t, minimatchMatches[:1], "")), []byte(mustJSON(t, reported)), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rep, err := parseGrypeRepoSARIF(out, "/src", nil)
+	rep, err := parseGrypeRepoSARIF(grypeOutput(grypeTestSARIF(t, minimatchMatches[:1], ""), mustJSON(t, reported)), "/src", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +372,7 @@ func TestAnIgnoredGrypeMatchCarriesItsOwnPackage(t *testing.T) {
 // the result states the same version; any other carries no package.
 func TestAGrypeResultWithNoMatchNeverTakesAnotherVersion(t *testing.T) {
 	out := grypeTestSARIF(t, minimatchMatches, "")
-	rep, err := parseGrypeSARIF([]byte(out))
+	rep, err := parseGrypeSARIF(grypeOutput(out, "{}"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +391,7 @@ func TestAGrypeResultWithNoMatchNeverTakesAnotherVersion(t *testing.T) {
 	// One result per rule: the rule describes it, whatever its message says.
 	single := grypeTestSARIF(t, minimatchMatches[6:7], "")
 	single = strings.Replace(single, "version 8.0.4 was found at", "was found at", 1)
-	rep, err = parseGrypeSARIF([]byte(single))
+	rep, err = parseGrypeSARIF(grypeOutput(single, "{}"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,43 +442,53 @@ func TestGrypeMatchIndexFind(t *testing.T) {
 	}
 }
 
-// Stamping leaves a document it has nothing to add to as it was, and refuses SARIF it cannot read.
-func TestWithGrypeMatchPackagesKeepsTheDocument(t *testing.T) {
+// Pairing gives a result its match's package and leaves the rest of the result, and every result
+// with no match, as the SARIF had them. A report with no match to pair is left as it was.
+func TestWithGrypeMatchPackagesKeepsTheResult(t *testing.T) {
 	var doc grypeDoc
 	if err := json.Unmarshal([]byte(grypeTestJSON(t, minimatchMatches, "")), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := withGrypeMatchPackages([]byte(grypeActiveSARIF), doc.Matches); err != nil || string(out) != grypeActiveSARIF {
-		t.Errorf("out %s err %v, want the SARIF untouched", out, err)
+	message := "A medium vulnerability in npm package: minimatch, version 5.1.8 was found at: /pnpm-lock.yaml"
+	report := sarif.Report{Results: []sarif.Result{
+		{Tool: "grype", RuleID: "unmatched", Message: "no version here"},
+		{Tool: "grype", RuleID: "CVE-2026-118764-minimatch", Message: message, Location: sarif.Location{URI: "/pnpm-lock.yaml"}},
+	}}
+	withGrypeMatchPackages(&report, nil)
+	if report.Results[1].Package != nil {
+		t.Fatalf("a report with no match gained a package: %+v", report.Results[1].Package)
 	}
-	if _, err := withGrypeJSON([]byte("not sarif"), []byte(grypeTestJSON(t, minimatchMatches, "")), nil); err == nil {
-		t.Error("unreadable SARIF was accepted")
+	withGrypeMatchPackages(&report, doc.Matches)
+	if p := report.Results[0].Package; p != nil {
+		t.Errorf("a result with no match took package %+v", p)
 	}
-	odd := `{"version":"2.1.0","runs":[{"results":["not a result",{"ruleId":"CVE-2026-118764-minimatch",` +
-		`"message":{"text":"A medium vulnerability in npm package: minimatch, version 5.1.8 was found at: /pnpm-lock.yaml"},` +
-		`"properties":{"tool":"grype"}}]}]}`
-	out, err := withGrypeMatchPackages([]byte(odd), doc.Matches)
-	if err != nil {
-		t.Fatal(err)
+	got := report.Results[1]
+	if got.Package == nil || got.Package.Version != "5.1.8" || got.Tool != "grype" || got.Message != message {
+		t.Errorf("result %+v, want the match's package beside what the result had", got)
 	}
-	var got struct {
-		Runs []struct {
-			Results []json.RawMessage `json:"results"`
-		} `json:"runs"`
+}
+
+// The output of a run is the two reports behind a header naming the SARIF's length, and anything
+// else, unreadable SARIF or an unreadable JSON report, fails rather than reading as a clean scan.
+func TestParseGrypeSARIFRefusesWhatARunDoesNotReturn(t *testing.T) {
+	sarifOut, jsonOut := grypeTestSARIF(t, minimatchMatches, ""), grypeTestJSON(t, minimatchMatches, "")
+	for _, c := range []struct {
+		name string
+		out  []byte
+	}{
+		{"SARIF alone", []byte(sarifOut)},
+		{"no length", []byte(grypeReportsHead + "x\n" + sarifOut)},
+		{"a length past the end", []byte(grypeReportsHead + "99999999\n" + sarifOut)},
+		{"no newline", []byte(grypeReportsHead + "12")},
+		{"unreadable SARIF", grypeOutput("not sarif", jsonOut)},
+		{"unreadable JSON", grypeOutput(sarifOut, "not json")},
+	} {
+		if _, err := parseGrypeSARIF(c.out, ""); err == nil {
+			t.Errorf("%s: accepted", c.name)
+		}
 	}
-	if err := json.Unmarshal(out, &got); err != nil {
-		t.Fatal(err)
-	}
-	var result struct {
-		Properties struct {
-			Tool    string         `json:"tool"`
-			Package *sarif.Package `json:"package"`
-		} `json:"properties"`
-	}
-	if len(got.Runs) != 1 || len(got.Runs[0].Results) != 2 || json.Unmarshal(got.Runs[0].Results[1], &result) != nil {
-		t.Fatalf("SARIF %s, want both entries kept", out)
-	}
-	if p := result.Properties.Package; p == nil || p.Version != "5.1.8" || result.Properties.Tool != "grype" {
-		t.Errorf("properties %+v, want the match's package beside the properties the result had", result.Properties)
+	reports, err := readGrypeReports(grypeOutput(sarifOut, jsonOut))
+	if err != nil || string(reports.SARIF) != sarifOut || string(reports.JSON) != jsonOut {
+		t.Errorf("read back %d and %d bytes, err %v; want the reports as written", len(reports.SARIF), len(reports.JSON), err)
 	}
 }

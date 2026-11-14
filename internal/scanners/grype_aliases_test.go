@@ -19,11 +19,7 @@ func TestGrypeResultsNameTheirRelatedVulnerabilities(t *testing.T) {
 	doc["matches"], doc["ignoredMatches"] = ms[:len(ms)-1], []any{ignored}
 
 	reported := minimatchMatches[:len(minimatchMatches)-1]
-	out, err := withGrypeJSON([]byte(grypeTestSARIF(t, reported, "")), []byte(mustJSON(t, doc)), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rep, err := parseGrypeRepoSARIF(out, "/src", nil)
+	rep, err := parseGrypeRepoSARIF(grypeOutput(grypeTestSARIF(t, reported, ""), mustJSON(t, doc)), "/src", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,30 +59,5 @@ func TestGrypeMatchAliases(t *testing.T) {
 	pkg, aliases, ok := newGrypeMatchIndex([]grypeMatch{m, other}).find("CVE-2026-118764-minimatch", msg, "/pnpm-lock.yaml")
 	if !ok || pkg.Version != "10.2.3" || aliases != nil {
 		t.Errorf("find = %+v, %q, %v, want the package and no identifiers", pkg, aliases, ok)
-	}
-}
-
-// The identifiers are read back by result, and a document that does not carry them gives none.
-func TestGrypeResultAliases(t *testing.T) {
-	for _, c := range []struct {
-		name, doc string
-		want      [][]string
-	}{
-		{"by result", `{"runs":[{"results":[{"properties":{"draugr/aliases":["GHSA-x"]}},{}]},{"results":[{"properties":{"draugr/aliases":"GHSA-y"}}]}]}`,
-			[][]string{{"GHSA-x"}, nil, nil}},
-		{"none carried", `{"runs":[{"results":[{},{"properties":{"draugr/aliases":[]}}]}]}`, nil},
-		{"not JSON", `{`, nil},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			got := grypeResultAliases([]byte(c.doc))
-			if len(got) != len(c.want) {
-				t.Fatalf("aliases = %q, want %q", got, c.want)
-			}
-			for i := range c.want {
-				if !slices.Equal(got[i], c.want[i]) {
-					t.Errorf("result %d: aliases = %q, want %q", i, got[i], c.want[i])
-				}
-			}
-		})
 	}
 }

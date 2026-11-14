@@ -1,7 +1,6 @@
 package scanners
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -56,7 +55,7 @@ func NewGrype() plugin.Scanner {
 		ConfigSchema: json.RawMessage(grypeConfigSchema),
 		Argv:         grypeArgv,
 		Run: func(ctx context.Context, argv []string) ([]byte, error) {
-			return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRun(ctx, a) }, "", argv)
+			return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRun(ctx, a) }, argv)
 		},
 		Parse:        parseGrypeImageSARIF,
 		CacheVersion: sharedGrypeVersion.cacheVersion,
@@ -86,7 +85,7 @@ func NewGrypeFS() plugin.Scanner {
 	s.prewarm = sharedGrypeDB.warm
 	s.dataState = sharedGrypeData.database
 	s.run = func(ctx context.Context, dir string, argv []string) ([]byte, error) {
-		return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRunInDir(ctx, dir, a) }, dir, argv)
+		return runGrypeRecordingExclusions(func(a []string) ([]byte, error) { return grypeRunInDir(ctx, dir, a) }, argv)
 	}
 	s.inventory = &inventoryOutput{args: grypeInventoryArgs, parse: parseGrypeInventory}
 	s.spreadPoms = true
@@ -265,7 +264,7 @@ func execGrype(ctx context.Context, argv []string) ([]byte, error) {
 // scanning anchors it nowhere, and the same dependency reported by Trivy and by Grype arrives
 // under two different paths and cannot be recognized as the same thing.
 func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report, error) {
-	report, err := parseGrypeSARIF(out)
+	report, err := parseGrypeSARIF(out, dir)
 	if err != nil {
 		return sarif.Report{}, err
 	}
@@ -276,42 +275,61 @@ func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report,
 }
 
 // parseGrypeImageSARIF decodes Grype's SARIF for an image scan. The location is left as Grype
-// wrote it, because imageRefLocations replaces it with the image reference afterwards.
+// wrote it, because imageRefLocations replaces it with the image reference afterwards. Grype ran in
+// the working directory, so that is where its configuration was read from.
 func parseGrypeImageSARIF(out []byte, _ plugin.Target, _ plugin.Config) (sarif.Report, error) {
-	return parseGrypeSARIF(out)
+	return parseGrypeSARIF(out, "")
 }
 
-// parseGrypeSARIF decodes Grype's SARIF and gives each result its package. Shared by the image and
-// repository scanners, which read the same document.
+// parseGrypeSARIF reads the two reports one Grype run wrote, from the output
+// runGrypeRecordingExclusions returns, and gives each result its package. Shared by the image and
+// repository scanners, which read the same documents. dir is the directory Grype ran in.
 //
-// A result normally arrives carrying the package of its own match, which withGrypeMatchPackages
-// read from Grype's JSON report. One that does not falls back to its rule's help text, but only
-// where that text is known to describe it: the rule has no other result, or the result's message
-// states the version the rule does. Grype writes one rule per advisory and package name, so a rule
-// with several results describes one of them, and any other result given its package would carry
-// another match's version, fixed version and package URL. Such a result carries no package. It is
-// then neither correlated with another scanner's copy nor matched by a VEX statement, which is the
-// honest outcome for a finding whose package Draugr cannot name, and better than naming the wrong
-// one.
-func parseGrypeSARIF(out []byte) (sarif.Report, error) {
-	report, err := sarif.FromSARIF(out)
+// Each report is decoded once. The SARIF is the source of everything a finding carries, its
+// message, level, score, location and fingerprint, as Grype wrote them. The JSON report adds what
+// the SARIF states per rule instead of per result: each result's own package and the identifiers
+// related to it (see withGrypeMatchPackages), and the matches Grype's configuration ignored (see
+// withGrypeExclusions).
+//
+// A result with no match in the JSON falls back to its rule's help text, but only where that text is
+// known to describe it: the rule has no other result, or the result's message states the version the
+// rule does. Grype writes one rule per advisory and package name, so a rule with several results
+// describes one of them, and any other result given its package would carry another match's
+// version, fixed version and package URL. Such a result carries no package. It is then neither
+// correlated with another scanner's copy nor matched by a VEX statement, which is the honest outcome
+// for a finding whose package Draugr cannot name, and better than naming the wrong one.
+func parseGrypeSARIF(out []byte, dir string) (sarif.Report, error) {
+	reports, err := readGrypeReports(out)
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	packages := grypePackages(out)
-	if aliases := grypeResultAliases(out); len(aliases) == len(report.Results) {
-		for i, ids := range aliases {
-			report.Results[i].Aliases = ids
-		}
+	report, err := sarif.FromSARIF(reports.SARIF)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	var doc grypeDoc
+	if err := json.Unmarshal(reports.JSON, &doc); err != nil {
+		return sarif.Report{}, fmt.Errorf("read its JSON report: %w", err)
+	}
+	withGrypeMatchPackages(&report, doc.Matches)
+	if err := withGrypeExclusions(&report, doc, dir); err != nil {
+		return sarif.Report{}, err
 	}
 	perRule := map[string]int{}
 	for _, r := range report.Results {
 		perRule[r.RuleID]++
 	}
+	// Read only where a result needs it, since it is a second decode of the SARIF.
+	var packages map[string]sarif.Package
 	for i := range report.Results {
 		r := &report.Results[i]
 		if r.Package != nil {
 			continue
+		}
+		if packages == nil {
+			if packages = grypePackages(reports.SARIF); packages == nil {
+				packages = map[string]sarif.Package{}
+			}
 		}
 		pkg, ok := packages[r.RuleID]
 		if !ok {
@@ -377,73 +395,33 @@ func grypeCPEOnly(m grypeMatch) bool {
 	return true
 }
 
-// withGrypeMatchPackages writes onto each result of Grype's SARIF the package of the match it
-// reports, read from the JSON report the same invocation wrote, as the result property the SARIF
-// reader takes a package from. SARIF with no result to stamp is returned unchanged.
+// withGrypeMatchPackages gives each result of Grype's SARIF the package of the match it reports, and
+// the identifiers Grype related to that match, read from the JSON report the same invocation wrote.
 //
 // Paired with Grype's own SARIF result rather than rebuilt from the JSON, as an ignored match is.
-// The SARIF stays the source of everything else a finding carries, its message, level, score,
-// location and fingerprint, as Grype wrote them, so the change is confined to the one fact the
-// SARIF states per rule instead of per result. Grype writes one rule per advisory and package name,
-// so every match of one advisory in one package shares a rule, and the version, fixed version and
-// package URL in its help text describe only the first.
-func withGrypeMatchPackages(sarifOut []byte, matches []grypeMatch) ([]byte, error) {
+// The SARIF stays the source of everything else a finding carries, so the change is confined to the
+// facts the SARIF states per rule instead of per result. Grype writes one rule per advisory and
+// package name, so every match of one advisory in one package shares a rule, and the version, fixed
+// version and package URL in its help text describe only the first.
+//
+// The message read is the one Grype wrote: the SARIF reader replaces only a message that is a list
+// of fields, and Grype's is a sentence.
+func withGrypeMatchPackages(report *sarif.Report, matches []grypeMatch) {
 	if len(matches) == 0 {
-		return sarifOut, nil
-	}
-	dec := json.NewDecoder(bytes.NewReader(sarifOut))
-	dec.UseNumber()
-	var log map[string]any
-	if err := dec.Decode(&log); err != nil {
-		return nil, fmt.Errorf("read its SARIF: %w", err)
+		return
 	}
 	index := newGrypeMatchIndex(matches)
-	stamped := 0
-	runs, _ := log["runs"].([]any)
-	for _, run := range runs {
-		r, _ := run.(map[string]any)
-		results, _ := r["results"].([]any)
-		for _, res := range results {
-			result, _ := res.(map[string]any)
-			if result == nil {
-				continue
-			}
-			pkg, aliases, ok := index.find(grypeSARIFResultFields(result))
-			if !ok {
-				continue
-			}
-			props, _ := result["properties"].(map[string]any)
-			if props == nil {
-				props = map[string]any{}
-				result["properties"] = props
-			}
-			props["package"] = pkg
-			if len(aliases) > 0 {
-				props[grypeAliasesProperty] = aliases
-			}
-			stamped++
+	for i := range report.Results {
+		r := &report.Results[i]
+		pkg, aliases, ok := index.find(r.RuleID, r.Message, r.Location.URI)
+		if !ok {
+			continue
+		}
+		r.Package = &pkg
+		if len(aliases) > 0 {
+			r.Aliases = aliases
 		}
 	}
-	if stamped == 0 {
-		return sarifOut, nil
-	}
-	return json.Marshal(log)
-}
-
-// grypeSARIFResultFields reads what pairs a SARIF result with its match: the rule, the message that
-// states the version, and the location.
-func grypeSARIFResultFields(result map[string]any) (ruleID, message, uri string) {
-	ruleID, _ = result["ruleId"].(string)
-	if msg, ok := result["message"].(map[string]any); ok {
-		message, _ = msg["text"].(string)
-	}
-	if locs, ok := result["locations"].([]any); ok && len(locs) > 0 {
-		loc, _ := locs[0].(map[string]any)
-		phys, _ := loc["physicalLocation"].(map[string]any)
-		art, _ := phys["artifactLocation"].(map[string]any)
-		uri, _ = art["uri"].(string)
-	}
-	return ruleID, message, uri
 }
 
 // grypeMatchIndex holds the matches of Grype's JSON report by rule id and installed version.
@@ -512,11 +490,6 @@ func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []str
 	return pkg, aliases, true
 }
 
-// grypeAliasesProperty is the result property withGrypeMatchPackages writes a match's other
-// identifiers under, for parseGrypeSARIF to read back. Namespaced, as the SARIF reader's own
-// draugr/rating is, so it cannot be mistaken for a property Grype writes.
-const grypeAliasesProperty = "draugr/aliases"
-
 // grypeMatchAliases are the identifiers of the vulnerabilities Grype relates to a match, other than
 // the one it reported the match under, each once.
 //
@@ -532,38 +505,6 @@ func grypeMatchAliases(m grypeMatch) []string {
 		}
 	}
 	return ids
-}
-
-// grypeResultAliases reads back the identifiers withGrypeMatchPackages wrote on each result, in the
-// order the SARIF lists its results, which is the order the SARIF reader returns them in. Nil when
-// the document cannot be read or holds no result carrying any.
-func grypeResultAliases(out []byte) [][]string {
-	var doc struct {
-		Runs []struct {
-			Results []struct {
-				Properties map[string]json.RawMessage `json:"properties"`
-			} `json:"results"`
-		} `json:"runs"`
-	}
-	if json.Unmarshal(out, &doc) != nil {
-		return nil
-	}
-	var all [][]string
-	found := false
-	for _, run := range doc.Runs {
-		for _, r := range run.Results {
-			var ids []string
-			if raw, ok := r.Properties[grypeAliasesProperty]; ok && json.Unmarshal(raw, &ids) != nil {
-				ids = nil
-			}
-			found = found || len(ids) > 0
-			all = append(all, ids)
-		}
-	}
-	if !found {
-		return nil
-	}
-	return all
 }
 
 // grypeLocationSuffix is the length of a match's first location where the result's location ends
