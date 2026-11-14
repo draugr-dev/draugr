@@ -376,6 +376,99 @@ func TestAggregateCountsPinningOverTheJobs(t *testing.T) {
 	}
 }
 
+// The scope line counts the signers a descriptor declares, not only the ones that covered an image.
+// A signer whose pattern matches nothing used to drop out of the count, so a descriptor whose every
+// pattern missed read "no signers declared" over a `signers:` block that is there.
+func TestScopeCountsTheSignersThatCoverNothing(t *testing.T) {
+	t.Parallel()
+	model, comp := modelWith(
+		signersBlock(
+			keylessSigner("our-ci", "ghcr.io/acme/*", "https://gitlab.com", "https://gitlab.com/acme//.gitlab-ci.yml@refs/heads/main"),
+			keylessSigner("old-ci", "registry.example.com/legacy/*", "https://gitlab.com", "https://gitlab.com/legacy//.gitlab-ci.yml@refs/heads/main"),
+		),
+		saga.Image{Image: "ghcr.io/acme/payments", Digest: "sha256:9c8f"},
+		saga.Image{Image: "docker.io/library/redis"},
+	)
+	jobs, err := Provenance{}.Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reports := make([]sarif.Report, 0, len(jobs))
+	for _, job := range jobs {
+		if got := fmt.Sprint(job.Config[declaredKey]); got != "[our-ci old-ci]" {
+			t.Errorf("%v: declared = %s, want both signers on every job, the uncovered image's included", job.Target, got)
+		}
+		// What the scanner reports back: the signer the job named, and the names it was handed,
+		// as a JSON array.
+		names, err := json.Marshal(job.Config[declaredKey])
+		if err != nil {
+			t.Fatal(err)
+		}
+		who := job.Config["signer"].(string)
+		if who == "" {
+			who = "no signer declared"
+		}
+		reports = append(reports, sarif.Report{Tool: cosignScanner, Provenance: []sarif.Provenance{{
+			Tool: cosignScanner,
+			Fields: []sarif.Field{
+				{Key: "signer", Value: who},
+				{Key: "pinned", Value: "tag"},
+				{Key: declaredKey, Value: string(names)},
+			},
+		}}})
+	}
+	res, err := Provenance{}.Aggregate(reports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := res.Report.Provenance[0].Describe(), "scope: 2 signers, 1 matching an image"; !strings.Contains(got, want) {
+		t.Errorf("account = %q, want it to contain %q", got, want)
+	}
+}
+
+func TestDescribeScope(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		declared, matching int
+		want               string
+	}{
+		{0, 0, "no signers declared"},
+		{1, 1, "1 signer"},
+		{3, 3, "3 signers"},
+		{1, 0, "1 signer, 0 matching an image"},
+		{3, 1, "3 signers, 1 matching an image"},
+	} {
+		if got := describeScope(tc.declared, tc.matching); got != tc.want {
+			t.Errorf("describeScope(%d, %d) = %q, want %q", tc.declared, tc.matching, got, tc.want)
+		}
+	}
+}
+
+// Each component is judged by the project's signers and its own, so the scope counts the union over
+// every job: three signers here, where no single component is judged by more than two. A signer
+// that matched an image counts even from a job that handed back no names.
+func TestScopeCountsTheSignersOfEveryComponent(t *testing.T) {
+	t.Parallel()
+	job := func(signer, declared string) sarif.Report {
+		fields := []sarif.Field{{Key: "signer", Value: signer}, {Key: "pinned", Value: "tag"}}
+		if declared != "" {
+			fields = append(fields, sarif.Field{Key: declaredKey, Value: declared})
+		}
+		return sarif.Report{Tool: cosignScanner, Provenance: []sarif.Provenance{{Tool: cosignScanner, Fields: fields}}}
+	}
+	res, err := Provenance{}.Aggregate([]sarif.Report{
+		job("org-ci", `["org-ci","payments-ci"]`),
+		job("no signer declared", `["org-ci","search-ci"]`),
+		job("legacy-ci", ""),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := res.Report.Provenance[0].Describe(), "scope: 4 signers, 2 matching an image"; !strings.Contains(got, want) {
+		t.Errorf("account = %q, want it to contain %q", got, want)
+	}
+}
+
 // An image nobody declared a signer for is counted apart from one carrying no signature at all.
 // The first is a policy that has not caught up with the inventory; the second is an artifact
 // nothing can be established about. The identities themselves stay off the row, which has three

@@ -23,6 +23,7 @@ const (
 	subjectKey    = "subject"
 	unmatchedKey  = "unmatched"
 	trustRootKey  = "trustRoot"
+	declaredKey   = "declared"
 )
 
 // Unmatched is what an image no signer covers is worth.
@@ -234,6 +235,7 @@ func (Provenance) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob
 			// none of the others, because a scanner's schema is closed and a key it has no use
 			// for would fail the job rather than be ignored.
 			cfg["signer"] = e.Name
+			cfg[declaredKey] = signerNames(signers)
 			switch want {
 			case notationScanner:
 				cfg[trustStoreKey], cfg[subjectKey] = e.TrustStore, e.Subject
@@ -282,6 +284,7 @@ func (Provenance) Aggregate(reports []sarif.Report) (plugin.ControlResult, error
 func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 	signers := map[string]bool{}
 	verifiers := map[string]bool{}
+	declared := map[string]bool{}
 	var images, byDigest, unsigned, verified, observedCount int
 	var observed []string
 	for _, rep := range reports {
@@ -296,6 +299,15 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 				case f.Key == "signer" && f.Value != "" && f.Value != "no signer declared":
 					signers[f.Value] = true
 					verified++
+				case f.Key == declaredKey:
+					// Each job names the signers its component is judged by, the project's and its
+					// own, so the union over the jobs is every signer the run was measured against.
+					var names []string
+					if json.Unmarshal([]byte(f.Value), &names) == nil {
+						for _, name := range names {
+							declared[name] = true
+						}
+					}
 				case f.Key == "pinned" && f.Value == "digest":
 					byDigest++
 				case f.Key == "observed" && strings.HasSuffix(f.Value, "\tunsigned"):
@@ -310,6 +322,11 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 	if images == 0 {
 		return nil
 	}
+	// A signer that matched an image is declared by definition, so it counts even where a verifier
+	// did not hand the declared names back.
+	for name := range signers {
+		declared[name] = true
+	}
 
 	// The shape the other controls in this block use: what was covered, over what, and the one
 	// qualifier that changes how much the coverage is worth. `coverage` and `scope` are the
@@ -321,7 +338,7 @@ func provenanceAccount(reports []sarif.Report) []sarif.Provenance {
 	// it had at exactly the sizes where it mattered. A count says the same thing at any size.
 	fields := []sarif.Field{
 		{Key: "coverage", Value: describeCoverage(images, verified, observedCount, unsigned)},
-		{Key: "scope", Value: describeScope(len(signers))},
+		{Key: "scope", Value: describeScope(len(declared), len(signers))},
 	}
 	// Said whether or not anything failed. A green verdict over images named by tag is a weaker
 	// statement than it looks, and this is the line that says so. Stated as what is pinned rather
@@ -385,15 +402,33 @@ func splitObserved(note string) (ref, subject, issuer string) {
 	return parts[0], parts[1], parts[2]
 }
 
-// describeScope is how much of a policy the run was measured against.
+// describeScope is how much of a policy the run was measured against: how many signers were
+// declared, and, where some of them match none of the images, how many do.
 //
-// The count rather than the names. A signer's identity answers a different question, "which one
+// The second count is what keeps a pattern that matches nothing visible. Counted only from the
+// signers that matched an image, a descriptor whose every pattern missed would read as one with no
+// signers at all, and its reader would go looking for a block that is there.
+//
+// Counts rather than names. A signer's identity answers a different question, "which one
 // refused", and that one is answered on the finding, beside the image it refused.
-func describeScope(signers int) string {
-	if signers == 0 {
+func describeScope(declared, matching int) string {
+	switch {
+	case declared == 0:
 		return "no signers declared"
+	case matching == declared:
+		return english.Count(declared, "signer")
+	default:
+		return fmt.Sprintf("%s, %d matching an image", english.Count(declared, "signer"), matching)
 	}
-	return english.Count(signers, "signer")
+}
+
+// signerNames lists the names of the signers a component is judged by, for the job to hand back.
+func signerNames(signers []signer) []string {
+	names := make([]string, 0, len(signers))
+	for _, s := range signers {
+		names = append(names, s.Name)
+	}
+	return names
 }
 
 // describeCoverage says what happened to the images, in the vocabulary the control uses: an image
@@ -465,7 +500,7 @@ func (Provenance) Validate(model saga.Model) []error {
 // touching the signer that appears to govern it. Plan overwrites all of them on every job, so this
 // refuses a key that would do nothing rather than one that would do harm, which is the right order
 // to build the two guarantees in.
-var controlSetKeys = []string{"signer", "issuer", "identity", "identityRegexp", unmatchedKey, trustRootKey}
+var controlSetKeys = []string{"signer", "issuer", "identity", "identityRegexp", unmatchedKey, trustRootKey, declaredKey}
 
 // noScannerLevelExpectation refuses a control-set key written under a scanner's own block.
 func noScannerLevelExpectation(where string, controls map[string]saga.ControllerSettings) []error {

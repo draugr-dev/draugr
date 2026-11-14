@@ -273,3 +273,39 @@ func TestNotationInfoDeclaresWhatItSendsAndReads(t *testing.T) {
 		t.Error("digests reach the registry, which is a disclosure")
 	}
 }
+
+// Each verifier hands back the names of the signers the control wrote into the job, whether they
+// arrive as a Go slice from the plan or a JSON array from a stored config. The control counts the
+// signers that match nothing from them.
+func TestEachVerifierReportsTheDeclaredSignerCount(t *testing.T) {
+	declared := func(rep sarif.Report) string {
+		for _, f := range rep.Provenance[0].Fields {
+			if f.Key == "declared" {
+				return f.Value
+			}
+		}
+		return "absent"
+	}
+	cfg := notationCfg(t)
+	cfg["declared"] = []string{"acme-pki", "with\ta tab"}
+	s, _, _ := stubNotation(t, "Successfully verified signature", nil)
+	rep, err := notationScan(t, s, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := declared(rep), `["acme-pki","with\ta tab"]`; got != want {
+		t.Errorf("notation: declared = %s, want %s", got, want)
+	}
+
+	c, _ := stubCosign(t, ok(signedJSON))
+	ccfg := expecting()
+	ccfg["declared"] = []any{"our-ci", "old-ci"}
+	if got, want := declared(scan(t, c, ccfg)), `["our-ci","old-ci"]`; got != want {
+		t.Errorf("cosign: declared = %s, want %s", got, want)
+	}
+	// A job with no names says so, rather than leaving the field out.
+	c, _ = stubCosign(t, ok(signedJSON))
+	if got := declared(scan(t, c, expecting())); got != "[]" {
+		t.Errorf("cosign with no names: declared = %s, want []", got)
+	}
+}

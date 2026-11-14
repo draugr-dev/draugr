@@ -52,6 +52,12 @@ const notationConfigSchema = `{
       "type": "string",
       "readOnly": true,
       "description": "Set by the control: the certificate subject the signature must carry."
+    },
+    "declared": {
+      "type": "array",
+      "items": {"type": "string"},
+      "readOnly": true,
+      "description": "Set by the control: the names of every signer this image's component is judged by, whether or not one covers it."
     }
   }
 }`
@@ -127,8 +133,9 @@ func (s *notationVerifier) Scan(ctx context.Context, target plugin.Target, cfg p
 
 	report := sarif.Report{Tool: notationScannerName}
 	report.Provenance = []sarif.Provenance{{
-		Tool:   notationScannerName,
-		Fields: cosignFields(expectation{Signer: signer, Identity: subject, Issuer: trustStore}, byDigest, img.Ref, ""),
+		Tool: notationScannerName,
+		Fields: append(cosignFields(expectation{Signer: signer, Identity: subject, Issuer: trustStore}, byDigest, img.Ref, ""),
+			declaredField(cfg)),
 	}}
 
 	// --verbose because notation states why a signature failed only in its log. Without it, a
