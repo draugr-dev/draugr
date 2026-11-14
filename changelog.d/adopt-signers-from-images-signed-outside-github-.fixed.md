@@ -1,0 +1,1 @@
+- **Adopt signers from images signed outside GitHub Actions.** Discovery and `draugr survey provenance` now read a bundle signature's issuer from the signature, so a signer surveyed from an image a Google service account signed names Google's issuer and verifies it. A mismatch names the identity found, never an issuer.

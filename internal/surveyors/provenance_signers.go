@@ -81,7 +81,11 @@ func (p ProvenanceSigners) Survey(ctx context.Context, scope plugin.SurveyScope)
 		// An unsigned image is not an error and produces no signer. Most of what a project runs
 		// is published by somebody else, and a signer proposed for an image nobody signed is a
 		// policy that can only fail.
-		if !sig.Signed || sig.Identity == "" {
+		//
+		// Nor does an identity whose issuer could not be read. The same identity from another
+		// issuer is another signer, so a signer written with a guessed issuer fails the image it
+		// was read from, and one written with none is refused by the schema.
+		if !sig.Signed || sig.Identity == "" || sig.Issuer == "" {
 			continue
 		}
 		key := identity{Identity: sig.Identity, Issuer: sig.Issuer}

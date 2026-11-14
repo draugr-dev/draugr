@@ -90,7 +90,9 @@ published by somebody else and carries no signature. A signer proposed for an im
 is a policy that can only fail.
 
 **A signature whose identity cannot be read produces no signer either.** "Signed by somebody" is
-not something to check against.
+not something to check against. Nor does an identity whose issuer cannot be read: the issuer is
+read from the signature like the identity, never assumed, because the same identity from another
+issuer is another signer.
 
 **Nothing is inferred about `unmatched`.** Whether an uncovered image is a gap or a fact about the
 ecosystem is a judgment belonging to whoever answers for the verdict, and moving from observing to

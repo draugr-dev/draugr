@@ -46,10 +46,19 @@ identity` is an unexpected signer, and the identity is read out of that message 
 asking a second time. Every other reason for exit 1 stays an error: reading them all as a mismatch
 would turn a registry nobody could reach into a finding about somebody's artifact.
 
-An attestation's identity is also absent from the payload a successful read prints, so discovery
-asks for it separately, by naming an identity no certificate can carry and reading the one cosign
-names instead. Without that, the images most likely to carry provenance are the ones discovery
-says nothing about.
+An attestation's identity is also absent from the payload a successful read prints, and so is its
+issuer. The same holds for a signature in the Sigstore bundle format. So discovery asks for each,
+in two reads. cosign checks the identity before the issuer, so the first read names an identity no
+certificate can carry and reads the one cosign names instead. The second names that identity and
+an issuer no certificate can carry, and reads the issuer cosign names. Without the first, the
+images most likely to carry provenance are the ones discovery says nothing about. Without the
+second, the issuer would be a guess, and a signer written with the wrong issuer fails the image it
+was read from. An issuer that cannot be read stays empty, and `draugr survey provenance` proposes
+no signer from that identity.
+
+Each value is read only from a refusal about its own field. cosign refuses an identity and an
+issuer in sentences of the same shape, `expected SAN value "…", got "…"` and `expected issuer value
+"…", got "…"`, and a finding names the identity found, never an issuer in its place.
 
 ### What the exit code means
 

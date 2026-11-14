@@ -38,11 +38,15 @@ const (
 // mean something on that path are recognized by the sentence, and anything unrecognized stays an
 // error. Wording that moves upstream turns a finding into an error rather than into a pass.
 //
-// The message carries the identity it found, which is why this path needs no second read.
+// The message carries the identity it found, which is why this path needs no second read. It
+// names the field it refused, the identity (`SAN`) or the issuer, and the value is read only from
+// a refusal about the field asked for.
 const (
 	cosignAttestationNoMatch = "no matching attestations"
 	cosignIdentityFailed     = "failed to verify certificate identity"
-	cosignFoundSAN           = `got "`
+	cosignExpectedSAN        = "expected SAN value"
+	cosignExpectedIssuer     = "expected issuer value"
+	cosignFound              = `got "`
 )
 
 const (
@@ -231,14 +235,20 @@ func (s *cosignVerifier) check(ctx context.Context, ref string, expect expectati
 	// the same breath, so there is nothing to read back. This is the shape a GitHub artifact
 	// attestation takes, which makes it the common path rather than the exotic one.
 	if code == 1 && attestationIdentityFailed(string(stderr)) {
+		found := sanFrom(string(stderr))
+		if found == "" {
+			// Refused on the issuer: the identity was the one declared, or matched its pattern, and
+			// the refusal names the issuer instead. Who signed is then asked, as it is for an image
+			// no signer covers, so the message never carries an issuer where the identity goes.
+			found, _ = s.attestedBy(ctx, ref, expect)
+		}
 		return &sarif.Result{
 			Tool:     cosignScannerName,
 			RuleID:   "provenance-unexpected-identity",
 			Level:    sarif.LevelError,
 			Score:    9.0,
 			HasScore: true,
-			Message: fmt.Sprintf("Signed by %s, not %s.",
-				withoutHost(sanFrom(string(stderr))), expect.Signer),
+			Message:  fmt.Sprintf("Signed by %s, not %s.", withoutHost(found), expect.Signer),
 		}, "", nil
 	}
 	switch code {
@@ -353,19 +363,27 @@ const (
 	unsignedMark = "\tunsigned"
 )
 
-// attestedBy asks cosign what an attestation is signed by, by refusing an identity it cannot
-// carry and reading the one it names instead. Empty when the answer could not be read.
+// attestedBy asks cosign what an attestation or bundle signature is signed by, and who issued that
+// identity, by refusing values it cannot carry and reading the ones it names instead. Each half is
+// empty when it could not be read.
+//
+// Two refusals, because cosign checks the identity before the issuer and stops at the first that
+// differs. The first names an impossible identity, and the refusal says which identity is there.
+// The second names that identity and an impossible issuer, and the refusal says which issuer is
+// there. The issuer is never assumed: the same identity from a different issuer is a different
+// signer, and a signer written with the wrong one fails the image it was read from.
 func (s *cosignVerifier) attestedBy(ctx context.Context, ref string, expect expectation) (subject, issuer string) {
 	probe := expect
-	probe.Identity, probe.Regexp = impossibleIdentity, ""
-	probe.Issuer = githubOIDCIssuer
+	probe.Identity, probe.Regexp, probe.Issuer = impossibleIdentity, "", impossibleIssuer
 	_, stderr, _, _ := s.run(ctx, cosignArgs(ref, probe, false))
-	return sanFrom(string(stderr)), githubOIDCIssuer
+	subject = sanFrom(string(stderr))
+	if subject == "" {
+		return "", ""
+	}
+	probe.Identity = subject
+	_, stderr, _, _ = s.run(ctx, cosignArgs(ref, probe, false))
+	return subject, issuerFrom(string(stderr))
 }
-
-// githubOIDCIssuer is the issuer every GitHub Actions attestation carries, and the one the probe
-// above has to name to get as far as the identity check.
-const githubOIDCIssuer = "https://token.actions.githubusercontent.com"
 
 // observedIdentity records one image and who signed it. An unreadable identity is still recorded,
 // because an image that carries something is a different fact from one that carries nothing.
@@ -407,6 +425,10 @@ const cosignSignatureType = "cosign container image signature"
 // so rather than saying something wrong.
 const impossibleIdentity = "draugr asked what this is signed by"
 
+// impossibleIssuer does for the issuer what impossibleIdentity does for the identity. An issuer is
+// a URL, which cannot contain a space either.
+const impossibleIssuer = "draugr asked who issued this"
+
 // identityOf reads back who signed, with an identity pattern that matches anything.
 //
 // The pattern is why this is a separate method with a name that says what it does. cosign refuses
@@ -433,16 +455,34 @@ func attestationIdentityFailed(said string) bool {
 
 // sanFrom pulls the identity cosign found out of the sentence it refused with. An empty result
 // leaves the finding saying the identity could not be read, which is true and better than a guess.
-func sanFrom(said string) string {
-	_, rest, ok := strings.Cut(said, cosignFoundSAN)
-	if !ok {
-		return ""
+//
+// Only from a refusal about the identity. cosign refuses an issuer in a sentence of the same shape,
+// and taking the value it found there would put an issuer where the identity belongs.
+func sanFrom(said string) string { return foundIn(said, cosignExpectedSAN) }
+
+// issuerFrom pulls the issuer cosign found out of the sentence it refused with, empty when the
+// refusal was about something else.
+func issuerFrom(said string) string { return foundIn(said, cosignExpectedIssuer) }
+
+// foundIn reads the value cosign says it found in the first refusal about the named field:
+// `expected <field> value "<x>", got "<found>"`, or `… value to match regex "<x>", got "<found>"`.
+// cosign joins one refusal per signature it tried, one per line, so the field is matched per line
+// and a refusal about another field never supplies the value.
+func foundIn(said, field string) string {
+	for _, line := range strings.Split(said, "\n") {
+		_, rest, ok := strings.Cut(line, field)
+		if !ok {
+			continue
+		}
+		_, rest, ok = strings.Cut(rest, cosignFound)
+		if !ok {
+			continue
+		}
+		if got, _, ok := strings.Cut(rest, `"`); ok {
+			return got
+		}
 	}
-	got, _, ok := strings.Cut(rest, `"`)
-	if !ok {
-		return ""
-	}
-	return got
+	return ""
 }
 
 // cosignArgs builds the command. `readBack` swaps the declared identity for a pattern that
