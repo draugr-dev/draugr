@@ -54,6 +54,25 @@ func said(stderr string) func([]string) ([]byte, []byte, int, error) {
 	}
 }
 
+// exitsSaying is cosign exiting with a code and a sentence on stderr.
+func exitsSaying(code int, stderr string) func([]string) ([]byte, []byte, int, error) {
+	return func([]string) ([]byte, []byte, int, error) {
+		return nil, []byte(stderr), code, errors.New("cosign said no")
+	}
+}
+
+// What cosign 3.1 prints when the signature it finds carries no certificate or does not verify,
+// each read from a real run. The first is a key signature with a transparency-log entry, in the
+// legacy format; the second a key signature with none, in the bundle format, as an organization
+// signing offline makes; the third a bundle whose log entry names a different certificate.
+const (
+	keySignedLogged   = "Error: no matching signatures: x509: unsupported public key type: <nil>"
+	keySignedUnlogged = "Error: no matching attestations: failed to verify log inclusion: " +
+		"not enough verified log entries from transparency log: 0 < 1"
+	signatureDoesNotVerify = "Error: no matching attestations: failed to verify log inclusion: " +
+		"transparency log certificate does not match"
+)
+
 func scan(t *testing.T, s *cosignVerifier, cfg plugin.Config) sarif.Report {
 	t.Helper()
 	rep, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/p:1.0"}, cfg)
@@ -457,6 +476,29 @@ func TestWhoSignedIsTheReadDiscoveryAndVerificationShare(t *testing.T) {
 			answers: []func([]string) ([]byte, []byte, int, error){exits(cosignExitNonExistent)},
 			want:    Signature{},
 		},
+		// A signature with no Fulcio certificate has no identity to read, and is still a
+		// signature. Read as an error, one image signed with a key stops the control for every
+		// other image in the run.
+		{
+			name:    "a key signature with a log entry",
+			answers: []func([]string) ([]byte, []byte, int, error){exitsSaying(cosignExitNoMatch, keySignedLogged)},
+			want:    Signature{Signed: true},
+		},
+		{
+			name:    "a key signature with no log entry",
+			answers: []func([]string) ([]byte, []byte, int, error){said(keySignedUnlogged)},
+			want:    Signature{Signed: true},
+		},
+		{
+			name:    "a signature with no certificate",
+			answers: []func([]string) ([]byte, []byte, int, error){exits(cosignExitNoCertificate)},
+			want:    Signature{Signed: true},
+		},
+		{
+			name:    "a signature that does not verify",
+			answers: []func([]string) ([]byte, []byte, int, error){said(signatureDoesNotVerify)},
+			want:    Signature{Signed: true},
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
@@ -480,6 +522,44 @@ func TestWhoSignedRefusesToCallAnUnreadableAnswerUnsigned(t *testing.T) {
 	s, _ := stubCosign(t, exits(1))
 	if _, err := s.whoSigned(context.Background(), "ghcr.io/acme/p:1.0", expectation{}); err == nil {
 		t.Error("an unreadable answer was reported as a definite absence of signature")
+	}
+	// Nor as a signature: a registry that refused access has said nothing about what it holds.
+	s, _ = stubCosign(t, said("Error: GET https://ghcr.io/token: DENIED: requested access to the resource is denied"))
+	if got, err := s.whoSigned(context.Background(), "ghcr.io/acme/p:1.0", expectation{}); err == nil {
+		t.Errorf("a registry that refused access was read as %+v", got)
+	}
+	// And a verified answer this could not parse is not an image with no identity on it.
+	s, _ = stubCosign(t, ok("not what cosign prints"))
+	if got, err := s.whoSigned(context.Background(), "ghcr.io/acme/p:1.0", expectation{}); err == nil {
+		t.Errorf("an unparsed answer was read as %+v", got)
+	}
+}
+
+// Discovery over two images, one signed with a key and one through Sigstore keyless. The key
+// signature is observed as a signature whose identity could not be read, rather than stopping the
+// control, and the other image is read as it would be on its own. Under unmatched: observe neither
+// is a finding.
+func TestCosignObservesAKeySignatureAndCarriesOn(t *testing.T) {
+	cfg := plugin.Config{"unmatched": "observe"}
+	for ref, answer := range map[string]func([]string) ([]byte, []byte, int, error){
+		"registry.example.com/acme/offline@sha256:aaaa": said(keySignedUnlogged),
+		"cgr.dev/chainguard/static:latest":              ok(signedJSON),
+	} {
+		s, _ := stubCosign(t, answer)
+		rep, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: ref}, cfg)
+		if err != nil {
+			t.Fatalf("%s: a signed image stopped the control: %v", ref, err)
+		}
+		if len(rep.Results) != 0 {
+			t.Errorf("%s: observing is not a finding, got %v", ref, rep.Results)
+		}
+		desc := rep.Provenance[0].Describe()
+		if strings.Contains(desc, "unsigned") {
+			t.Errorf("%s: account = %q, a signed image was counted as unsigned", ref, desc)
+		}
+		if strings.HasPrefix(ref, "registry.example.com") && !strings.Contains(desc, "identity not reported") {
+			t.Errorf("%s: account = %q, want the signature recorded with its identity unread", ref, desc)
+		}
 	}
 }
 

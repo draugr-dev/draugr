@@ -74,6 +74,15 @@ On code 12 the image is read back a second time with a permissive identity patte
 did sign it. That read never produces a pass; it only supplies a name for a finding that has
 already been made.
 
+### An image no signer covers
+
+With no signer to check against, the same permissive read asks who signed the image. Codes 10 and
+11 mean nothing did. Codes 12 and 13, and an exit 1 whose message starts `no matching attestations`,
+mean the registry holds a signature that does not verify as a Sigstore keyless one: a signature
+made with a key, which carries no certificate, or one that fails verification. The image is
+recorded as signed with its identity unread, and the control goes on to the next image. Any other
+failure is an error, because a registry that did not answer has said nothing about what it holds.
+
 ## Rules
 
 | Rule | Level | When |
