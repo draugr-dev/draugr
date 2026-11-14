@@ -1213,8 +1213,10 @@ locally produces two identical files and an empty diff. Commit between the two s
 [URLs and paths](saga-schema.md#where-a-repository-comes-from-urls-and-paths).
 
 **Finding identity.** A finding in both reports is matched first by a hash of the lines around it,
-then by tool, rule, file, message, component and repository, and then by each of those again
-without the component, which is how a moved finding is found. The line number and the severity are
+then by tool, rule, file, message, component and repository, then, for a finding that lists the
+objects failing a check such as a `kubernetes` one, by the same without the message, and then by
+each of those again without the component, which is how a moved finding is found. A check that
+gained an object is new; one that only kept or lost objects is unchanged, never fixed. The line number and the severity are
 never part of it, so a finding that moved within a file or was re-scored is unchanged rather than
 fixed and new. The [diff guide](../guides/pr-diff.md#what-counts-as-the-same-finding) has the
 detail.

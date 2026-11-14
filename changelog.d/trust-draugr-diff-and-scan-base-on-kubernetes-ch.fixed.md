@@ -1,0 +1,1 @@
+- **Trust draugr diff and scan --base on Kubernetes checks.** A kubernetes check that gains a pod is reported new and still trips the gate; one that keeps or loses pods stays unchanged, instead of the old check reading as fixed while every object it listed still fails it. Each such finding lists its objects in SARIF as objects.

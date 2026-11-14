@@ -287,6 +287,10 @@ type sarifProperties struct {
 	// Undecided is Result.Undecided: a check the scanner referred to a person rather than decided. It
 	// survives the file because it decides which of two scanners' copies of a check is counted.
 	Undecided bool `json:"undecided,omitempty"`
+	// Objects is Result.Objects: every object a finding listing a set of them stands for. It
+	// survives the file because `draugr diff` reads it to tell a check that gained an object from
+	// one that was fixed, and the diff reads this file.
+	Objects []string `json:"objects,omitempty"`
 	// ImageBuiltUpstream is what BuiltUpstream was called while it only described images. Read on
 	// input and never written, so a report produced by an older release still loads with the fact
 	// intact, a finding that silently became the reader's to fix is worse than one that fails to
@@ -551,7 +555,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Undecided || len(res.Labels) > 0 {
+			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
 				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
@@ -572,6 +576,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Historical:       res.Historical,
 				NonShipping:      res.NonShipping,
 				Undecided:        res.Undecided,
+				Objects:          res.Objects,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -902,6 +907,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Historical = sr.Properties.Historical
 		res.NonShipping = sr.Properties.NonShipping
 		res.Undecided = sr.Properties.Undecided
+		res.Objects = sr.Properties.Objects
 		res.Package = sr.Properties.Package
 		res.Reachability = sr.Properties.Reachability
 		res.Correlation = sr.Properties.Correlation

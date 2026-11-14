@@ -208,6 +208,17 @@ type Result struct {
 	// correlates as a fresh one does, and not written to results.sarif, which carries the
 	// correlation they decided.
 	Aliases []string `json:"aliases,omitempty"`
+	// Objects are the things at fault, each named as the message names it, for a finding that
+	// stands for every object failing one check: a Kubernetes check reported once per cluster with
+	// its offending pods listed in the message.
+	//
+	// The message of such a finding changes whenever one object joins or leaves the list, so a
+	// comparison keyed on the message alone takes a check that still fails for a check that was
+	// fixed and a new one. `draugr diff` reads these instead, to tell a check that gained an object
+	// from one nothing changed in. Every object, never the shortened list a message may print.
+	//
+	// Not part of Fingerprint: the message already carries what they add within one run.
+	Objects []string `json:"objects,omitempty"`
 	// Image is the container image a finding is about, for the scanners that scan one.
 	//
 	// It travels on the finding rather than being recovered from the component afterwards,

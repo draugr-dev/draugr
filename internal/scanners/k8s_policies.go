@@ -152,6 +152,10 @@ func splitByOwner(ruleID string, level sarif.Level, v policyVerdict, location st
 	return sarif.Result{
 		Tool: draugrK8sPoliciesScannerName, RuleID: ruleID, Level: level,
 		Message: strings.Join(parts, "; "), Location: sarif.Location{URI: location},
+		// Every object, not the shortened list the message prints: the message changes whenever one
+		// joins or leaves, and a comparison of two scans reads these to tell a check that still fails
+		// from one that was fixed.
+		Objects: append(slices.Clone(v.Owned), v.Distribution...),
 	}
 }
 

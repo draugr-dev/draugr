@@ -31,12 +31,13 @@ files in, one answer out, the same answer forever.
 
 ### What counts as "the same finding"
 
-A finding in `base` and a finding in `head` are the same finding when either of two keys matches:
+A finding in `base` and a finding in `head` are the same finding when one of these keys matches:
 
 | Key | Made of | Survives |
 |---|---|---|
 | content | tool, rule, file, a hash of the lines around the finding, component, repository | the finding moving within the file, a scanner rewording its message |
 | identity | tool, rule, file, message, component, repository | the finding moving within the file |
+| objects | tool, rule, location, component, repository, for a finding that lists the objects failing a check | an object joining or leaving the check |
 
 The content key is tried first, and only findings that carry a content hash have one. Either key
 matching pairs the two findings, so a finding whose surrounding lines were edited still matches on
@@ -50,12 +51,21 @@ two in `base` is one unchanged and one fixed. Within one identity, findings pair
 Neither key includes the line number or the severity. Code moves, and a finding that slid down
 twelve lines is not a fix plus a new problem. A CVE that gets re-scored is still the same CVE.
 
-The component and the repository are part of both keys. The same flaw in two components, or the
+The component and the repository are part of every key. The same flaw in two components, or the
 same file in two repositories, is two findings. A repository is compared by its identity rather
 than as written, so `https://…/api`, `https://…/api.git` and `git@…:api.git` are one repository.
 
-A finding matched by neither key is then tried against the other side with the component left out
-of both keys. A pair found this way is **moved**: the same tool, rule, file and repository, now
+A finding that lists the objects failing a check, such as a `kubernetes` check naming every pod
+that runs privileged, also has the objects key, tried after the other two. Its message is its list of objects, so it changes whenever one
+object joins or leaves the list. A check that gained an object is **new**, which a gate on new
+findings judges; one that only kept or lost objects is **unchanged**, as the `head` lists it. In
+neither case is the check at `base` fixed, because it still fails. Both scans have to come from a
+Draugr that records the objects on the finding (`objects` in
+[the property bag](../reference/report-schema.md#what-each-finding-carries)); against an older
+`base` the message is the key, as for any other finding.
+
+A finding matched by none of the keys is then tried against the other side with the component left
+out of each key. A pair found this way is **moved**: the same tool, rule, file and repository, now
 reported under a different component, which is what splitting or renaming a component does to every
 finding it held. A pair whose suppression differs is not a move, because an exclusion that stopped
 covering the finding, or started to, is a decision to review; it is reported as unaccepted or
