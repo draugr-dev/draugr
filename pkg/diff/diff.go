@@ -108,6 +108,11 @@ func Compare(base, head sarif.Report) Result {
 			was, matched[b] = baseRes[b], true
 		}
 		switch {
+		case inBase && gainedObjects(res, was) && !res.Suppressed() && !was.Suppressed():
+			// The check failed at the base and fails for more at the head: an object joined it. The
+			// base finding is not fixed, since every object it listed may still be there, and the head's
+			// is new, so a gate on new findings trips on what this change added.
+			r.New = append(r.New, res)
 		case inBase && res.Component != was.Component && res.Suppressed() == was.Suppressed():
 			r.Moved = append(r.Moved, Move{Result: res, Was: was})
 		case res.Suppressed() && (!inBase || !was.Suppressed()):
@@ -174,9 +179,10 @@ func distinct(results []sarif.Result) []sarif.Result {
 
 // match pairs each head finding with the base finding it is, by index, one to one.
 //
-// Four passes, most specific first. The content fingerprint pairs a finding that moved within its
+// Six passes, most specific first. The content fingerprint pairs a finding that moved within its
 // file; identity then pairs one whose surrounding lines were edited, which changes the fingerprint
-// and nothing else. The last two repeat both without the component, pairing a finding whose
+// and nothing else; the object set pairs a finding listing the objects failing a check whose list
+// changed. The last three repeat all of them without the component, pairing a finding whose
 // component changed and nothing about it did. The passes are separate so that a finding matched
 // loosely never takes the base finding another one matched exactly, and a finding still in its own
 // component is never paired with a copy in another one.
@@ -187,7 +193,10 @@ func distinct(results []sarif.Result) []sarif.Result {
 func match(base, head []sarif.Result) map[int]int {
 	pair := make(map[int]int, len(head))
 	used := make([]bool, len(base))
-	for _, key := range []func(sarif.Result) string{contentKey, identity, anyComponent(contentKey), anyComponent(identity)} {
+	for _, key := range []func(sarif.Result) string{
+		contentKey, identity, objectSetKey,
+		anyComponent(contentKey), anyComponent(identity), anyComponent(objectSetKey),
+	} {
 		pool := map[string][]int{}
 		for _, b := range byLine(base) {
 			if k := key(base[b]); k != "" && !used[b] {
@@ -247,6 +256,44 @@ func contentKey(r sarif.Result) string {
 		"content", r.Tool, r.RuleID, r.Location.URI, hash, r.Component,
 		sarif.RepositoryIdentity(r.Repository),
 	}, "\x00")
+}
+
+// objectSetKey is a finding that lists the objects failing one check, keyed by the check and where
+// it was read without the message, or empty for a finding that lists none.
+//
+// Such a finding's message is its list of objects, so one pod joining a check's list changes the
+// message of a check that still fails for every object it failed for before. Keyed on identity
+// alone, the check would be reported fixed under its old message and new under its current one,
+// telling a reviewer a change fixed what it did not.
+//
+// The objects themselves decide what the pair is: Compare reports a check that gained one as new,
+// and one that kept or lost some as unchanged.
+func objectSetKey(r sarif.Result) string {
+	if len(r.Objects) == 0 {
+		return ""
+	}
+	return strings.Join([]string{
+		"objects", r.Tool, r.RuleID, r.Location.URI, r.Component,
+		sarif.RepositoryIdentity(r.Repository),
+	}, "\x00")
+}
+
+// gainedObjects reports whether head lists an object base did not, for two findings that both list
+// the objects failing a check.
+func gainedObjects(head, base sarif.Result) bool {
+	if len(head.Objects) == 0 || len(base.Objects) == 0 {
+		return false
+	}
+	before := make(map[string]bool, len(base.Objects))
+	for _, o := range base.Objects {
+		before[o] = true
+	}
+	for _, o := range head.Objects {
+		if !before[o] {
+			return true
+		}
+	}
+	return false
 }
 
 // anyComponent is key with the component left out, for pairing a finding whose component changed.
