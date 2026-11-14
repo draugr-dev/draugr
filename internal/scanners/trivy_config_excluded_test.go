@@ -190,13 +190,13 @@ func TestATrivyConfigScanThatCannotBeReadFails(t *testing.T) {
 	if _, _, err := trivyConfigRun(emptyConversion)(context.Background(), "/tree", argv); err == nil {
 		t.Error("an empty conversion was read as a report")
 	}
-	if _, err := withTrivyMisconfigExclusions([]byte(trivyMisconfigSARIF), []byte("not json")); err == nil {
+	if _, _, err := trivyConfigReport([]byte("not json")); err == nil {
 		t.Error("an unreadable report was read as nothing excluded")
 	}
-	if _, err := withTrivyMisconfigExclusions(nil, []byte(trivyMisconfigJSON)); err == nil {
+	if _, err := withTrivyMisconfigExclusions(nil, excludedIn(t, trivyMisconfigJSON)); err == nil {
 		t.Error("an empty conversion was accepted")
 	}
-	if out, err := withTrivyMisconfigExclusions([]byte(trivyMisconfigSARIF), []byte(`{"Results": []}`)); err != nil || string(out) != trivyMisconfigSARIF {
+	if out, err := withTrivyMisconfigExclusions([]byte(trivyMisconfigSARIF), excludedIn(t, `{"Results": []}`)); err != nil || string(out) != trivyMisconfigSARIF {
 		t.Errorf("out %s err %v, want the SARIF untouched", out, err)
 	}
 }
@@ -210,7 +210,7 @@ func TestOnlyAnExclusionOfAMisconfigurationIsReadAsOne(t *testing.T) {
 		`{"Type": "misconfiguration", "Status": "ignored", "Finding": {"Status": "FAIL"}}`,
 	} {
 		doc := `{"Results": [{"Target": "Dockerfile", "ExperimentalModifiedFindings": [` + entry + `]}]}`
-		out, err := withTrivyMisconfigExclusions([]byte(trivyMisconfigSARIF), []byte(doc))
+		out, err := withTrivyMisconfigExclusions([]byte(trivyMisconfigSARIF), excludedIn(t, doc))
 		if err != nil || string(out) != trivyMisconfigSARIF {
 			t.Errorf("%s: read as an exclusion (%v)", entry, err)
 		}
@@ -302,23 +302,38 @@ func TestAMalformedPackageDoesNotFailTheConversion(t *testing.T) {
 	}
 }
 
+// excludedIn is what trivyConfigReport reads as excluded from doc.
+func excludedIn(t *testing.T, doc string) trivyMisconfigDoc {
+	t.Helper()
+	_, excluded, err := trivyConfigReport([]byte(doc))
+	if err != nil {
+		t.Fatalf("%.40s: %v", doc, err)
+	}
+	return excluded
+}
+
 // A report with no packages reaches convert byte for byte; one that cannot be read is an error
-// rather than a report with nothing in it.
-func TestTrivyWithoutPackages(t *testing.T) {
+// rather than a report with nothing in it. The exclusions are read in the same pass, from a result
+// that lists packages as well.
+func TestTrivyConfigReport(t *testing.T) {
 	for _, doc := range []string{trivyMisconfigJSON, `{"SchemaVersion": 2}`} {
-		if out, err := trivyWithoutPackages([]byte(doc)); err != nil || string(out) != doc {
+		if out, _, err := trivyConfigReport([]byte(doc)); err != nil || string(out) != doc {
 			t.Errorf("%.40s: rewritten as %.40s (%v)", doc, out, err)
 		}
 	}
-	out, err := trivyWithoutPackages([]byte(`{"SchemaVersion": 2, "Results": [{"Target": "Package.resolved", "Packages": [{"Name": ""}]}, {"Target": "Dockerfile", "Misconfigurations": [{"ID": "DS-0002"}]}]}`))
+	out, excluded, err := trivyConfigReport([]byte(`{"SchemaVersion": 2, "Results": [{"Target": "Package.resolved", "Packages": [{"Name": ""}]}, {"Target": "Dockerfile", "Type": "dockerfile", "Packages": [{"Name": "x"}], "Misconfigurations": [{"ID": "DS-0002"}], "ExperimentalModifiedFindings": [{"Type": "misconfiguration", "Status": "ignored", "Finding": {"ID": "DS-0026", "Status": "FAIL"}}]}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := `{"Results":[{"Target":"Package.resolved"},{"Misconfigurations":[{"ID":"DS-0002"}],"Target":"Dockerfile"}],"SchemaVersion":2}`; string(out) != want {
+	if want := `{"Results":[{"Target":"Package.resolved"},{"ExperimentalModifiedFindings":[{"Type":"misconfiguration","Status":"ignored","Finding":{"ID":"DS-0026","Status":"FAIL"}}],"Misconfigurations":[{"ID":"DS-0002"}],"Target":"Dockerfile","Type":"dockerfile"}],"SchemaVersion":2}`; string(out) != want {
 		t.Errorf("got %s, want %s", out, want)
 	}
-	for _, doc := range []string{"not json", `{"Results": {}}`} {
-		if _, err := trivyWithoutPackages([]byte(doc)); err == nil {
+	if len(excluded.Results) != 1 || excluded.Results[0].Target != "Dockerfile" || excluded.Results[0].Type != "dockerfile" ||
+		len(excluded.Results[0].Modified) != 1 || excluded.Results[0].Modified[0].Finding.ID != "DS-0026" {
+		t.Errorf("excluded = %+v, want Dockerfile's DS-0026", excluded)
+	}
+	for _, doc := range []string{"not json", `{"Results": {}}`, `{"Results": [{"Target": 1, "ExperimentalModifiedFindings": []}]}`} {
+		if _, _, err := trivyConfigReport([]byte(doc)); err == nil {
 			t.Errorf("%s: read as a report", doc)
 		}
 	}

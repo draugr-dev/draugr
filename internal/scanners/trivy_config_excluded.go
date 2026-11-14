@@ -42,7 +42,7 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		if !slices.Contains(argv, trivyConfigExclusionsArg) {
 			return out, unread, nil
 		}
-		report, err := trivyWithoutPackages(out)
+		report, excluded, err := trivyConfigReport(out)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -63,7 +63,7 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		if err != nil {
 			return nil, nil, fmt.Errorf("convert its JSON report to SARIF: %w", err)
 		}
-		out, err = withTrivyMisconfigExclusions(sarifOut, out)
+		out, err = withTrivyMisconfigExclusions(sarifOut, excluded)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -71,55 +71,83 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 	}
 }
 
-// trivyWithoutPackages is Trivy's JSON report with each result's Packages removed, for `trivy
-// convert`. `trivy fs` runs the dependency analyzers whatever --scanners says, so a misconfiguration
-// report lists the repository's packages too, and convert rejects the whole document when one of
-// them is malformed: a Swift Package.resolved pin whose location ends in "/" gives a purl with an
-// empty name, and convert stops at `purl is missing name` with every misconfiguration unread. The
-// SARIF convert writes holds no package, so removing them changes nothing it writes. A report whose
-// results list no packages is returned as it was.
-func trivyWithoutPackages(report []byte) ([]byte, error) {
+// trivyConfigReport reads Trivy's JSON report once, for the two things the run needs of it: the
+// report for `trivy convert` with each result's Packages removed, and what Trivy excluded.
+//
+// The packages go because `trivy fs` runs the dependency analyzers whatever --scanners says, so a
+// misconfiguration report lists the repository's packages too, and convert rejects the whole
+// document when one of them is malformed: a Swift Package.resolved pin whose location ends in "/"
+// gives a purl with an empty name, and convert stops at `purl is missing name` with every
+// misconfiguration unread. The SARIF convert writes holds no package, so removing them changes
+// nothing it writes. A report whose results list no packages is returned as it was.
+//
+// Read once rather than once per use, because the report grows with the repository: the packages
+// are most of it, and every read of the whole document is another pass over all of them.
+func trivyConfigReport(report []byte) ([]byte, trivyMisconfigDoc, error) {
 	var doc map[string]json.RawMessage
 	if err := json.Unmarshal(report, &doc); err != nil {
-		return nil, fmt.Errorf("read its JSON report: %w", err)
+		return nil, trivyMisconfigDoc{}, fmt.Errorf("read its JSON report: %w", err)
 	}
 	var results []map[string]json.RawMessage
 	if raw, ok := doc["Results"]; ok {
 		if err := json.Unmarshal(raw, &results); err != nil {
-			return nil, fmt.Errorf("read its JSON report: %w", err)
+			return nil, trivyMisconfigDoc{}, fmt.Errorf("read its JSON report: %w", err)
 		}
 	}
+	var excluded trivyMisconfigDoc
 	removed := false
 	for _, res := range results {
 		if _, ok := res["Packages"]; ok {
 			delete(res, "Packages")
 			removed = true
 		}
+		// Only a result that lists exclusions is read further, and only the fields that name them.
+		if _, ok := res["ExperimentalModifiedFindings"]; !ok {
+			continue
+		}
+		var r trivyMisconfigResult
+		for _, f := range []struct {
+			name string
+			into any
+		}{{"Target", &r.Target}, {"Type", &r.Type}, {"ExperimentalModifiedFindings", &r.Modified}} {
+			raw := res[f.name]
+			if len(raw) == 0 {
+				continue
+			}
+			if err := json.Unmarshal(raw, f.into); err != nil {
+				return nil, trivyMisconfigDoc{}, fmt.Errorf("read its JSON report: %w", err)
+			}
+		}
+		excluded.Results = append(excluded.Results, r)
 	}
 	if !removed {
-		return report, nil
+		return report, excluded, nil
 	}
 	raw, err := json.Marshal(results)
 	if err != nil {
-		return nil, err
+		return nil, trivyMisconfigDoc{}, err
 	}
 	doc["Results"] = raw
-	return json.Marshal(doc)
+	out, err := json.Marshal(doc)
+	return out, excluded, err
 }
 
 // trivyMisconfigDoc is the slice of Trivy's JSON report that names what it excluded.
 type trivyMisconfigDoc struct {
-	Results []struct {
-		Target   string `json:"Target"`
-		Type     string `json:"Type"`
-		Modified []struct {
-			Type      string         `json:"Type"`
-			Status    string         `json:"Status"`
-			Statement string         `json:"Statement"`
-			Source    string         `json:"Source"`
-			Finding   trivyMisconfig `json:"Finding"`
-		} `json:"ExperimentalModifiedFindings"`
-	} `json:"Results"`
+	Results []trivyMisconfigResult `json:"Results"`
+}
+
+// trivyMisconfigResult is one file's exclusions.
+type trivyMisconfigResult struct {
+	Target   string `json:"Target"`
+	Type     string `json:"Type"`
+	Modified []struct {
+		Type      string         `json:"Type"`
+		Status    string         `json:"Status"`
+		Statement string         `json:"Statement"`
+		Source    string         `json:"Source"`
+		Finding   trivyMisconfig `json:"Finding"`
+	} `json:"ExperimentalModifiedFindings"`
 }
 
 type trivyMisconfig struct {
@@ -138,20 +166,16 @@ type trivyMisconfig struct {
 	} `json:"CauseMetadata"`
 }
 
-// withTrivyMisconfigExclusions adds each misconfiguration Trivy's JSON lists as excluded to its
-// SARIF, as a result carrying a suppression with origin scanner. SARIF with nothing to add is
-// returned unchanged.
+// withTrivyMisconfigExclusions adds each misconfiguration Trivy's JSON lists as excluded, read by
+// trivyConfigReport, to its SARIF, as a result carrying a suppression with origin scanner. SARIF
+// with nothing to add is returned unchanged.
 //
 // Only an exclusion, and only of a misconfiguration, for the reason trivySuppressedResultOf gives:
 // a shape Trivy adds to that section later must not arrive as an acceptance nobody made. And only a
 // check that failed: Trivy applies `.trivyignore` to the checks a file passed too, and lists those,
 // and a passed check marked suppressed would record an acceptance of something that was never
 // found.
-func withTrivyMisconfigExclusions(sarifOut, jsonOut []byte) ([]byte, error) {
-	var doc trivyMisconfigDoc
-	if err := json.Unmarshal(jsonOut, &doc); err != nil {
-		return nil, fmt.Errorf("read its JSON report: %w", err)
-	}
+func withTrivyMisconfigExclusions(sarifOut []byte, doc trivyMisconfigDoc) ([]byte, error) {
 	var results, rules []any
 	seen := map[string]bool{}
 	for _, res := range doc.Results {
