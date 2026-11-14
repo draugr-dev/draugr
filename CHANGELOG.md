@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Changed
 
-- **The Kubernetes control decides nine more CIS checks the benchmark marks manual.** Who can bind, escalate or impersonate, create persistent volumes or service account tokens, use `nodes/proxy`, approve certificates or change admission webhooks; namespaces with no NetworkPolicy; secrets in environment variables; and whether a policy mechanism is in place. Five checks are left for a person, not fourteen.
+- **The Kubernetes control decides nine more CIS checks, 29 of 34:** who holds the RBAC permissions CIS singles out, such as impersonate; namespaces with no NetworkPolicy; secrets passed as environment variables; and whether any policy mechanism is in place. A cluster may show new findings. A credential refused the new reads leaves those checks for a person.
 
 ## [0.176.1] - 2026-11-14
 
