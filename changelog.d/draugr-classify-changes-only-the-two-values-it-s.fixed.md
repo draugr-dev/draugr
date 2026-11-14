@@ -1,0 +1,1 @@
+- **`draugr classify` changes only the two values it sets.** It rewrote the whole descriptor, collapsing aligned comments and moving a commented-out block such as `draugr init`'s `images:` stub under the key above it, where uncommenting it nested it in the wrong place. Every other line now stays as written.
