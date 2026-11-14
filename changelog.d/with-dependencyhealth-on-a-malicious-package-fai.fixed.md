@@ -1,0 +1,1 @@
+- **With `dependencyHealth` on, a malicious package is reported even when no scanner flagged it.** The lookup now asks deps.dev about every package `trivy-fs` lists, not only those carrying a finding, and a package on the OSSF Malicious Packages list becomes a critical `malicious-package` finding with the action `Remove <package> <version>, flagged as malicious`.

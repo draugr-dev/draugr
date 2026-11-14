@@ -362,6 +362,11 @@ func fixPhrase(f finding) string {
 	if u := imageUpdate(f); u != "" {
 		return u
 	}
+	// Every version of a malicious package is malicious, so a release that clears one advisory
+	// leaves the package in place: it has to go. Before the upgrade case for that reason.
+	if maliciousPackage(f) {
+		return "remove the package"
+	}
 	if f.pkg != nil && f.pkg.Name != "" {
 		if f.pkg.FixedVersion != "" {
 			return "upgrade to " + fixedRelease(f)

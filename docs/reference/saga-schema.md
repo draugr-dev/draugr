@@ -886,8 +886,10 @@ config:
 ```
 
 Off unless you switch it on. Unlike the other two enrichments, which read a local cache somebody
-chose to fill, this one reaches [deps.dev](https://deps.dev) during the scan and sends it the list
-of packages the run found. Nothing else leaves the machine: no source, no findings, no descriptor.
+chose to fill, this one reaches [deps.dev](https://deps.dev) during the scan and sends it the name
+and version of every package the run found: each package a finding names, and each package `trivy-fs`
+listed in a dependency file, with or without a finding. Nothing else leaves the machine: no source,
+no findings, no descriptor.
 
 **Two statements move a finding, and both name who made them.**
 
@@ -906,8 +908,15 @@ Scorecard's `Maintained` check scores PyYAML zero because it reads a 90-day acti
 PyYAML is stable rather than abandoned. Ranking a CVE up because a maintainer commits rarely would
 be wrong in a way the people who depend on that package would notice first.
 
-**It never gates on its own.** A dependency choice is not a defect, and a build that failed because
-a maintainer walked away is one people learn to route around.
+**A malicious package with no finding becomes one.** A package on the OSSF Malicious Packages list
+that no scanner reported is a finding of its own under `sca`: rule `malicious-package`, scanner
+`deps.dev`, at the file and line the package is declared on, ranked critical. It gates like any
+other `sca` finding, and it can be excluded like one. Its action is
+`Remove <package> <version>, flagged as malicious`, which is also the action for a scanner's finding
+in a flagged package.
+
+**Deprecation never gates on its own.** A dependency choice is not a defect, and a build that failed
+because a maintainer walked away is one people learn to route around.
 
 In the report, beside the other signals:
 
@@ -935,7 +944,9 @@ SIGNALS
 
 **What it covers.** The language ecosystems deps.dev indexes: Cargo, Go, Maven, npm, NuGet, PyPI and
 RubyGems. Operating-system packages from a container image are not among them, so on an image-heavy
-project this speaks to the dependencies you chose rather than to the base you built on.
+project this speaks to the dependencies you chose rather than to the base you built on. Packages with
+no finding come from `trivy-fs`, the `sca` control's default scanner. If `sca` uses another scanner,
+a malicious package that scanner did not report is not reported.
 
 **What it costs.** One request per hundred packages, cached for an hour. The hour is the API's own
 `max-age`, so it is a term rather than a setting, and it is why this signal has no offline path: a

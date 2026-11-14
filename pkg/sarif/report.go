@@ -842,6 +842,12 @@ type Report struct {
 	// two produce the same empty report and the same PASS. Empty for a scanner that does not
 	// account for its reads, which says nothing either way.
 	Inputs []Input `json:"inputs,omitempty"`
+	// Inventory is every package a dependency scan listed, with or without a finding. A finding
+	// names only the packages a scanner had something to say about, and a package flagged as
+	// malicious usually has no advisory a vulnerability scanner would match, so a lookup that read
+	// the findings alone would never ask about it. Kept with a cached result so a cache hit carries
+	// it too. Empty for a scanner that does not list what it read.
+	Inventory []InventoryPackage `json:"inventory,omitempty"`
 	// Unchecked are the checks a scan could not evaluate, or could evaluate only in part, each with the reason:
 	// a read the check needs that the scan's identity was denied.
 	//
@@ -895,6 +901,21 @@ type UnsettledCheck struct {
 // InputOperatingSystem is the Kind of an Input that stands for an image's operating system rather
 // than a file: its packages, which an image scanner reads from the image's own package database.
 const InputOperatingSystem = "operating-system"
+
+// InventoryPackage is one package a dependency scan listed, and where it is declared.
+type InventoryPackage struct {
+	// PURL identifies the package and its version.
+	PURL string `json:"purl"`
+	// Scanner is the scanner that listed it.
+	Scanner string `json:"scanner,omitempty"`
+	// Repository and Component say whose package it is, stamped after the scan as an Input's are.
+	Repository string `json:"repository,omitempty"`
+	Component  string `json:"component,omitempty"`
+	// Path is the dependency file it was read from, relative to the repository root, and Line the
+	// first line of its entry there, or 0 where the scanner did not say.
+	Path string `json:"path,omitempty"`
+	Line int    `json:"line,omitempty"`
+}
 
 // Input is one dependency file as a scan accounted for it.
 type Input struct {
@@ -1239,6 +1260,7 @@ func Merge(reports ...Report) Report {
 		out.addConsulted(rep.Consulted)
 		out.UnsettledChecks = append(out.UnsettledChecks, rep.UnsettledChecks...)
 		out.addInputs(rep.Inputs)
+		out.addInventory(rep.Inventory)
 		out.addUnchecked(rep.Unchecked)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
@@ -1326,6 +1348,26 @@ func (r *Report) addInputs(inputs []Input) {
 			continue
 		}
 		r.Inputs = append(r.Inputs, in)
+	}
+}
+
+// addInventory appends packages that are not already present. The same package listed by one
+// scanner, in one file, for one component is one entry, so merging a report with itself does not
+// double it.
+func (r *Report) addInventory(pkgs []InventoryPackage) {
+	if len(pkgs) == 0 {
+		return
+	}
+	seen := make(map[InventoryPackage]bool, len(r.Inventory)+len(pkgs))
+	for _, p := range r.Inventory {
+		seen[p] = true
+	}
+	for _, p := range pkgs {
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
+		r.Inventory = append(r.Inventory, p)
 	}
 }
 

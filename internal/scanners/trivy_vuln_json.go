@@ -116,6 +116,9 @@ type trivyPackage struct {
 	Version    string `json:"Version"`
 	Identifier struct {
 		UID string `json:"UID"`
+		// PURL is the package and version as a package URL, which is how dependency health asks
+		// about it.
+		PURL string `json:"PURL"`
 	} `json:"Identifier"`
 	Locations []struct {
 		StartLine int `json:"StartLine"`
@@ -148,6 +151,24 @@ func (r trivyVulnResult) packageLines() map[string]int {
 		if p.Identifier.UID != "" && p.line() > 0 {
 			out[p.Identifier.UID] = p.line()
 		}
+	}
+	return out
+}
+
+// inventory is every package Trivy listed from this result's file, at path, with the line of its
+// entry where Trivy recorded one. A package without a package URL cannot be asked about and is left
+// out.
+func (r trivyVulnResult) inventory(path string) []sarif.InventoryPackage {
+	var out []sarif.InventoryPackage
+	for _, p := range r.Packages {
+		if p.Identifier.PURL == "" {
+			continue
+		}
+		pkg := sarif.InventoryPackage{PURL: p.Identifier.PURL, Path: path}
+		if len(p.Locations) > 0 {
+			pkg.Line = p.Locations[0].StartLine
+		}
+		out = append(out, pkg)
 	}
 	return out
 }
@@ -302,6 +323,7 @@ func trivyVulnReport(doc trivyVulnDoc, dir string, cfg plugin.Config) sarif.Repo
 				in.Unread = reason
 			}
 			rep.Inputs = append(rep.Inputs, in)
+			rep.Inventory = append(rep.Inventory, res.inventory(in.Path)...)
 		}
 		known := res.packageLines()
 		dev, own := res.devPackages(), res.ownPackages()

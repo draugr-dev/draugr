@@ -14,6 +14,8 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/internal/versionorder"
+	"github.com/draugr-dev/draugr/pkg/dephealth"
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -645,6 +647,14 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 	// checkout reports. "Update ." names nothing.
 	case f.builtUpstream && upstreamUnit(f) != "":
 		return "upstream\x00" + upstreamUnit(f), "Update " + upstreamUnit(f), skald.KindWait, false
+
+	// A package flagged as malicious is malicious in every version, so no upgrade clears it and no
+	// release is worth waiting for: the act is to take it out. One per package, whatever else was
+	// reported against it, and before the two package cases below, which would offer an upgrade or
+	// to accept it.
+	case maliciousPackage(f):
+		return "malicious\x00" + packageUnit(f),
+			fmt.Sprintf("Remove %s %s, flagged as malicious", f.pkg.Name, f.pkg.Version), skald.KindCode, false
 
 	// An upgrade is one action however many vulnerabilities it resolves, which is the case that
 	// pays off most: a library a year out of date carries a dozen findings and one fix.
@@ -1636,4 +1646,14 @@ func upstreamKind(a action) skald.ActionKind {
 		}
 	}
 	return skald.KindWait
+}
+
+// maliciousPackage reports whether a finding is about a package flagged as malicious: Draugr's own
+// finding for one, or a scanner's finding the flag raised.
+func maliciousPackage(f finding) bool {
+	if f.pkg == nil || f.pkg.Name == "" {
+		return false
+	}
+	return f.ruleID == engine.MaliciousPackageRule ||
+		(f.escalation != nil && f.escalation.Signal == dephealth.SignalMalicious)
 }

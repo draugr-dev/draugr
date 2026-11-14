@@ -6,10 +6,36 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/dephealth"
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
+
+// A package flagged as malicious is one action, to remove it, whatever was reported against it: an
+// upgrade would offer another version of the same package and a wait would never end.
+func TestAMaliciousPackageIsRemovedNotUpgraded(t *testing.T) {
+	for _, f := range []finding{
+		{control: "sca", ruleID: engine.MaliciousPackageRule, component: "api",
+			pkg: &sarif.Package{Name: "evil", Version: "6.6.6"}},
+		{control: "sca", ruleID: "CVE-1", component: "api", escalation: &sarif.Escalation{Signal: dephealth.SignalMalicious},
+			pkg: &sarif.Package{Name: "evil", Version: "6.6.6", FixedVersion: "7.0.0"}},
+	} {
+		if _, title, _, _ := actionFor(f); title != "Remove evil 6.6.6, flagged as malicious" {
+			t.Errorf("%s: title = %q", f.ruleID, title)
+		}
+	}
+	if maliciousPackage(finding{ruleID: engine.MaliciousPackageRule}) {
+		t.Error("a finding with no package was taken for a malicious package")
+	}
+	// The fix a row prints says the same, rather than the release that clears one advisory.
+	raised := finding{control: "sca", ruleID: "CVE-1", escalation: &sarif.Escalation{Signal: dephealth.SignalMalicious},
+		pkg: &sarif.Package{Name: "evil", Version: "6.6.6", FixedVersion: "7.0.0"}}
+	if got := fixPhrase(raised); got != "remove the package" {
+		t.Errorf("fix = %q, want remove the package", got)
+	}
+}
 
 func pkgFinding(control, rule, prio, loc, name, version, fixed string) finding {
 	f := finding{control: control, ruleID: rule, priority: prio, location: loc, message: rule}
@@ -1184,6 +1210,9 @@ func TestEveryActionCarriesItsKindOfWork(t *testing.T) {
 		{"an upstream repository", finding{control: "sca", builtUpstream: true, repository: "https://github.com/acme/lib", pkg: pkg("x", "2")}, skald.KindWait},
 		{"an upgrade", finding{control: "sca", pkg: pkg("lodash", "4.17.21")}, skald.KindBump},
 		{"no fix available", finding{control: "sca", pkg: pkg("lodash", "")}, skald.KindWait},
+		{"a malicious package", finding{control: "sca", ruleID: engine.MaliciousPackageRule, pkg: pkg("evil", "")}, skald.KindCode},
+		{"a vulnerability in a malicious package", finding{control: "sca", ruleID: "CVE-1", pkg: pkg("evil", "7.0.0"),
+			escalation: &sarif.Escalation{Signal: dephealth.SignalMalicious}}, skald.KindCode},
 		{"an OS past end of life", finding{control: "images", remediation: sarif.RemediationUpstream, operatingSystem: "debian 10"}, skald.KindDecide},
 		{"a committed credential", finding{control: "secrets", ruleID: "aws-access-token"}, skald.KindCredential},
 		{"a host on a threat feed", finding{control: "threats", ruleID: "threat/urlhaus"}, skald.KindCode},
