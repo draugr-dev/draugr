@@ -1,0 +1,1 @@
+- **A component's row no longer lists the files it could not read.** In the HTML and markdown reports, a component a failing caveat concerns reads ERROR and says nothing more; the Caveats section lists every caveat, however many files went unread.
