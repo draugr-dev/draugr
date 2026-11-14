@@ -88,6 +88,17 @@ func Bound(ctx context.Context) int {
 	return share(ctx, parallelism())
 }
 
+// Workers is how many workers a tool runs under ctx where its own default is def: def, or the bound
+// (Bound) where that is fewer, and at least one.
+//
+// For a tool that sizes a pool of its own, of processes, threads or goroutines, which GOMAXPROCS
+// does not reach: a Python or OCaml tool, or a Go tool that counts the CPUs with runtime.NumCPU. Each
+// such tool sized to the machine runs its whole pool beside every other job's, and the bound is
+// what the jobs running at once share, whatever their scanner.
+func Workers(ctx context.Context, def int) int {
+	return max(1, min(def, Bound(ctx)))
+}
+
 // share is n divided among the jobs ctx says run at once, at least one.
 func share(ctx context.Context, n int) int {
 	if j, ok := ctx.Value(sharedKey{}).(int); ok && j > 1 {

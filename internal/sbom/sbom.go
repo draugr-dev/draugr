@@ -8,7 +8,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
+	"strconv"
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/toolexec"
@@ -46,9 +50,23 @@ func New() *Generator {
 // configured to.
 var syftEnv = []string{"SYFT_CHECK_FOR_APP_UPDATE=false"}
 
-// runSyft runs Syft with syftEnv.
+// runSyft runs Syft with syftEnv and its share of the machine (syftParallelism).
 func runSyft(ctx context.Context, dir string, argv []string) ([]byte, error) {
-	return toolexec.RunWithEnv(ctx, dir, argv, syftEnv)
+	return toolexec.RunWithEnv(ctx, dir, argv, append(slices.Clone(syftEnv), syftParallelism(ctx, os.Getenv)...))
+}
+
+// syftParallelism is SYFT_PARALLELISM for a run under ctx, where getenv shows the environment sets
+// none: four cataloging workers for each CPU of the job's share (toolexec.Workers).
+//
+// Syft runs four workers per CPU it counts with runtime.NumCPU, which GOMAXPROCS does not change,
+// so a Syft run beside other jobs would otherwise run the whole machine's worth, each worker holding
+// the file it catalogs. Four per CPU is Syft's own ratio, kept, applied to the share rather than to
+// the machine. A SYFT_PARALLELISM already set is the operator's choice and passes on unchanged.
+func syftParallelism(ctx context.Context, getenv func(string) string) []string {
+	if getenv("SYFT_PARALLELISM") != "" {
+		return nil
+	}
+	return []string{"SYFT_PARALLELISM=" + strconv.Itoa(4*toolexec.Workers(ctx, runtime.NumCPU()))}
 }
 
 // Binary is the tool Generate requires on PATH.

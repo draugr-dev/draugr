@@ -672,6 +672,12 @@ its job's share, rounded down, so its compile processes also stay within that sh
 several such loads takes longer than loads in parallel would, and each job's wait is in
 `stats.orderWaitsMs`.
 
+A tool that sizes a pool of its own, which `GOMAXPROCS` does not reach, is given the same share as
+a flag: Semgrep `--jobs`, Trivy `--parallel`, and Syft `SYFT_PARALLELISM` at four workers per unit
+of the share, which is Syft's own ratio to the CPUs. Each is never more than the tool's own
+default, and a `SYFT_PARALLELISM` already set passes on unchanged. Grype, Gitleaks, Nuclei,
+Prowler and Mend's `ua` take no such setting from Draugr.
+
 n is half the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. The CPUs are
 the ones Draugr may use after a container's CPU limit. The memory is the lower of the machine's and
 any cgroup v2 `memory.max` on Draugr's group or a parent, such as a container's limit or a systemd

@@ -1,13 +1,17 @@
 package scanners
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tooladapter"
@@ -112,7 +116,7 @@ func NewTrivy() plugin.Scanner {
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
 		ConfigSchema: json.RawMessage(trivyConfigSchema),
 		Argv:         trivyArgv,
-		Run:          retryingRun("trivy", execArgv),
+		Run:          trivyScanRun(),
 		Parse:        parseTrivyImage,
 		CacheVersion: sharedTrivyVersion.cacheVersion,
 		Prewarm:      sharedTrivyDB.warm,
@@ -330,6 +334,39 @@ func pomUnread(typ string, pkgs []trivyPackage, offlineScan bool) (string, bool)
 		return unresolvedPom, true
 	}
 	return "", false
+}
+
+// trivyDefaultParallel is how many files Trivy analyzes at once unless told, its `--parallel`
+// default.
+const trivyDefaultParallel = 5
+
+// trivyScans are the Trivy subcommands that scan a target and take --parallel. `trivy config`, the
+// misconfiguration scan on a Trivy too old for `fs --scanners misconfig`, does not take it.
+var trivyScans = []string{"fs", "image", "repository", "rootfs"}
+
+// withTrivyParallel is argv with `--parallel` after a scanning subcommand, at the job's share of the
+// machine (toolexec.Workers) and never more than Trivy's default. argv itself is not changed, and a
+// command that sets --parallel or does not scan is returned as it is.
+//
+// Trivy analyzes a fixed number of files at once whatever else is running, each holding the file
+// it reads, so twenty Trivy jobs at once hold twenty times its default. The share is divided among
+// the jobs running at once of every scanner.
+func withTrivyParallel(ctx context.Context, argv []string) []string {
+	if len(argv) < 2 || !slices.Contains(trivyScans, argv[1]) || slices.ContainsFunc(argv, func(a string) bool {
+		return a == "--parallel" || strings.HasPrefix(a, "--parallel=")
+	}) {
+		return argv
+	}
+	n := strconv.Itoa(toolexec.Workers(ctx, trivyDefaultParallel))
+	return slices.Insert(slices.Clone(argv), 2, "--parallel", n)
+}
+
+// trivyScanRun is retryingRun for a Trivy scan, given its share of the machine (withTrivyParallel).
+// It reads execArgv when it runs, so a test that substitutes the exec reaches it.
+func trivyScanRun() func(context.Context, []string) ([]byte, error) {
+	return retryingRun("trivy", func(ctx context.Context, argv []string) ([]byte, error) {
+		return execArgv(ctx, withTrivyParallel(ctx, argv))
+	})
 }
 
 // trivyArgv builds `trivy image --quiet --format json <ref>` for an image target.

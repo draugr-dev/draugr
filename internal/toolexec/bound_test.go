@@ -216,6 +216,25 @@ func TestParallelismReadsThisMachine(t *testing.T) {
 	}
 }
 
+// A tool's own pool is its default or the job's share of the bound, whichever is fewer, and at
+// least one however many jobs run at once.
+func TestWorkersAreTheFewerOfTheDefaultAndTheShare(t *testing.T) {
+	n := Parallelism()
+	alone := context.Background()
+	if got := Workers(alone, n+100); got != n {
+		t.Errorf("a large default alone = %d, want the bound %d", got, n)
+	}
+	if got := Workers(alone, 1); got != 1 {
+		t.Errorf("a default of 1 = %d", got)
+	}
+	if got := Workers(alone, 0); got != 1 {
+		t.Errorf("a default of 0 = %d, want at least 1", got)
+	}
+	if got := Workers(WithJobs(alone, n*10), n+100); got != 1 {
+		t.Errorf("among %d jobs = %d, want 1", n*10, got)
+	}
+}
+
 // Once a tool has run and been waited for, its resident memory is readable.
 func TestPeakMemoryReadsTheProcessesWaitedFor(t *testing.T) {
 	if _, err := Run(context.Background(), "", []string{"env"}); err != nil {

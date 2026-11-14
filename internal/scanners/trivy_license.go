@@ -122,7 +122,7 @@ func NewTrivyLicense() plugin.Scanner {
 		TargetKinds:  []plugin.TargetKind{plugin.TargetImage},
 		ConfigSchema: info.ConfigSchema,
 		Argv:         trivyLicenseImageArgv,
-		Run:          retryingRun("trivy", execArgv),
+		Run:          trivyScanRun(),
 		Parse: func(out []byte, _ plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 			// No directory: an image has no checkout to resolve a line number against, and Trivy
 			// reports an OS package's license without a file path at all.

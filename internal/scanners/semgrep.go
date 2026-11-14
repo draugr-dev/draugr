@@ -64,29 +64,29 @@ func NewSemgrep() plugin.Scanner {
 	return s
 }
 
-// withSemgrepJobs gives a Semgrep run its share of the CPUs where other Semgrep runs share the
-// machine with it (plugin.Sharers), and leaves a run alone to Semgrep's own default.
+// withSemgrepJobs gives a Semgrep run `--jobs` at the job's share of the machine (toolexec.Workers),
+// never more than Semgrep's own default.
 //
-// Semgrep starts round(0.85 × min(16, CPUs)) analysis processes, counting the CPUs it can see and not
-// what else is running, and stops analyzing a function after a fixed wall-clock time. Four runs at
-// once on 16 CPUs then hold 56 processes, finish less of each file, and report fewer findings,
-// different ones from one scan to the next. Each run of several gets `--jobs` at the CPUs divided
-// among them, at least 1 and never more than Semgrep's own default.
+// Semgrep starts round(0.85 × min(16, CPUs)) analysis workers, counting the CPUs it can see and not
+// what else is running, and stops analyzing a function after a fixed wall-clock time. Beside other
+// jobs it then holds as many workers as it would alone, finishes less of each file, and reports
+// fewer findings, different ones from one scan to the next. The share is the bound every tool run
+// is given, divided among the jobs running at once of every scanner, so a Semgrep run beside
+// Trivy and Gitleaks jobs leaves them their part too. Semgrep is not a Go program, so GOMAXPROCS,
+// which bounds the Go tools, does not reach it.
 func withSemgrepJobs(run func(ctx context.Context, dir string, argv []string) ([]byte, error)) func(context.Context, string, []string) ([]byte, error) {
 	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
-		if n := plugin.Sharers(ctx); n > 1 && len(argv) > 2 {
-			jobs := strconv.Itoa(semgrepShare(runtime.GOMAXPROCS(0), n))
+		if len(argv) > 2 {
+			jobs := strconv.Itoa(toolexec.Workers(ctx, semgrepDefaultJobs(runtime.GOMAXPROCS(0))))
 			argv = slices.Insert(slices.Clone(argv), 2, "--jobs", jobs)
 		}
 		return run(ctx, dir, argv)
 	}
 }
 
-// semgrepShare is the --jobs of one of sharers Semgrep runs on a machine with cpus CPUs: the CPUs
-// divided among them, rounded down, at least 1 and at most Semgrep's own default.
-func semgrepShare(cpus, sharers int) int {
-	def := max(1, int(math.Round(0.85*float64(min(16, cpus)))))
-	return max(1, min(def, cpus/max(1, sharers)))
+// semgrepDefaultJobs is the --jobs Semgrep chooses for itself on a machine with cpus CPUs.
+func semgrepDefaultJobs(cpus int) int {
+	return max(1, int(math.Round(0.85*float64(min(16, cpus)))))
 }
 
 // semgrepConfigSetting is where a descriptor sets the ruleset, for an error to name.
