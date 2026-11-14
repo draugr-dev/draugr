@@ -1,7 +1,9 @@
 package dephealth_test
 
 import (
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -50,6 +52,29 @@ func TestDeprecatedRaisesOneLevelAndQuotesThePublisher(t *testing.T) {
 	if want := "deprecated by its publisher: This version is deprecated."; len(why.Detail) < len(want) ||
 		why.Detail[:len(want)] != want {
 		t.Errorf("the detail does not quote the publisher: %q", why.Detail)
+	}
+}
+
+// The publisher's reason is the only record of what they said, so it travels whole: a reason cut at
+// a length ends inside the address it points to, and a cut by bytes can split a character in two,
+// which leaves the report holding text that is not UTF-8.
+func TestDeprecatedKeepsThePublishersReasonWhole(t *testing.T) {
+	long := "This version is no longer maintained.\n\tFor extended support find support at " +
+		"https://example.com/support/jquery-extended-support-for-legacy-versions, or move " +
+		"to jquery 1.8 → 3.7, which drops the legacy event API."
+	s := source(t, map[string]dephealth.Package{
+		"pkg:npm/jquery@1.8.3": {Findings: []dephealth.Finding{{Kind: dephealth.KindDeprecated, Reason: long}}},
+	})
+	_, why := s.Explain(sarif.SeverityMedium, "pkg:npm/jquery@1.8.3")
+	if why == nil {
+		t.Fatal("no escalation recorded")
+	}
+	want := "deprecated by its publisher: " + strings.Join(strings.Fields(long), " ")
+	if why.Detail != want {
+		t.Errorf("the reason was not kept whole:\n got %q\nwant %q", why.Detail, want)
+	}
+	if !utf8.ValidString(why.Detail) {
+		t.Errorf("the reason is not valid UTF-8: %q", why.Detail)
 	}
 }
 
@@ -174,24 +199,6 @@ func TestPurlsAreOrdered(t *testing.T) {
 		if got[i] != want {
 			t.Fatalf("purls out of order: %v", got)
 		}
-	}
-}
-
-// A publisher's reason can be a paragraph and a report row cannot.
-func TestALongReasonIsCutToOneLine(t *testing.T) {
-	long := ""
-	for range 40 {
-		long += "words and more words "
-	}
-	s := source(t, map[string]dephealth.Package{
-		"pkg:npm/x": {Findings: []dephealth.Finding{{Kind: dephealth.KindDeprecated, Reason: long}}},
-	})
-	_, why := s.Explain(sarif.SeverityLow, "pkg:npm/x")
-	if why == nil {
-		t.Fatal("no escalation")
-	}
-	if len(why.Detail) > 160 {
-		t.Errorf("the detail runs to %d characters: %q", len(why.Detail), why.Detail)
 	}
 }
 
