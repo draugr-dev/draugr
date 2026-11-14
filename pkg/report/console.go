@@ -2927,6 +2927,7 @@ func writeEvidence(w io.Writer, col tui.Painter, d Data, indent string) {
 		add(label, l)
 	}
 	add("run", runLine(d.Run.Stats))
+	add("memory", memoryEvidence(d.Run.Stats))
 	for i, r := range repositoryRows(d.Repositories) {
 		label := "scanned"
 		// One label for the set. A component may hold several repositories, and repeating the word
