@@ -15,6 +15,7 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -166,8 +167,11 @@ func TestSummarizeCaps(t *testing.T) {
 func TestK8sPoliciesReportsEveryCheck(t *testing.T) {
 	t.Parallel()
 
-	// A cluster that satisfies all three implemented checks.
+	// A cluster that satisfies every implemented check: one namespace, enforcing a Pod Security level
+	// and holding a NetworkPolicy.
 	client := fake.NewSimpleClientset(
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team", Labels: map[string]string{podSecurityEnforceLabel: "restricted"}}},
+		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: "deny-all", Namespace: "team"}},
 		&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "cluster-admin"}, RoleRef: rbacv1.RoleRef{Name: "cluster-admin"}},
 		&corev1.ServiceAccount{
 			ObjectMeta:                   metav1.ObjectMeta{Name: "default", Namespace: "team"},
