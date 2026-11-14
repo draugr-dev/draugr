@@ -103,6 +103,30 @@ the file, and nothing about it went past a second person.
 _ = exec.Command("sh", "-c", name)
 ```
 
+## What a `//nolint:gosec` becomes
+
+A project that runs gosec through golangci-lint marks a reviewed line with `//nolint:gosec`, the
+directive golangci-lint reads. gosec run on its own reads only `#nosec`, so Draugr reads the
+`//nolint` itself. The result stays in the report, suppressed in source with `origin: tool` and
+counted under `scanner exclusions`, with the text after a second `//` as its justification (after a
+bare `//nolint`, the text that follows it). Without that text the justification is empty.
+
+```go
+const envToken = "GITHUB_TOKEN" //nolint:gosec // the variable's name, not a value
+```
+
+A `//nolint`, `// nolint`, `//nolint:all` or a `//nolint:` list naming `gosec` covers less than it
+does in golangci-lint, so that one comment cannot set aside every finding in a function or a file:
+
+- the line it ends, as a trailing comment;
+- alone on its line, the first line of the statement or declaration directly below it.
+
+A later line of that statement, a function's body under a directive above the function, a whole file
+under a directive above `package`, and a line under a blank line or another comment all stay
+findings. Mark each of those lines, or use `#nosec`.
+
+A `//nolint:` naming only other linters leaves the result a finding.
+
 ## Opt-in
 
 gosec is Go-only, so it doesn't run by default. Enable it under the `sast` control, where it runs

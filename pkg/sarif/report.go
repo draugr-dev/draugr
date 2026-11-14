@@ -687,7 +687,9 @@ const (
 	// Read off the absence of Draugr's own record rather than detected, because the alternative is
 	// a parser per scanner per comment syntax, all of them guessing at what the tool meant. Which
 	// of the two a scanner's suppression is comes from SARIF's own `kind`, a required field, so
-	// nothing here infers it either.
+	// nothing here infers it either. The one exception is gosec's scanner, which marks a result
+	// under a golangci-lint `nolint` directive naming gosec itself: golangci-lint, which most Go projects run gosec through,
+	// reads that directive, and gosec on its own does not.
 	//
 	// The weakest of the four, and kept apart for that reason. A descriptor rule was reviewed by
 	// whoever owns the descriptor and a supplier's claim is answerable by the supplier; this one

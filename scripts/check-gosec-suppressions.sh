@@ -3,9 +3,10 @@
 # or no reason.
 #
 # gosec runs twice: inside golangci-lint, and as the gosec scanner of Draugr's own `sast` control.
-# `//nolint:gosec` is a golangci-lint directive, so it silences the first and not the second, and
-# the line passes `make gate` while the self-scan reports it. `#nosec` silences both, and gosec
-# carries the text after `--` into the report as the suppression's justification.
+# `//nolint:gosec` names no rule, so it silences every gosec rule on the line, and only a Draugr
+# that reads it sets the self-scan's results aside. `#nosec` names the rule it sets aside, gosec
+# itself honors it in both runs, and carries the text after `--` into the report as the
+# justification.
 #
 # A `#nosec` with no rule silences every gosec rule on the line, including one added after the
 # line was reviewed.
