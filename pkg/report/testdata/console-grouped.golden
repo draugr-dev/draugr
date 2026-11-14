@@ -67,5 +67,7 @@ TRY
   --report json,sarif,html -o .draugr/out  every finding in one searchable page
   --view compact                           one line each, to see how much there is
   --view findings                          the findings themselves, one row each
-  config.exclude                           set aside a rule by its id as printed, with a reason
+  config.exclude                           set aside; findings stay, suppressed
+    - rules: [<full rule id>]
+      reason: <why it does not apply>
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out
