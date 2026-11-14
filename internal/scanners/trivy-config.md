@@ -47,6 +47,21 @@ spends a round too, so a module with fewer than 33 calls can reach the limit. Th
 includes any module Trivy could not load. A module below the root is named by its address, as in
 `in module.wrap`.
 
+### Downloaded modules
+
+Trivy downloads a registry or git module and checks it with the configuration that calls it. It
+reports what it finds at the module's own path, a file your repository does not hold. Draugr reports
+the finding at the `module` block in your repository that brought the module in, the innermost one
+if modules call modules. To fix it, set an input on that block or move to another version of the
+module. Editing the module itself does not last. The console names the module on the finding's
+location line:
+
+```
+main.tf:6 · module terraform-aws-modules/s3-bucket/aws 4.1.2
+```
+
+Two blocks calling the same module each keep their own finding.
+
 Trivy renders a Helm chart with the chart's own values before checking it, and checks none of its
 templates when the render fails:
 
