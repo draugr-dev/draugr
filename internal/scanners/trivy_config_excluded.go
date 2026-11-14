@@ -63,6 +63,13 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		if err != nil {
 			return nil, nil, fmt.Errorf("convert its JSON report to SARIF: %w", err)
 		}
+		calls, err := trivyDownloadedModuleCalls(report, dir)
+		if err != nil {
+			return nil, nil, err
+		}
+		if sarifOut, err = relocateDownloadedModuleFindings(sarifOut, calls); err != nil {
+			return nil, nil, err
+		}
 		out, err = withTrivyMisconfigExclusions(sarifOut, excluded)
 		if err != nil {
 			return nil, nil, err
