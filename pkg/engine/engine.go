@@ -479,6 +479,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 		}
 	}
+	e.markCertificateReported(planned)
 	imported, ierrs := e.planImports(model)
 	planned = append(planned, imported...)
 	errs = append(errs, ierrs...)
@@ -1964,6 +1965,39 @@ func (e *Engine) markWorkingTree(jobs []plugin.ScanJob) []plugin.ScanJob {
 //
 // comp is nil for a project-scoped control, which belongs to no component and therefore carries no
 // classification, no labels and no upgrade policy.
+// markCertificateReported sets HostTarget.CertificateReported on every host job whose endpoint a
+// control verifying certificates also has a job for, in the same component and this same run.
+//
+// From what was planned rather than from what the descriptor enables, so a run narrowed to leave
+// that control out reads every endpoint verified, as before: nothing in such a run would report a
+// certificate the other jobs read past.
+func (e *Engine) markCertificateReported(planned []PlannedJob) {
+	type endpoint struct{ component, url string }
+	verified := map[endpoint]bool{}
+	verifiers := map[string]bool{}
+	for _, pj := range planned {
+		ctrl, ok := e.reg.controllers[pj.Control]
+		if !ok || !ctrl.Info().VerifiesCertificates {
+			continue
+		}
+		verifiers[pj.Control] = true
+		if host, ok := pj.Job.Target.(plugin.HostTarget); ok {
+			verified[endpoint{pj.Component, plugin.SourceURL(host.URL)}] = true
+		}
+	}
+	if len(verified) == 0 {
+		return
+	}
+	for i := range planned {
+		host, ok := planned[i].Job.Target.(plugin.HostTarget)
+		if !ok || verifiers[planned[i].Control] || !verified[endpoint{planned[i].Component, plugin.SourceURL(host.URL)}] {
+			continue
+		}
+		host.CertificateReported = true
+		planned[i].Job.Target = host
+	}
+}
+
 func appendJobs(dst []PlannedJob, control string, comp *saga.Component, policy saga.UpgradeStep, jobs []plugin.ScanJob) []PlannedJob {
 	var p PlannedJob
 	if comp != nil {

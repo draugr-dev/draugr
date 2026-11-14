@@ -2,10 +2,13 @@ package scanners
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,6 +25,9 @@ import (
 type draugrHeadersScanner struct {
 	info  plugin.ScannerInfo
 	fetch func(ctx context.Context, url string, browser bool) (response, error)
+	// fetchUnverified is fetch reading the declared host without verifying its certificate, every
+	// other host a redirect reaches still verified. Nil never reads past a certificate.
+	fetchUnverified func(ctx context.Context, url string, browser bool) (response, error)
 }
 
 // response is what a fetch of the host returned, including the page for a browser host so the
@@ -51,7 +57,8 @@ func NewHTTPHeaders() plugin.Scanner {
 				Detail: "sends an HTTP GET to the endpoint and follows its redirects",
 			}},
 		},
-		fetch: httpFetchHeaders,
+		fetch:           httpFetchHeaders,
+		fetchUnverified: httpFetchHeadersUnverified,
 	}
 }
 
@@ -77,6 +84,9 @@ func (s draugrHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ 
 	}
 	browser := !strings.EqualFold(host.Type, "api")
 	resp, err := s.fetch(ctx, host.URL, browser)
+	if err != nil && s.readsPastCertificate(host, err) {
+		resp, err = s.fetchUnverified(ctx, host.URL, browser)
+	}
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("draugr-headers: fetch %s: %w", host.URL, err)
 	}
@@ -95,6 +105,35 @@ func (s draugrHeadersScanner) Scan(ctx context.Context, target plugin.Target, _ 
 		}}
 	}
 	return report, nil
+}
+
+// readsPastCertificate reports whether a fetch that failed on the host's certificate is repeated
+// without verifying it.
+//
+// Only where the run reports that certificate itself (the tls control has a job on the same URL in
+// the same component), so the failure is a finding with its fix rather than nowhere, and the headers
+// are still answered instead of the control ending in an error about the same fact. The request
+// sends no credential: a target carrying auth, or a URL carrying a user and password, which the
+// client would send as a header, is never read this way, so no credential goes to a server that
+// failed the check.
+func (s draugrHeadersScanner) readsPastCertificate(host plugin.HostTarget, err error) bool {
+	u, parseErr := url.Parse(host.URL)
+	return s.fetchUnverified != nil && host.CertificateReported && host.Auth == nil &&
+		parseErr == nil && u.User == nil && certificateRejected(err)
+}
+
+// certificateRejected reports whether a request failed because the server's certificate did not
+// verify: expired or not yet valid, from an authority the system does not trust, or for another
+// name. A refused handshake or an unsupported protocol is not this, and stays an error.
+func certificateRejected(err error) bool {
+	var (
+		verification *tls.CertificateVerificationError
+		invalid      x509.CertificateInvalidError
+		unknown      x509.UnknownAuthorityError
+		hostname     x509.HostnameError
+	)
+	return errors.As(err, &verification) || errors.As(err, &invalid) ||
+		errors.As(err, &unknown) || errors.As(err, &hostname)
 }
 
 // evaluateAgainstPage compares the policy with the page it was served with: what the policy
@@ -228,6 +267,77 @@ func evaluateHeaders(url, hostType string, h http.Header) []sarif.Result {
 // on Accept, and a CDN can inject a script only into responses a browser would render, so a page
 // fetched with a bare Accept is not the page a visitor's browser holds the policy against.
 func httpFetchHeaders(ctx context.Context, target string, browser bool) (response, error) {
+	return fetchHeadersWith(ctx, &http.Client{Timeout: headersTimeout}, target, browser)
+}
+
+// headersTimeout bounds one fetch, redirects included.
+const headersTimeout = 15 * time.Second
+
+// httpFetchHeadersUnverified is httpFetchHeaders accepting the target endpoint's certificate without
+// verifying it. Only that endpoint, its host and port: a redirect to any other is verified as usual,
+// since nothing in the run reports that one's certificate.
+func httpFetchHeadersUnverified(ctx context.Context, target string, browser bool) (response, error) {
+	u, err := url.Parse(target)
+	if err != nil {
+		return response{}, err
+	}
+	unverified := unverifiedTransport()
+	client := &http.Client{Timeout: headersTimeout, Transport: endpointTrust{
+		endpoint: endpointOf(u), unverified: unverified, verified: http.DefaultTransport,
+	}}
+	return fetchHeadersWith(ctx, client, target, browser)
+}
+
+// unverifiedTransport is the transport the declared endpoint is read through when its certificate
+// failed: the default one, without verifying the certificate and without a proxy.
+func unverifiedTransport() *http.Transport {
+	unverified := &http.Transport{Proxy: http.ProxyFromEnvironment}
+	if def, ok := http.DefaultTransport.(*http.Transport); ok {
+		unverified = def.Clone()
+	}
+	// Straight to the host, as the tls control dials it. Through a proxy that inspects TLS, the
+	// certificate this fetch rejected would be the proxy's, which the tls control never sees.
+	unverified.Proxy = nil
+	// Used for the declared endpoint only, whose certificate the tls control verifies and reports in
+	// the same run; endpointTrust sends every other one through the default, verifying transport.
+	// nosemgrep: problem-based-packs.insecure-transport.go-stdlib.bypass-tls-verification.bypass-tls-verification
+	unverified.TLSClientConfig = &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: true, // #nosec G402 -- the declared endpoint only; see above
+	}
+	return unverified
+}
+
+// endpointTrust sends a request to one endpoint through a transport that does not verify its
+// certificate, and every other request, a redirect's included, through one that does.
+type endpointTrust struct {
+	endpoint             string
+	unverified, verified http.RoundTripper
+}
+
+// RoundTrip implements http.RoundTripper.
+func (e endpointTrust) RoundTrip(r *http.Request) (*http.Response, error) {
+	if endpointOf(r.URL) == e.endpoint {
+		return e.unverified.RoundTrip(r)
+	}
+	return e.verified.RoundTrip(r)
+}
+
+// endpointOf is a URL's scheme, host and port, the port its scheme's default where none is written,
+// so https://example.com and https://EXAMPLE.com:443 are one endpoint.
+func endpointOf(u *url.URL) string {
+	port := u.Port()
+	if port == "" {
+		port = "443"
+		if strings.EqualFold(u.Scheme, "http") {
+			port = "80"
+		}
+	}
+	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(net.JoinHostPort(u.Hostname(), port))
+}
+
+// fetchHeadersWith is the GET both fetches make, through client.
+func fetchHeadersWith(ctx context.Context, client *http.Client, target string, browser bool) (response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return response{}, err
@@ -235,7 +345,6 @@ func httpFetchHeaders(ctx context.Context, target string, browser bool) (respons
 	if browser {
 		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	}
-	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return response{}, err
