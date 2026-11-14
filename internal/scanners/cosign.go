@@ -100,6 +100,12 @@ const cosignConfigSchema = `{
       "type": "string",
       "readOnly": true,
       "description": "Set by the control: a Sigstore trusted-root file to verify against."
+    },
+    "declared": {
+      "type": "array",
+      "items": {"type": "string"},
+      "readOnly": true,
+      "description": "Set by the control: the names of every signer this image's component is judged by, whether or not one covers it."
     }
   }
 }`
@@ -184,7 +190,7 @@ func (s *cosignVerifier) Scan(ctx context.Context, target plugin.Target, cfg plu
 	report := sarif.Report{Tool: cosignScannerName}
 	report.Provenance = []sarif.Provenance{{
 		Tool:   cosignScannerName,
-		Fields: cosignFields(expect, byDigest, img.Ref, observed),
+		Fields: append(cosignFields(expect, byDigest, img.Ref, observed), declaredField(cfg)),
 	}}
 	if result != nil {
 		result.Location = sarif.Location{URI: img.Ref}
@@ -590,6 +596,28 @@ func cosignFields(expect expectation, byDigest bool, ref, observed string) []sar
 	}
 	_ = ref
 	return fields
+}
+
+// declaredField hands back the names of the signers this image's component is judged by, so the
+// control can tell a descriptor with no signers from one whose signers match none of its images.
+// Each job carries them because the control aggregates from what its jobs report and nothing else.
+//
+// The names arrive as a Go slice from the plan and as a JSON array from a stored config, and leave
+// as a JSON array, because a signer's name may hold any character a separator could.
+func declaredField(cfg plugin.Config) sarif.Field {
+	names := []string{}
+	switch v := cfg["declared"].(type) {
+	case []string:
+		names = v
+	case []any:
+		for _, n := range v {
+			if s, ok := n.(string); ok {
+				names = append(names, s)
+			}
+		}
+	}
+	encoded, _ := json.Marshal(names) // #nosec G104 -- a []string always marshals
+	return sarif.Field{Key: "declared", Value: string(encoded)}
 }
 
 // describeObserved names who actually signed, or says that could not be read.

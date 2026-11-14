@@ -1,0 +1,1 @@
+- **The `provenance` scope field now counts a declared signer that matches none of your images.** A descriptor whose signer patterns matched no image read `scope: no signers declared`. It now reads, for example, `scope: 2 signers, 1 matching an image`; fix the patterns of the signer that matches nothing, or remove it.

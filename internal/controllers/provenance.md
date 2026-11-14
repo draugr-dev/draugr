@@ -105,6 +105,10 @@ scan depends on it.
    signature: under `warn` or `fail`, an image signed by an identity no signer names is a gap in
    coverage like an unsigned one, because a signature from anybody is not provenance.
 
+A signer whose `images` patterns match none of the component's images checks nothing. The
+`MEASURED AGAINST` row counts it: `scope: 2 signers, 1 matching an image` says one of the two
+matched nothing. Fix its patterns, or remove it.
+
 Two signers matching one image is a validation error. Requiring more than one signature on an
 artifact is a real thing to want and a different one; it should be asked for rather than arrived at
 through overlapping patterns.
