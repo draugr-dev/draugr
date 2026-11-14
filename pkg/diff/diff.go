@@ -46,6 +46,9 @@ type Result struct {
 	// other, each one would trip a gate on new findings. The gate does not read Moved, the same way
 	// it does not read Accepted.
 	Moved []Move
+	// Objects are the checks listing objects whose list changed between the scans, with what joined
+	// and left each, in the same state in both: counting in both, or excused in both.
+	Objects []ObjectChange
 	// Rules is what the scanners said about the rules these findings cite, carried over from the
 	// reports being compared.
 	//
@@ -106,6 +109,11 @@ func Compare(base, head sarif.Report) Result {
 		b, inBase := pair[h]
 		if inBase {
 			was, matched[b] = baseRes[b], true
+			if res.Suppressed() == was.Suppressed() {
+				if joined, left := objectDelta(res, was); len(joined)+len(left) > 0 {
+					r.Objects = append(r.Objects, ObjectChange{Result: res, Joined: joined, Left: left})
+				}
+			}
 		}
 		switch {
 		case inBase && gainedObjects(res, was) && !res.Suppressed() && !was.Suppressed():
@@ -146,6 +154,7 @@ func Compare(base, head sarif.Report) Result {
 	sortResults(r.Accepted)
 	sortResults(r.Unaccepted)
 	sortMoves(r.Moved)
+	sortObjectChanges(r.Objects)
 	// Head first, so a rule the change updated is described as it is now; base fills in whatever
 	// only the old scan saw, which is every fixed finding's rule.
 	r.Rules = map[string]sarif.Rule{}

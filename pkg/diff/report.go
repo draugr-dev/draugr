@@ -237,6 +237,48 @@ func anyUpgrade(es []Entry) bool {
 	return false
 }
 
+// oneObjectScanner is the scanner every row comes from, where the rows are checks listing objects
+// and one scanner made them all, and "" otherwise.
+//
+// Such a set is one control's checks over a cluster or an account, run by the one scanner that
+// control has, so a Scanner column repeats the same name on every row. It is said once over the
+// set instead. A set from several scanners, or from a scanner whose findings list no objects, keeps
+// the column it always had.
+func oneObjectScanner(es []Entry) string {
+	if len(es) == 0 {
+		return ""
+	}
+	tool, objects := es[0].Tool, false
+	for _, e := range es {
+		if e.Tool != tool {
+			return ""
+		}
+		objects = objects || len(e.Objects) > 0
+	}
+	if !objects {
+		return ""
+	}
+	return tool
+}
+
+// changedHeading is what the changed findings' heading says, and the rows listed under it: how many
+// changed, or the top of them --top keeps, the one scanner every row comes from where
+// oneObjectScanner names one, and the order. Shared by the console and the comment, so both drop
+// the Scanner column for the same sets.
+func changedHeading(entries []Entry, opts Options) (heading string, shown []Entry, scanner string) {
+	shown = entries
+	heading = fmt.Sprintf("%d", len(entries))
+	if opts.Top > 0 && len(entries) > opts.Top {
+		shown = entries[:opts.Top]
+		heading = fmt.Sprintf("top %d of %d", opts.Top, len(entries))
+	}
+	scanner = oneObjectScanner(entries)
+	if scanner != "" {
+		heading += " from " + scanner
+	}
+	return heading + ", by priority", shown, scanner
+}
+
 // --- console ---
 
 func renderConsole(w io.Writer, r Result, opts Options) error {
@@ -266,13 +308,15 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 
 	entries := r.Changed()
 	switch {
-	case len(entries) == 0:
+	case len(entries) == 0 && len(r.Objects) == 0:
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StylePass, nothingChanged(r)))
+	case len(entries) == 0:
 	case opts.View == ViewActions:
 		writeDiffActions(w, col, entries, r.Rules, opts)
 	default:
 		writeChanged(w, col, r, entries, opts)
 	}
+	writeObjects(w, col, r, opts, len(entries) == 0)
 	writeMoved(w, col, r, opts)
 	if len(entries) > 0 || len(r.Moved) > 0 {
 		writeTry(w, col, r, opts, entries)
@@ -282,16 +326,14 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 
 // writeChanged lists every finding the change touched, in one table.
 func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts Options) {
-	shown := entries
-	heading := fmt.Sprintf("%d, by priority", len(entries))
-	if opts.Top > 0 && len(entries) > opts.Top {
-		shown = entries[:opts.Top]
-		heading = fmt.Sprintf("top %d of %d, by priority", opts.Top, len(entries))
-	}
+	heading, shown, scanner := changedHeading(entries, opts)
 	_, _ = fmt.Fprintf(w, "%s  %s\n", col.Paint(tui.StyleMuted, "CHANGED"), col.Paint(tui.StyleMuted, heading))
 
 	withComponent := manyComponents(shown)
-	cols := []string{"Change", "Priority", "Severity", "Rule", "Scanner"}
+	cols := []string{"Change", "Priority", "Severity", "Rule"}
+	if scanner == "" {
+		cols = append(cols, "Scanner")
+	}
 	if withComponent {
 		cols = append(cols, "Component")
 	}
@@ -315,7 +357,9 @@ func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts 
 			tui.Styled(tui.PriorityStyle(e.Priority), dash(e.Priority)),
 			tui.PlainCell(string(e.RankedSeverity())),
 			{Text: e.RuleID, URL: r.HelpURI(e.RuleID)},
-			tui.PlainCell(dash(e.Tool)),
+		}
+		if scanner == "" {
+			cells = append(cells, tui.PlainCell(dash(e.Tool)))
 		}
 		if withComponent {
 			cells = append(cells, tui.PlainCell(dash(e.Component)))
@@ -725,6 +769,7 @@ func renderMarkdown(w io.Writer, r Result, opts Options) error {
 	if err := render(w, r, opts); err != nil {
 		return err
 	}
+	writeMarkdownObjects(w, r)
 	writeMarkdownMoved(w, r, opts)
 	return nil
 }
@@ -741,7 +786,10 @@ func renderMarkdownActions(w io.Writer, r Result, opts Options) error {
 
 	entries := r.Changed()
 	if len(entries) == 0 {
-		_, _ = fmt.Fprintln(w, nothingChanged(r))
+		// An object that left a check is a change, which the list after this says.
+		if len(r.Objects) == 0 {
+			_, _ = fmt.Fprintln(w, nothingChanged(r))
+		}
 		return nil
 	}
 
@@ -852,23 +900,24 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 
 	entries := r.Changed()
 	if len(entries) == 0 {
-		_, _ = fmt.Fprintln(w, nothingChanged(r))
+		// An object that left a check is a change, which the list after this says.
+		if len(r.Objects) == 0 {
+			_, _ = fmt.Fprintln(w, nothingChanged(r))
+		}
 		return nil
 	}
 
-	shown := entries
-	heading := fmt.Sprintf("%d, by priority", len(entries))
-	if opts.Top > 0 && len(entries) > opts.Top {
-		shown = entries[:opts.Top]
-		heading = fmt.Sprintf("top %d of %d, by priority", opts.Top, len(entries))
-	}
+	heading, shown, scanner := changedHeading(entries, opts)
 	_, _ = fmt.Fprintf(w, "### Changed · %s\n\n", heading)
 
 	// No column for the finding's own sentence. This is the comment a pull request gets, where a
 	// reviewer has the inline annotations and the rule's own link, and a column of prose is what
 	// makes the table too wide to read in the width a comment is given.
 	withComponent := manyComponents(shown)
-	cols := []string{"Change", "Priority", "Severity", "Rule", "Scanner"}
+	cols := []string{"Change", "Priority", "Severity", "Rule"}
+	if scanner == "" {
+		cols = append(cols, "Scanner")
+	}
 	if withComponent {
 		cols = append(cols, "Component")
 	}
@@ -905,8 +954,12 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 		if withUpgrade {
 			up = " " + dash(label) + " |"
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %s |%s %s |%s\n",
-			change, dash(e.Priority), e.RankedSeverity(), id, dash(e.Tool), component,
+		tool := ""
+		if scanner == "" {
+			tool = " " + dash(e.Tool) + " |"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s%s %s |%s\n",
+			change, dash(e.Priority), e.RankedSeverity(), id, tool, component,
 			loc(e.Location.URI, e.Location.StartLine), up)
 	}
 	if len(shown) < len(entries) {

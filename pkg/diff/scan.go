@@ -52,7 +52,7 @@ func (v ScanView) WriteListing(w io.Writer, view fixlist.View, top int) bool {
 	opts := Options{View: View(view), Top: top, upgradeTargets: true}
 	entries := r.Changed()
 	switch {
-	case len(entries) == 0 && len(r.Moved) == 0:
+	case len(entries) == 0 && len(r.Moved) == 0 && len(r.Objects) == 0:
 		return false
 	case len(entries) == 0:
 	case opts.View == ViewActions:
@@ -60,6 +60,7 @@ func (v ScanView) WriteListing(w io.Writer, view fixlist.View, top int) bool {
 	default:
 		writeChanged(w, col, r, entries, opts)
 	}
+	writeObjects(w, col, r, opts, len(entries) == 0)
 	writeMoved(w, col, r, opts)
 	return true
 }
