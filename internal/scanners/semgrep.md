@@ -71,7 +71,8 @@ Semgrep finishes with exit 0 and reports findings only from the files it checked
 gaps from the JSON report and lists each file as an `unread-files` caveat:
 
 - **A file over 1 MB**, which Semgrep lists under `paths.skipped` with the reason
-  `exceeded_size_limit` and does not scan: `over 1 MB, not scanned`. Semgrep applies the limit
+  `exceeded_size_limit` and does not scan: `over 1 MB, not scanned · split it if it is source, or
+  add to ignore`. The limit is not a setting. Semgrep applies the limit
   before it matches files to rule languages, so Draugr lists the file only where a configured rule
   reads its language, by extension, file name or `#!` line. A ruleset Semgrep fetches is taken to
   read every file.

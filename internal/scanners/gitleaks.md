@@ -156,12 +156,16 @@ at the version Draugr installs.
 
 The SARIF report does not list these files. Gitleaks names each one in its log at trace level, so
 the tree pass runs with `--log-level trace` and each file named gets an `unread-files` caveat with
-the reason `name has an archive extension`. Where Gitleaks reports scanning 0 bytes of a tree that
-holds a file with content, and names no file it skipped, the repository root `.` gets
-`no files read`. The [`secrets`](../controllers/secrets.md#unread) control shows the caveat.
+the reason `archive extension, not read · rename it if it is text, or add to ignore`. Where
+Gitleaks reports scanning 0 bytes of a tree that holds a file with content, and names no file it
+skipped, the repository root `.` gets `no files read`. The
+[`secrets`](../controllers/secrets.md#unread) control shows the caveat.
 
-Rename `notes.zip.txt` to `notes.txt` and it is read. To fail the run on a skipped file, set
-`config.gate.failOnCaveats: [unread-files]`.
+Rename `notes.zip.txt` to `notes.txt` and it is read. Draugr does not have Gitleaks open archives,
+so a real archive is not read under any name; renamed, it is skipped as a binary file and named
+nowhere. Where an archive cannot hold a secret you answer for, such as a test fixture, add it to the
+repository's [`ignore`](../../docs/reference/saga-schema.md#scoping-a-repository) and the caveat
+goes. To fail the run on a skipped file, set `config.gate.failOnCaveats: [unread-files]`.
 
 A real archive such as `bundle.zip` is not opened either, so it is named too. A real archive whose
 name holds no archive extension is skipped as a binary file and is not named.

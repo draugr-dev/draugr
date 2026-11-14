@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func unreadInputs() []engine.InputCoverage {
 		{Component: "internal-tool", Control: "sca", Scanners: []string{"trivy-fs"}, Read: 1,
 			Unread: []engine.UnreadInput{
 				{Repository: "https://github.com/acme/admin", Path: "package.json", Reason: "no lockfile"},
-				{Repository: "https://github.com/acme/web", Path: "package.json", Reason: "no lockfile"},
+				{Repository: "https://github.com/acme/web", Path: "package.json", Reason: "no packages read"},
 			}},
 		{Component: "payments", Control: "licenses", Scanners: []string{"trivy-license"}, Read: 3,
 			Unread: []engine.UnreadInput{
@@ -45,7 +46,7 @@ func renderWith(t *testing.T, r Reporter, d Data) string {
 
 // Each unread file is a caveat row under its component and the controls that missed it, named once
 // however many controls missed it, and prefixed with its repository where the component draws on
-// two.
+// two. Every group is of one kind, which is said once over them.
 func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 	for name, d := range map[string]Data{"full": goldenGroupedData(), "compact": goldenCompactData()} {
 		d.Run.Inputs = unreadInputs()
@@ -55,10 +56,10 @@ func TestConsoleNamesUnreadFilesOncePerComponent(t *testing.T) {
 			t.Errorf("%s view: header = %q, want %q", name, header, want)
 		}
 		want := []consoleCaveatGroup{
-			{heading: "unread-files · licenses · payments", rows: []string{"app/requirements-dev.txt no packages read"}},
-			{heading: "unread-files · licenses, sca · payments", rows: []string{"app/pyproject.toml no lockfile"}},
-			{heading: "unread-files · sca · internal-tool", rows: []string{
-				"acme/admin:package.json no lockfile", "acme/web:package.json no lockfile"}},
+			{over: "unread-files", heading: "licenses · payments", rows: []string{"app/requirements-dev.txt no packages read"}},
+			{over: "unread-files", heading: "licenses, sca · payments", rows: []string{"app/pyproject.toml no lockfile"}},
+			{over: "unread-files", heading: "sca · internal-tool", rows: []string{
+				"acme/admin:package.json no lockfile", "acme/web:package.json no packages read"}},
 		}
 		if !reflect.DeepEqual(groups, want) {
 			t.Errorf("%s view: groups = %+v\nwant %+v:\n%s", name, groups, want, out)
@@ -85,9 +86,9 @@ func TestConsoleKeepsARowPerReasonForOneFile(t *testing.T) {
 	out := renderWith(t, consoleReporter{}, d)
 	_, groups, _ := consoleCaveats(t, out)
 	want := []consoleCaveatGroup{
-		{heading: "unread-files · licenses · api", rows: []string{"pom.xml " + resolve}},
-		{heading: "unread-files · licenses, sca · worker", rows: []string{"pom.xml " + resolve}},
-		{heading: "unread-files · sca · api", rows: []string{"pom.xml " + grype}},
+		{over: "unread-files", heading: "licenses · api", rows: []string{"pom.xml " + resolve}},
+		{over: "unread-files", heading: "licenses, sca · worker", rows: []string{"pom.xml " + resolve}},
+		{over: "unread-files", heading: "sca · api", rows: []string{"pom.xml " + grype}},
 	}
 	if !reflect.DeepEqual(groups, want) {
 		t.Errorf("groups = %+v\nwant %+v:\n%s", groups, want, out)
@@ -106,19 +107,23 @@ func TestConsoleSaysNothingWhenEveryFileWasRead(t *testing.T) {
 }
 
 // --top 0 asks for everything, and a list it leaves capped would be the one place it was ignored.
+// The gate fails on the files, so the default view keeps a row per file and cuts them.
 func TestConsoleNamesEveryUnreadFileUnderTopZero(t *testing.T) {
 	var unread []engine.UnreadInput
 	for i := range errorRowsShown + 2 {
 		unread = append(unread, engine.UnreadInput{Repository: "r", Path: fmt.Sprintf("m%02d/go.mod", i), Reason: "no packages read"})
 	}
 	d := goldenGroupedData()
+	d.FailOnCaveats = []saga.CaveatKind{saga.CaveatUnreadFiles}
 	d.Run.Inputs = []engine.InputCoverage{{Component: "payments", Control: "sca", Unread: unread}}
 	last := fmt.Sprintf("m%02d/go.mod", errorRowsShown+1)
-	if out := renderWith(t, consoleReporter{}, d); strings.Contains(out, last) || !strings.Contains(out, "… and 2 more · --top 0 lists every one") {
-		t.Errorf("the default view named the last file or left it uncounted:\n%s", out)
+	_, groups, closing := consoleCaveats(t, renderWith(t, consoleReporter{}, d))
+	if len(groups) != 1 || slices.Contains(groups[0].rows, last+" no packages read") || groups[0].more != "… and 2 more" ||
+		closing != "--top 0 lists every one" {
+		t.Errorf("the default view named the last file or left it uncounted: %+v, closing %q", groups, closing)
 	}
 	d.TopN = -1
-	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, last) || strings.Contains(out, "more · --top 0") {
+	if out := renderWith(t, consoleReporter{}, d); !strings.Contains(out, last) || strings.Contains(out, "… and") {
 		t.Errorf("--top 0 left a file unnamed:\n%s", out)
 	}
 }

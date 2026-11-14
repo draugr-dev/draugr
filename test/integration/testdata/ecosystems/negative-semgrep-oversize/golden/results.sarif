@@ -28,7 +28,7 @@
                 }
               ],
               "message": {
-                "text": "src/bundle.js: over 1 MB, not scanned"
+                "text": "src/bundle.js: over 1 MB, not scanned · split it if it is source, or add to ignore"
               },
               "properties": {
                 "component": "negative-semgrep-oversize",

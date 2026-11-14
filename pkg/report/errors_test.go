@@ -1,6 +1,7 @@
 package report
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"slices"
@@ -14,6 +15,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/skald"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
@@ -165,18 +167,22 @@ func TestAcceptedErrorsMarkTheVerdictPartial(t *testing.T) {
 	}
 }
 
-// consoleCaveatGroup is a heading of the console's caveats block, whether it carries the mark, and
-// the rows under it with their runs of spaces closed up.
+// consoleCaveatGroup is a heading of the console's caveats block, the line over it naming what every
+// group shares where the block has one, whether it carries the mark, the rows under it with their
+// runs of spaces closed up, and the line counting the rows it left out.
 type consoleCaveatGroup struct {
+	over    string
 	heading string
 	marked  bool
 	rows    []string
+	more    string
 }
 
 // consoleCaveats reads the console's caveats block back into its header, its groups, and the line
-// counting what it left out, which is empty where it left nothing out. A row not indented past its
-// heading fails the test, because without color the indent is all that puts it under the heading.
-func consoleCaveats(t *testing.T, out string) (header string, groups []consoleCaveatGroup, more string) {
+// it closes on, which is empty where it left nothing out and folded nothing. A row not indented past
+// its heading fails the test, because without color the indent is all that puts it under the
+// heading. A mark on the line over the groups marks each group under it.
+func consoleCaveats(t *testing.T, out string) (header string, groups []consoleCaveatGroup, closing string) {
 	t.Helper()
 	_, block, ok := strings.Cut(out, "\nCAVEATS  ")
 	if !ok {
@@ -185,29 +191,51 @@ func consoleCaveats(t *testing.T, out string) (header string, groups []consoleCa
 	block, _, _ = strings.Cut(block, "\n\n")
 	lines := strings.Split(block, "\n")
 	header = "CAVEATS  " + lines[0]
-	indent := -1
+	type line struct {
+		text   string
+		indent int
+		marked bool
+	}
+	var body []line
 	for _, l := range lines[1:] {
-		marked := strings.HasPrefix(l, "  ✗ ")
+		head, tail, marked := strings.Cut(l, "✗ ")
 		plain := l
-		if marked {
-			plain = "    " + strings.TrimPrefix(l, "  ✗ ")
+		if marked && strings.TrimLeft(head, " ") == "" {
+			plain = head + "  " + tail
+		} else {
+			marked = false
 		}
 		text := strings.TrimLeft(plain, " ")
-		n := len(plain) - len(text)
+		body = append(body, line{text, len(plain) - len(text), marked})
+	}
+	if len(body) == 0 {
+		return header, nil, ""
+	}
+	top := body[0].indent
+	nested := slices.ContainsFunc(body, func(l line) bool { return l.indent >= top+4 })
+	headingAt := top
+	if nested {
+		headingAt = top + 2
+	}
+	over, overMarked := "", false
+	for _, l := range body {
 		switch {
-		case strings.HasPrefix(text, "… and "):
-			more = text
-		case indent < 0 || n == indent:
-			indent = n
-			groups = append(groups, consoleCaveatGroup{heading: text, marked: marked})
-		case n < indent+2:
-			t.Errorf("row %q is not indented under its heading:\n%s", l, out)
+		case l.indent == 2 && strings.HasPrefix(l.text, "--top 0 "):
+			closing = l.text
+		case nested && l.indent == top:
+			over, overMarked = l.text, l.marked
+		case l.indent == headingAt:
+			groups = append(groups, consoleCaveatGroup{over: over, heading: l.text, marked: l.marked || overMarked})
+		case len(groups) == 0 || l.indent < headingAt+2:
+			t.Errorf("row %q is not indented under its heading:\n%s", l.text, out)
+		case strings.HasPrefix(l.text, "… and "):
+			groups[len(groups)-1].more = l.text
 		default:
 			g := &groups[len(groups)-1]
-			g.rows = append(g.rows, strings.Join(strings.Fields(text), " "))
+			g.rows = append(g.rows, strings.Join(strings.Fields(l.text), " "))
 		}
 	}
-	return header, groups, more
+	return header, groups, closing
 }
 
 // What was declared and never looked at, what a scanner could not measure and what was not read
@@ -264,8 +292,9 @@ func TestAnUnreadChecksRowCountsThePartlyRead(t *testing.T) {
 
 // Caveats sharing a kind, controls and component sit under one heading, the kinds in the order the
 // setting lists them, then by controls and component. Two components and two sets of controls, so
-// neither can be folded into the other's group, and a run past the cap draws no heading whose rows
-// all fall beyond it. --top 0 draws every row and heading.
+// neither can be folded into the other's group. A run past the cap cuts each group, not the block:
+// every group keeps a row, the largest gives up the most, and each says how many it left out. The
+// gate fails on the files, so each is a row of its own. --top 0 draws every row.
 func TestCaveatsGroupByKindControlsAndComponent(t *testing.T) {
 	unread := func(component, control string, paths ...string) engine.InputCoverage {
 		in := engine.InputCoverage{Component: component, Control: control}
@@ -275,7 +304,8 @@ func TestCaveatsGroupByKindControlsAndComponent(t *testing.T) {
 		return in
 	}
 	d := Data{
-		Uncovered: []Gap{{Component: "web", Surface: "hosts", Controls: []string{"dast"}}},
+		FailOnCaveats: []saga.CaveatKind{saga.CaveatUnreadFiles},
+		Uncovered:     []Gap{{Component: "web", Surface: "hosts", Controls: []string{"dast"}}},
 		Run: engine.Result{Inputs: []engine.InputCoverage{
 			unread("web", "sca", "a/package.json", "b/package.json"),
 			unread("api", "sca", "c/package.json"),
@@ -285,29 +315,90 @@ func TestCaveatsGroupByKindControlsAndComponent(t *testing.T) {
 		}},
 	}
 	out := renderWith(t, consoleReporter{}, d)
-	_, groups, more := consoleCaveats(t, out)
+	_, groups, closing := consoleCaveats(t, out)
 	want := []consoleCaveatGroup{
 		{heading: "not-checked · web", rows: []string{"hosts controls off: dast"}},
-		{heading: "unread-files · licenses · api", rows: []string{
+		{heading: "unread-files · licenses · api", marked: true, rows: []string{
 			"d/pyproject.toml no lockfile", "e/pyproject.toml no lockfile", "f/pyproject.toml no lockfile",
-			"g/pyproject.toml no lockfile", "h/pyproject.toml no lockfile", "i/pyproject.toml no lockfile"}},
-		{heading: "unread-files · sca · api", rows: []string{"c/package.json no lockfile"}},
-		{heading: "unread-files · sca · web", rows: []string{"a/package.json no lockfile", "b/package.json no lockfile"}},
+			"g/pyproject.toml no lockfile"}, more: "… and 2 more"},
+		{heading: "unread-files · sca · api", marked: true, rows: []string{"c/package.json no lockfile"}},
+		{heading: "unread-files · sca · web", marked: true, rows: []string{"a/package.json no lockfile", "b/package.json no lockfile"}},
+		{heading: "unread-files · sca · worker", marked: true, rows: []string{"j/package.json no lockfile", "k/package.json no lockfile"}},
 	}
-	if !reflect.DeepEqual(groups, want) || more != "… and 2 more · --top 0 lists every one" {
-		t.Errorf("groups = %+v, more %q\nwant %+v:\n%s", groups, more, want, out)
-	}
-	if strings.Contains(out, "worker") {
-		t.Errorf("a heading is drawn for rows past the cap:\n%s", out)
+	if !reflect.DeepEqual(groups, want) || closing != "--top 0 lists every one" {
+		t.Errorf("groups = %+v, closing %q\nwant %+v:\n%s", groups, closing, want, out)
 	}
 
 	d.TopN = -1
 	out = renderWith(t, consoleReporter{}, d)
-	_, groups, more = consoleCaveats(t, out)
-	want = append(want, consoleCaveatGroup{heading: "unread-files · sca · worker",
-		rows: []string{"j/package.json no lockfile", "k/package.json no lockfile"}})
-	if !reflect.DeepEqual(groups, want) || more != "" {
-		t.Errorf("--top 0: groups = %+v, more %q\nwant %+v:\n%s", groups, more, want, out)
+	_, groups, closing = consoleCaveats(t, out)
+	want[1].rows = append(want[1].rows, "h/pyproject.toml no lockfile", "i/pyproject.toml no lockfile")
+	want[1].more = ""
+	if !reflect.DeepEqual(groups, want) || closing != "" {
+		t.Errorf("--top 0: groups = %+v, closing %q\nwant %+v:\n%s", groups, closing, want, out)
+	}
+}
+
+// A field every group shares is said once, on a line over the groups, and each heading names only
+// what sets its group apart. Where every group is of a kind the gate fails on, the mark is on that
+// line. One group says everything on its own heading.
+func TestCaveatsSayWhatEveryGroupSharesOnce(t *testing.T) {
+	unread := func(control, path string) engine.InputCoverage {
+		return engine.InputCoverage{Component: "api", Control: control, Unread: []engine.UnreadInput{
+			{Repository: "api", Path: path, Reason: "no lockfile"}}}
+	}
+	d := Data{Run: engine.Result{Inputs: []engine.InputCoverage{unread("licenses", "a/go.mod"), unread("sca", "b/go.mod")}}}
+	out := renderWith(t, consoleReporter{}, d)
+	_, groups, _ := consoleCaveats(t, out)
+	want := []consoleCaveatGroup{
+		{over: "unread-files · api", heading: "licenses", rows: []string{"a/go.mod no lockfile"}},
+		{over: "unread-files · api", heading: "sca", rows: []string{"b/go.mod no lockfile"}},
+	}
+	if !reflect.DeepEqual(groups, want) {
+		t.Errorf("groups = %+v\nwant %+v:\n%s", groups, want, out)
+	}
+	if !strings.Contains(out, "\n  unread-files · api\n    licenses\n      a/go.mod  no lockfile\n") {
+		t.Errorf("the shared line is not over the groups:\n%s", out)
+	}
+
+	d.FailOnCaveats = []saga.CaveatKind{saga.CaveatUnreadFiles}
+	out = renderWith(t, consoleReporter{}, d)
+	if !strings.Contains(out, "\n  ✗ unread-files · api\n      licenses\n        a/go.mod  no lockfile\n") ||
+		strings.Count(out, "✗") != 1 {
+		t.Errorf("the mark is not said once, over the groups:\n%s", out)
+	}
+
+	d.FailOnCaveats = nil
+	d.Run.Inputs = d.Run.Inputs[:1]
+	if _, groups, _ := consoleCaveats(t, renderWith(t, consoleReporter{}, d)); len(groups) != 1 ||
+		groups[0].over != "" || groups[0].heading != "unread-files · licenses · api" {
+		t.Errorf("one group: %+v", groups)
+	}
+}
+
+// A group whose rows do not fit the terminal says each reason once, with the rows it covers under
+// it, so no line runs past the edge and no path or reason is cut. Rows that fit stay a table.
+func TestCaveatRowsThatDoNotFitSayTheReasonOnce(t *testing.T) {
+	const reason = "archive extension, not read · rename it if it is text, or add to ignore"
+	var rows []caveat
+	for _, p := range []string{"s2/testdata/4f9e1a0da7915a3d69632f5613ed78bc998a8a23.zst", "zip/testdata/dd.zip"} {
+		rows = append(rows, caveat{what: p, detail: reason + " (secrets)", by: "secrets", key: saga.CaveatUnreadFiles})
+	}
+	var b bytes.Buffer
+	writeCaveatGroupRows(&b, tui.Plain(), 80, "    ", rows)
+	want := "    " + reason + "\n      s2/testdata/4f9e1a0da7915a3d69632f5613ed78bc998a8a23.zst\n      zip/testdata/dd.zip\n"
+	if b.String() != want {
+		t.Errorf("at 80 columns:\n%s\nwant\n%s", b.String(), want)
+	}
+	for _, l := range strings.Split(b.String(), "\n") {
+		if n := utf8.RuneCountInString(l); n > 80 {
+			t.Errorf("%d columns: %q", n, l)
+		}
+	}
+	b.Reset()
+	writeCaveatGroupRows(&b, tui.Plain(), 200, "    ", rows)
+	if !strings.Contains(b.String(), "    zip/testdata/dd.zip") || strings.Count(b.String(), reason) != 2 {
+		t.Errorf("at 200 columns the rows are not a table:\n%s", b.String())
 	}
 }
 
@@ -338,7 +429,9 @@ func TestTheHTMLReportIsOfferedWhereTheConsoleCutABlock(t *testing.T) {
 	unread := func(component string, n int) engine.InputCoverage {
 		in := engine.InputCoverage{Component: component, Control: "sca"}
 		for i := range n {
-			in.Unread = append(in.Unread, engine.UnreadInput{Repository: component, Path: fmt.Sprintf("m%02d/go.mod", i), Reason: "no packages read"})
+			// A reason of its own each, so no two files are folded into one row.
+			in.Unread = append(in.Unread, engine.UnreadInput{Repository: component, Path: fmt.Sprintf("m%02d/go.mod", i),
+				Reason: fmt.Sprintf("not parsed: line %d", i)})
 		}
 		return in
 	}
@@ -404,8 +497,13 @@ func TestAFoldedCaveatRowOffersEvidence(t *testing.T) {
 		t.Errorf("under --evidence, TRY = %q, want none", got)
 	}
 
-	// Ten rows of another kind ahead of it, so the folded row is past the cut.
+	// Ten groups of another kind ahead of it, and a row ahead of it in its own group, so the folded
+	// row is past the cut: every group keeps its first row, and nothing more fits.
 	d.Evidence = false
+	for i := range d.Run.Inputs {
+		d.Run.Inputs[i].Unread = append([]engine.UnreadInput{{Repository: d.Run.Inputs[i].Component, Path: "go.mod",
+			Reason: "no packages read"}}, d.Run.Inputs[i].Unread...)
+	}
 	for i := range errorRowsShown {
 		d.Uncovered = append(d.Uncovered, Gap{Component: fmt.Sprintf("c%02d", i), Surface: "hosts", Controls: []string{"tls"}})
 	}

@@ -94,12 +94,12 @@ func TestASkippedOrUnfinishedSemgrepFileIsReportedUnread(t *testing.T) {
 	s := fakeSemgrepRepos(t, config, "one", "two")
 	want := map[string][]sarif.Input{
 		"one": {
-			{Scanner: "semgrep", Repository: "one", Path: "src/big.js", Unread: "over 1 MB, not scanned"},
+			{Scanner: "semgrep", Repository: "one", Path: "src/big.js", Unread: semgrepSizeReason},
 			{Scanner: "semgrep", Repository: "one", Path: "src/slow.js", Unread: `1 rule timed out, not checked: "slow-0"`},
 		},
 		"two": {
-			{Scanner: "semgrep", Repository: "two", Path: "src/big.js", Unread: "over 1 MB, not scanned"},
-			{Scanner: "semgrep", Repository: "two", Path: "src/big.py", Unread: "over 1 MB, not scanned"},
+			{Scanner: "semgrep", Repository: "two", Path: "src/big.js", Unread: semgrepSizeReason},
+			{Scanner: "semgrep", Repository: "two", Path: "src/big.py", Unread: semgrepSizeReason},
 			{Scanner: "semgrep", Repository: "two", Path: "src/many.js",
 				Unread: `3 rules timed out, other rules not run: "slow-0", "slow-1", "slow-2"`},
 		},
@@ -172,10 +172,10 @@ func TestSemgrepUnreadFilesOfTwoRepositoriesStayApart(t *testing.T) {
 	want := []engine.InputCoverage{{
 		Component: "app", Control: "sast", Scanners: []string{"semgrep"},
 		Unread: []engine.UnreadInput{
-			{Repository: "one", Path: "src/big.js", Reason: "over 1 MB, not scanned"},
+			{Repository: "one", Path: "src/big.js", Reason: semgrepSizeReason},
 			{Repository: "one", Path: "src/slow.js", Reason: `1 rule timed out, not checked: "slow-0"`},
-			{Repository: "two", Path: "src/big.js", Reason: "over 1 MB, not scanned"},
-			{Repository: "two", Path: "src/big.py", Reason: "over 1 MB, not scanned"},
+			{Repository: "two", Path: "src/big.js", Reason: semgrepSizeReason},
+			{Repository: "two", Path: "src/big.py", Reason: semgrepSizeReason},
 			{Repository: "two", Path: "src/many.js", Reason: `3 rules timed out, other rules not run: "slow-0", "slow-1", "slow-2"`},
 		},
 	}}
@@ -233,7 +233,7 @@ func TestSemgrepUnreadJoinsReasonsForOneFile(t *testing.T) {
 		"paths":{"skipped":[{"path":"/work/a.js","reason":"too_big"}]}}`
 	got := semgrepUnread(semgrepJSONOf(t, doc), "/work", semgrepLanguages{all: true}, []string{"x."})
 	want := []sarif.Input{
-		{Path: "a.js", Unread: `over 1 MB, not scanned, 1 rule timed out, not checked: "r1"`},
+		{Path: "a.js", Unread: semgrepSizeReason + `, 1 rule timed out, not checked: "r1"`},
 		{Path: "b.js", Unread: "a rule timed out, not checked"},
 	}
 	if !slices.Equal(got, want) {

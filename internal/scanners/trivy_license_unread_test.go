@@ -172,8 +172,8 @@ func TestConsoleFoldsUnreadLicensesByComponentAndFormat(t *testing.T) {
 		`^  licenses\s+pass\s+.* · 5 files unread$`,
 		`^  sca\s+pass\s+no findings$`,
 		`^CAVEATS  do not fail the run · config\.gate\.failOnCaveats lists the kinds that do$`,
-		`^  unread-files · licenses · mixed\n    NuGet files ×2  licenses of 5 packages not read, run dotnet restore$`,
-		`^  unread-files · licenses · native\n    rb/Gemfile\.lock\s+records no licenses for 2 packages\n    Cargo\.lock ×2\s+records no licenses for 5 packages$`,
+		`^  unread-files · licenses\n    mixed\n      NuGet files ×2  licenses of 5 packages not read, run dotnet restore$`,
+		`^    native\n      rb/Gemfile\.lock\s+records no licenses for 2 packages\n      Cargo\.lock ×2\s+records no licenses for 5 packages$`,
 		`^  --evidence\s+each file behind a caveat row such as NuGet files ×2$`,
 	} {
 		if !regexp.MustCompile(`(?m)` + row).MatchString(console) {

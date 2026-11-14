@@ -168,6 +168,9 @@ type caveat struct {
 	by string
 	// folded says the row stands for several files, which --evidence names one by one.
 	folded bool
+	// byReason says the console folded the row from several files of one reason, which --top 0
+	// names one by one.
+	byReason bool
 	// controls are the controls the caveat concerns, where it names any. locations are the files or
 	// image it names, by their own paths: what is a label, shortened or folded for a reader.
 	controls  []string
@@ -313,14 +316,57 @@ func (c caveat) reason() string {
 // any, and its component, as `unread-files · licenses, sca · server`. A caveat no component claims
 // is headed `no component`, as the HTML report groups it.
 func (c caveat) heading() string {
-	parts := []string{string(c.key)}
-	if c.by != "" {
-		parts = append(parts, c.by)
-	}
+	return joinSlots(c.headingSlots(), func(int) bool { return true })
+}
+
+// headingSlots are a group heading's fields in the order it names them: the kind, the controls,
+// and the component. A field the caveat does not name is empty: the controls of a caveat that names
+// none, the component of one about a repository.
+func (c caveat) headingSlots() [3]string {
+	s := [3]string{string(c.key), c.by, cmp.Or(c.component, "no component")}
 	if c.repository {
-		return strings.Join(parts, " · ")
+		s[2] = ""
 	}
-	return strings.Join(append(parts, cmp.Or(c.component, "no component")), " · ")
+	return s
+}
+
+// joinSlots names the heading fields keep selects, as a heading does.
+func joinSlots(s [3]string, keep func(int) bool) string {
+	var parts []string
+	for i, v := range s {
+		if v != "" && keep(i) {
+			parts = append(parts, v)
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// sharedSlots reports which heading fields hold one value in every group, which the console says
+// once over the block instead of on each heading. With one group there is nothing to say once, and
+// a group whose own heading would be left empty keeps the whole of it.
+func sharedSlots(groups []shownGroup) (shared [3]bool, ok bool) {
+	if len(groups) < 2 {
+		return shared, false
+	}
+	first := groups[0].rows[0].headingSlots()
+	for i := range first {
+		shared[i] = first[i] != ""
+		for _, g := range groups[1:] {
+			if g.rows[0].headingSlots()[i] != first[i] {
+				shared[i] = false
+			}
+		}
+		ok = ok || shared[i]
+	}
+	if !ok {
+		return shared, false
+	}
+	for _, g := range groups {
+		if joinSlots(g.rows[0].headingSlots(), func(i int) bool { return !shared[i] }) == "" {
+			return shared, false
+		}
+	}
+	return shared, true
 }
 
 // sameGroup reports whether two caveats sit under one heading.
@@ -341,13 +387,125 @@ func kindRank(k saga.CaveatKind) int {
 	return len(saga.CaveatKinds)
 }
 
-// shownCaveats is the run's caveats in the order the console groups them, cut to the rows the
-// block draws, and how many it leaves out. The cut counts rows, not headings.
-func shownCaveats(d Data) (shown []caveat, left int) {
+// shownGroup is one group of the console's caveats: the rows it draws and how many it leaves out.
+type shownGroup struct {
+	rows []caveat
+	left int
+}
+
+// shownCaveatGroups is the run's caveats in the groups the console draws, each cut to the rows the
+// block draws. The cut is per group: every group keeps its first row, so a kind, a control or a
+// component is never left out of the block whole, and the rest of the block's rows go to the groups
+// one row at a time, so the largest group gives up the most. --top 0 draws every row.
+func shownCaveatGroups(d Data) []shownGroup {
 	cs := caveats(d)
 	slices.SortStableFunc(cs, compareGroups)
-	n, _ := shownRows(d, len(cs))
-	return cs[:n], len(cs) - n
+	if consoleFixFirstLimit(d.TopN) >= 0 {
+		cs = foldUnreadByReason(d, cs)
+	}
+	var groups []shownGroup
+	for i := 0; i < len(cs); {
+		j := i
+		for j < len(cs) && sameGroup(cs[j], cs[i]) {
+			j++
+		}
+		groups = append(groups, shownGroup{rows: cs[i:j]})
+		i = j
+	}
+	if n, _ := shownRows(d, len(cs)); n == len(cs) {
+		return groups
+	}
+	take := make([]int, len(groups))
+	budget := errorRowsShown - len(groups)
+	for i := range take {
+		take[i] = 1
+	}
+	for gave := true; budget > 0 && gave; {
+		gave = false
+		for i, g := range groups {
+			if budget > 0 && take[i] < len(g.rows) {
+				take[i]++
+				budget--
+				gave = true
+			}
+		}
+	}
+	for i := range groups {
+		groups[i].left = len(groups[i].rows) - take[i]
+		groups[i].rows = groups[i].rows[:take[i]]
+	}
+	return groups
+}
+
+// shownCaveats is the rows the console's caveats block draws, in its order, and how many it leaves
+// out across its groups.
+func shownCaveats(d Data) (shown []caveat, left int) {
+	for _, g := range shownCaveatGroups(d) {
+		shown = append(shown, g.rows...)
+		left += g.left
+	}
+	return shown, left
+}
+
+// foldUnreadByReason folds a group's unread files that share a reason into fewer rows, for a console
+// that lists the first rows of each block. A reader acts on the reason and how many files it covers,
+// and a column of paths that differ only below a testdata directory pushes the findings off the
+// screen. --top 0 and every report still name each file.
+//
+// A caveat the gate fails on keeps a row per file, because each of those files has to be read or
+// set aside before the run passes, and the row is where its path is.
+func foldUnreadByReason(d Data, cs []caveat) []caveat {
+	out := make([]caveat, 0, len(cs))
+	for i := 0; i < len(cs); {
+		j := i
+		for j < len(cs) && sameGroup(cs[j], cs[i]) {
+			j++
+		}
+		group := cs[i:j]
+		i = j
+		if group[0].key != saga.CaveatUnreadFiles || group[0].fails(d) {
+			out = append(out, group...)
+			continue
+		}
+		var order []string
+		byReason := map[string][]caveat{}
+		for _, c := range group {
+			r := c.reason()
+			if c.folded {
+				r = "\x00" + c.what
+			}
+			if _, seen := byReason[r]; !seen {
+				order = append(order, r)
+			}
+			byReason[r] = append(byReason[r], c)
+		}
+		for _, r := range order {
+			same := byReason[r]
+			if len(same) < 2 {
+				out = append(out, same...)
+				continue
+			}
+			out = append(out, reasonRows(same)...)
+		}
+	}
+	return out
+}
+
+// reasonRows is the row standing for several files of one group that share a reason.
+func reasonRows(same []caveat) []caveat {
+	c := same[0]
+	c.what = english.Count(len(same), "file")
+	c.byReason = true
+	c.locations = nil
+	for _, s := range same {
+		c.locations = append(c.locations, s.locations...)
+	}
+	return []caveat{c}
+}
+
+// foldedByReason reports whether the console drew a row standing for several files of one reason.
+func foldedByReason(shown []caveat) bool {
+	return slices.ContainsFunc(shown, func(c caveat) bool { return c.byReason })
 }
 
 // fails reports whether the gate lists this caveat's kind in failOnCaveats.
@@ -560,10 +718,11 @@ func componentsLabel(cs []string) string {
 //
 // The kind, the controls and the component are the same on every row of a group, so they are said
 // once above it and each row says only what and why. Repeated on every row, they take a quarter of
-// the line, and a block of file caveats runs past a terminal's width and wraps.
+// the line, and a block of file caveats runs past a terminal's width and wraps. A field every group
+// shares, such as the one component of a run, is said once over the groups for the same reason.
 func writeCaveats(w io.Writer, col tui.Painter, d Data) {
-	shown, left := shownCaveats(d)
-	if len(shown) == 0 {
+	groups := shownCaveatGroups(d)
+	if len(groups) == 0 {
 		return
 	}
 	failing, _ := splitCaveats(d)
@@ -583,35 +742,94 @@ func writeCaveats(w io.Writer, col tui.Painter, d Data) {
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Caveats"), note)
 	// The mark only where something is marked, so a run with nothing failing reads as it always did,
-	// and the kinds stay aligned under one another when something is. The rows sit two columns in
-	// from the heading's text either way, so they read as under it without color.
+	// and the kinds stay aligned under one another when something is. The mark goes where the kind
+	// is named: on the line over the groups where every group is of one kind. The rows sit two
+	// columns in from the heading's text either way, so they read as under it without color.
 	marking := len(failing) > 0
-	indent := "    "
-	if marking {
-		indent = "      "
+	markOf := func(c caveat) string {
+		switch {
+		case !marking:
+			return ""
+		case c.fails(d):
+			return col.Paint(cFail, "✗ ")
+		}
+		return "  "
 	}
-	// The cut is in rows, so a group whose rows all fall past it has no heading either.
-	for i := 0; i < len(shown); {
-		first := shown[i]
-		mark := ""
-		if marking {
+	shared, nested := sharedSlots(groups)
+	headingIndent := "  "
+	if nested {
+		mark := markOf(groups[0].rows[0])
+		if !shared[0] && marking {
 			mark = "  "
-			if first.fails(d) {
-				mark = col.Paint(cFail, "✗ ")
+		}
+		_, _ = fmt.Fprintf(w, "  %s%s\n", mark, col.Paint(cAccent, joinSlots(groups[0].rows[0].headingSlots(),
+			func(i int) bool { return shared[i] })))
+		headingIndent = "    "
+	}
+	rowIndent := headingIndent + "  "
+	if marking {
+		rowIndent += "  "
+	}
+	cols := tui.Columns(w)
+	left := 0
+	for _, g := range groups {
+		first := g.rows[0]
+		mark := markOf(first)
+		title := first.heading()
+		if nested {
+			title = joinSlots(first.headingSlots(), func(i int) bool { return !shared[i] })
+			if shared[0] && marking {
+				mark = "  "
 			}
 		}
-		_, _ = fmt.Fprintf(w, "  %s%s\n", mark, col.Paint(cAccent, first.heading()))
-		t := tui.NewTable(col).Indent(indent)
-		for ; i < len(shown) && sameGroup(shown[i], first); i++ {
-			t.Row(tui.Styled(tui.StyleStrong, shown[i].what), tui.Styled(cDim, truncate(shown[i].reason(), whyWidth)))
+		_, _ = fmt.Fprintf(w, "%s%s%s\n", headingIndent, mark, col.Paint(cAccent, title))
+		writeCaveatGroupRows(w, col, cols, rowIndent, g.rows)
+		if g.left > 0 {
+			_, _ = fmt.Fprintf(w, "%s%s\n", rowIndent, col.Paint(cDim, fmt.Sprintf("… and %d more", g.left)))
 		}
-		t.Render(w)
+		left += g.left
 	}
-	if left > 0 {
-		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim,
-			fmt.Sprintf("… and %d more · --top 0 lists every one", left)))
+	switch {
+	case left > 0:
+		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, "--top 0 lists every one"))
+	case slices.ContainsFunc(groups, func(g shownGroup) bool { return foldedByReason(g.rows) }):
+		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, "--top 0 lists each file"))
 	}
 	_, _ = fmt.Fprintln(w)
+}
+
+// writeCaveatGroupRows draws a group's rows as a table of what and why where the table fits a
+// terminal cols wide. Where it does not, each reason is said once and the rows it covers are listed
+// under it, so a long path and a long reason never share a line: a table cut to fit would cut the
+// reason, which says what to do, and a path, which is useless shortened. A cols of zero is a file or
+// a pipe, with no width to respect.
+func writeCaveatGroupRows(w io.Writer, col tui.Painter, cols int, indent string, rows []caveat) {
+	widest := 0
+	for _, r := range rows {
+		widest = max(widest, utf8.RuneCountInString(r.what)+2+utf8.RuneCountInString(truncate(r.reason(), whyWidth)))
+	}
+	if cols <= 0 || len(indent)+widest <= cols {
+		t := tui.NewTable(col).Indent(indent)
+		for _, r := range rows {
+			t.Row(tui.Styled(tui.StyleStrong, r.what), tui.Styled(cDim, truncate(r.reason(), whyWidth)))
+		}
+		t.Render(w)
+		return
+	}
+	var order []string
+	byReason := map[string][]caveat{}
+	for _, r := range rows {
+		if _, seen := byReason[r.reason()]; !seen {
+			order = append(order, r.reason())
+		}
+		byReason[r.reason()] = append(byReason[r.reason()], r)
+	}
+	for _, reason := range order {
+		_, _ = fmt.Fprintf(w, "%s%s\n", indent, col.Paint(cDim, truncate(reason, max(cols-len(indent), minBelow))))
+		for _, r := range byReason[reason] {
+			_, _ = fmt.Fprintf(w, "%s  %s\n", indent, col.Paint(tui.StyleStrong, r.what))
+		}
+	}
 }
 
 // foldedCaveat is the first caveat row the console draws that stands for several files, which

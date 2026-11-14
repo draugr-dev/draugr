@@ -53,7 +53,7 @@
       "unread": [
         {
           "path": "src/bundle.js",
-          "reason": "over 1 MB, not scanned",
+          "reason": "over 1 MB, not scanned · split it if it is source, or add to ignore",
           "repository": "./negative-semgrep-oversize"
         }
       ]

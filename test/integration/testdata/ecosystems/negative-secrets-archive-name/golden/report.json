@@ -55,12 +55,12 @@
       "unread": [
         {
           "path": "notes.zip.txt",
-          "reason": "name has an archive extension",
+          "reason": "archive extension, not read · rename it if it is text, or add to ignore",
           "repository": "./negative-secrets-archive-name"
         },
         {
           "path": "release.brief.md",
-          "reason": "name has an archive extension",
+          "reason": "archive extension, not read · rename it if it is text, or add to ignore",
           "repository": "./negative-secrets-archive-name"
         }
       ]

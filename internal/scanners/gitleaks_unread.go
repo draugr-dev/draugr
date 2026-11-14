@@ -34,6 +34,13 @@ import (
 // Gitleaks read nothing, and named no file it skipped, is reported unread at its root, so a skip
 // recorded some other way still does not read as a pass.
 
+// gitleaksArchiveReason is the reason a file skipped as an archive is unread, and what a reader can
+// do about it. No setting has Gitleaks open an archive, so a real archive is either accepted unread,
+// by the repository's ignore, or left as a caveat. A text file whose name only looks like an
+// archive's is read once renamed. Renaming a real archive is no answer: Gitleaks skips it as a
+// binary file and names it nowhere.
+const gitleaksArchiveReason = "archive extension, not read · rename it if it is text, or add to ignore"
+
 // gitleaksArchiveSkipped is the message Gitleaks 8.30.1 logs for each file it skips as an archive.
 const gitleaksArchiveSkipped = "skipping archive: exceeds max archive depth"
 
@@ -145,7 +152,7 @@ func gitleaksUnread(stderr []byte, dir string) []sarif.Input {
 			continue
 		}
 		seen[path] = true
-		out = append(out, sarif.Input{Path: path, Unread: "name has an archive extension"})
+		out = append(out, sarif.Input{Path: path, Unread: gitleaksArchiveReason})
 	}
 	slices.SortFunc(out, func(a, b sarif.Input) int { return strings.Compare(a.Path, b.Path) })
 	if len(out) == 0 && scanned == 0 && holdsContent(dir) {

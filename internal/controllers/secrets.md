@@ -93,8 +93,8 @@ two repositories, and each names its own file:
 ```
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   unread-files · secrets · app
-    ./api:notes.zip.txt  name has an archive extension
-    ./web:notes.zip.txt  name has an archive extension
+    ./api:notes.zip.txt  archive extension, not read · rename it if it is text, or add to ignore
+    ./web:notes.zip.txt  archive extension, not read · rename it if it is text, or add to ignore
 ```
 
 A repository of which Gitleaks read nothing, while it holds a file with content, is named at its
