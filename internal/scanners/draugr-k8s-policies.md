@@ -141,7 +141,10 @@ rather than answering from part of the grants.
 than `privileged` on, a bound ValidatingAdmissionPolicy, or a Gatekeeper or Kyverno admission
 webhook. A default level set in the API server's own admission configuration file is not visible
 through the API, so the finding says so. If the cluster sets one, add `draugr/cis/5.2.1` to
-`config.exclude`.
+`config.exclude`. Where the ValidatingAdmissionPolicy bindings cannot be read, because the read is
+refused or the cluster is older than Kubernetes 1.30 and serves no v1 bindings, 5.2.1 is left for a
+person rather than failed, unless a namespace or a policy engine's webhook passes it. Check those
+bindings with `kubectl get validatingadmissionpolicybindings`.
 
 **29 of 34 decided, against the 11 kube-bench automates.** The eighteen past parity are ones the
 benchmark marks manual and kube-bench leaves that way. They are decidable here for the reason this
@@ -359,7 +362,7 @@ Optional:
 | `list` `namespaces` | core | 5.2.1 and 5.3.2 are left for a person |
 | `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 is left for a person |
 | `list` `validatingwebhookconfigurations` | `admissionregistration.k8s.io` | 5.2.1 is left for a person, unless a namespace enforces a Pod Security level other than `privileged` or a ValidatingAdmissionPolicy is bound |
-| `list` `validatingadmissionpolicybindings` | `admissionregistration.k8s.io` | 5.2.1 is decided from the other two mechanisms alone |
+| `list` `validatingadmissionpolicybindings` | `admissionregistration.k8s.io` | 5.2.1 is left for a person rather than failed, unless a namespace enforces a Pod Security level other than `privileged` or a Gatekeeper or Kyverno webhook is configured |
 | `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 are left for a person (see ¹ above) |
 | `list` `nodes` | core | an AKS cluster is not recognized, so its Managed Services finding is missing |
 

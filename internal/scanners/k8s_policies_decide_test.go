@@ -11,8 +11,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -275,6 +277,46 @@ func TestPolicyControl(t *testing.T) {
 		}
 		if !v.Compliant && (!strings.Contains(v.message, "not visible") || !strings.HasSuffix(v.message, "exclude draugr/cis/5.2.1.")) {
 			t.Errorf("%s: the finding should say what the API cannot show and which rule id to exclude, got %q", tc.name, v.message)
+		}
+	}
+}
+
+// 5.2.1 cannot say no admission policy is bound when the bindings were never read: a refused list,
+// or a cluster serving no v1 API for them, leaves the check for a person unless a policy engine's
+// webhook passes it, while a list that came back empty still fails it.
+func TestPolicyControlWithTheBindingsUnread(t *testing.T) {
+	t.Parallel()
+
+	refused := apierrors.NewForbidden(schema.GroupResource{Group: "admissionregistration.k8s.io", Resource: "validatingadmissionpolicybindings"}, "", nil)
+	absent := apierrors.NewNotFound(schema.GroupResource{Group: "admissionregistration.k8s.io", Resource: "validatingadmissionpolicybindings"}, "")
+	plain := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team"}}
+	engine := &admissionv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "gatekeeper-validating-webhook-configuration"}}
+	other := &admissionv1.ValidatingWebhookConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "cert-manager-webhook"}}
+	for _, tc := range []struct {
+		name    string
+		listErr error
+		objects []runtime.Object
+		decided bool
+		pass    bool
+	}{
+		{"refused, no engine", refused, []runtime.Object{plain, other}, false, false},
+		{"API absent, no engine", absent, []runtime.Object{plain, other}, false, false},
+		{"refused, an engine's webhook", refused, []runtime.Object{plain, engine}, true, true},
+		{"read and empty, no engine", nil, []runtime.Object{plain, other}, true, false},
+	} {
+		c := fake.NewSimpleClientset(tc.objects...)
+		if tc.listErr != nil {
+			c.PrependReactor("list", "validatingadmissionpolicybindings", func(k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, tc.listErr
+			})
+		}
+		v, ok := evaluatePolicyControl(context.Background(), c)
+		if ok != tc.decided {
+			t.Errorf("%s: decided = %v, want %v (%q)", tc.name, ok, tc.decided, v.Detail)
+			continue
+		}
+		if ok && v.Compliant != tc.pass {
+			t.Errorf("%s: compliant = %v, want %v (%q)", tc.name, v.Compliant, tc.pass, v.Detail)
 		}
 	}
 }
