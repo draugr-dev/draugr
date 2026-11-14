@@ -1,1 +1,0 @@
-- **5.2.1 is left for a person, not failed, when Draugr cannot read the ValidatingAdmissionPolicy bindings.** A refused read, or a cluster older than Kubernetes 1.30, failed it with "no ValidatingAdmissionPolicy is bound". It now stays open unless a namespace enforces a Pod Security level above `privileged` or a Gatekeeper or Kyverno webhook passes it.

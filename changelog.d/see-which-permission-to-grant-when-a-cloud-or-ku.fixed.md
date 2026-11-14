@@ -1,1 +1,0 @@
-- **See which permission to grant when a cloud or Kubernetes check could not be decided.** A refused read is listed under CAVEATS as unread with the read that was denied, instead of counted as left for a person. An AWS member account is told to scan from the management account. `--evidence` lists every undecided check by kind.

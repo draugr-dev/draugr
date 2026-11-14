@@ -1,1 +1,0 @@
-- **`draugr controls` describes the secrets control as it runs by default.** Its summary no longer says past commits are searched, since that needs the gitleaks `history` option, which is off unless you turn it on.

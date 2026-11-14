@@ -1,1 +1,0 @@
-- **A deprecated package keeps its publisher's whole reason in `report.json` and the SARIF.** The reason was cut at 120 bytes, often partway through the address it pointed to, and the cut could split a character and leave text that is not valid UTF-8.
