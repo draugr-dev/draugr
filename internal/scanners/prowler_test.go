@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -77,11 +78,35 @@ func (f *fakeProwler) run(_ context.Context, argv []string) ([]byte, error) {
 		}
 	}
 	if f.log != "" {
-		if err := os.WriteFile(argAfter(argv, "--log-file"), []byte(f.log), 0o600); err != nil {
+		log := atLogLevel(f.log, argAfter(argv, "--log-level"))
+		if err := os.WriteFile(argAfter(argv, "--log-file"), []byte(log), 0o600); err != nil {
 			return nil, err
 		}
 	}
 	return nil, nil
+}
+
+// prowlerLogLevels ranks the levels Prowler's --log-level takes.
+var prowlerLogLevels = map[string]int{"DEBUG": 1, "INFO": 2, "WARNING": 3, "ERROR": 4, "CRITICAL": 5}
+
+// prowlerLineLevel is the "level" a line of Prowler's log carries.
+var prowlerLineLevel = regexp.MustCompile(`"level":\s*"([A-Z]+)"`)
+
+// atLogLevel is the log as Prowler writes it at a level: a line below the level is not written. A
+// line that states no level is kept, as is every line where no level was asked for.
+func atLogLevel(log, level string) string {
+	floor, ok := prowlerLogLevels[level]
+	if !ok {
+		return log
+	}
+	var kept []string
+	for _, line := range strings.Split(log, "\n") {
+		if m := prowlerLineLevel.FindStringSubmatch(line); m != nil && prowlerLogLevels[m[1]] < floor {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
 }
 
 // ocsf is a Prowler finding as its OCSF output writes one, data and all.
@@ -198,7 +223,7 @@ func TestProwlerChecksAnAWSAccount(t *testing.T) {
 	want := []string{
 		"prowler", "aws", "--mutelist-file", filepath.Join(dir, "mutelist.yaml"), "--compliance", "cis_7.0_aws",
 		"--output-formats", "json-ocsf", "--output-directory", dir, "--output-filename", "scan",
-		"--log-level", "ERROR", "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs", "--no-color",
+		"--log-level", "WARNING", "--log-file", filepath.Join(dir, "prowler.log"), "--only-logs", "--no-color",
 		"--ignore-exit-code-3",
 	}
 	if !slices.Equal(scan, want) {

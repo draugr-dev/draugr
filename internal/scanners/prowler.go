@@ -71,7 +71,9 @@ var prowlerClouds = map[string]prowlerCloud{
 		taxonomy: "CIS Google Cloud Platform Foundation Benchmark", reads: gcpCheckReads, logLevel: "ERROR"},
 	"aws": {name: "aws", label: "AWS", unit: "account", compliance: "cis_7.0_aws",
 		taxonomy: "CIS Amazon Web Services Foundations Benchmark", reads: awsCheckReads, keepsPartlyRead: true,
-		logLevel: "ERROR"},
+		// WARNING: Prowler logs a refused Organizations call there, which a member account gets for
+		// every call only the management account or a delegated administrator may make.
+		logLevel: "WARNING"},
 	"azure": {name: "azure", label: "Azure", unit: "subscription", compliance: "cis_6.0_azure",
 		taxonomy: "CIS Microsoft Azure Foundations Benchmark", reads: azureCheckReads, keepsPartlyRead: true,
 		logLevel: "WARNING", notRun: azureNotRun, notEvaluated: azureNotEvaluated},
@@ -285,10 +287,13 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 		caller, err = s.confirmCaller(ctx, account.ID)
 		if err == nil {
 			denied, permissions = s.awsPreflight(ctx, caller)
+			if level := prowlerHiddenLogLevel(s.getenv); level != "" {
+				permissions += "; LOG_LEVEL=" + level + " hides Prowler's warnings, Organizations denials among them"
+			}
 		}
 	case "azure":
 		denied, permissions, err = s.azurePreflight(ctx, account.ID)
-		if level := azureHiddenLogLevel(s.getenv); level != "" {
+		if level := prowlerHiddenLogLevel(s.getenv); level != "" {
 			permissions += "; LOG_LEVEL=" + level + " hides Prowler's warnings, Key Vault denials among them"
 		}
 	}
