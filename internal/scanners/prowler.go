@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -328,11 +329,18 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 	// errors read differently, so each has its own patterns.
 	var logged map[string]string
 	var above []string
+	unmet := map[string]string{}
 	switch cloud.name {
 	case "gcp":
 		logged, above = loggedDenials(filepath.Join(dir, "prowler.log"))
 	case "aws":
 		logged = awsLoggedDenials(filepath.Join(dir, "prowler.log"))
+		if awsMemberAccount(filepath.Join(dir, "prowler.log")) {
+			// Organizations answers only the management account or a delegated administrator, so a
+			// member account's refusals there are the account's, and no grant to the role clears them:
+			// the row says where to scan from instead.
+			unmet["organizations"] = awsFromManagement
+		}
 	case "azure":
 		logged = azureLoggedDenials(filepath.Join(dir, "prowler.log"))
 	}
@@ -341,7 +349,7 @@ func (s prowlerScanner) Scan(ctx context.Context, target plugin.Target, cfg plug
 			denied[service] = reason
 		}
 	}
-	report := prowlerReport(account, cloud, compliance, checks, findings, denied)
+	report := prowlerReport(account, cloud, compliance, checks, findings, denied, unmet)
 	if len(above) > 0 {
 		report.Provenance[0].Fields = append(report.Provenance[0].Fields,
 			sarif.Field{Key: "organization", Value: "not read, " + strings.Join(above, ", ")})
@@ -647,9 +655,16 @@ func deniedIn(line string) []string {
 // prowlerReport turns Prowler's findings into SARIF. A check reading a denied service is unread
 // and its results set aside; on a cloud that keeps them, a check with a result keeps it and is
 // partly read instead. Neither counts as decided.
+//
+// precondition names the services whose denials are the account's rather than the credential's,
+// each with what the account is not: no grant clears them, so they are said as a precondition.
 func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance string, checks []string,
-	findings []ocsfFinding, denied map[string]string,
+	findings []ocsfFinding, denied map[string]string, precondition ...map[string]string,
 ) sarif.Report {
+	unmet := map[string]string{}
+	for _, p := range precondition {
+		maps.Copy(unmet, p)
+	}
 	report := sarif.Report{Tool: prowlerScannerName, Rules: map[string]sarif.Rule{}}
 	inFramework := map[string]bool{}
 	for _, c := range checks {
@@ -657,8 +672,9 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 	}
 	// A result is a pass or a fail. MANUAL says Prowler could not judge the check, which is no
 	// result to keep.
-	answered, manual := map[string]bool{}, map[string]bool{}
+	answered, manual, seen := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, f := range findings {
+		seen[f.Metadata.EventCode] = true
 		switch strings.ToUpper(f.StatusCode) {
 		case "PASS", "FAIL":
 			answered[f.Metadata.EventCode] = true
@@ -679,7 +695,11 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 		idx := slices.IndexFunc(reads, func(service string) bool { _, ok := denied[service]; return ok })
 		switch {
 		case idx >= 0:
-			u := sarif.Unchecked{Scanner: prowlerScannerName, Check: check, Group: reads[idx], Reason: denied[reads[idx]]}
+			u := sarif.Unchecked{Scanner: prowlerScannerName, Check: check, Group: reads[idx], Reason: denied[reads[idx]],
+				Kind: sarif.UncheckedDenied}
+			if why, ok := unmet[reads[idx]]; ok {
+				u.Reason, u.Kind = why, sarif.UncheckedPrecondition
+			}
 			if cloud.keepsPartlyRead && answered[check] {
 				u.PartlyRead = true
 				partly[check] = true
@@ -740,6 +760,25 @@ func prowlerReport(account plugin.AccountTarget, cloud prowlerCloud, compliance 
 	}
 	for check := range decided {
 		report.Decided = append(report.Decided, sarif.Taxon{Taxonomy: prowlerScannerName, ID: check})
+	}
+	// Every other check Prowler ran and no read left unread: MANUAL is one it leaves to a person, and
+	// one with no result at all looped over resources of its kind and found none. Neither is a
+	// finding, and each is listed with its kind rather than left as the gap in the coverage count.
+	for _, check := range checks {
+		if decided[check] || unread[check] || partly[check] {
+			continue
+		}
+		kind := sarif.UnsettledNoResources
+		switch {
+		case manual[check]:
+			kind = sarif.UnsettledManual
+		case seen[check]:
+			continue
+		}
+		report.UnsettledChecks = append(report.UnsettledChecks, sarif.UnsettledCheck{
+			Scanner: prowlerScannerName, RuleID: prowlerRulePrefix + check,
+			Location: account.Provider + "/" + account.ID, Kind: kind,
+		})
 	}
 	slices.SortFunc(report.Decided, func(a, b sarif.Taxon) int { return strings.Compare(a.ID, b.ID) })
 	scope := "whole account"

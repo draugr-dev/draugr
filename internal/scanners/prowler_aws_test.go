@@ -118,9 +118,10 @@ func TestAMemberAccountsOrganizationsDenialsAreRead(t *testing.T) {
 	if want := []string{"iam_root_credentials_management_enabled", "organizations_delegated_administrators"}; !slices.Equal(unread, want) {
 		t.Errorf("unread = %v, want %v", unread, want)
 	}
+	// No grant to the role clears them, so they are a precondition the account does not meet.
 	for _, u := range report.Unchecked {
-		if u.Group != "organizations" || u.Reason != "denied the ListPolicies call" {
-			t.Errorf("row %s = group %q, reason %q; want organizations, denied the ListPolicies call", u.Check, u.Group, u.Reason)
+		if u.Group != "organizations" || u.Reason != awsFromManagement || u.Kind != sarif.UncheckedPrecondition {
+			t.Errorf("row %s = group %q, reason %q, kind %q; want organizations, a precondition", u.Check, u.Group, u.Reason, u.Kind)
 		}
 	}
 	if len(report.Decided) != 1 || report.Decided[0].ID != "iam_password_policy_minimum_length_14" {

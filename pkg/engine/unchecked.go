@@ -24,6 +24,9 @@ type UnreadChecks struct {
 	PartlyRead []string
 	// Reason is why, the first stated for the group: "denied compute.instances.list".
 	Reason string
+	// Kind is the reason's kind, sarif.UncheckedDenied or sarif.UncheckedPrecondition, or empty where
+	// the scanner does not say: what clears the group, a grant or a scan from another account.
+	Kind string
 }
 
 // unreadChecks folds each control's unchecked checks into one entry per component, control and
@@ -37,7 +40,7 @@ func unreadChecks(byCtl map[string][]sarif.Report) []UnreadChecks {
 				k := key{u.Component, control, u.Group}
 				g := at[k]
 				if g == nil {
-					g = &UnreadChecks{Component: u.Component, Control: control, Group: u.Group, Reason: u.Reason}
+					g = &UnreadChecks{Component: u.Component, Control: control, Group: u.Group, Reason: u.Reason, Kind: u.Kind}
 					at[k] = g
 				}
 				list := &g.Checks
@@ -49,7 +52,10 @@ func unreadChecks(byCtl map[string][]sarif.Report) []UnreadChecks {
 				}
 				// Stable across runs whichever report arrived first.
 				if u.Reason < g.Reason {
-					g.Reason = u.Reason
+					g.Reason, g.Kind = u.Reason, u.Kind
+				}
+				if g.Kind == "" {
+					g.Kind = u.Kind
 				}
 			}
 		}

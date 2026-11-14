@@ -64,10 +64,10 @@ func TestEvidenceListsWhatWasLeftForAPersonByCluster(t *testing.T) {
 	out := buf.String()
 	for _, want := range []string{
 		"  unsettled   kubernetes/production · 2 left for a person\n",
-		"                draugr/cis/5.1.8      Limit use of the Bind, Impersonate and Es…\n",
-		"                kube-bench/cis/5.4.2  Consider external secret storage\n",
+		"                draugr/cis/5.1.8      left for a person  Limit use of the Bind,…\n",
+		"                kube-bench/cis/5.4.2  left for a person  Consider external secr…\n",
 		"              kubernetes/staging · 1 left for a person, 1 excluded\n",
-		"                draugr/cis/5.1.10     excluded · reviewed 2026-11-13: only syst…\n",
+		"                draugr/cis/5.1.10     excluded           reviewed 2026-11-13: o…\n",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("evidence lacks %q:\n%s", want, out)

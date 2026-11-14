@@ -251,12 +251,14 @@ func evaluateAccess(
 		return client.RbacV1().RoleBindings(ns).List(ctx, metav1.ListOptions{})
 	}, func(l *rbacv1.RoleBindingList) []rbacv1.RoleBinding { return l.Items })
 	if err != nil {
+		readFailed(ctx, accessCheckIDs(scoped), "list", "rolebindings", err)
 		return out
 	}
 	var clusterBindings []rbacv1.ClusterRoleBinding
 	if !scoped {
 		crbs, err := client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
 		if err != nil {
+			readFailed(ctx, accessCheckIDs(scoped), "list", "clusterrolebindings", err)
 			return out
 		}
 		clusterBindings = crbs.Items
@@ -271,6 +273,7 @@ func evaluateAccess(
 			seen[b.RoleRef.Name] = true
 			cr, err := client.RbacV1().ClusterRoles().Get(ctx, b.RoleRef.Name, metav1.GetOptions{})
 			if err != nil {
+				readFailed(ctx, accessCheckIDs(scoped), "get", "clusterroles", err)
 				return out
 			}
 			clusterRoles = append(clusterRoles, *cr)
@@ -302,6 +305,7 @@ func evaluateNetworkPolicies(ctx context.Context, client kubernetes.Interface, n
 	if len(names) == 0 {
 		list, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 		if err != nil {
+			readFailed(ctx, []string{"5.3.2"}, "list", "namespaces", err)
 			return policyVerdict{}, false
 		}
 		for _, ns := range list.Items {
@@ -312,6 +316,7 @@ func evaluateNetworkPolicies(ctx context.Context, client kubernetes.Interface, n
 		return client.NetworkingV1().NetworkPolicies(ns).List(ctx, metav1.ListOptions{})
 	}, func(l *networkingv1.NetworkPolicyList) []networkingv1.NetworkPolicy { return l.Items })
 	if err != nil {
+		readFailed(ctx, []string{"5.3.2"}, "list", "networkpolicies", err)
 		return policyVerdict{}, false
 	}
 	covered := map[string]bool{}
@@ -375,6 +380,7 @@ var policyEngineWebhooks = []string{"gatekeeper", "kyverno"}
 func evaluatePolicyControl(ctx context.Context, client kubernetes.Interface) (policyVerdict, bool) {
 	namespaces, err := client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
+		readFailed(ctx, []string{"5.2.1"}, "list", "namespaces", err)
 		return policyVerdict{}, false
 	}
 	var enforced []string
@@ -389,13 +395,14 @@ func evaluatePolicyControl(ctx context.Context, client kubernetes.Interface) (po
 	// A bindings list that could not be read, refused or served by no API version this client
 	// speaks (v1 arrived in Kubernetes 1.30), says nothing about whether a policy is bound. It stops
 	// the check failing, though a policy engine's webhook can still pass it.
-	bindings, err := client.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().List(ctx, metav1.ListOptions{})
-	bindingsRead := err == nil
+	bindings, bindingsErr := client.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().List(ctx, metav1.ListOptions{})
+	bindingsRead := bindingsErr == nil
 	if bindingsRead && len(bindings.Items) > 0 {
 		return policyVerdict{Compliant: true}, true
 	}
 	webhooks, err := client.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(ctx, metav1.ListOptions{})
 	if err != nil {
+		readFailed(ctx, []string{"5.2.1"}, "list", "validatingwebhookconfigurations", err)
 		return policyVerdict{}, false
 	}
 	for _, w := range webhooks.Items {
@@ -406,6 +413,7 @@ func evaluatePolicyControl(ctx context.Context, client kubernetes.Interface) (po
 		}
 	}
 	if !bindingsRead {
+		readFailed(ctx, []string{"5.2.1"}, "list", "validatingadmissionpolicybindings", bindingsErr)
 		return policyVerdict{}, false
 	}
 	const message = "No policy control mechanism found: no namespace enforces a Pod Security level above privileged, " +

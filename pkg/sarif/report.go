@@ -867,15 +867,31 @@ type Unchecked struct {
 	// the cloud service, such as "compute".
 	Check string `json:"check"`
 	Group string `json:"group"`
-	// Reason is why it could not be evaluated, such as "denied compute.instances.list".
+	// Reason is why it could not be evaluated, such as "denied compute.instances.list", or for a
+	// precondition, which no grant clears, where to scan from instead: "scan from the management
+	// account".
 	Reason string `json:"reason"`
 	// PartlyRead marks a check that returned results from the reads it was allowed. Its findings are
 	// in the report, and it is not decided: what the denied read held was not looked at.
 	PartlyRead bool `json:"partlyRead,omitempty"`
+	// Kind is why: UncheckedDenied for a read the credential was refused, UncheckedPrecondition for
+	// one the account cannot answer whatever it is granted. Empty where the scanner does not say.
+	Kind string `json:"kind,omitempty"`
 }
+
+// The kinds of an Unchecked. Each is cleared by somebody doing something: a grant for a denial, a
+// scan from another account for a precondition.
+const (
+	UncheckedDenied       = "denied"
+	UncheckedPrecondition = "precondition"
+)
 
 // UnsettledManual is the kind of an UnsettledCheck the benchmark leaves to a person to decide.
 const UnsettledManual = "manual"
+
+// UnsettledNoResources is the kind of an UnsettledCheck with nothing of its kind to check in the
+// account: it reads resources of one kind and there are none, so it neither passed nor failed.
+const UnsettledNoResources = "no-resources"
 
 // UnsettledCheck is one check a scan did not decide, and why.
 type UnsettledCheck struct {
@@ -891,7 +907,8 @@ type UnsettledCheck struct {
 	// Component and Location are whose check it was and what it read, the cluster.
 	Component string `json:"component,omitempty"`
 	Location  string `json:"location"`
-	// Kind is why it was not decided: UnsettledManual for a check the benchmark leaves to a person.
+	// Kind is why it was not decided: UnsettledManual for a check the benchmark leaves to a person,
+	// UnsettledNoResources for one with nothing of its kind to check.
 	Kind string `json:"kind"`
 	// Suppression is the decision recorded about it, where a config.exclude rule names it: the
 	// reason somebody gave once they had reviewed it. Nil for a check still waiting on a person.
