@@ -69,8 +69,7 @@ Speed is the visible reason. Two others matter more:
 
 A scanner that evaluates part of a benchmark and omits the rest returns a shorter, cleaner report
 that quietly means less. So **every check in the section is accounted for**. The ones implemented
-here get a verdict from the cluster. The rest are left for a person, which is what CIS says about
-them. They are not findings: nothing was seen to fail and nothing changed in the cluster clears
+here get a verdict from the cluster. The rest are left for a person to review. They are not findings: nothing was seen to fail and nothing changed in the cluster clears
 them, so they take no band and do not count toward the gate. The coverage line counts them,
 `--evidence` lists each by rule id and title, and `report.json` and SARIF's run properties carry
 them as `unsettledChecks`.
@@ -86,6 +85,13 @@ answer and changes nothing else.
 | `5.1.4` | Minimize access to create pods | **decided** ¹ |
 | `5.1.5` | Default service accounts are not actively used | **decided** |
 | `5.1.6` | Service account tokens only mounted where necessary | **decided** |
+| `5.1.8` | Bind, impersonate and escalate permissions | **decided** ² |
+| `5.1.9` | Access to create persistent volumes | **decided** ² |
+| `5.1.10` | Access to the `nodes/proxy` subresource | **decided** ² |
+| `5.1.11` | Access to approve certificate signing requests | **decided** ² |
+| `5.1.12` | Access to webhook configuration objects | **decided** ² |
+| `5.1.13` | Access to create service account tokens | **decided** ² |
+| `5.2.1` | At least one active policy control mechanism | **decided** ³ |
 | `5.2.2` | Admission of privileged containers | **decided** |
 | `5.2.3` | Containers sharing the host PID namespace | **decided** |
 | `5.2.4` | Containers sharing the host IPC namespace | **decided** |
@@ -97,10 +103,12 @@ answer and changes nothing else.
 | `5.2.10` | Windows HostProcess containers | **decided** |
 | `5.2.11` | HostPath volumes | **decided** |
 | `5.2.12` | Containers using host ports | **decided** |
+| `5.3.2` | Every namespace has a NetworkPolicy | **decided** |
+| `5.4.1` | Secrets as files rather than environment variables | **decided** |
 | `5.6.2` | A seccomp profile is set | **decided** |
 | `5.6.3` | SecurityContext applied to pods and containers | **decided** |
 | `5.6.4` | The default namespace is not used | **decided** |
-| the other 14 | | left for a person |
+| `5.1.7`, `5.3.1`, `5.4.2`, `5.5.1`, `5.6.1` | | left for a person |
 
 ¹ These two ask the cluster's own authorizer rather than reassembling its decision from roles and
 bindings. RBAC is additive across bindings, aggregated ClusterRoles resolve at runtime, and a
@@ -113,14 +121,40 @@ verb on `subjectaccessreviews`, which a deliberately read-only credential will n
 refused is expected rather than exceptional, so the check is left for a person, like any other this
 scanner cannot settle.
 
-**20 of 34 decided, against the 11 kube-bench automates.** The nine past parity are ones kube-bench
-leaves manual, and they are decidable here for the reason this scanner exists: they are questions
-about a pod spec, and correlating pod specs is what a `kubectl | jq | xargs` pipeline is worst at.
-They cost nothing extra, the same single listing already answers the others.
+² Each names the roles that grant the permission, a wildcard included, and who each is bound to:
+`1 role granting permission to bind, escalate or impersonate: role team-a/deployer (bound to
+serviceaccount team-a/ci)`. A role nothing binds grants nothing and is left out. Whether those
+subjects should hold the permission is the reader's call, made on a finding that names them.
 
-The 14 left for a person are questions about intent and architecture rather than cluster state:
-whether an admission control mechanism is in *place*, whether the CNI *supports* NetworkPolicy, whether secrets belong in an external store.
-Those are questions about intent and architecture, not cluster state.
+A role counts as the distribution's only when the role is Kubernetes' or kubeadm's and every binding
+granting it is too: an operator who binds the built-in `edit` role to a team gave that team the
+access. A finding that names only the distribution's roles, such as `cluster-admin` and the
+controllers' own, leaves you nothing to change, since the cluster needs them; it is low for that
+reason.
+
+A run scoped to namespaces reads the bindings there and the ClusterRoles they name. 5.1.8 and 5.1.13
+are the two it decides, because 5.1.9 through 5.1.12 concern cluster-wide objects and run only over
+the whole cluster. Where it cannot read a ClusterRole a binding names, it leaves both for a person
+rather than answering from part of the grants.
+
+³ Passes on any mechanism the API shows: a namespace Pod Security Admission enforces a level other
+than `privileged` on, a bound ValidatingAdmissionPolicy, or a Gatekeeper or Kyverno admission
+webhook. A default level set in the API server's own admission configuration file is not visible
+through the API, so the finding says so. If the cluster sets one, add `draugr/cis/5.2.1` to
+`config.exclude`.
+
+**29 of 34 decided, against the 11 kube-bench automates.** The eighteen past parity are ones the
+benchmark marks manual and kube-bench leaves that way. They are decidable here for the reason this
+scanner exists: they are questions about pod specs, roles, bindings and namespaces, and correlating
+those is what a `kubectl | jq | xargs` pipeline is worst at.
+
+Why each stays with a person:
+
+- **5.1.7** `system:masters`: membership is in a client certificate, which the API never sees.
+- **5.3.1** whether the CNI enforces NetworkPolicy: a property of the network plugin, not an object.
+- **5.5.1** ImagePolicyWebhook: an API server flag, readable only on the node.
+- **5.4.2** external secret storage, and **5.6.1** namespaces as administrative boundaries: choices
+  about how the system is built.
 
 The catalog is pinned to `cis-1.12`, deliberately: the section is renumbered between revisions,
 and silently tracking "the latest" would change what a rule id means underneath an exclusion
@@ -213,8 +247,8 @@ The scanner records what it measured and against what, which travels in `--forma
 
 ```
 Measured against
-- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 20 of 34 checks decided, 14 left for a person · scope whole cluster
-- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 18 of 22 checks decided, 4 left for a person · scope namespace team-a
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 29 of 34 checks decided, 5 left for a person · scope whole cluster
+- kubernetes · draugr-k8s-policies: benchmark cis-1.12 · coverage 22 of 22 checks decided · scope namespace team-a
 ```
 
 Three facts, and each answers a question a reader has about a finding they are looking at.
@@ -223,7 +257,7 @@ Three facts, and each answers a question a reader has about a finding they are l
 to somebody who was not there, `cis-1.12` measures different things from `aks-1.8`.
 
 **The coverage** is the figure a reader cannot otherwise get. Without it, a clean report gives no
-hint that fourteen of the section's checks were never decided by anything.
+hint that some of the section's checks were never decided by anything.
 
 **The scope** says what the scan covered, and it is stated even when it covers everything. A scan of
 the whole cluster and a scan whose scope nobody recorded are the same silence otherwise, and the
@@ -288,7 +322,10 @@ A decided check that passes produces no finding, for the same reason a clean dep
 
 ## Permissions
 
-Read (`get`, `list`) on `clusterrolebindings`, `roles`, `clusterroles` and `serviceaccounts`.
+Read (`get`, `list`) on `clusterrolebindings`, `rolebindings`, `clusterroles`, `roles`,
+`serviceaccounts`, `pods`, `namespaces`, `networkpolicies`, `validatingwebhookconfigurations` and
+`validatingadmissionpolicybindings`, and `create` on `subjectaccessreviews` for 5.1.2 and 5.1.4. A read
+the credential is refused leaves the checks that needed it for a person; the scan still completes.
 Nothing is created, and no privileged pod is scheduled, the distinction from
 [`kube-bench-job`](kube-bench-job.md), which declares `mutate` and `privilege` effects and does not
 run until they are accepted.

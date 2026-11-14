@@ -167,6 +167,9 @@ type policyVerdict struct {
 	Owned, Distribution []string
 	// describe renders a list of objects as the check's detail, "5 running privileged: …".
 	describe func([]string) string
+	// message, when set, is the whole finding, for a check whose detail reads as a sentence of its
+	// own rather than as a clause after the check's title.
+	message string
 }
 
 // failing is the verdict for a check whose offenders are objects, split by who put them there.
@@ -288,6 +291,7 @@ func evaluatePoliciesSkipping(
 		pods = kept
 	}
 	maps.Copy(out, evaluatePodSecurity(pods, accounts))
+	evaluateMarkedManual(ctx, client, namespaces, clusterRoles, roles, pods, out)
 
 	// Last, and never fatal: these ask the authorizer, which a read-only credential may not be
 	// allowed to do. Whatever it cannot answer stays undecided and is reported for review.
@@ -462,6 +466,9 @@ func policiesReport(decided map[string]policyVerdict, location string, namespace
 		level := sarif.LevelWarning
 		if implemented {
 			message = check.Title + ", " + verdict.Detail
+			if verdict.message != "" {
+				message = verdict.message
+			}
 			level = cisPolicyLevel(check.ID)
 		}
 
