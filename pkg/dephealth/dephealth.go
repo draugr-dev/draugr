@@ -181,16 +181,14 @@ func (s *Source) Enrich(base sarif.Severity, purl string) sarif.Severity {
 // deprecatedDetail is the sentence a reader meets beside a band.
 //
 // The publisher's own words where there are any, because "deprecated" is a status and "use the
-// google.golang.org/protobuf module instead" is an instruction. Trimmed to one line: some reasons
-// are a paragraph, and a report is not where a paragraph belongs.
+// google.golang.org/protobuf module instead" is an instruction. Kept whole, with its whitespace
+// folded to single spaces: report.json and the SARIF are the only record of what the publisher
+// said, a reason cut short often ends inside the address it was pointing to, and a surface with
+// one line to spare shortens it where it draws it.
 func deprecatedDetail(reason string) string {
 	reason = strings.Join(strings.Fields(reason), " ")
 	if reason == "" {
 		return "deprecated by its publisher"
-	}
-	const most = 120
-	if len(reason) > most {
-		reason = strings.TrimSpace(reason[:most]) + "…"
 	}
 	return "deprecated by its publisher: " + reason
 }
