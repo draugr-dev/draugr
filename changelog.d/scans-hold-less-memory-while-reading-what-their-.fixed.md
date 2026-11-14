@@ -1,0 +1,1 @@
+- **Scans hold less memory while reading what their tools report.** Draugr keeps only the lines it reads of Gitleaks' trace log and Trivy's debug log, decodes Semgrep's and Trivy's image reports once instead of several times, and asks Nuclei to leave each finding's raw request and response out of its output.

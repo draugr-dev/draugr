@@ -187,10 +187,7 @@ func TestSemgrepUnreadFilesOfTwoRepositoriesStayApart(t *testing.T) {
 // A run that skipped nothing and finished every file reports no inputs, so the sast control is not
 // listed as having read anything either way.
 func TestASemgrepRunThatFinishedEveryFileReportsNoInputs(t *testing.T) {
-	got, err := semgrepUnread([]byte(noSemgrepResults), t.TempDir(), semgrepLanguages{all: true}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := semgrepUnread(semgrepJSONOf(t, noSemgrepResults), t.TempDir(), semgrepLanguages{all: true}, nil)
 	if len(got) != 0 {
 		t.Errorf("inputs %+v, want none", got)
 	}
@@ -203,10 +200,7 @@ func TestSemgrepUnreadIgnoresWhatSemgrepWasToldToSkip(t *testing.T) {
 			{"path":"tests/t.js","reason":"semgrepignore_patterns_match"},
 			{"path":"dist/app.min.js","reason":"gitignore_patterns_match"},
 			{"path":"a.js","reason":"analysis_failed_parser_or_internal_error"}]}}`
-	got, err := semgrepUnread([]byte(doc), "/work", semgrepLanguages{all: true}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := semgrepUnread(semgrepJSONOf(t, doc), "/work", semgrepLanguages{all: true}, nil)
 	if len(got) != 0 {
 		t.Errorf("inputs %+v, want none", got)
 	}
@@ -237,10 +231,7 @@ func TestSemgrepUnreadJoinsReasonsForOneFile(t *testing.T) {
 			{"type":"Timeout","path":"/work/b.js"},
 			{"type":"Timeout","rule_id":"x.r2"}],
 		"paths":{"skipped":[{"path":"/work/a.js","reason":"too_big"}]}}`
-	got, err := semgrepUnread([]byte(doc), "/work", semgrepLanguages{all: true}, []string{"x."})
-	if err != nil {
-		t.Fatal(err)
-	}
+	got := semgrepUnread(semgrepJSONOf(t, doc), "/work", semgrepLanguages{all: true}, []string{"x."})
 	want := []sarif.Input{
 		{Path: "a.js", Unread: `over 1 MB, not scanned, 1 rule timed out, not checked: "r1"`},
 		{Path: "b.js", Unread: "a rule timed out, not checked"},
@@ -251,7 +242,7 @@ func TestSemgrepUnreadJoinsReasonsForOneFile(t *testing.T) {
 }
 
 func TestSemgrepUnreadRefusesAReportThatIsNotJSON(t *testing.T) {
-	if _, err := semgrepUnread([]byte("not json"), "/work", semgrepLanguages{all: true}, nil); err == nil {
+	if _, err := decodeSemgrepJSON([]byte("not json")); err == nil {
 		t.Error("want an error for a report that is not JSON")
 	}
 	sarifDoc, err := os.ReadFile(filepath.Join("testdata", "semgrep", "unread-one.sarif"))

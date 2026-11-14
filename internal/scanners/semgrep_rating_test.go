@@ -1,8 +1,8 @@
 package scanners
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"maps"
 	"os"
@@ -22,11 +22,38 @@ const noSemgrepResults = `{"version":"1.182.1","results":[],"errors":[],"paths":
 // sarifDoc and wrote jsonDoc.
 func semgrepReportsOf(t *testing.T, sarifDoc, jsonDoc []byte) []byte {
 	t.Helper()
-	out, err := json.Marshal(semgrepReports{SARIF: sarifDoc, JSON: jsonDoc})
+	return semgrepReports{SARIF: sarifDoc, JSON: jsonDoc}.bytes()
+}
+
+// semgrepJSONOf decodes a JSON report Semgrep wrote, failing the test where it does not decode.
+func semgrepJSONOf(t *testing.T, doc string) semgrepJSON {
+	t.Helper()
+	out, err := decodeSemgrepJSON([]byte(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return out
+}
+
+// The two reports travel joined as Semgrep wrote them, each read back whole, whatever bytes they
+// hold; anything else is refused rather than split at a guess.
+func TestSemgrepReportsJoinAndSplit(t *testing.T) {
+	for _, c := range []semgrepReports{
+		{SARIF: []byte(`{"runs":[]}`), JSON: []byte(noSemgrepResults)},
+		{SARIF: nil, JSON: []byte("\n12\n")},
+		{SARIF: []byte("Usage: semgrep\n"), JSON: nil},
+	} {
+		got, err := readSemgrepReports(c.bytes())
+		if err != nil || !bytes.Equal(got.SARIF, c.SARIF) || !bytes.Equal(got.JSON, c.JSON) {
+			t.Errorf("%q / %q came back as %q / %q (%v)", c.SARIF, c.JSON, got.SARIF, got.JSON, err)
+		}
+	}
+	for _, out := range []string{"", "{", semgrepReportsHead + "5", semgrepReportsHead + "x\n",
+		semgrepReportsHead + "-1\n", semgrepReportsHead + "9\nshort"} {
+		if _, err := readSemgrepReports([]byte(out)); err == nil {
+			t.Errorf("%q was read as reports", out)
+		}
+	}
 }
 
 // recordedSemgrep reads a recorded Semgrep run from testdata/semgrep: what it printed with --sarif
@@ -290,9 +317,7 @@ func TestRateSemgrepGivesEachResultItsOwnRating(t *testing.T) {
 	doc := `{"results":[
 		{"check_id":"r","extra":{"metadata":{"impact":"LOW","likelihood":"LOW"}}},
 		{"check_id":"r","extra":{"metadata":{"impact":"LOW","likelihood":"LOW"}}}]}`
-	if err := rateSemgrep(&report, []byte(doc)); err != nil {
-		t.Fatal(err)
-	}
+	rateSemgrep(&report, semgrepJSONOf(t, doc))
 	report.Results[0].Rating.Detail = "changed"
 	if report.Results[1].Rating.Detail != "impact low · likelihood low" {
 		t.Errorf("second rating = %q", report.Results[1].Rating.Detail)
@@ -309,9 +334,7 @@ func TestRateSemgrepKeepsWhatItCannotRate(t *testing.T) {
 	doc := `{"results":[
 		{"check_id":"odd","extra":{"metadata":["not","an","object"]}},
 		{"check_id":"scored","extra":{"metadata":{"impact":"LOW","likelihood":"LOW"}}}]}`
-	if err := rateSemgrep(&report, []byte(doc)); err != nil {
-		t.Fatal(err)
-	}
+	rateSemgrep(&report, semgrepJSONOf(t, doc))
 	for _, res := range report.Results {
 		if res.Rating != nil {
 			t.Errorf("%s rated %+v", res.RuleID, res.Rating)
@@ -354,8 +377,8 @@ func TestWithSemgrepJSONReturnsBothReports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var got semgrepReports
-	if err := json.Unmarshal(out, &got); err != nil {
+	got, err := readSemgrepReports(out)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got.SARIF) != semgrepLocalSARIF || string(got.JSON) != noSemgrepResults {

@@ -610,10 +610,59 @@ exit 1`
 	}
 }
 
+// A log that grows with the target is held only in the lines the caller reads, judged whole
+// however the tool split its writes, the last line included when the tool did not end it, and
+// the error quotes from what was held.
+func TestRunWithLogHoldsOnlyTheLinesKept(t *testing.T) {
+	keep := func(line []byte) bool { return !bytes.HasPrefix(line, []byte("noise")) }
+	script := `i=0; while [ $i -lt 500 ]; do printf 'noise %s\n' $i >&2; i=$((i+1)); done
+printf 'wan' >&2; printf 'ted one\n' >&2; printf 'noi' >&2; printf 'se split\n' >&2
+printf 'wanted last' >&2; exit 0`
+	_, stderr, err := RunWithLog(context.Background(), "", []string{"sh", "-c", script}, nil, Log{Keep: keep})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(stderr); got != "wanted one\nwanted last" {
+		t.Errorf("held %q, want only the two wanted lines", got)
+	}
+
+	_, _, err = RunWithLog(context.Background(), "",
+		[]string{"sh", "-c", `printf 'noise first\nthe reason\n' >&2; exit 3`}, nil, Log{Keep: keep})
+	if err == nil || !strings.Contains(err.Error(), "the reason") || strings.Contains(err.Error(), "noise") {
+		t.Errorf("err = %v, want the held line quoted", err)
+	}
+	if _, _, err := RunWithLog(context.Background(), "", nil, nil, Log{}); err == nil {
+		t.Error("an empty command ran")
+	}
+}
+
+// Below trace, a tool's streams are not turned into log records at all, so the record nobody keeps
+// costs no copy of the stream; at trace they are relayed as before.
+func TestStreamsAreRelayedOnlyWhenTraceIsOn(t *testing.T) {
+	ctx := context.Background()
+	var buf bytes.Buffer
+	restore := captureLogs(t, &buf, slog.LevelDebug)
+	if tracing(ctx) {
+		t.Error("tracing reported on at debug")
+	}
+	_, _, _ = RunWithLog(ctx, "", []string{"sh", "-c", `printf 'LOG%s\n' 1 >&2`}, nil, Log{})
+	restore()
+	if strings.Contains(buf.String(), "LOG1") {
+		t.Errorf("stderr relayed at debug:\n%s", buf.String())
+	}
+	buf.Reset()
+	restore = captureLogs(t, &buf, observability.LevelTrace)
+	_, _, _ = RunWithLog(ctx, "", []string{"sh", "-c", `printf 'LOG%s\n' 2 >&2`}, nil, Log{})
+	restore()
+	if !strings.Contains(buf.String(), "LOG2") {
+		t.Errorf("stderr not relayed at trace:\n%s", buf.String())
+	}
+}
+
 // A stream that can hold a secret reaches the caller whole, and Draugr's trace log and the error
 // see only what the filter lets through, on success and on failure alike. The markers are
 // assembled by the command, because argv itself is logged at debug.
-func TestRunWithStderrShownRelaysOnlyWhatTheFilterKeeps(t *testing.T) {
+func TestRunWithLogRelaysOnlyWhatTheFilterShows(t *testing.T) {
 	keepPublic := func(b []byte) []byte {
 		var kept []string
 		for _, line := range strings.Split(string(b), "\n") {
@@ -627,7 +676,7 @@ func TestRunWithStderrShownRelaysOnlyWhatTheFilterKeeps(t *testing.T) {
 		var buf bytes.Buffer
 		restore := captureLogs(t, &buf, observability.LevelTrace)
 		script := `printf 'secret %s%s\n' VALUE 42 >&2; printf 'public %s%s\n' NOTE 7 >&2; exit ` + exit
-		_, stderr, err := RunWithStderrShown(context.Background(), "", []string{"sh", "-c", script}, nil, keepPublic)
+		_, stderr, err := RunWithLog(context.Background(), "", []string{"sh", "-c", script}, nil, Log{Shown: keepPublic})
 		restore()
 		if !strings.Contains(string(stderr), "secret VALUE42") {
 			t.Errorf("exit %s: the caller got %q, want the whole stream", exit, stderr)

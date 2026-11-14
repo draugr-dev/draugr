@@ -66,6 +66,31 @@ type semgrepCoverage struct {
 	} `json:"paths"`
 }
 
+// semgrepJSON is what a scan reads from the JSON report Semgrep writes beside its SARIF: each
+// result's rule and metadata, which rate the findings (see rateSemgrep), and what Semgrep did not
+// finish (see semgrepUnread). Read in one pass, because the report grows with the findings and each
+// pass over it decodes all of it.
+type semgrepJSON struct {
+	Results []struct {
+		CheckID string `json:"check_id"`
+		Extra   struct {
+			// Raw, so a rule whose metadata is not an object costs that rule its rating rather
+			// than the scan its findings.
+			Metadata json.RawMessage `json:"metadata"`
+		} `json:"extra"`
+	} `json:"results"`
+	semgrepCoverage
+}
+
+// decodeSemgrepJSON reads the JSON report Semgrep writes beside its SARIF.
+func decodeSemgrepJSON(doc []byte) (semgrepJSON, error) {
+	var out semgrepJSON
+	if err := json.Unmarshal(doc, &out); err != nil {
+		return semgrepJSON{}, fmt.Errorf("read the JSON report Semgrep writes beside its SARIF: %w", err)
+	}
+	return out, nil
+}
+
 // semgrepErrorType is the name of an errors[] entry's type, "" for a shape it does not recognize.
 func semgrepErrorType(raw json.RawMessage) string {
 	var name string
@@ -79,19 +104,15 @@ func semgrepErrorType(raw json.RawMessage) string {
 	return name
 }
 
-// semgrepUnread reads doc, the JSON report Semgrep writes beside its SARIF, for each file it left
-// out for its size or did not finish because a rule timed out, as one unread input per file sorted
-// by path.
+// semgrepUnread reads cov, from the JSON report Semgrep writes beside its SARIF, for each file it
+// left out for its size or did not finish because a rule timed out, as one unread input per file
+// sorted by path.
 //
 // A file over the size limit is reported only where a rule could have read it: Semgrep applies the
 // limit before it matches files to the rules' languages, so the skipped list also holds large files
 // no rule reads, a data file or a lockfile under a ruleset for one language. covers says which
 // files a rule reads. Rule ids are shortened by prefixes, as the findings' are.
-func semgrepUnread(doc []byte, dir string, covers semgrepLanguages, prefixes []string) ([]sarif.Input, error) {
-	var cov semgrepCoverage
-	if err := json.Unmarshal(doc, &cov); err != nil {
-		return nil, fmt.Errorf("read the JSON report Semgrep writes beside its SARIF: %w", err)
-	}
+func semgrepUnread(cov semgrepJSON, dir string, covers semgrepLanguages, prefixes []string) []sarif.Input {
 	reasons := map[string][]string{}
 	for _, s := range cov.Paths.Skipped {
 		if !slices.Contains(semgrepSizeReasons, s.Reason) {
@@ -128,7 +149,7 @@ func semgrepUnread(doc []byte, dir string, covers semgrepLanguages, prefixes []s
 	for _, p := range paths {
 		out = append(out, sarif.Input{Path: p, Unread: strings.Join(reasons[p], ", ")})
 	}
-	return out, nil
+	return out
 }
 
 // semgrepTimeoutReason says which rules timed out on a file: the count first, so a reason cut to

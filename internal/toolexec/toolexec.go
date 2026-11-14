@@ -102,37 +102,107 @@ const pipeWait = 5 * time.Second
 // logs each Terraform module it failed to load and scans on without it, and nothing in its report
 // says so. A caller that reads only stdout sees a clean scan of less than was there.
 func RunWithStderr(ctx context.Context, dir string, argv, env []string) (stdout, stderr []byte, err error) {
-	return RunWithStderrShown(ctx, dir, argv, env, nil)
+	return RunWithLog(ctx, dir, argv, env, Log{})
 }
 
-// RunWithStderrShown is RunWithStderr for a tool whose log can hold what must not be repeated.
-// shown, when not nil, receives the whole stream and returns the part Draugr may relay into its
-// own log and quote in the error. The caller still receives all of it.
-//
-// Gitleaks at trace level logs the path of each file it skips, which is the only record of the
-// skip, and in the same stream the value of each candidate secret it set aside. Relaying that
-// stream as it is would copy those values into `--log-level trace` output and any `--log-file`.
-func RunWithStderrShown(ctx context.Context, dir string, argv, env []string, shown func([]byte) []byte) (stdout, stderr []byte, err error) {
+// Log says which lines of a tool's stderr a run holds, and which of those Draugr repeats.
+type Log struct {
+	// Keep, when not nil, is asked of each line as the tool writes it, without its newline, and a
+	// line it refuses is dropped there and then. Nil holds every line.
+	//
+	// A tool asked for its debug or trace log, so that Draugr can read the one line that records a
+	// file it skipped, writes a line or more for every file it reads. Held whole, that log grows
+	// with the target, and the lines a caller reads are a handful of it.
+	Keep func(line []byte) bool
+	// Shown, when not nil, receives the lines held and returns the part Draugr may relay into its
+	// own log and quote in the error. The caller still receives every line held.
+	//
+	// Gitleaks at trace level logs the path of each file it skips, which is the only record of the
+	// skip, and in the same stream the value of each candidate secret it set aside. Relaying that
+	// stream as it is would copy those values into `--log-level trace` output and any `--log-file`.
+	Shown func([]byte) []byte
+}
+
+// RunWithLog is RunWithStderr holding only the lines of stderr log keeps, and repeating only those
+// it shows.
+func RunWithLog(ctx context.Context, dir string, argv, env []string, stream Log) (stdout, stderr []byte, err error) {
 	if len(argv) == 0 {
 		return nil, nil, errors.New("empty command")
 	}
+	shown := stream.Shown
 	if shown == nil {
 		shown = func(b []byte) []byte { return b }
 	}
 	started := time.Now()
 	cmd := command(ctx, dir, argv, env)
-	var errBuf bytes.Buffer
-	cmd.Stderr = &errBuf
+	held := &keptLines{keep: stream.Keep}
+	cmd.Stderr = held
 	out, err := cmd.Output()
+	kept := held.Bytes()
 	// Output() fills the exit error's Stderr only when it captured the stream itself, and explain and
 	// log read it from there.
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
-		exit.Stderr = shown(errBuf.Bytes())
-	} else if relay := shown(errBuf.Bytes()); err == nil && len(relay) > 0 {
-		slog.Log(ctx, observability.LevelTrace, "tool stderr", "tool", argv[0], "stderr", string(relay))
+		exit.Stderr = shown(kept)
+	} else if err == nil && tracing(ctx) {
+		if relay := shown(kept); len(relay) > 0 {
+			slog.Log(ctx, observability.LevelTrace, "tool stderr", "tool", argv[0], "stderr", string(relay))
+		}
 	}
 	log(ctx, argv, dir, started, out, err)
-	return out, errBuf.Bytes(), explain(ctx, argv[0], err)
+	return out, kept, explain(ctx, argv[0], err)
+}
+
+// keptLines is a writer that holds, of what a tool writes to it, each line keep accepts, newline
+// included. A line is judged once it is whole, so one the tool wrote in several pieces is joined
+// first, and a last line with no newline is judged when the run reads what was held. With no keep,
+// every line is held.
+type keptLines struct {
+	keep    func(line []byte) bool
+	partial []byte
+	held    bytes.Buffer
+}
+
+func (k *keptLines) Write(p []byte) (int, error) {
+	if k.keep == nil {
+		return k.held.Write(p)
+	}
+	n := len(p)
+	for len(p) > 0 {
+		i := bytes.IndexByte(p, '\n')
+		if i < 0 {
+			k.partial = append(k.partial, p...)
+			break
+		}
+		line := p[:i+1]
+		if len(k.partial) > 0 {
+			k.partial = append(k.partial, line...)
+			line = k.partial
+		}
+		if k.keep(line[:len(line)-1]) {
+			k.held.Write(line)
+		}
+		k.partial = k.partial[:0]
+		p = p[i+1:]
+	}
+	return n, nil
+}
+
+// Bytes is every line held, the last one judged first where the tool did not end it.
+func (k *keptLines) Bytes() []byte {
+	if len(k.partial) > 0 {
+		if k.keep(k.partial) {
+			k.held.Write(k.partial)
+		}
+		k.partial = nil
+	}
+	return k.held.Bytes()
+}
+
+// tracing reports whether Draugr's log records the trace level, where a tool's streams are
+// relayed. A stream turned into a string for a record nobody keeps is a copy of a tool's whole
+// output made for nothing.
+func tracing(ctx context.Context) bool {
+	return slog.Default().Enabled(ctx, observability.LevelTrace)
 }
 
 // ErrKilled is a tool ended by SIGKILL while the scan was still running. Nothing in the tool sends
@@ -667,7 +737,7 @@ func log(ctx context.Context, argv []string, dir string, started time.Time, out 
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		attrs = append(attrs, "exit_code", exit.ExitCode())
 		// Output() captures the tool's stderr here; it explains failures far better than we can.
-		if len(exit.Stderr) > 0 {
+		if len(exit.Stderr) > 0 && tracing(ctx) {
 			slog.Log(ctx, observability.LevelTrace, "tool stderr",
 				"tool", argv[0], "stderr", string(exit.Stderr))
 		}
@@ -679,7 +749,7 @@ func log(ctx context.Context, argv []string, dir string, started time.Time, out 
 	// nil is the normal path, and a tool producing an empty report because it was misconfigured looks
 	// exactly like one that found nothing. Trace is the level where a reader has asked for everything;
 	// holding half of it back leaves them reproducing the run by hand.
-	if len(out) > 0 {
+	if len(out) > 0 && tracing(ctx) {
 		slog.Log(ctx, observability.LevelTrace, "tool stdout",
 			"tool", argv[0], "stdout", string(out))
 	}

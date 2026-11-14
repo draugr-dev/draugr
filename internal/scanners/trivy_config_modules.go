@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"bufio"
+	"bytes"
 	"cmp"
 	"context"
 	"fmt"
@@ -53,9 +54,34 @@ var offlineModuleEnv = []string{
 	"GIT_ALLOW_PROTOCOL=file",
 }
 
-// execWithStderr is toolexec.RunWithStderr, a var so a test can substitute the exec without a
-// Trivy on PATH and still reach the retry and the environment trivyConfigExec adds around it.
-var execWithStderr = toolexec.RunWithStderr
+// execWithStderr runs Trivy holding the lines of its log that trivyLogKept keeps, a var so a test
+// can substitute the exec without a Trivy on PATH and still reach the retry and the environment
+// trivyConfigExec adds around it.
+var execWithStderr = func(ctx context.Context, dir string, argv, env []string) ([]byte, []byte, error) {
+	return toolexec.RunWithLog(ctx, dir, argv, env, toolexec.Log{Keep: trivyLogKept})
+}
+
+// trivyLogRead are the messages Trivy logs at debug or info level that a scan reads from its log.
+var trivyLogRead = []string{
+	trivyWalkError, trivyChartSkipped, trivyScanningRoot, trivyModuleLoaded, trivyCallsStarted,
+	trivyCallsFinished, trivyCallsEnded, trivyCallEvaluating,
+}
+
+// trivyLogKept reports whether a line of Trivy's log is one the run holds: a line Trivy wrote at a
+// level above info, a line naming no level, which continues the error before it, or a debug or info
+// line carrying a message a scan reads. Under --debug Trivy logs lines for every file it walks and
+// every analyzer it runs, a log that grows with the tree, and nothing reads the rest of them.
+func trivyLogKept(line []byte) bool {
+	parts := bytes.SplitN(line, []byte("\t"), 4)
+	if len(parts) < 3 {
+		return true
+	}
+	if level := string(parts[1]); level != "DEBUG" && level != "INFO" {
+		return true
+	}
+	msg, _ := trivyLogEntry(string(bytes.Join(parts[:3], []byte("\t"))))
+	return strings.HasPrefix(msg, trivyModuleNotLoaded) || slices.Contains(trivyLogRead, msg)
+}
 
 // trivyConfigExec runs Trivy with its log kept beside its report, retrying while another job in the
 // run holds its cache.
