@@ -29,9 +29,11 @@ done
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
-# The directory name matters: with no Saga present, `draugr scan .` names the release after the
-# directory, and that name is in every example. Clone into draugr-demo so the output can be
-# pasted verbatim, and so it matches the screenshot, which records the same sandbox.
+# The demo commits a descriptor, so `draugr scan .` there runs what it declares: the components,
+# their exposure and criticality, the controls it turns on. That is the run the README picture and
+# the docs quote. Clone into draugr-demo so the output can be pasted verbatim, and so it matches the
+# screenshot, which records the same sandbox. The last block removes the descriptor for the pages
+# that teach a scan with none.
 echo "Cloning the demo sandbox…" >&2
 git clone --quiet --depth 1 "$DEMO_REPO" "$workdir/draugr-demo"
 
@@ -50,6 +52,15 @@ banner "draugr scan . --view actions   → the work, for the pages that show it 
 
 banner "draugr scan . --format json --view compact   → the machine-readable summary quoted in the docs"
 (cd "$workdir/draugr-demo" && "$DRAUGR" scan . --format json --view compact 2>/dev/null) || true
+
+# A copy with no descriptor and no fragments, for the pages that teach the zero-config scan. The
+# release is then named after the directory, so the copy keeps the name draugr-demo.
+mkdir "$workdir/zero-config"
+cp -R "$workdir/draugr-demo" "$workdir/zero-config/draugr-demo"
+rm -rf "$workdir/zero-config/draugr-demo/draugr.saga.yaml" "$workdir/zero-config/draugr-demo/.draugr"
+
+banner "draugr scan . with no descriptor   → the zero-config post on draugr.dev"
+(cd "$workdir/zero-config/draugr-demo" && NO_COLOR=1 "$DRAUGR" scan . 2>/dev/null) || true
 
 cat >&2 <<'EOF'
 
