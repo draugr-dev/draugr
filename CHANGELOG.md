@@ -34,7 +34,7 @@ _Nothing yet._
 
 - **report.json says how much memory Draugr itself took, and each job's tools.** stats.peakDraugrMemoryBytes records Draugr's own peak beside stats.peakToolMemoryBytes, and stats.jobMemory lists the largest tool process of each job that ran one, failed jobs included.
 
-- **See everything a change did, in its own tab.** When a scan is judged on its change, the HTML report gains a Change tab: the gate and its verdict, then new, unaccepted, accepted, fixed, moved and unchanged findings as draugr diff counts them, each a way to its findings, and what to do about the change. Markdown opens alike.
+- **See everything a change did, in its own tab.** When a scan is judged on its change, the HTML report gains a Change tab: the gate and its verdict, then counts of new, unaccepted, accepted, fixed, moved and unchanged findings as draugr diff counts them, each linking to its findings, and what to do next. Markdown leads with the same summary.
 
 - **See which fix list rows are checks, and how a check ends.** In `--view actions`, a Check row (one asking you to look before you change anything) is counted apart from the changes, so a heading no longer says it clears findings, and one line says a check ends in a change or in config.exclude with a reason.
 
@@ -42,7 +42,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **5.2.1 is left for a person, not failed, when Draugr cannot read the ValidatingAdmissionPolicy bindings.** A refused read, or a cluster older than Kubernetes 1.30, failed it with "no ValidatingAdmissionPolicy is bound". It now stays open unless a namespace enforces a Pod Security level above `privileged` or a Gatekeeper or Kyverno webhook passes it.
+- **5.2.1 no longer fails when Draugr cannot read the ValidatingAdmissionPolicy bindings.** A refused read, or a cluster older than Kubernetes 1.30, failed it with "no ValidatingAdmissionPolicy is bound". A refused read now lists it under CAVEATS with the read to grant, and an older cluster leaves it for a person, unless a namespace enforces a Pod Security level above `privileged` or a Gatekeeper or Kyverno webhook passes it.
 
 - **A deprecated package keeps its publisher's whole reason in `report.json` and the SARIF.** The reason was cut at 120 bytes, often partway through the address it pointed to, and the cut could split a character and leave text that is not valid UTF-8.
 
@@ -52,11 +52,11 @@ _Nothing yet._
 
 - **A pull request that fails the GitHub Action's gate still shows its new findings in code scanning.** The Action writes the new-findings report before it fails the step, so code scanning annotates the findings that tripped the gate instead of receiving the whole scan.
 
-- **A signature that does not verify no longer stops the `provenance` control under a declared signer.** An image signed with a key and no transparency-log entry, or one whose log entry names another certificate, is now reported as `provenance-unexpected-identity`, and the control goes on to the other images.
+- **A signature that does not verify no longer stops the `provenance` control.** An image signed with a key, or whose signature does not verify, is recorded as signed with its identity unread, and under a declared signer it is reported as `provenance-unexpected-identity`. The control goes on to the other images instead of stopping the run.
 
 - **Adding someone to a Kubernetes role is not a new finding.** In draugr diff and scan --base, an access check (5.1.8 to 5.1.13) now pairs on the role, so a holder joining or leaving leaves it unchanged; the finding still names who holds it. The draugr-k8s-policies page says which checks a namespace binding always leaves for a person.
 
-- **Adopt signers from images signed outside GitHub Actions.** Discovery and `draugr survey provenance` now read a bundle signature's issuer from the signature, so a signer surveyed from an image a Google service account signed names Google's issuer and verifies it. A mismatch names the identity found, never an issuer.
+- **Adopt signers from images signed outside GitHub Actions.** Discovery and `draugr survey provenance` now read a bundle signature's issuer from the signature, so a signer surveyed from an image a Google service account signed names Google's issuer and verifies it. A mismatch reports the identity found, not an issuer.
 
 - **`draugr classify` changes only the two values it sets.** It rewrote the whole descriptor, collapsing aligned comments and moving a commented-out block such as `draugr init`'s `images:` stub under the key above it, where uncommenting it nested it in the wrong place. Every other line now stays as written.
 
@@ -74,21 +74,19 @@ _Nothing yet._
 
 - **Require signer coverage and have it hold.** With `unmatched: warn` or `fail`, `provenance` now reports an image no signer covers even when it carries a signature, and names the identity that signed it. Until now an image signed by anybody passed.
 
-- **Run `provenance` over images signed with a key.** An image whose signature carries no Sigstore certificate, or does not verify, is now recorded as signed with its identity unread, and the control carries on with the other images instead of stopping the run with an error.
-
 - **Scans hold less memory while reading what their tools report.** Draugr keeps only the lines it reads of Gitleaks' trace log and Trivy's debug log, decodes Semgrep's and Trivy's image reports once instead of several times, and asks Nuclei to leave each finding's raw request and response out of its output.
 
 - **See which objects joined or left a Kubernetes check in `draugr diff` and `scan --base`.** An OBJECTS block after CHANGED lists each object that joined a check, then each that left, one line per object under `--view compact`; the pull-request comment lists them too. A check that only lost objects now shows instead of "Nothing changed".
 
-- **See which permission to grant when a cloud or Kubernetes check could not be decided.** A refused read is listed under CAVEATS as unread with the read that was denied, instead of counted as left for a person. An AWS member account is told to scan from the management account. `--evidence` lists every undecided check by kind.
+- **See which permission to grant when a cloud or Kubernetes check could not be decided.** A refused read is listed under CAVEATS as unread with the read that was denied, instead of counted as left for a person. `--evidence` lists every undecided check by kind.
 
-- **See why an AWS member account's Organizations checks were not decided.** cloud now reads the Organizations denials Prowler logs as warnings, so organizations_delegated_administrators and iam_root_credentials_management_enabled are listed as unread with the denial, not left as an unexplained gap in the coverage count. LOG_LEVEL=ERROR hiding them is now said on AWS too.
+- **See why an AWS member account's Organizations checks were not decided.** cloud now reads the Organizations denials Prowler logs as warnings. organizations_delegated_administrators and iam_root_credentials_management_enabled are listed as unread, with the advice to scan from the management account, instead of an unexplained gap in the coverage count. `LOG_LEVEL=ERROR` hiding them is now said on AWS too.
 
-- **The docs say where an exclusion approval is recorded.** They said an exclusion git author is who decided it was acceptable. The author is who wrote the line; the approval is the review of the change that added it, which exists only where the branch requires a review.
+- **An exclusion's approval is the review of the change that added it, not its git author.** The docs said the git author decided an exclusion was acceptable. The author wrote the line; the approval is the review of the change that added it, which exists only where the branch requires a review.
 
 - **The `provenance` scope field now counts a declared signer that matches none of your images.** A descriptor whose signer patterns matched no image read `scope: no signers declared`. It now reads, for example, `scope: 2 signers, 1 matching an image`; fix the patterns of the signer that matches nothing, or remove it.
 
-- **Trust draugr diff and scan --base on Kubernetes checks.** A kubernetes check that gains a pod is reported new and still trips the gate; one that keeps or loses pods stays unchanged, instead of the old check reading as fixed while every object it listed still fails it. Each such finding lists its objects in SARIF as objects.
+- **Trust draugr diff and scan --base on Kubernetes checks.** A kubernetes check that gains a pod is reported new and still trips the gate. One that keeps or loses pods stays unchanged, and a lost pod appears in the OBJECTS block, instead of the old check reading as fixed while every object it listed still fails it. Each such finding lists its objects in SARIF as objects.
 
 - **Use the signers `draugr survey provenance` writes on images declared with `digest:`.** A signer naming `<repository>@<digest>` now covers an image declared with a tag and a separate digest, so the image is checked, not only observed. The survey also names such a signer after the image.
 
