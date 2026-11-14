@@ -131,7 +131,7 @@ Every scanner normalizes to **SARIF 2.1.0**. The engine carries an internal supe
 lossless core. Consequences:
 
 - Plugins interoperate without N×M adapters.
-- Results push straight into GitHub / ADO / GitLab security dashboards.
+- GitHub code scanning reads it directly; GitLab and Azure DevOps get the formats they read.
 - Third-party tools already speak it.
 
 ---
