@@ -386,7 +386,12 @@ func evaluatePolicyControl(ctx context.Context, client kubernetes.Interface) (po
 	if len(enforced) > 0 {
 		return policyVerdict{Compliant: true}, true
 	}
-	if bindings, err := client.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().List(ctx, metav1.ListOptions{}); err == nil && len(bindings.Items) > 0 {
+	// A bindings list that could not be read, refused or served by no API version this client
+	// speaks (v1 arrived in Kubernetes 1.30), says nothing about whether a policy is bound. It stops
+	// the check failing, though a policy engine's webhook can still pass it.
+	bindings, err := client.AdmissionregistrationV1().ValidatingAdmissionPolicyBindings().List(ctx, metav1.ListOptions{})
+	bindingsRead := err == nil
+	if bindingsRead && len(bindings.Items) > 0 {
 		return policyVerdict{Compliant: true}, true
 	}
 	webhooks, err := client.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(ctx, metav1.ListOptions{})
@@ -399,6 +404,9 @@ func evaluatePolicyControl(ctx context.Context, client kubernetes.Interface) (po
 				return policyVerdict{Compliant: true}, true
 			}
 		}
+	}
+	if !bindingsRead {
+		return policyVerdict{}, false
 	}
 	const message = "No policy control mechanism found: no namespace enforces a Pod Security level above privileged, " +
 		"no ValidatingAdmissionPolicy is bound, and no Gatekeeper or Kyverno webhook is configured. A default level in " +
