@@ -403,6 +403,7 @@ Under `--evidence`, the `run` row accounts for the run:
 $ draugr scan . --controls secrets --cache-dir .draugr/cache --evidence
 …
   run         1 job in 16ms · secrets took the most scanner time, 15ms · 1 from cache, oldest 9m0s
+  memory      gitleaks used the most, 60 MiB at its peak · Draugr itself 49 MiB · 63 GiB available
 ```
 
 The row holds, in order, the job count and the run's wall-clock time; the concurrency limit, where
@@ -410,6 +411,11 @@ the run had more jobs than it; the control with the most scanner time, summed ac
 how many jobs were answered from [the cache](#using-the-cache-in-a-scan) and the age of the oldest
 entry used; time spent waiting for a tool's own cache; and scanner data refreshes of a second or
 more.
+
+The `memory` row names the scanner whose largest process used the most memory, and that process's
+peak; Draugr's own peak; and the memory the run could use, which is the machine's or the lowest
+container limit above Draugr. Each figure is one process at its peak, not a total of what ran at
+once. `report.json` keeps every job's figure under `stats.jobMemory`.
 
 ### Scoping a run
 

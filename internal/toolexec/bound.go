@@ -63,6 +63,10 @@ const memoryPerJob = 2 << 30
 // 64-core node runs four jobs rather than 64.
 func DefaultJobs() int { return jobs(runtime.GOMAXPROCS(0), totalMemory()) }
 
+// MemoryLimit is the memory this process may use, in bytes: the machine's, or a cgroup's limit
+// where that is lower. Zero where the operating system reports neither.
+func MemoryLimit() uint64 { return totalMemory() }
+
 // jobs is DefaultJobs on a machine with cores CPUs and memory bytes of memory, where zero memory
 // means the operating system did not report it and the CPUs alone decide.
 func jobs(cores int, memory uint64) int {

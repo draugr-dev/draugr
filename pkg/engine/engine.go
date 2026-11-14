@@ -407,6 +407,9 @@ var peakToolMemory = toolexec.PeakMemory
 // peakOwnMemory reads Stats.PeakOwnMemory, a variable for the same reason.
 var peakOwnMemory = toolexec.OwnPeakMemory
 
+// memoryLimit reads Stats.MemoryLimit, a variable so a test can hold a run to a limit of its own.
+var memoryLimit = toolexec.MemoryLimit
+
 // defaultConcurrency is how many jobs run at once when nobody chose: one per CPU or per two GiB of
 // memory this process may use, whichever is fewer (toolexec.DefaultJobs). A variable so a test can
 // hold it to a machine of its own.
@@ -815,6 +818,10 @@ type Stats struct {
 	// Draugr holds what the tools report, and reads and decodes their output, so a run's memory is
 	// this as well as the tools'.
 	PeakOwnMemory uint64
+	// MemoryLimit is the memory, in bytes, this process may use: the machine's, or the lowest
+	// cgroup limit above it where that is lower. Zero where neither is known. Beside the two peaks
+	// so a reader can tell a run that came close to being killed from one that did not.
+	MemoryLimit uint64
 	// JobMemory is, for each job that ran a tool, the largest resident memory one of its tool
 	// processes reached, with the processes that process waited for, sorted by scanner, then
 	// target. A job served from the cache, or by another job's identical scan, ran none and has no
@@ -1747,6 +1754,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	stats.Duration = time.Since(runStart)
 	stats.PeakToolMemory, _ = peakToolMemory()
 	stats.PeakOwnMemory, _ = peakOwnMemory()
+	stats.MemoryLimit = memoryLimit()
 	slices.SortFunc(stats.JobMemory, func(a, b JobMemory) int {
 		return cmp.Or(cmp.Compare(a.Scanner, b.Scanner), cmp.Compare(a.Kind, b.Kind), cmp.Compare(a.Target, b.Target),
 			cmp.Compare(a.Control, b.Control), cmp.Compare(a.Component, b.Component))
