@@ -112,6 +112,11 @@ SSLv2/SSLv3 or export/NULL cipher suites being enabled, and it doesn't test prot
 vulnerabilities (ROBOT, CRIME, Heartbleed, …) or enumerate the full cipher suite list. Those are
 exactly what the opt-in testssl.sh engine would add.
 
+It does **not check revocation**. A certificate its authority has revoked gets no finding, because
+asking whether it is revoked means fetching an OCSP response or a CRL from that authority, a request
+to a host the descriptor never named. A run with no certificate finding says nothing about whether
+the certificate has been revoked.
+
 ## Integration notes
 
 - The host must be reachable from wherever the scan runs (CI runners often can't see internal
