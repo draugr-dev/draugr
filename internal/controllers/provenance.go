@@ -716,13 +716,18 @@ func signerFor(signers []signer, img saga.Image) (*signer, error) {
 		return nil, fmt.Errorf("image %q is signed by %q, which no signer declares (%s)",
 			img.Image, img.SignedBy, declaredSigners(signers))
 	}
+	// The image as declared, and by its repository and digest where it declares one beside a tag.
+	// Both name the artifact that is verified, and a pattern written in either spelling covers it.
+	// Matched against `image` alone, a signer naming the digest, as `draugr survey provenance`
+	// writes one, would cover nothing, and the image would be observed rather than checked.
+	spellings := []string{img.Image}
+	if pinned := img.PinnedRef(); pinned != img.Image {
+		spellings = append(spellings, pinned)
+	}
 	var matched []*signer
 	for i := range signers {
-		for _, pattern := range signers[i].Images {
-			if saga.WildcardMatch(pattern, img.Image) {
-				matched = append(matched, &signers[i])
-				break
-			}
+		if coversAny(signers[i].Images, spellings) {
+			matched = append(matched, &signers[i])
 		}
 	}
 	switch len(matched) {
@@ -741,6 +746,18 @@ func signerFor(signers []signer, img saga.Image) (*signer, error) {
 	sort.Strings(names)
 	return nil, fmt.Errorf("image %q is covered by more than one signer (%s); narrow the patterns, or name one with signedBy",
 		img.Image, strings.Join(names, ", "))
+}
+
+// coversAny reports whether any of a signer's patterns matches any of the names an image goes by.
+func coversAny(patterns, names []string) bool {
+	for _, pattern := range patterns {
+		for _, name := range names {
+			if saga.WildcardMatch(pattern, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // declaredSigners names what is available, for an error about a name that is not.

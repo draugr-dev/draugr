@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/sagatest"
 	"github.com/draugr-dev/draugr/internal/scanners"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -232,6 +233,11 @@ func TestASignerIsNamedForWhatTheReaderRecognizes(t *testing.T) {
 		{"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3", "ghcr.io/acme/api:1.0", "acme-ci"},
 		{"https://gitlab.com/acme/build//.gitlab-ci.yml@refs/heads/main", "registry.gitlab.com/acme/api:1.0", "api"},
 		{"", "ghcr.io/acme/api:1.0", "api"},
+		// What the survey asks about for an image declared with a digest, and one under a registry
+		// with a port: the image's own name in both, not the digest's algorithm or the host.
+		{"keyless@acme.iam.gserviceaccount.com", "ghcr.io/sigstore/cosign/cosign@sha256:aaaa", "cosign"},
+		{"keyless@acme.iam.gserviceaccount.com", "registry.local:5000/acme/web@sha256:bbbb", "web"},
+		{"keyless@acme.iam.gserviceaccount.com", "registry.local:5000/acme/web:2.0", "web"},
 	} {
 		if got := signerName(c.id, c.ref); got != c.want {
 			t.Errorf("signerName(%q, %q) = %q, want %q", c.id, c.ref, got, c.want)
@@ -280,6 +286,60 @@ func TestAnOwnerThatAlreadyNamesTheRepositoryDoesNotStutter(t *testing.T) {
 	} {
 		if got := signerName(c.id, "ghcr.io/x/y:1"); got != c.want {
 			t.Errorf("signerName(%q) = %q, want %q", c.id, got, c.want)
+		}
+	}
+}
+
+// TestASurveyedSignerCoversTheImageDeclaredWithADigest. The survey asks about an image by its
+// repository and digest and writes the signer in that spelling, and the descriptor it is merged
+// into declares the image with a tag and a separate `digest:`. The control has to put the two
+// together, or the signer covers nothing and the image stays observed with nothing verified. Two
+// images, two identities, each checked against the signer read from it.
+func TestASurveyedSignerCoversTheImageDeclaredWithADigest(t *testing.T) {
+	t.Parallel()
+	const issuer = "https://accounts.google.com"
+	model := saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"provenance": {"enabled": true},
+		}},
+		Components: []saga.Component{{
+			Name: "survey-digest-form",
+			Images: []saga.Image{
+				{Image: "ghcr.io/sigstore/cosign/cosign:v2.6.1", Digest: "sha256:aaaa"},
+				{Image: "registry.local:5000/acme/web:2.0", Digest: "sha256:bbbb"},
+			},
+		}},
+	}
+	identities := map[string]string{
+		"ghcr.io/sigstore/cosign/cosign@sha256:aaaa": "keyless@projectsigstore.iam.gserviceaccount.com",
+		"registry.local:5000/acme/web@sha256:bbbb":   "keyless@acme-web.iam.gserviceaccount.com",
+	}
+	// What the command asks about: each declared image as PinnedRef spells it.
+	refs := make([]string, 0, len(model.Components[0].Images))
+	answers := map[string]scanners.Signature{}
+	for _, img := range model.Components[0].Images {
+		ref := img.PinnedRef()
+		refs = append(refs, ref)
+		answers[ref] = scanners.Signature{Identity: identities[ref], Issuer: issuer, Signed: true}
+	}
+	frag, err := surveyImages(t, signed(answers, nil), refs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saga.Merge(&model, frag)
+
+	jobs, err := controllers.NewProvenance().Plan(model, &model.Components[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("jobs = %d, want one per image", len(jobs))
+	}
+	for _, j := range jobs {
+		img, _ := j.Target.(plugin.ImageTarget)
+		want := identities[saga.Image{Image: img.Ref, Digest: img.Digest}.PinnedRef()]
+		if j.Config["signer"] == "" || j.Config["identity"] != want || j.Config["issuer"] != issuer {
+			t.Errorf("%s: job config = %v, want it checked against %s from %s", img.Ref, j.Config, want, issuer)
 		}
 	}
 }

@@ -13,36 +13,25 @@ import (
 // descriptor pinned a digest, that is what the registry is asked about.
 func TestTheSignatureIsReadAgainstWhatTheDescriptorPinned(t *testing.T) {
 	t.Parallel()
-	for _, c := range []struct {
-		name string
-		img  saga.Image
-		want string
-	}{
-		{"a tag is asked about as a tag", saga.Image{Image: "ghcr.io/acme/api:1.0"}, "ghcr.io/acme/api:1.0"},
-		{
-			name: "a pinned digest wins over the tag beside it",
-			img:  saga.Image{Image: "ghcr.io/acme/api:1.0", Digest: "sha256:abc"},
-			want: "ghcr.io/acme/api@sha256:abc",
-		},
-		{
-			name: "a digest with no tag on the reference",
-			img:  saga.Image{Image: "ghcr.io/acme/api", Digest: "sha256:abc"},
-			want: "ghcr.io/acme/api@sha256:abc",
-		},
-		// A registry port is a colon that is not a tag separator, and cutting at the first one
-		// would ask about a host.
-		{
-			name: "a digest on a reference carrying a port",
-			img:  saga.Image{Image: "registry.local:5000/acme/api:1.0", Digest: "sha256:abc"},
-			want: "registry.local:5000/acme/api@sha256:abc",
-		},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			if got := imageRef(c.img); got != c.want {
-				t.Errorf("imageRef = %q, want %q", got, c.want)
-			}
-		})
+	opts := surveyOptions{output: writeSaga(t, `project: p
+release:
+  version: "1.0"
+components:
+  - name: a
+    images:
+      - image: ghcr.io/acme/api:1.0
+        digest: sha256:aaaa
+      - image: registry.local:5000/acme/web:2.0
+        digest: sha256:bbbb
+      - image: ghcr.io/acme/tool:3.0
+`)}
+	got, err := declaredImages(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"ghcr.io/acme/api@sha256:aaaa", "ghcr.io/acme/tool:3.0", "registry.local:5000/acme/web@sha256:bbbb"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("images = %v, want %v: a declared digest named, a tag asked about as a tag", got, want)
 	}
 }
 
