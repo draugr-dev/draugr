@@ -79,9 +79,11 @@ every reason to believe it did.
 
 ## SARIF everywhere
 
-Every finding is normalized to **SARIF 2.1.0** (the OASIS standard). That means plugins
-interoperate, and results push straight into GitHub / Azure DevOps / GitLab security
-dashboards.
+Every finding is normalized to **SARIF 2.1.0** (the OASIS standard), so plugins interoperate and any
+tool that reads SARIF reads Draugr's results. GitHub code scanning takes it directly
+([code scanning](../guides/code-scanning.md)). GitLab's security dashboards read their own report
+formats, which Draugr also writes ([GitLab CI](../guides/gitlab-ci.md)), and Azure DevOps keeps
+`results.sarif` as a build artifact ([Azure Pipelines](../guides/azure-pipelines.md)).
 
 ## Content-hash caching
 
