@@ -111,7 +111,7 @@ its own license, and you can swap it.
 | Control | Looks for | By default |
 |---|---|---|
 | `sca` | known flaws in the libraries you depend on | Trivy, Grype and Mend opt-in |
-| `secrets` | passwords and keys committed by accident, history included | Gitleaks |
+| `secrets` | passwords and keys committed by accident | Gitleaks |
 | `sast` | patterns in the code you wrote that let somebody in | Semgrep, gosec opt-in for Go |
 | `iac` | settings that leave a door open, in Terraform, Kubernetes and Dockerfiles | Trivy |
 | `images` | what is baked into your container images | Trivy, Grype opt-in |
