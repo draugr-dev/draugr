@@ -1,0 +1,1 @@
+- **Read what failed when you explain a cloud check.** `draugr explain` on a Prowler check no longer prints the check's title, which describes a passing account, under its id; it prints the sentence its findings say. The remediation is headed FIX and wraps to the terminal.

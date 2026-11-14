@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 
@@ -162,23 +163,37 @@ func writeExplanation(w io.Writer, report sarif.Report, id string, rule sarif.Ru
 	// A description naming the rule's own id is a scanner filling the field. Semgrep's reads
 	// "Semgrep Finding: <id>", and the detail below it says more.
 	if d := strings.TrimSpace(rule.ShortDescription); d != "" && !strings.Contains(d, id) {
-		_, _ = fmt.Fprintf(w, "%s\n", d)
+		// A title stating what a passing resource looks like reads, under a failed check, as a
+		// pass. The findings' own sentence says what failed instead, as the report does, and only
+		// where every finding says the same: one resource's sentence printed for several would be
+		// wrong about the rest.
+		if titlesPassingState(report, id) {
+			if said := sameMessage(report, id); said != "" {
+				_, _ = fmt.Fprintf(w, "%s\n", said)
+			}
+		} else {
+			_, _ = fmt.Fprintf(w, "%s\n", d)
+		}
 	}
 
-	// DETAIL, not FIX, which is what this said while printing `fullDescription`.
+	// `fullDescription` is whatever the scanner chose to put in it. Most scanners describe the flaw,
+	// or the practice the rule exists to enforce, and that is DETAIL. A few put the remediation
+	// there, and that is FIX: a heading promising remediation over a sentence explaining the problem,
+	// or the other way round, teaches a reader that the labels here are decorative. Which scanners
+	// write which is a list, fixDescriptions, read from the scanner each finding names.
 	//
-	// That field is whatever the scanner chose to put in it, and across a real report it is a
-	// mixture: some rules describe the flaw, some state the practice the rule exists to enforce,
-	// and some do neither. A heading promising remediation over a sentence explaining what the
-	// problem is teaches a reader that the labels here are decorative, which costs more than the
-	// heading was worth.
-	//
-	// Where a scanner does supply remediation it is on the finding, and the report's own FIX
-	// column carries it.
+	// Wrapped to the terminal, because a scanner writes a paragraph as one line, and at 80 columns
+	// the terminal would break it mid-word with no indent.
 	if detail := strings.TrimSpace(rule.FullDescription); detail != "" && detail != rule.ShortDescription {
-		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, "DETAIL"))
+		title := "DETAIL"
+		if fixDescriptions[toolOf(report, id)] {
+			title = "FIX"
+		}
+		_, _ = fmt.Fprintf(w, "\n%s\n", col.Paint(tui.StyleMuted, title))
 		for _, line := range strings.Split(detail, "\n") {
-			_, _ = fmt.Fprintf(w, "  %s\n", terminalText(col, strings.TrimSpace(line)))
+			for _, part := range wrapDescription(strings.TrimSpace(line), tui.Columns(w)-2) {
+				_, _ = fmt.Fprintf(w, "  %s\n", terminalText(col, part))
+			}
 		}
 	}
 
@@ -192,6 +207,94 @@ func writeExplanation(w io.Writer, report sarif.Report, id string, rule sarif.Ru
 	if rule.HelpURI != "" {
 		_, _ = fmt.Fprintf(w, "\n%s\n  %s\n", col.Paint(tui.StyleMuted, "REFERENCE"), rule.HelpURI)
 	}
+}
+
+// passingStateTitles are the scanners whose rule description is the check's title, which states
+// what a passing resource looks like: Prowler's "EBS default encryption is enabled" for a check
+// that fails where it is not.
+var passingStateTitles = map[string]bool{"prowler": true}
+
+// titlesPassingState reports whether the rule's findings came from a scanner whose rule description
+// states the passing condition.
+func titlesPassingState(report sarif.Report, id string) bool {
+	for _, res := range report.Results {
+		if res.RuleID == id {
+			return passingStateTitles[res.Tool]
+		}
+	}
+	return false
+}
+
+// sameMessage is the message every finding of the rule carries, or "" where they differ or there
+// are none.
+func sameMessage(report sarif.Report, id string) string {
+	said := ""
+	for _, res := range report.Results {
+		if res.RuleID != id {
+			continue
+		}
+		m := strings.TrimSpace(res.Message)
+		if said != "" && m != said {
+			return ""
+		}
+		said = m
+	}
+	return said
+}
+
+// fixDescriptions are the scanners whose rule description is the remediation: Prowler's
+// recommendation, kube-bench's remedy and the CIS benchmark's remediation draugr-k8s-policies
+// carries.
+var fixDescriptions = map[string]bool{
+	"prowler": true, "kube-bench": true, "kube-bench-job": true, "draugr-k8s-policies": true,
+}
+
+// toolOf is the scanner the rule's findings name, "" where the report holds none of them.
+func toolOf(report sarif.Report, id string) string {
+	for _, res := range report.Results {
+		if res.RuleID == id {
+			return res.Tool
+		}
+	}
+	return ""
+}
+
+// wrapDescription breaks one line of a description into lines no wider than width once its Markdown
+// is rendered, and keeps the line whole where width is not positive, a file or a pipe. A strong span
+// broken across lines is closed at the end of one and opened again on the next, so each line renders
+// on its own.
+func wrapDescription(line string, width int) []string {
+	words := strings.Fields(line)
+	if width <= 0 || len(words) == 0 {
+		return []string{line}
+	}
+	plain := tui.Plain()
+	var parts []string
+	cur := ""
+	for _, word := range words {
+		next := word
+		if cur != "" {
+			next = cur + " " + word
+		}
+		if cur != "" && utf8.RuneCountInString(terminalText(plain, next)) > width {
+			parts = append(parts, cur)
+			next = word
+		}
+		cur = next
+	}
+	parts = append(parts, cur)
+	open := false
+	for i, p := range parts {
+		stillOpen := open != (strings.Count(p, "**")%2 == 1)
+		if open {
+			p = "**" + p
+		}
+		if stillOpen {
+			p += "**"
+		}
+		parts[i], open = p, stillOpen
+	}
+	return parts
 }
 
 // findingsFor lists where this rule fired, deduplicated and capped.
