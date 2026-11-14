@@ -1,0 +1,1 @@
+- **A license deny or warn list naming `GPL-3.0-only` now applies to a file Trivy names `GPL-3.0`.** Trivy names license files and headers by the bare GNU id, and the policy matched only exact ids, so a denied license came out as a warning and the run could pass. A bare id now matches either its `-only` or `-or-later` entry.
