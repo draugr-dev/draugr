@@ -27,6 +27,21 @@ func (v ScanView) WriteStrips(w io.Writer, label string, whole [4]int) {
 	drawBandLines(w, tui.For(w), append(bandRows(v.Result.Counted()), bandRow{label, whole}))
 }
 
+// States sorts the comparison's findings by what happened to each, every one counted once.
+func (v ScanView) States() fixlist.ChangeStates {
+	r := v.Result.Counted()
+	open, held := splitUnchanged(r.Unchanged)
+	out := fixlist.ChangeStates{
+		New: r.New, Unaccepted: r.Unaccepted, Accepted: r.Accepted, Fixed: r.Fixed,
+		Unchanged: open, StillAccepted: held,
+	}
+	for _, m := range r.Moved {
+		out.Moved = append(out.Moved, m.Result)
+		out.MovedFrom = append(out.MovedFrom, m.Was.Component)
+	}
+	return out
+}
+
 // WriteListing draws what changed in the view asked for, capped at top rows where top is
 // positive: the CHANGED table, one line each under compact, or WHAT TO DO under actions, then the
 // findings that moved. It writes nothing where nothing changed, which the scan's verdict line

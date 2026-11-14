@@ -1,0 +1,1 @@
+- **New findings lead the lists.** When a scan is judged on its change, the HTML and markdown reports list what the change introduced first, each marked `+ new`, so a long backlog no longer hides it, and the HTML Findings tab gains a Change menu that narrows to them.

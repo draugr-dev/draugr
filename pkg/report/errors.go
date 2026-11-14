@@ -639,16 +639,6 @@ func cutShort(d Data, listed int) bool {
 	return left > 0
 }
 
-// failedCaveatNote is what a component's row says about its caveats the gate fails on: each one's
-// kind and what it names, the words a reader would search the caveats for.
-func failedCaveatNote(cs []FailedCaveat) string {
-	parts := make([]string, 0, len(cs))
-	for _, c := range cs {
-		parts = append(parts, string(c.Kind)+" "+c.What)
-	}
-	return strings.Join(parts, ", ")
-}
-
 // joinNotes puts two notes on one row, either of which may be empty.
 func joinNotes(a, b string) string {
 	switch {

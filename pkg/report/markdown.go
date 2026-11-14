@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,6 +31,12 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "**Release:** %s\n\n", releaseLabel(d))
 	}
 
+	judged := d.Gate.judgesChange()
+	change := changeViewFor(d, s.prioritized)
+	if change != nil {
+		change.capActions(changeActions(d, s))
+	}
+	writeChangeSection(w, change)
 	if s.prioritized {
 		_, _ = fmt.Fprintln(w, "| Priority | P1 | P2 | P3 | P4 |")
 		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|")
@@ -70,8 +77,9 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			if c.Verdict == norn.Fail {
 				v = "**FAIL**"
 			}
-			// It reported findings *and* something failed, so what it did report is partial.
-			if _, bad := s.scanErrors[c.Control]; bad {
+			// It reported findings *and* something failed, so what it did report is partial. On a run
+			// judged on its change, a caveat that fails the run leaves its control unchecked the same way.
+			if _, bad := s.scanErrors[c.Control]; bad || judged && caveatControls(d)[c.Control] {
 				v = "**ERROR**"
 			}
 			if note := unreadNote(d.Run.Inputs, c.Control); note != "" {
@@ -115,6 +123,20 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "### Fix first\n\n")
 	}
 	shown := s.findings
+	// On a run judged on its change, what the change introduced leads, marked as the console marks it,
+	// so the cap never hides it behind the backlog.
+	var stateOf map[string]string
+	if judged {
+		stateOf = headStates(statesOf(d))
+		state := func(st string) func(finding) bool {
+			return func(f finding) bool { return stateOf[f.fingerprint] == st }
+		}
+		shown = slices.Concat(filterFindings(s.findings, state(stateNew)), filterFindings(s.findings, state(stateUnaccepted)),
+			filterFindings(s.findings, func(f finding) bool {
+				st := stateOf[f.fingerprint]
+				return st != stateNew && st != stateUnaccepted
+			}))
+	}
 	if len(shown) > markdownTopN {
 		shown = shown[:markdownTopN]
 	}
@@ -128,9 +150,19 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		head = "| Priority | Severity | Rule | Scanner | Component | Location | Upgrade | Finding |"
 		rule = "|---|---|---|---|---|---|---|---|"
 	}
+	if judged {
+		head, rule = "| Change "+head, "|---"+rule
+	}
 	_, _ = fmt.Fprintln(w, head)
 	_, _ = fmt.Fprintln(w, rule)
 	for _, f := range shown {
+		if judged {
+			mark := ""
+			if st := stateOf[f.fingerprint]; st != "" && st != stateUnchanged {
+				mark = stateMarks[st] + " " + st
+			}
+			_, _ = fmt.Fprintf(w, "| %s ", mark)
+		}
 		component := ""
 		if withComponent {
 			component = " " + dash(f.component) + " |"
@@ -441,9 +473,6 @@ func writeComponentTable(w io.Writer, d Data) {
 		if len(c.Unscanned) > 0 {
 			notes = append(notes, unscannedDetail(c.Unscanned, c.Declared))
 		}
-		if len(c.FailedCaveats) > 0 {
-			notes = append(notes, failedCaveatNote(c.FailedCaveats))
-		}
 		exposure, criticality := rankedClass(c)
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s | %d | %d | %d | %d | %s |\n",
 			c.Name, exposure.markdown(), criticality.markdown(), v,
@@ -564,4 +593,15 @@ func markdownUpgrade(f finding) string {
 		return name + " · " + u
 	}
 	return upgradeLabel(f)
+}
+
+// filterFindings keeps the findings keep accepts, in order.
+func filterFindings(fs []finding, keep func(finding) bool) []finding {
+	var out []finding
+	for _, f := range fs {
+		if keep(f) {
+			out = append(out, f)
+		}
+	}
+	return out
 }

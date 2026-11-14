@@ -21,6 +21,8 @@ func (stubChange) WriteStrips(w io.Writer, label string, whole [4]int) {
 	_, _ = fmt.Fprintf(w, " %s %v\n", label, whole)
 }
 
+func (stubChange) States() ChangeStates { return ChangeStates{} }
+
 func (s stubChange) WriteListing(w io.Writer, view View, top int) bool {
 	if s.listed {
 		_, _ = fmt.Fprintf(w, "LISTING %s top %d\n", view, top)

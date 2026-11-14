@@ -525,7 +525,8 @@ func TestFailedCaveatsAreTheKindsTheGateLists(t *testing.T) {
 	}
 }
 
-// A component with a caveat the gate fails on reads ERROR in every format, and says which.
+// A component with a caveat the gate fails on reads ERROR in every format. Its row says nothing more:
+// the Caveats section lists the caveats, and a row naming each unread file grows with the tree.
 func TestAComponentWithAFailingCaveatReadsError(t *testing.T) {
 	d := failingCaveatData()
 	d.Components = []ComponentVerdict{
@@ -537,12 +538,12 @@ func TestAComponentWithAFailingCaveatReadsError(t *testing.T) {
 		t.Errorf("console:\n%s", console)
 	}
 	md := renderWith(t, markdownReporter{}, d)
-	if !strings.Contains(md, "**ERROR**") || !strings.Contains(md, "unread-files go.mod") {
+	if !strings.Contains(md, "**ERROR**") || strings.Contains(md, "| unread-files go.mod") {
 		t.Errorf("markdown:\n%s", md)
 	}
 	html := renderWith(t, htmlReporter{}, d)
-	if !strings.Contains(html, "unread-files go.mod") {
-		t.Errorf("html does not name the caveat")
+	if strings.Contains(html, `class="gap" href="#caveats"`) || !strings.Contains(html, `<td class="outcome"><span class="err">ERROR</span></td>`) {
+		t.Errorf("html: the row should read ERROR and say nothing more about the caveat")
 	}
 	if got := joinNotes("", "b"); got != "b" {
 		t.Errorf("joinNotes = %q", got)

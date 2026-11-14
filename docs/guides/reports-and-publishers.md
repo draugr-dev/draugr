@@ -881,6 +881,22 @@ marks its rows `✗` and turns the tab red when a caveat fails the run. When `--
 accepts the run, the tab is not red and the section's note names the flag. The markdown report lists
 the same rows under **Caveats**.
 
+**A run judged on its change has a Change tab.** When `draugr scan` is given a base and a gate on
+new findings (`--base` with `--fail-on-new` or `config.gate.failOnNew`), the verdict is about what
+changed, and the **Change** tab, red when the change fails, says so. That tab holds the gate on new findings and its verdict, then every state a finding
+can be in against the base, the ones [`draugr diff`](pr-diff.md) reports: new, unaccepted (excused in
+the base and counting again), accepted (excused since the base) and fixed, then moved, unchanged and
+still accepted. The `?` beside them says what each state means. Each count is a way to its findings
+in Findings, still accepted to the Accepted section. Under them are the five most urgent actions the
+change asks for, with a link to all of them in What to do, and the controls and components the change
+touched, each cell a way to its findings. The tab also says when a caveat fails the run as well.
+
+Every other count in the report, the header's bands, Controls and Components included, is of the
+whole run, as on any report. In Findings, the new findings come first and then the unaccepted ones,
+each marked as `draugr diff` marks it (`+ new`, `! unaccepted`), and the **Change** menu narrows the
+list to one state. Fixed and accepted findings are in the list too, with an accepted one's reason and
+expiry, and show only when you ask for their state, since the run counts neither. The markdown report opens with the same section, under `### Change since <base>`.
+
 **A finding whose message is too long for its row opens to the whole of it.** Such a row is marked
 `more`; click anywhere on it, or press Enter on it, and the scanner's full message replaces the
 shortened one. Links on the row, such as an advisory, keep working. It is a native

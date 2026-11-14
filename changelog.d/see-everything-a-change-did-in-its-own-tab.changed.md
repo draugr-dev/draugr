@@ -1,0 +1,1 @@
+- **See everything a change did, in its own tab.** When a scan is judged on its change, the HTML report gains a Change tab: the gate and its verdict, then new, unaccepted, accepted, fixed, moved and unchanged findings as draugr diff counts them, each a way to its findings, and what to do about the change. Markdown opens alike.

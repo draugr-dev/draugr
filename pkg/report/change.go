@@ -28,6 +28,29 @@ type ChangeView interface {
 	// WriteListing draws what changed in the view asked for, capped at top rows where top is
 	// positive, and reports whether it wrote anything. It writes nothing where nothing changed.
 	WriteListing(w io.Writer, view View, top int) bool
+	// States is every finding sorted by what happened to it against the base, each counted once
+	// however many scanners reported it, for the reports that draw the change as data rather than
+	// as console text.
+	States() ChangeStates
+}
+
+// ChangeStates is a run's findings sorted by what happened to each against the base, in the states
+// `draugr diff` reports. New, unaccepted, accepted and fixed are the change; moved, unchanged and
+// still accepted are what it left as it was. Every finding at the head is in exactly one of the
+// states other than fixed, which holds findings only the base had.
+type ChangeStates struct {
+	New, Unaccepted, Accepted, Fixed []sarif.Result
+	// Moved are findings the head reports under another component than the base did, and
+	// MovedFrom the component each was under, in the same order.
+	Moved     []sarif.Result
+	MovedFrom []string
+	// Unchanged count in both scans, and StillAccepted were excused in both.
+	Unchanged, StillAccepted []sarif.Result
+}
+
+// Changed reports whether anything changed against the base.
+func (c ChangeStates) Changed() bool {
+	return len(c.New)+len(c.Unaccepted)+len(c.Accepted)+len(c.Fixed)+len(c.Moved) > 0
 }
 
 // judgedOnChange reports whether the console prints this run as its change: the gate on new

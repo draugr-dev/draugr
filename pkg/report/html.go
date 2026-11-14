@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,8 +31,12 @@ type htmlView struct {
 	Unclassified     bool
 	UnclassifiedRead string
 
-	Verdict        string // "PASS" | "FAIL"
-	Pass           bool
+	Verdict string // "PASS" | "FAIL"
+	Pass    bool
+	// Change is what the change introduced and how the gate on new findings judged it, on a run
+	// judged on its change. The header names it beside the verdict, because that verdict is about
+	// the change and every count around it is about the whole run.
+	Change         *changeView
 	Release        string
 	Prioritized    bool
 	P1, P2, P3, P4 int
@@ -145,6 +150,10 @@ type htmlView struct {
 	// findings. Every value is offered because the vocabulary is Draugr's own, and a finding carrying
 	// two marks counts under both, so the counts can add up to more than the list.
 	Movements []htmlFacet
+	// Changes offers each state a listed finding is in against the base, on a run judged on its
+	// change, and StateMarks the sign each changed state wears.
+	Changes    []htmlFacet
+	StateMarks map[string]string
 	// SARIFHref and TSVHref are data: URIs. Downloads that work with no JavaScript and under any
 	// content-security policy.
 	SARIFHref, TSVHref template.URL
@@ -249,6 +258,12 @@ type htmlControl struct {
 	P1, P2, P3, P4              int
 	Prioritized                 bool
 	Critical, High, Medium, Low int
+}
+
+// htmlChip is one band count as a row draws it.
+type htmlChip struct {
+	Class, Text string
+	Zero        bool
 }
 
 // htmlDecision is one acceptance: why, where it is written, when it lapses, how many findings it
@@ -456,6 +471,12 @@ type htmlFinding struct {
 	// Movement is every mark standing on the finding, as space-separated keys from movements, which
 	// the Movement menu matches against. MovedLabel names one of them, and this holds them all.
 	Movement string
+	// Change is "new" for a finding the run's base did not have and "unchanged" for one it did, on a
+	// run judged on its change, and empty on any other run.
+	Change string
+	// Accepted is why an accepted finding was set aside and until when, on a run judged on its
+	// change, where a reviewer is being asked to approve the acceptance.
+	Accepted string
 	// Signals is every key from signalKeys the finding carries, space-separated, which a count
 	// followed from the Signals section narrows the list to.
 	Signals string
@@ -549,6 +570,14 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 			Unread: unreadNote(d.Run.Inputs, c.Control),
 		})
 	}
+	// A control a failing caveat concerns has not been checked whole, whatever the change added to it.
+	if d.Gate.judgesChange() {
+		failingCaveat := caveatControls(d)
+		for i := range view.Controls {
+			view.Controls[i].Errored = view.Controls[i].Errored || failingCaveat[view.Controls[i].Control]
+		}
+		view.Change = changeViewFor(d, s.prioritized)
+	}
 	// Controls that produced no report at all have no verdict entry. Omitting them is how a
 	// run that could not check something reads as a run that checked it and found nothing.
 	for _, name := range s.errored {
@@ -561,8 +590,24 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Unattributed = d.UnattributedFindings
 	prio, sev, ctl, comp := map[string]int{}, map[string]int{}, map[string]int{}, map[string]int{}
 	fixes, tools, moved := map[string]int{}, map[string]int{}, map[string]int{}
+	introduced := map[string]bool{}
+	changes := map[string]int{}
+	var stateOf map[string]string
+	if d.Gate.judgesChange() {
+		for _, r := range d.Gate.New.Introduced {
+			introduced[r.Fingerprint()] = true
+		}
+		stateOf = headStates(statesOf(d))
+	}
 	for _, f := range s.findings {
 		hf := toHTMLFinding(f)
+		if d.Gate.judgesChange() {
+			hf.Change = stateUnchanged
+			if st, ok := stateOf[f.fingerprint]; ok {
+				hf.Change = st
+			}
+			changes[hf.Change]++
+		}
 		view.Findings = append(view.Findings, hf)
 		prio[hf.Priority]++
 		sev[hf.Severity]++
@@ -609,7 +654,54 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		if !nameComponents {
 			ha.Component = ""
 		}
+		ha.New, ha.NewPriority = countNew(a, introduced)
+		for _, f := range a.findings {
+			if stateOf[f.fingerprint] == stateUnaccepted {
+				ha.Unaccepted++
+			}
+		}
 		view.Actions = append(view.Actions, ha)
+	}
+	// On a run judged on its change, what the change introduced leads both lists, in their own order,
+	// so the backlog above it does not hide it.
+	if d.Gate.judgesChange() {
+		leadAction := func(a htmlAction) int { return 2*boolRank(a.New > 0) + boolRank(a.Unaccepted > 0) }
+		slices.SortStableFunc(view.Actions, func(a, b htmlAction) int { return leadAction(b) - leadAction(a) })
+		if view.Change != nil {
+			var touched []htmlAction
+			for _, a := range view.Actions {
+				if a.New > 0 || a.Unaccepted > 0 {
+					touched = append(touched, a)
+				}
+			}
+			view.Change.capActions(newestFirst(touched))
+		}
+		// New first, then the findings whose acceptance ended, which want a decision made again.
+		lead := func(f htmlFinding) int {
+			return 2*boolRank(f.Change == stateNew) + boolRank(f.Change == stateUnaccepted)
+		}
+		slices.SortStableFunc(view.Findings, func(a, b htmlFinding) int { return lead(b) - lead(a) })
+		// The findings the change fixed and the ones it accepted are listed here too, where search,
+		// the menus and paging already work, and shown only when somebody asks for their state: the
+		// run counts neither, so neither belongs in its list by default.
+		states := statesOf(d)
+		for _, st := range []struct {
+			key string
+			fs  []sarif.Result
+		}{{stateAccepted, states.Accepted}, {stateFixed, states.Fixed}} {
+			for _, r := range sortedByBand(st.fs) {
+				hf := toHTMLFinding(findingOf(r.Control, sarif.Report{}, r))
+				hf.Change = st.key
+				if st.key == stateAccepted && r.Suppression != nil {
+					hf.Accepted = findingSummary(r.Suppression.Justification)
+					if r.Suppression.Expires != "" {
+						hf.Accepted += " · until " + r.Suppression.Expires
+					}
+				}
+				changes[st.key]++
+				view.Findings = append(view.Findings, hf)
+			}
+		}
 	}
 	view.Signals, view.SignalNotes = signals(d, s)
 	for _, e := range d.Run.UnmatchedExclusions {
@@ -637,6 +729,14 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Fixes = theirVocabulary(fixes)
 	view.Scanners = theirVocabulary(tools)
 	view.Movements = movementFacets(moved)
+	if d.Gate.judgesChange() {
+		for _, st := range []string{stateNew, stateUnaccepted, stateAccepted, stateFixed, stateMoved, stateUnchanged} {
+			if changes[st] > 0 {
+				view.Changes = append(view.Changes, htmlFacet{Value: st, Count: changes[st]})
+			}
+		}
+		view.StateMarks = stateMarks
+	}
 	return htmlTemplate.Execute(w, view)
 }
 
@@ -851,7 +951,6 @@ func htmlComponents(d Data, s summary) []htmlComponent {
 		}
 		// A caveat the gate fails on is the same rule, arrived at from what the run did not cover.
 		if len(c.FailedCaveats) > 0 {
-			row.Unscanned = joinNotes(row.Unscanned, failedCaveatNote(c.FailedCaveats))
 			row.Verdict, row.Errored, row.Fail = "ERROR", true, false
 		}
 		out = append(out, row)
@@ -1010,9 +1109,15 @@ func actionKeyFor(f finding) string {
 
 // htmlAction is one thing to do, rendered.
 type htmlAction struct {
-	Key     string
-	Title   string
-	Summary string
+	// New counts the findings it clears that the run's base did not have, on a run judged on its
+	// change, and NewPriority is the worst band among them.
+	New         int
+	NewPriority string
+	// Unaccepted counts the findings it clears whose acceptance ended since the base.
+	Unaccepted int
+	Key        string
+	Title      string
+	Summary    string
 	// Lines is how many lines of code the row stands for, above one on a folded row.
 	Lines    int
 	Priority string
@@ -1407,6 +1512,37 @@ const htmlDoc = `<!doctype html>
     font-size: .78rem; color: var(--faint); margin: 0;
   }
   .strip .spacer { flex: 1 1 auto; }
+  .change-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin: .4rem 0 1rem; }
+  .change-verdict .sevs { margin-left: 0; }
+  table.change .sevs { display: inline-flex; margin-left: 0; }
+  .change-acts { margin: 0 0 .5rem; }
+  /* A fix, or a count with no band, is not work, so it does not wear a band's fill. */
+  .sev.plain { background: transparent; color: var(--text); border-color: var(--line); }
+  table.change.states td:first-child .mk { font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .sub-h { font-size: .95rem; font-weight: 600; margin: 1.1rem 0 .2rem; }
+  .sub-h code { font-weight: 500; }
+  /* One quiet mark beside a heading whose words a reader may not know; it opens their definitions. */
+  .defmark {
+    font: inherit; font-size: .75rem; line-height: 1; width: 1.25rem; height: 1.25rem; padding: 0;
+    border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--muted);
+    cursor: pointer; vertical-align: middle;
+  }
+  .defmark:hover { color: var(--text); border-color: var(--muted); }
+  dialog.defs { max-width: 40rem; border: 1px solid var(--line); border-radius: var(--radius);
+                background: var(--surface); color: var(--text); padding: 1rem 1.25rem; }
+  dialog.defs::backdrop { background: rgba(0, 0, 0, .35); }
+  table.change.states { width: auto; }
+  table.change.states td.sym { width: 1.25rem; color: var(--muted); }
+  a.chg-go.cell { text-decoration: none; }
+  /* A fixed finding's band, outlined: it is gone, and nothing about it is work. */
+  .pri.gone { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .change-acts .act { cursor: default; }
+  /* Fixed columns, so the control and component tables line up as one list read down. */
+  table.change:not(.states) { table-layout: fixed; }
+  table.change:not(.states) th:first-child { width: 20%; }
+  table.change:not(.states) th:nth-child(2) { width: 9%; }
+  /* A commit in a heading keeps its case and spacing, so it reads as the revision to look up. */
+  thead th .rev { text-transform: none; letter-spacing: normal; }
 
   /* Bands as chips carrying the ramp, rather than colored words. A count nobody can find is a
    * count nobody reads, and the ramp is the one thing a reader already knows how to read. */
@@ -2032,6 +2168,7 @@ const htmlDoc = `<!doctype html>
 
 <nav class="tabs" aria-label="Sections of this report">
   <a class="tab" href="#findings-h">Findings</a>
+  {{if .Change}}<a class="tab{{if .Change.Fail}} err{{end}}" href="#change">Change</a>{{end}}
   {{if .Signals}}<a class="tab" href="#signals">Signals</a>{{end}}
   {{if .Controls}}<a class="tab" href="#controls">Controls</a>{{end}}
   {{if .Found}}<a class="tab" href="#found">Found</a>{{end}}
@@ -2076,6 +2213,47 @@ the component is, so the same issue ranks differently on a public API than on an
 {{end}}
 {{end}}
 
+{{with .Change}}
+<details class="fold" open><summary id="change"><span class="sec">Change</span></summary>
+<p class="note">Fails on a finding new since <code>{{.Base}}</code> at {{.Threshold}} or above.</p>
+<div class="change-verdict">
+  <span><span class="{{if .Fail}}err{{else}}ok{{end}}">{{if .Fail}}FAIL{{else}}PASS{{end}}</span>&ensp;{{.Said}}</span>
+</div>
+{{if .Caveats}}<p class="note"><span class="err">FAIL</span> The run also fails on {{if eq .CaveatCount 1}}a caveat, which counts{{else}}{{.CaveatCount}} caveats, which count{{end}} whether or not <code>{{.Base}}</code> had {{if eq .CaveatCount 1}}it{{else}}them{{end}}. <a href="#caveats">Caveats</a> lists {{if eq .CaveatCount 1}}it{{else}}them{{end}}.</p>{{end}}
+{{if .States}}<h3 class="sub-h">Since <code>{{.Base}}</code> <button type="button" class="defmark" aria-haspopup="dialog" data-open="state-defs" title="What each state means">?</button></h3>
+<dialog id="state-defs" class="defs">
+<table class="provenance">
+<thead><tr><th scope="col">State</th><th scope="col">A finding is here when it is</th></tr></thead>
+{{range .States}}<tr><td><span class="mk">{{.Key}}</span></td><td>{{.When}}</td></tr>{{end}}
+</table>
+<p class="note"><a href="{{.Guide}}" target="_blank" rel="noopener noreferrer">Every state in full</a></p>
+<form method="dialog"><button type="submit" class="tab">Close</button></form>
+</dialog>
+<table class="provenance change states">
+{{range .States}}<tr><td class="mk sym">{{.Mark}}</td><td><span class="mk">{{.Key}}</span></td><td class="num">{{if .Listed}}<a class="chg-go" href="#findings-h" data-state="{{.Key}}" data-title="{{.Key}} since {{$.Change.Base}}">{{.N}}</a>{{else}}<a href="#suppressed">{{.N}}</a>{{end}}</td><td>{{template "statechips" .Bands}}</td></tr>{{end}}
+</table>{{end}}
+{{if .Actions}}<h3 class="sub-h">What to do about this change</h3>
+<div class="rows change-acts">
+{{range .Actions}}<div class="act">
+  <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span></span>
+  <div class="what">
+    <div class="rule"><span class="name">{{.Title}}</span>{{if .Policy}} <span class="faint">{{.Policy}}</span>{{end}}</div>
+    <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .New}}<a class="chg-go" href="#findings-h" data-state="new" data-a="{{.Key}}" data-title="{{.Title}}">{{.New}} new at {{.NewPriority}}</a>{{end}}{{if and .New .Unaccepted}}<span class="faint"> · </span>{{end}}{{if .Unaccepted}}<a class="chg-go" href="#findings-h" data-state="unaccepted" data-a="{{.Key}}" data-title="{{.Title}}">{{.Unaccepted}} unaccepted</a>{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
+  </div>
+</div>{{end}}
+</div>
+<p class="note">{{if .ActionsMore}}{{plural .ActionsMore "more action"}}. {{end}}Every action this change touches, in What to do:{{if .OnNew}} <a class="chg-go" href="#findings-h" data-state="new" data-view="work" data-title="new since {{.Base}}">{{plural .OnNew "action"}} on new findings</a>{{end}}{{if and .OnNew .OnUnaccepted}}<span class="faint"> · </span>{{end}}{{if .OnUnaccepted}} <a class="chg-go" href="#findings-h" data-state="unaccepted" data-view="work" data-title="unaccepted since {{.Base}}">{{plural .OnUnaccepted "action"}} on unaccepted ones</a>{{end}}</p>{{end}}
+{{if .Controls}}<h3 class="sub-h">Where</h3>
+<table class="provenance change">
+<thead><tr><th scope="col">Control</th><th scope="col">Gate</th>{{range .Cols}}<th scope="col">{{index $.StateMarks .}} {{.}}</th>{{end}}</tr></thead>
+{{range .Controls}}{{$name := .Name}}<tr><td>{{.Name}}</td><td>{{if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">pass</span>{{end}}</td>{{range $i, $cell := .Cells}}<td>{{if $cell}}<a class="chg-go cell" href="#findings-h" data-state="{{index $.Change.Cols $i}}" data-c="{{$name}}" data-title="{{index $.Change.Cols $i}} in {{$name}}">{{template "statechips" $cell}}</a>{{end}}</td>{{end}}</tr>{{end}}
+</table>{{end}}
+{{if .Components}}<table class="provenance change">
+<thead><tr><th scope="col">Component</th><th scope="col">Gate</th>{{range .Cols}}<th scope="col">{{index $.StateMarks .}} {{.}}</th>{{end}}</tr></thead>
+{{range .Components}}{{$name := .Name}}<tr><td>{{.Name}}</td><td>{{if .Fail}}<span class="err">FAIL</span>{{else}}<span class="ok">pass</span>{{end}}</td>{{range $i, $cell := .Cells}}<td>{{if $cell}}<a class="chg-go cell" href="#findings-h" data-state="{{index $.Change.Cols $i}}" data-m="{{$name}}" data-title="{{index $.Change.Cols $i}} in {{$name}}">{{template "statechips" $cell}}</a>{{end}}</td>{{end}}</tr>{{end}}
+</table>{{end}}
+</details>
+{{end}}
 {{if .Signals}}
 <details class="fold" open><summary id="signals"><span class="sec">Signals</span></summary>
 <p class="note">What argued with this run's ranking, and how many findings each one moved.</p>
@@ -2088,6 +2266,7 @@ the component is, so the same issue ranks differently on a public API than on an
 {{end}}
 {{if .Controls}}
 <details class="fold" open><summary id="controls"><span class="sec">Controls</span></summary>
+{{if .Change}}<p class="note">Verdicts and counts of the whole run. What the change added is under <a href="#change">Change</a>.</p>{{end}}
 <ul class="controls">
 {{range .Controls}}<li class="ctl{{if .Errored}} bad{{end}}">
   <span class="ctl-name">{{.Control}}</span>
@@ -2122,8 +2301,10 @@ the component is, so the same issue ranks differently on a public API than on an
 {{end}}
 {{if .Components}}
 <details class="fold" open><summary id="components"><span class="sec">Components</span></summary>
-<p class="note">The verdict for each part of the application on its own findings, under the same gate
-as the run.</p>
+{{if .Change}}<p class="note">The verdict for each part of the application on all of its findings, under the
+gate on the whole run. What the change added is under <a href="#change">Change</a>.</p>
+{{else}}<p class="note">The verdict for each part of the application on its own findings, under the same gate
+as the run.</p>{{end}}
 <div class="scroll">
 <table class="components">
 <thead><tr>
@@ -2212,6 +2393,7 @@ prints each scanner's full output.</p>
     {{template "menu" dict "K" "fix" "Label" "Fix" "Options" .Fixes}}
     <button type="button" class="narrow" id="narrow" aria-expanded="false">Narrow ▾</button>
     {{template "menu" dict "K" "s" "Label" "Severity" "Options" .Severities "Folded" true "Token" "severity"}}
+    {{if .Changes}}{{template "menu" dict "K" "change" "Label" "Change" "Options" .Changes}}{{end}}
     {{template "menu" dict "K" "movement" "Label" "Movement" "Options" .Movements "Folded" true "Multi" true}}
     {{template "menu" dict "K" "m" "Label" "Component" "Options" .ComponentNames "Folded" true "Token" "component"}}
     {{template "menu" dict "K" "c" "Label" "Control" "Options" .ControlNames "Folded" true "Token" "control"}}
@@ -2251,7 +2433,7 @@ prints each scanner's full output.</p>
   {{range .Actions}}<div class="act" data-a="{{.Key}}" data-title="{{.Title}}"{{if .NotApplied}} data-na="{{.NotApplied}}" data-eco="{{.Ecosystem}}"{{end}}>
     <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span></span>
     <div class="what">
-      <div class="rule"><span class="name">{{.Title}}</span>{{if .Policy}} <span class="faint">{{.Policy}}</span>{{end}}</div>
+      <div class="rule"><span class="name">{{.Title}}</span>{{if .Policy}} <span class="faint">{{.Policy}}</span>{{end}}{{if .New}} <span class="moved up"><span class="g">+</span>{{.New}} new</span>{{end}}{{if .Unaccepted}} <span class="moved up"><span class="g">!</span>{{.Unaccepted}} unaccepted</span>{{end}}</div>
       {{if .Summary}}<div class="sub">{{.Summary}}</div>{{end}}
       {{if .Rules}}<div class="sub">{{range $i, $g := .Rules}}{{if $i}}<span class="faint"> · </span>{{end}}{{if $g.Tool}}<span class="lbl">{{$g.Tool}}:</span> {{end}}{{join $g.Rules}}{{end}}</div>{{end}}
       <div class="sub">{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}<span class="faint"> · </span><button type="button" class="act-clears" data-a="{{.Key}}" data-title="{{.Title}}">{{plural .Clears "finding"}}</button>{{if gt .Lines 1}}<span class="faint"> · </span>{{plural .Lines "line"}}{{end}}{{if .Upstream}}<span class="faint"> · </span>upstream{{end}}{{if .Cached}}<span class="faint"> · </span>from cache{{end}}{{if .Where}}<span class="faint"> · </span>{{.Where}}{{end}}</div>
@@ -2273,12 +2455,13 @@ prints each scanner's full output.</p>
 {{if .Findings}}
 {{template "listbar"}}
 <div class="rows" id="findings">
-{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}" data-sig="{{.Signals}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
-  <span class="chips"><span class="pri {{.Priority}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
+{{range .Findings}}<div class="f" data-p="{{.Priority}}" data-s="{{.Severity}}" data-movement="{{.Movement}}"{{with .Change}} data-change="{{.}}"{{end}} data-sig="{{.Signals}}" data-c="{{.Control}}" data-m="{{.Component}}" data-fix="{{.FixKind}}" data-sc="{{.Tool}}" data-a="{{.ActionKey}}" data-q="{{.Search}}">
+  <span class="chips"><span class="pri {{.Priority}}{{if eq .Change "fixed"}} gone{{end}}">{{.Priority}}</span><span class="sevchip {{.SevClass}}">{{.Severity}}</span></span>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
-    <div class="sub">{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+    <div class="sub">{{if and .Change (ne .Change "unchanged")}}<span class="moved{{if or (eq .Change "new") (eq .Change "unaccepted")}} up{{end}}"><span class="g">{{index $.StateMarks .Change}}</span>{{.Change}}</span>{{end}}{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+    {{with .Accepted}}<div class="sub"><span class="lbl">accepted</span> {{.}}</div>{{end}}
   </div>
 </div>{{end}}
 {{template "paging"}}
@@ -2301,6 +2484,7 @@ prints each scanner's full output.</p>
 {{/* A rule's advisory opens in a new tab. The report holds what the reader has filtered, folded and
    scrolled to, and a link that replaced it would throw that away. noreferrer keeps the report's
    address, often a CI artifact or a file path, from reaching the advisory's host. */}}
+{{define "statechips"}}{{with .}}<span class="sevs">{{range .}}<span class="sev {{.Class}}">{{.Text}}</span>{{end}}</span>{{end}}{{end}}
 {{define "class"}}{{if .Assumed}}<span class="asm">{{.Value}}</span><span class="tag">assumed</span>{{else}}{{.Value}}{{end}}{{end}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
 {{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{if .Detail}}<div class="sub">{{.Detail}}</div>{{end}}{{if .Instruction}}<div class="sub">{{.Instruction}}</div>{{end}}{{end}}
@@ -2780,10 +2964,12 @@ prints each scanner's full output.</p>
     q.addEventListener("input", function () { s.q = q.value.trim().toLowerCase(); s.reset(); });
 
     // The count over each list, the page size beside it, and paging in the panel's foot.
-    s.panel = function (section, items, noun) {
+    // whole, where given, says which rows count toward the list's total: a row listed only when
+    // somebody asks for it is not one of them until then.
+    s.panel = function (section, items, noun, whole) {
       if (!section) return null;
       var p = {
-        items: items, noun: noun, bar: section.querySelector(".listbar"),
+        items: items, noun: noun, whole: whole, bar: section.querySelector(".listbar"),
         rows: section.querySelector(".rows"), next: section.querySelector(".next"),
         rest: section.querySelector(".rest"), empty: section.querySelector(".nomatch"),
       };
@@ -2807,9 +2993,10 @@ prints each scanner's full output.</p>
         if (visible) shown++;
         x.el.classList.toggle("cut", !visible);
       });
-      p.bar.querySelector(".lcount").textContent = matched === p.items.length
+      var total = p.whole ? p.items.filter(p.whole).length : p.items.length;
+      p.bar.querySelector(".lcount").textContent = matched === total
         ? counted(matched, p.noun)
-        : matched.toLocaleString() + " of " + p.items.length.toLocaleString();
+        : matched.toLocaleString() + " of " + total.toLocaleString();
       p.sizes.forEach(function (b) { b.classList.toggle("on", Number(b.dataset.n) === pageSize); });
       var left = matched - shown;
       p.next.hidden = p.rest.hidden = left <= 0;
@@ -2941,6 +3128,21 @@ prints each scanner's full output.</p>
   // its key in data-sig.
   var sig = { key: "", title: "" };
   function inSignal(r) { return !sig.key || (" " + (r.d.sig || "") + " ").indexOf(" " + sig.key + " ") >= 0; }
+  // The same for a link from the Change section: the findings in one state against the base, of one
+  // action or of all of them.
+  var chg = { state: "", a: "", c: "", m: "", title: "" };
+  function inChange(r) {
+    return !chg.state || (r.d.change === chg.state && (!chg.a || r.d.a === chg.a) &&
+      (!chg.c || r.d.c === chg.c) && (!chg.m || r.d.m === chg.m));
+  }
+  // A finding the change fixed or accepted is not one the run counts, so it is listed only when
+  // somebody asks for its state, from the Change section or the Change menu.
+  function asked(state) {
+    if (chg.state === state) return true;
+    var d = findings && findings.dims.filter(function (x) { return x.k === "change"; })[0];
+    return !!d && findings.ticked(d).indexOf(state) >= 0;
+  }
+  function counts(r) { return (r.d.change !== "fixed" && r.d.change !== "accepted") || asked(r.d.change); }
 
   // Two views of one set. What to do leads and the list sits behind the toggle; the headings that
   // separate them without scripts go, because the toggle names them.
@@ -2989,6 +3191,24 @@ prints each scanner's full output.</p>
   // A count in the Signals section is the way into the findings it counts. Following it opens the
   // list narrowed to them, and the token it leaves is how a reader gets back. The link's address
   // opens the Findings section, so it still goes somewhere without this.
+  Array.prototype.forEach.call(document.querySelectorAll("button.defmark[data-open]"), function (b) {
+    var dlg = document.getElementById(b.dataset.open);
+    if (!dlg || !dlg.showModal) return;
+    b.addEventListener("click", function () { dlg.showModal(); });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("a.chg-go"), function (el) {
+    el.addEventListener("click", function () {
+      chg.state = el.dataset.state || "";
+      chg.a = el.dataset.a || "";
+      chg.c = el.dataset.c || "";
+      chg.m = el.dataset.m || "";
+      chg.title = el.dataset.title || "";
+      showView(el.dataset.view || "all");
+      findings.reset();
+    });
+  });
+
   Array.prototype.forEach.call(document.querySelectorAll("a.sig-go"), function (el) {
     el.addEventListener("click", function () {
       sig.key = el.dataset.sig;
@@ -3025,20 +3245,21 @@ prints each scanner's full output.</p>
 
   var findings = strip(tools, {
     sets: [rows],
-    counted: function () { return rows; },
-    keep: function (r) { return (!act.key || r.d.a === act.key) && inSignal(r); },
-    narrowed: function () { return act.key || sig.key; },
+    counted: function () { return rows.filter(counts); },
+    keep: function (r) { return (!act.key || r.d.a === act.key) && inSignal(r) && inChange(r) && counts(r); },
+    narrowed: function () { return act.key || sig.key || chg.state; },
     tokens: function (token) {
+      if (chg.state) token(chg.a ? chg.state + " · " + chg.title.toLowerCase() : chg.title, "Show every finding again", function () { chg.state = chg.a = chg.c = chg.m = chg.title = ""; });
       if (sig.key) token(sig.title, "Show every finding again", function () { sig.key = sig.title = ""; });
       if (act.key) token(act.title.toLowerCase(), "Show every finding again", function () { act.key = act.title = ""; });
     },
-    clear: function () { act.key = act.title = sig.key = sig.title = ""; },
+    clear: function () { act.key = act.title = sig.key = sig.title = chg.state = chg.a = chg.c = chg.m = chg.title = ""; },
     // Under a narrowing each action says how many of its findings are left, and one with none
     // left goes. A search that names the action keeps all of its findings.
     paint: function () {
       acts.forEach(function (a) {
         var titled = findings.q && a.title.indexOf(findings.q) >= 0, n = 0;
-        (byAct[a.key] || []).forEach(function (r) { if (findings.passes(r) && inSignal(r) && (titled || findings.searched(r))) n++; });
+        (byAct[a.key] || []).forEach(function (r) { if (findings.passes(r) && inSignal(r) && inChange(r) && (titled || findings.searched(r))) n++; });
         a.ok = n > 0;
         a.count.textContent = (n === a.total ? "" : n + " of ") + counted(a.total, "finding");
       });
@@ -3053,7 +3274,7 @@ prints each scanner's full output.</p>
       focus.forEach(function (el) { el.hidden = el.dataset.m !== only; });
     },
   });
-  findings.panels = [findings.panel(work, acts, "action"), findings.panel(all, rows, "finding")].filter(Boolean);
+  findings.panels = [findings.panel(work, acts, "action"), findings.panel(all, rows, "finding", counts)].filter(Boolean);
   findings.reset();
 })();
 </script>
@@ -3090,4 +3311,22 @@ func htmlFeeds(feeds []FeedProvenance) []htmlFeed {
 		out = append(out, htmlFeed{Name: f.Name, Obtained: obtained, Digest: digest})
 	}
 	return out
+}
+
+// newBandChips are the counts of new findings by band, zeros drawn dimmed as the header's are.
+func newBandChips(counts [4]int) []htmlChip {
+	classes := [4]string{"s-p1", "s-p2", "s-p3", "s-p4"}
+	out := make([]htmlChip, 4)
+	for i := range out {
+		out[i] = htmlChip{Class: classes[i], Text: strconv.Itoa(counts[i]) + " P" + strconv.Itoa(i+1), Zero: counts[i] == 0}
+	}
+	return out
+}
+
+// boolRank is 1 for true, for ordering by a condition.
+func boolRank(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
