@@ -266,10 +266,24 @@ func trivyInput(dir, class, target string, packages int) (sarif.Input, bool) {
 
 // parseTrivyVulns turns Trivy's JSON into the report Draugr publishes.
 func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
+	doc, err := decodeTrivyVulns(out)
+	if err != nil {
+		return sarif.Report{}, err
+	}
+	return trivyVulnReport(doc, dir, cfg), nil
+}
+
+// decodeTrivyVulns reads Trivy's JSON.
+func decodeTrivyVulns(out []byte) (trivyVulnDoc, error) {
 	var doc trivyVulnDoc
 	if err := json.Unmarshal(out, &doc); err != nil {
-		return sarif.Report{}, fmt.Errorf("parse trivy JSON: %w", err)
+		return trivyVulnDoc{}, fmt.Errorf("parse trivy JSON: %w", err)
 	}
+	return doc, nil
+}
+
+// trivyVulnReport is the report Draugr publishes from Trivy's decoded JSON.
+func trivyVulnReport(doc trivyVulnDoc, dir string, cfg plugin.Config) sarif.Report {
 	rep := sarif.Report{Tool: "trivy", Rules: map[string]sarif.Rule{}}
 	layers := doc.layers()
 	// The line of the package's own entry, from Trivy's parser where it records one. Otherwise the
@@ -316,7 +330,7 @@ func parseTrivyVulns(out []byte, dir string, cfg plugin.Config) (sarif.Report, e
 			}
 		}
 	}
-	return rep, nil
+	return rep
 }
 
 // trivySuppressedResultOf builds a finding Trivy set aside, carrying who set it aside.
@@ -516,12 +530,16 @@ func trivyVulnScore(v trivyVuln) (float64, bool) {
 // The target is unused: everything this reads is in Trivy's output, and the one fact that comes
 // from the target. The image reference. Is applied by imageRefLocations alongside the location, so
 // the two can never disagree.
+//
+// The JSON is decoded once and both read from it. An image's report grows with its packages, and
+// each decode holds all of it.
 func parseTrivyImage(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
-	rep, err := parseTrivyVulns(out, "", cfg)
+	doc, err := decodeTrivyVulns(out)
 	if err != nil {
-		return rep, err
+		return sarif.Report{}, err
 	}
-	if in, ok := unsupportedOS(out, target, cfg); ok {
+	rep := trivyVulnReport(doc, "", cfg)
+	if in, ok := unsupportedOS(doc, target, cfg); ok {
 		rep.Inputs = append(rep.Inputs, in)
 	}
 	return rep, nil
@@ -535,9 +553,8 @@ func parseTrivyImage(out []byte, target plugin.Target, cfg plugin.Config) (sarif
 //
 // Only where the scan asked for the operating system's packages: a scan narrowed to libraries has
 // no result set for them either, and that is the scan doing as it was told.
-func unsupportedOS(out []byte, target plugin.Target, cfg plugin.Config) (sarif.Input, bool) {
-	var doc trivyVulnDoc
-	if json.Unmarshal(out, &doc) != nil || doc.Metadata.OS.Family == "" || !scansOSPackages(cfg) {
+func unsupportedOS(doc trivyVulnDoc, target plugin.Target, cfg plugin.Config) (sarif.Input, bool) {
+	if doc.Metadata.OS.Family == "" || !scansOSPackages(cfg) {
 		return sarif.Input{}, false
 	}
 	for _, res := range doc.Results {

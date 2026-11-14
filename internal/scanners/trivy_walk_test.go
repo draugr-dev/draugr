@@ -246,7 +246,8 @@ func TestTrivyDebugFailureKeepsItsCause(t *testing.T) {
 	prior := execWithStderr
 	t.Cleanup(func() { execWithStderr = prior })
 	execWithStderr = func(ctx context.Context, dir string, _ []string, env []string) ([]byte, []byte, error) {
-		return toolexec.RunWithStderr(ctx, dir, []string{"sh", "-c", `cat "$0" >&2; exit 1`, fixture}, env)
+		return toolexec.RunWithLog(ctx, dir, []string{"sh", "-c", `cat "$0" >&2; exit 1`, fixture}, env,
+			toolexec.Log{Keep: trivyLogKept})
 	}
 	const want = "exit status 1: run error: init error: DB error: database error: " +
 		"--skip-db-update cannot be specified on the first run"

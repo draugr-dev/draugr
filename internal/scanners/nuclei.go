@@ -249,9 +249,12 @@ func writeHeaderFile(header string) (string, func(), error) {
 
 // nucleiArgv builds the command line for a host URL:
 //
-//		nuclei -u <url> -jsonl -nc -duc -etags headers,intrusive [options]
+//		nuclei -u <url> -jsonl -or -ot -nc -duc -etags headers,intrusive [options]
 //
 //	  - -jsonl writes one finding per line to stdout (parsed by nucleiToResults);
+//	  - -or and -ot leave out of each line the request and response that matched, response body
+//	    included, and the encoded template. nucleiFinding reads neither, and with them the output
+//	    grows by a whole exchange and a template for every finding;
 //	  - -nc drops ANSI colors. The banner and the log go to stderr, so stdout is clean JSONL. -silent
 //	    is not passed: it hides the log line that says Nuclei stopped scanning the endpoint partway,
 //	    which execNuclei reads (nucleiSkips);
@@ -279,7 +282,7 @@ func nucleiSpecArgv(specPath, headerFile string, options []string) []string {
 
 func nucleiTargetArgv(target []string, headerFile string, options []string) []string {
 	argv := append([]string{"nuclei"}, target...)
-	argv = append(argv, "-jsonl", "-nc", "-duc")
+	argv = append(argv, "-jsonl", "-or", "-ot", "-nc", "-duc")
 	argv = append(argv, options...)
 	// A path, never the header itself. -H accepts either, and only one of them keeps the
 	// credential out of the process list.

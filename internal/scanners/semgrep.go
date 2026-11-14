@@ -167,11 +167,38 @@ func semgrepRegistryHost() string {
 // from, and the JSON report it writes beside it, which keeps each rule's metadata and lists the
 // files Semgrep did not finish.
 //
-// Bytes rather than raw JSON, so output that is not JSON reaches the SARIF parser as Semgrep wrote
-// it and fails there with the error every SARIF scanner gives.
+// Each is kept as Semgrep wrote it, so output that is not JSON reaches the SARIF parser as it was
+// and fails there with the error every SARIF scanner gives.
 type semgrepReports struct {
-	SARIF []byte `json:"sarif"`
-	JSON  []byte `json:"json"`
+	SARIF []byte
+	JSON  []byte
+}
+
+// semgrepReportsHead opens the output withSemgrepJSON returns. The SARIF's length in bytes and a
+// newline follow it, then the SARIF and the JSON as Semgrep wrote them.
+//
+// Joined end to end rather than encoded as a JSON document holding both: a byte string in JSON is
+// base64, which made a third copy of each report a third larger, and decoding it made a fourth. Both
+// reports grow with the findings.
+const semgrepReportsHead = "draugr-semgrep-reports "
+
+// bytes is the reports joined as semgrepReportsHead describes.
+func (r semgrepReports) bytes() []byte {
+	head := semgrepReportsHead + strconv.Itoa(len(r.SARIF)) + "\n"
+	out := make([]byte, 0, len(head)+len(r.SARIF)+len(r.JSON))
+	return append(append(append(out, head...), r.SARIF...), r.JSON...)
+}
+
+// readSemgrepReports splits output withSemgrepJSON returned into the two reports, each sharing
+// out's memory rather than copied from it.
+func readSemgrepReports(out []byte) (semgrepReports, error) {
+	rest, ok := bytes.CutPrefix(out, []byte(semgrepReportsHead))
+	size, rest, found := bytes.Cut(rest, []byte("\n"))
+	n, err := strconv.Atoi(string(size))
+	if !ok || !found || err != nil || n < 0 || n > len(rest) {
+		return semgrepReports{}, errors.New("not the reports withSemgrepJSON returns")
+	}
+	return semgrepReports{SARIF: rest[:n:n], JSON: rest[n:]}, nil
 }
 
 // semgrepJSONPath marks the argv slot for the file Semgrep writes its JSON report to, which
@@ -216,7 +243,7 @@ func withSemgrepJSON(run func(ctx context.Context, dir string, argv []string) ([
 		if len(bytes.TrimSpace(doc)) == 0 {
 			return nil, errors.New("semgrep wrote no JSON report beside its SARIF, so its rules' ratings cannot be read")
 		}
-		return json.Marshal(semgrepReports{SARIF: out, JSON: doc})
+		return semgrepReports{SARIF: out, JSON: doc}.bytes(), nil
 	}
 }
 
@@ -232,24 +259,23 @@ func withSemgrepJSON(run func(ctx context.Context, dir string, argv []string) ([
 // a configured directory, the part that comes from a subdirectory inside it is kept, which keeps
 // two rules declaring one id in different subdirectories apart.
 func parseSemgrep(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
-	var reports semgrepReports
-	if err := json.Unmarshal(out, &reports); err != nil {
+	reports, err := readSemgrepReports(out)
+	if err != nil {
 		return sarif.Report{}, fmt.Errorf("read Semgrep's reports: %w", err)
 	}
 	report, err := sarif.FromSARIF(reports.SARIF)
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	// Before the ids are shortened: the JSON names each rule by the id Semgrep reported.
-	if err := rateSemgrep(&report, reports.JSON); err != nil {
-		return sarif.Report{}, err
-	}
-	config := semgrepConfig(cfg)
-	prefixes := semgrepRulePrefixes(config)
-	report.Inputs, err = semgrepUnread(reports.JSON, dir, semgrepRuleLanguages(config), prefixes)
+	doc, err := decodeSemgrepJSON(reports.JSON)
 	if err != nil {
 		return sarif.Report{}, err
 	}
+	// Before the ids are shortened: the JSON names each rule by the id Semgrep reported.
+	rateSemgrep(&report, doc)
+	config := semgrepConfig(cfg)
+	prefixes := semgrepRulePrefixes(config)
+	report.Inputs = semgrepUnread(doc, dir, semgrepRuleLanguages(config), prefixes)
 	for _, prefix := range prefixes {
 		renameSemgrepRules(&report, prefix)
 	}

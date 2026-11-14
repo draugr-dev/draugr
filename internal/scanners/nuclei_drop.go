@@ -138,6 +138,19 @@ func nucleiDropError(endpoint string, s nucleiSkip) error {
 	return errors.New(msg)
 }
 
+// nucleiLogKept reports whether a line of Nuclei's log is one the run holds: a fatal, error or
+// warning line, which nucleiLogShown relays, or a Skipped line, which nucleiSkips reads. Nuclei logs
+// at info level as it works, and nothing reads the rest.
+func nucleiLogKept(line []byte) bool {
+	line = bytes.TrimSpace(line)
+	for _, tag := range []string{"[FTL]", "[ERR]", "[WRN]"} {
+		if bytes.HasPrefix(line, []byte(tag)) {
+			return true
+		}
+	}
+	return bytes.HasPrefix(line, []byte("[INF] Skipped "))
+}
+
 // nucleiLogShown is the part of Nuclei's log Draugr relays to its own log and quotes in an error:
 // the fatal, error and warning lines, fatal first, so the first line of a failed run's error is the
 // reason it failed. The banner and the info lines are left out, as `-silent` left them out before
@@ -159,7 +172,7 @@ func nucleiLogShown(log []byte) []byte {
 // execNuclei runs Nuclei and returns its output. A run that finished after dropping a host returns
 // its output with a *nucleiSkipped.
 func execNuclei(ctx context.Context, argv []string) ([]byte, error) {
-	out, log, err := toolexec.RunWithStderrShown(ctx, "", argv, nil, nucleiLogShown)
+	out, log, err := toolexec.RunWithLog(ctx, "", argv, nil, toolexec.Log{Keep: nucleiLogKept, Shown: nucleiLogShown})
 	if err != nil {
 		return out, err
 	}

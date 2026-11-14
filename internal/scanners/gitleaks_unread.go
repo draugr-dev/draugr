@@ -50,7 +50,19 @@ var ansiEscape = regexp.MustCompile("\x1b\\[[0-9;]*m")
 // gitleaksExec runs a Gitleaks pass and returns its log beside its output. A var so a test can
 // substitute it without a Gitleaks on PATH.
 var gitleaksExec = func(ctx context.Context, dir string, argv []string) ([]byte, []byte, error) {
-	return toolexec.RunWithStderrShown(ctx, dir, argv, nil, gitleaksLogShown)
+	return toolexec.RunWithLog(ctx, dir, argv, nil, toolexec.Log{Keep: gitleaksLogKept, Shown: gitleaksLogShown})
+}
+
+// gitleaksLogKept reports whether a line of a Gitleaks log is one the run holds: a line above debug
+// level, or one naming a file skipped as an archive, which gitleaksUnread reads. At trace level
+// Gitleaks logs lines for every file it reads and every candidate secret it sets aside, a log that
+// grows with the tree, and nothing reads those.
+func gitleaksLogKept(line []byte) bool {
+	if bytes.Contains(line, []byte(gitleaksArchiveSkipped)) {
+		return true
+	}
+	level := gitleaksLevel(string(line))
+	return level != "TRC" && level != "DBG"
 }
 
 // gitleaksLogShown keeps of a Gitleaks log the lines above debug level, which is what it logs by

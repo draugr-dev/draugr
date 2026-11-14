@@ -30,7 +30,7 @@ same output as a scan that matched nothing.
 The command line is:
 
 ```
-nuclei -u <url> -jsonl -nc -duc -etags headers,intrusive -ept javascript,tcp -eid <ids> -r <file>
+nuclei -u <url> -jsonl -or -ot -nc -duc -etags headers,intrusive -ept javascript,tcp -eid <ids> -r <file>
 ```
 
 followed by the flags any [options](#options) set. `-ept`, `-eid` and `-r` keep the scan on the URL, as
@@ -40,6 +40,9 @@ a template is listed.
 - `-jsonl` writes one finding per line to stdout, which Draugr parses itself (rather than
   Nuclei's SARIF export, whose severity mapping, location, and missing CWE don't fit Draugr's
   model).
+- `-or` and `-ot` leave out of each line the request and response that matched, response body
+  included, and the encoded template. Draugr reads neither, and with them the output grows by a
+  whole exchange and a template for every finding.
 - `-nc` drops ANSI colors. Nuclei writes its banner and its log to stderr, so stdout is clean
   JSONL, and Draugr reads the log for [partial scans](#partial-scans).
 - `-duc` disables the update-check network call, keeping runs deterministic. **Only on the

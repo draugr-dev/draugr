@@ -2,7 +2,6 @@ package scanners
 
 import (
 	"encoding/json"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -92,22 +91,9 @@ func semgrepAudit(v any) bool {
 // JSON leaves out a result a nosemgrep comment suppressed while the SARIF keeps it marked: such a
 // result takes its rule's rating wherever another result of that rule was reported. A result
 // carrying a numeric score keeps it, Semgrep's SARIF writes none.
-func rateSemgrep(report *sarif.Report, doc []byte) error {
-	var out struct {
-		Results []struct {
-			CheckID string `json:"check_id"`
-			Extra   struct {
-				// Raw, so a rule whose metadata is not an object costs that rule its rating rather
-				// than the scan its findings.
-				Metadata json.RawMessage `json:"metadata"`
-			} `json:"extra"`
-		} `json:"results"`
-	}
-	if err := json.Unmarshal(doc, &out); err != nil {
-		return fmt.Errorf("read the JSON report Semgrep writes beside its SARIF: %w", err)
-	}
+func rateSemgrep(report *sarif.Report, doc semgrepJSON) {
 	ratings := map[string]*sarif.Rating{}
-	for _, r := range out.Results {
+	for _, r := range doc.Results {
 		if _, seen := ratings[r.CheckID]; seen {
 			continue
 		}
@@ -123,5 +109,4 @@ func rateSemgrep(report *sarif.Report, doc []byte) error {
 			res.Rating = &rating
 		}
 	}
-	return nil
 }
