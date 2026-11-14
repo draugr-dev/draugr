@@ -1999,6 +1999,14 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		}
 		report.Inputs = inputs
 	}
+	if len(report.Inventory) > 0 {
+		inventory := make([]sarif.InventoryPackage, len(report.Inventory))
+		copy(inventory, report.Inventory)
+		for i := range inventory {
+			inventory[i].Component = pj.Component
+		}
+		report.Inventory = inventory
+	}
 	// A coverage note is about the tree this job read, so it carries the component the tree belongs
 	// to. Merged per control without it, a note that one component's paths hold no Go code reads as
 	// true of every component the control scanned, beside the findings it made in the others.
@@ -3603,6 +3611,11 @@ func WithDependencyHealth(resolve DependencyHealthResolver, src *dephealth.Sourc
 // applyDependencyHealth asks about every package this run found, then reranks the findings the
 // answer moves. It reports whether the lookup happened, which is what the run's evidence records.
 //
+// Every package means every package a finding names and every package a dependency scan listed
+// without one. A package flagged as malicious rarely carries an advisory, so a lookup that read the
+// findings alone would ask about the packages already known to be vulnerable and never about the
+// one that is malware. A flagged package with no finding is reported as one (addMaliciousPackages).
+//
 // A resolver that fails is reported by whoever supplied it and does not stop the run. This signal
 // never gates, so a lookup that did not happen costs a reader a line of evidence rather than a
 // verdict, which is the same trade the Nuclei template cache makes.
@@ -3612,13 +3625,21 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 	}
 	seen := map[string]bool{}
 	var purls []string
+	ask := func(purl string) {
+		if purl == "" || seen[purl] {
+			return
+		}
+		seen[purl] = true
+		purls = append(purls, purl)
+	}
 	for _, cr := range controls {
 		for _, res := range cr.Report.Results {
-			if res.Package == nil || res.Package.PURL == "" || seen[res.Package.PURL] {
-				continue
+			if res.Package != nil {
+				ask(res.Package.PURL)
 			}
-			seen[res.Package.PURL] = true
-			purls = append(purls, res.Package.PURL)
+		}
+		for _, p := range cr.Report.Inventory {
+			ask(p.PURL)
 		}
 	}
 	if len(purls) == 0 {
@@ -3631,6 +3652,7 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 	if e.health.Empty() {
 		return true
 	}
+	e.addMaliciousPackages(controls)
 	for name, cr := range controls {
 		for i := range cr.Report.Results {
 			if cr.Report.Results[i].Package == nil || cr.Report.Results[i].Package.PURL == "" {

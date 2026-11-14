@@ -415,11 +415,13 @@ config:
     enabled: true
 ```
 
-Off by default. The lookup sends the list of packages the run found to [deps.dev](https://deps.dev)
-during the scan, and nothing else: no source, no findings, no descriptor. It covers the ecosystems
-deps.dev indexes (Cargo, Go, Maven, npm, NuGet, PyPI, RubyGems), so it reaches the ledger CVE's Go
-module, but not operating-system packages in an image. Health scores never move a band, and
-dependency health never fails a gate on its own. The full block is
+Off by default. The lookup sends the name and version of every package the run found to
+[deps.dev](https://deps.dev) during the scan, those `trivy-fs` listed without a finding included,
+and nothing else: no source, no findings, no descriptor. It covers the ecosystems deps.dev indexes
+(Cargo, Go, Maven, npm, NuGet, PyPI, RubyGems), so it reaches the ledger CVE's Go module, but not
+operating-system packages in an image. Health scores never move a band. A package on the OSSF Malicious
+Packages list that no scanner reported becomes a finding of its own, rule `malicious-package`,
+ranked critical. The full block is
 [Dependency health](../reference/saga-schema.md#dependency-health-configdependencyhealth).
 
 <a id="reachability-what-lowers-a-band"></a>

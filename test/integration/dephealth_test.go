@@ -159,3 +159,22 @@ func TestALiveLookupRanksAFinding(t *testing.T) {
 		t.Errorf("the evidence does not say what was consulted: %+v", c)
 	}
 }
+
+// A package on the OSSF list that no advisory names is still flagged when asked about, whatever
+// version a lockfile pins: the flag is on the package, so a version the registry no longer serves
+// is answered all the same. This is the answer a scan reports a malicious package on when no
+// scanner found anything in it.
+func TestALiveLookupFlagsAMaliciousPackageWithNoAdvisory(t *testing.T) {
+	const purl = "pkg:npm/discord.dll@1.0.0"
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	got, err := depsdev.New().Lookup(ctx, []string{purl})
+	skipIfOffline(t, err)
+
+	src := dephealth.New(got, time.Now().UTC().Format(time.DateOnly))
+	to, why := src.Explain(sarif.SeverityHigh, purl)
+	if why == nil || why.Signal != dephealth.SignalMalicious || to != sarif.SeverityCritical {
+		t.Fatalf("%s is no longer flagged as malicious (%s, %+v); pick another listed package with no advisory", purl, to, why)
+	}
+}

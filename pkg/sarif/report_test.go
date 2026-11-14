@@ -2,6 +2,7 @@ package sarif
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -504,6 +505,22 @@ func TestMergeDeduplicatesInputs(t *testing.T) {
 	got := Merge(a, a).Inputs
 	if len(got) != 2 {
 		t.Errorf("inputs = %+v, want the two components' statements once each", got)
+	}
+}
+
+// A package listed once is one entry however many times its report is merged, and the same package
+// in two files, or for two components, is two.
+func TestMergeDeduplicatesInventory(t *testing.T) {
+	a := Report{Inventory: []InventoryPackage{
+		{PURL: "pkg:npm/evil@6.6.6", Scanner: "trivy-fs", Repository: "r", Component: "api", Path: "package-lock.json", Line: 9},
+		{PURL: "pkg:npm/evil@6.6.6", Scanner: "trivy-fs", Repository: "r", Component: "api", Path: "tools/package-lock.json", Line: 4},
+		{PURL: "pkg:npm/evil@6.6.6", Scanner: "trivy-fs", Repository: "r", Component: "web", Path: "package-lock.json", Line: 9},
+	}}
+	if got := Merge(a, a).Inventory; !slices.Equal(got, a.Inventory) {
+		t.Errorf("inventory = %+v, want each package once, in order", got)
+	}
+	if got := Merge(Report{}, Report{}).Inventory; got != nil {
+		t.Errorf("an empty merge listed %+v", got)
 	}
 }
 

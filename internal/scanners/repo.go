@@ -428,6 +428,11 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		report.Inputs[i].Scanner = s.info.Name
 		report.Inputs[i].Repository = repo.Source()
 	}
+	for i := range report.Inventory {
+		report.Inventory[i].Scanner = s.info.Name
+		report.Inventory[i].Repository = repo.Source()
+		report.Inventory[i].Path = repoRelPath(dir, report.Inventory[i].Path)
+	}
 	for i := range report.Results {
 		if report.Results[i].Tool == "" {
 			report.Results[i].Tool = s.info.Name
