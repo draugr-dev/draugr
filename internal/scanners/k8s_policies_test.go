@@ -963,3 +963,36 @@ func TestNoSecurityContextReadsPodsAsTheAPIReturnsThem(t *testing.T) {
 		}
 	}
 }
+
+// 5.2.7 reads a container that sets no securityContext, which is the most common case and runs as
+// root unless its pod says otherwise. Pods decoded as the API server returns them.
+func TestRunAsRootReadsAContainerWithNoSecurityContext(t *testing.T) {
+	t.Parallel()
+
+	decode := func(spec string) corev1.Pod {
+		t.Helper()
+		var p corev1.Pod
+		if err := json.Unmarshal([]byte(spec), &p); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	pods := []corev1.Pod{
+		decode(`{"metadata":{"namespace":"shop","name":"no-context"},
+			"spec":{"securityContext":{},"containers":[{"name":"app"}]}}`),
+		decode(`{"metadata":{"namespace":"pay","name":"pod-says-non-root"},
+			"spec":{"securityContext":{"runAsNonRoot":true},"containers":[{"name":"app"}]}}`),
+		decode(`{"metadata":{"namespace":"pay","name":"pod-runs-as-1000"},
+			"spec":{"securityContext":{"runAsUser":1000},"containers":[{"name":"app"}]}}`),
+	}
+
+	v := evaluatePodSecurity(pods, nil)["5.2.7"]
+	if v.Compliant || !strings.Contains(v.Detail, "shop/no-context/app") {
+		t.Errorf("5.2.7 should name shop/no-context/app, which sets nothing and runs as root: %q", v.Detail)
+	}
+	for _, name := range []string{"pod-says-non-root", "pod-runs-as-1000"} {
+		if strings.Contains(v.Detail, name) {
+			t.Errorf("5.2.7 named %s, whose pod rules out root: %q", name, v.Detail)
+		}
+	}
+}
