@@ -10,7 +10,7 @@ licenses    trivy-license, mend-licenses*                            Report lice
 provenance  cosign, notation                                         Check that a container image is signed by the identity this descriptor expects.
 sast        semgrep, gosec*                                          Find patterns in a repo's own code that let somebody in (static analysis).
 sca         trivy-fs, govulncheck†, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
-secrets     gitleaks                                                 Find passwords and keys committed by accident, history included.
+secrets     gitleaks                                                 Find passwords and keys committed by accident.
 threats     urlhaus, virustotal*                                     Check whether a component's hosts appear on public lists of known-hostile addresses.
 tls         draugr-tls                                               Check the certificates and encryption a component's running endpoints offer visitors.
 

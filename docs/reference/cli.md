@@ -315,7 +315,7 @@ components that have it off where others have it on. These rows are not capped:
 
 ```
   config.controls.sast.enabled: true     find patterns in a repo's own code that let somebody in (static analysis)
-  config.controls.secrets.enabled: true  find passwords and keys committed by accident, history included
+  config.controls.secrets.enabled: true  find passwords and keys committed by accident
 ```
 
 `--no-tips`, `DRAUGR_NO_TIPS=1` or `output.tips: false` in [`draugr.config.yaml`](#draugr-config)

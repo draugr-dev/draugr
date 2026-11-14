@@ -475,7 +475,7 @@
         },
         {
           "const": "secrets",
-          "description": "Find passwords and keys committed by accident, history included."
+          "description": "Find passwords and keys committed by accident."
         },
         {
           "const": "threats",
@@ -1350,7 +1350,7 @@
     },
     "control_secrets": {
       "additionalProperties": false,
-      "description": "Find passwords and keys committed by accident, history included.",
+      "description": "Find passwords and keys committed by accident.",
       "properties": {
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",

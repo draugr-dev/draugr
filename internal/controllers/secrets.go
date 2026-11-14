@@ -22,7 +22,7 @@ func (Secrets) Info() plugin.ControllerInfo {
 	return plugin.ControllerInfo{
 		Name:            "secrets",
 		Scope:           plugin.ScopeComponent,
-		Summary:         "Find passwords and keys committed by accident, history included.",
+		Summary:         "Find passwords and keys committed by accident.",
 		DefaultScanners: []string{"gitleaks"},
 	}
 }
