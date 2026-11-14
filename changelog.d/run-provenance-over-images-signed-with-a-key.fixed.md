@@ -1,0 +1,1 @@
+- **Run `provenance` over images signed with a key.** An image whose signature carries no Sigstore certificate, or does not verify, is now recorded as signed with its identity unread, and the control carries on with the other images instead of stopping the run with an error.

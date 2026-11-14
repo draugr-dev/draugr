@@ -249,7 +249,7 @@ func (s *cosignVerifier) check(ctx context.Context, ref string, expect expectati
 		// first one printed, and it leads the message: a Fulcio identity is around ninety-five
 		// characters and the console gives a finding ninety-six, so whatever comes first is what
 		// a reader gets. The whole of it travels in the report document.
-		observed, _, _ := s.identityOf(ctx, ref, expect)
+		observed, _, _, _ := s.identityOf(ctx, ref, expect)
 		return &sarif.Result{
 			Tool:     cosignScannerName,
 			RuleID:   "provenance-unexpected-identity",
@@ -302,18 +302,41 @@ func WhoSigned(ctx context.Context, ref, trustRoot string) (Signature, error) {
 }
 
 func (s *cosignVerifier) whoSigned(ctx context.Context, ref string, expect expectation) (Signature, error) {
-	sig, code, err := s.identityOf(ctx, ref, expect)
-	switch code {
-	case 0:
+	sig, code, stderr, err := s.identityOf(ctx, ref, expect)
+	switch {
+	case code == 0 && err != nil:
+		// cosign verified something and printed what this could not read. Not an absence of
+		// identity: an answer nobody read, which is an error rather than an empty signer.
+		return Signature{}, err
+	case code == 0:
 		if sig.Optional.Subject == "" && sig.Critical.Type != cosignSignatureType {
 			subject, issuer := s.attestedBy(ctx, ref, expect)
 			return Signature{Identity: subject, Issuer: issuer, Signed: true}, nil
 		}
 		return Signature{Identity: sig.Optional.Subject, Issuer: sig.Optional.Issuer, Signed: true}, nil
-	case cosignExitNoSignature, cosignExitNonExistent:
+	case code == cosignExitNoSignature, code == cosignExitNonExistent:
 		return Signature{}, nil
+	case code == cosignExitNoMatch, code == cosignExitNoCertificate, signedButUnverified(code, stderr):
+		// Signed, and no signature on it verifies as a Sigstore keyless one, so there is no
+		// certificate identity to read. A signature made with a key carries no certificate at all,
+		// and one that fails verification carries nothing that can be believed. Either way the
+		// registry holds a signature, which is a different fact about the image from holding none,
+		// and the read that asked has answered rather than failed.
+		return Signature{Signed: true}, nil
 	}
 	return Signature{}, fmt.Errorf("cosign: reading the signature on %s: %w", ref, err)
+}
+
+// signedButUnverified reports whether cosign refused a read because the signatures it found in the
+// Sigstore bundle format do not verify, as distinct from every other reason it exits 1.
+//
+// cosign verifies each bundle the registry holds and, when none verifies, joins their failures under
+// one sentence. That sentence is only reached once bundles were found and fetched: a registry or a
+// trust root that could not be reached fails before it, with a message of its own, and stays an
+// error. Exit 1 with anything else is not read as a signature, because reading an unreachable
+// registry as a signed image would describe an image nobody looked at.
+func signedButUnverified(code int, stderr []byte) bool {
+	return code == 1 && strings.Contains(string(stderr), cosignAttestationNoMatch)
 }
 
 // observe reads back whoever signed the image, for a descriptor that has not said who should
@@ -412,16 +435,19 @@ const impossibleIdentity = "draugr asked what this is signed by"
 // The pattern is why this is a separate method with a name that says what it does. cosign refuses
 // a keyless verification with no identity at all, so reading one back means asking for any, and a
 // call that accepts any signature must never be mistaken for a call that checked one.
-func (s *cosignVerifier) identityOf(ctx context.Context, ref string, expect expectation) (signature, int, error) {
-	out, _, code, err := s.run(ctx, cosignArgs(ref, expect, true))
+//
+// What cosign said on stderr comes back with the code, because a bundle signature that does not
+// verify is answered with a sentence and exit 1 rather than with a code of its own.
+func (s *cosignVerifier) identityOf(ctx context.Context, ref string, expect expectation) (signature, int, []byte, error) {
+	out, stderr, code, err := s.run(ctx, cosignArgs(ref, expect, true))
 	if code != 0 {
-		return signature{}, code, err
+		return signature{}, code, stderr, err
 	}
 	var sigs []signature
 	if err := json.Unmarshal(out, &sigs); err != nil || len(sigs) == 0 {
-		return signature{}, code, fmt.Errorf("cosign: reading the signature on %s: %w", ref, err)
+		return signature{}, code, stderr, fmt.Errorf("cosign: reading the signature on %s: %w", ref, err)
 	}
-	return sigs[0], 0, nil
+	return sigs[0], 0, stderr, nil
 }
 
 // attestationIdentityFailed reports whether cosign refused an attestation because the identity on
