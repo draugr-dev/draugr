@@ -199,10 +199,10 @@ rather than cluster-wide and filtered afterwards, the distinction matters, becau
 scoped to a few namespaces cannot perform the cluster-wide list at all, so filtering after the fact
 would work only for people who did not need the feature.
 
-Cluster-scoped checks still run and are still reported: a namespace owner is affected by a
-cluster-admin binding even though they cannot remove it. Where the credential cannot read those
-objects, those checks are left for a person rather than failing the run. A scoped audit is
-usually run by a scoped credential, and the namespaced half is still worth having.
+The cluster-scoped checks, such as 5.1.1 on ClusterRoleBindings, do not run in a scoped scan. They
+belong to the component that declares the whole cluster, so a shared cluster's answer is filed once
+rather than once per team that owns a namespace of it. A scoped scan's required reads are all inside
+its namespaces, so a credential limited to them can run it; [Permissions](#permissions) lists them.
 
 The scope is part of the finding's location (`kubernetes/prod-cluster[team-a,team-a-jobs]`) and
 part of the cache key. The same rule id against the same cluster means something different
@@ -322,13 +322,112 @@ A decided check that passes produces no finding, for the same reason a clean dep
 
 ## Permissions
 
-Read (`get`, `list`) on `clusterrolebindings`, `rolebindings`, `clusterroles`, `roles`,
-`serviceaccounts`, `pods`, `namespaces`, `networkpolicies`, `validatingwebhookconfigurations` and
-`validatingadmissionpolicybindings`, and `create` on `subjectaccessreviews` for 5.1.2 and 5.1.4. A read
-the credential is refused leaves the checks that needed it for a person; the scan still completes.
-Nothing is created, and no privileged pod is scheduled, the distinction from
+The scanner reads the cluster, changes nothing in it and schedules no pod, the distinction from
 [`kube-bench-job`](kube-bench-job.md), which declares `mutate` and `privilege` effects and does not
 run until they are accepted.
+
+Kubernetes decides what a credential may read with RBAC: a Role or ClusterRole is a named set of
+permissions, and a binding grants one to a user, group or service account. The scanner's reads fall
+in two groups:
+
+- A **required** read is one the scan cannot do without. If the API server refuses it, the
+  `kubernetes` control reports an error naming the read, and no check is decided.
+- An **optional** read serves particular checks. If it is refused, those checks are left for a person
+  and the scan completes.
+
+The built-in `view` ClusterRole, the usual read-only grant, is not enough. It cannot read Roles,
+ClusterRoles or their bindings, so a scan of the whole cluster stops at its first read. Grant the
+role under [A role to grant](#a-role-to-grant) instead.
+
+### Scanning the whole cluster
+
+Required, `list` across all namespaces:
+
+| Resource | API group | Checks |
+|---|---|---|
+| `clusterrolebindings` | `rbac.authorization.k8s.io` | 5.1.1, 5.1.8 to 5.1.13 |
+| `clusterroles` | `rbac.authorization.k8s.io` | 5.1.3, 5.1.8 to 5.1.13 |
+| `roles` | `rbac.authorization.k8s.io` | 5.1.3, 5.1.8 to 5.1.13 |
+| `serviceaccounts` | core | 5.1.5, 5.1.6 |
+| `pods` | core | 5.1.6, 5.2.2 to 5.2.12, 5.4.1, 5.6.2 to 5.6.4 |
+
+Optional:
+
+| Permission | API group | If refused |
+|---|---|---|
+| `list` `rolebindings` | `rbac.authorization.k8s.io` | 5.1.8 to 5.1.13 are left for a person |
+| `list` `namespaces` | core | 5.2.1 and 5.3.2 are left for a person |
+| `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 is left for a person |
+| `list` `validatingwebhookconfigurations` | `admissionregistration.k8s.io` | 5.2.1 is left for a person, unless a namespace enforces a Pod Security level other than `privileged` or a ValidatingAdmissionPolicy is bound |
+| `list` `validatingadmissionpolicybindings` | `admissionregistration.k8s.io` | 5.2.1 is decided from the other two mechanisms alone |
+| `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 are left for a person (see ¹ above) |
+| `list` `nodes` | core | an AKS cluster is not recognized, so its Managed Services finding is missing |
+
+### Scanning namespaces
+
+A scan scoped to `namespaces` reads only inside them, except for the two cluster-wide permissions
+listed as optional below.
+
+Required, `list` in each namespace named: `roles`, `serviceaccounts` and `pods`.
+
+Optional:
+
+| Permission | API group | If refused |
+|---|---|---|
+| `list` `rolebindings` | `rbac.authorization.k8s.io` | 5.1.8 and 5.1.13 are left for a person |
+| `get` on each ClusterRole a binding in the namespaces names | `rbac.authorization.k8s.io` | 5.1.8 and 5.1.13 are left for a person |
+| `list` `networkpolicies` | `networking.k8s.io` | 5.3.2 is left for a person |
+| `create` `subjectaccessreviews` | `authorization.k8s.io` | 5.1.2 and 5.1.4 are left for a person |
+
+### A role to grant
+
+This ClusterRole holds every permission above, required and optional, and nothing else:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: draugr-k8s-policies
+rules:
+  # get is for a scan scoped to namespaces, which reads each ClusterRole a binding there names.
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings", "clusterroles", "rolebindings", "roles"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["namespaces", "nodes", "pods", "serviceaccounts"]
+    verbs: ["list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["list"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingadmissionpolicybindings", "validatingwebhookconfigurations"]
+    verbs: ["list"]
+  # Asks the API server whether every signed-in user holds a permission (5.1.2, 5.1.4). The server
+  # answers and stores nothing.
+  - apiGroups: ["authorization.k8s.io"]
+    resources: ["subjectaccessreviews"]
+    verbs: ["create"]
+```
+
+To scan the whole cluster, bind it across the cluster to the identity Draugr runs as, here a service
+account `draugr` in the namespace `security`:
+
+```bash
+kubectl create clusterrolebinding draugr-k8s-policies \
+  --clusterrole=draugr-k8s-policies --serviceaccount=security:draugr
+```
+
+To scan only some namespaces, bind it in each of them instead:
+
+```bash
+kubectl create rolebinding draugr-k8s-policies --namespace=team-a \
+  --clusterrole=draugr-k8s-policies --serviceaccount=security:draugr
+```
+
+A binding made in a namespace grants the role's permissions in that namespace only, which covers
+every required read. It cannot grant the two cluster-wide ones, `get` on ClusterRoles and `create`
+on SubjectAccessReviews, so with namespace bindings alone 5.1.2 and 5.1.4 are left for a person, and
+so are 5.1.8 and 5.1.13 where a binding in the namespaces names a ClusterRole.
 
 ## Links
 
