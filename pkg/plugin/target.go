@@ -220,6 +220,14 @@ type HostTarget struct {
 	Spec *HostSpec
 	// Environment is which environment this endpoint is in, or "" when the descriptor did not say.
 	Environment string
+	// CertificateReported says another job in the same run verifies this endpoint's certificate and
+	// reports a failure as a finding: a control whose ControllerInfo.VerifiesCertificates is set
+	// planned a job for the same URL in the same component. Set by the engine after planning.
+	//
+	// A scanner that only reads what the endpoint answers, and sends it nothing secret, may then read
+	// it over a certificate that fails verification, rather than ending in an error about a fact the
+	// run already reports with its fix.
+	CertificateReported bool
 }
 
 // HostSpec points a dynamic scan at an OpenAPI document, and says which methods it may exercise.
@@ -307,9 +315,16 @@ func (HostTarget) Kind() TargetKind { return TargetHost }
 //
 // The marker names the variable rather than reading it. A variable name is not a secret; its
 // value must never reach a cache key on disk.
+//
+// CertificateReported is marked too: a scan that may read past a failed certificate can answer
+// where one that may not ends in an error, so the two do not share a cached result.
 func (t HostTarget) Identity() string {
 	id := SourceURL(t.URL)
-	for _, marker := range []string{t.Auth.Marker(), t.Spec.Marker()} {
+	certificate := ""
+	if t.CertificateReported {
+		certificate = "certificate=reported"
+	}
+	for _, marker := range []string{t.Auth.Marker(), t.Spec.Marker(), certificate} {
 		if marker != "" {
 			id += " " + marker
 		}

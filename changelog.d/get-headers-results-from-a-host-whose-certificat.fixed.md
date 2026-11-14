@@ -1,0 +1,1 @@
+- **Get headers results from a host whose certificate fails verification.** When tls checks the same host in the same component, headers reads the response without verifying the certificate, which tls already reports, instead of ending in ERROR. Redirects to other hosts are still verified, and a run without tls keeps the error.

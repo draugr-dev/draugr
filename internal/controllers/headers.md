@@ -13,6 +13,11 @@ aggregates + deduplicates the findings into a per-control result with a severity
 scanner tunes its checklist by each host's `type` (`browser`, the default, vs. `api`), so
 browser-only headers aren't flagged on programmatic endpoints.
 
+A host whose certificate fails verification still gets its headers read when the same run's
+[`tls`](tls.md) control checks that host in the same component, since `tls` reports the
+certificate; otherwise the scan ends in `ERROR`. The
+[scanner doc](../scanners/draugr-headers.md#a-certificate-that-fails-verification) has the detail.
+
 ## Links
 
 - Glossary: [HTTP security headers](../../docs/reference/glossary.md#http-security-headers)

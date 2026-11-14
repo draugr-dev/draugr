@@ -22,6 +22,9 @@ func (TLS) Info() plugin.ControllerInfo {
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Check the certificates and encryption a component's running endpoints offer visitors.",
 		DefaultScanners: []string{draugrTLSScanner},
+		// draugr-tls verifies each host's chain and name against the system's roots and reports a
+		// failure as a finding, so another control reading the same host need not fail over it.
+		VerifiesCertificates: true,
 	}
 }
 

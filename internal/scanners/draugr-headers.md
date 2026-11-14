@@ -38,6 +38,25 @@ information-disclosure → `note`; wildcard CORS with credentials → `error`. S
 If the final response has a non-2xx status, the scanner still evaluates its headers. The
 `unread-checks` caveat names the endpoint and HTTP status so the findings can be read in context.
 
+### A certificate that fails verification
+
+The request verifies the server's certificate. When it fails only on that certificate (expired or
+not yet valid, from an authority the system does not trust, or issued for another name) and the
+same run's [`tls`](../controllers/tls.md) control has a job on the same URL in the same component,
+the scanner asks again without verifying it and evaluates the headers it gets back. `tls` reports
+the certificate as a finding, with its fix, so `headers` gives its own answer rather than ending
+in `ERROR` over the same fact.
+
+The decision is made from what the run plans, before any job starts. If the `tls` job for that URL
+then fails, on a timeout or a canceled run, `tls` shows `ERROR` and no finding describes the
+certificate, while the headers judged past it still stand. Read a `headers` result beside a `tls`
+error on the same host with that in mind.
+
+Only the declared host and port are read that way. A redirect to any other endpoint is verified as
+usual, since nothing in the run reports that one's certificate. Without `tls` in the run, a refused
+handshake, or an unsupported protocol, the fetch's error stands and the control ends in `ERROR`.
+The request carries no credential, so none reaches a server whose certificate failed: a host declared with a user and password in its URL keeps the error instead. It goes straight to the host, as the `tls` control does, and not through a proxy set in the environment, so the certificate it reads past is the one `tls` reports.
+
 ### Grading the Content-Security-Policy
 
 A CSP can be present and stop almost nothing, `default-src *; script-src 'unsafe-inline'

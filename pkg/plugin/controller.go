@@ -49,6 +49,10 @@ type ControllerInfo struct {
 	// Declared the same way a scanner declares its options, so `draugr validate`, the published
 	// JSON Schema and an editor's completion all read one source and cannot disagree.
 	OptionSchema json.RawMessage
+	// VerifiesCertificates says the control verifies the certificate of every endpoint it plans a
+	// job for and reports a failure as a finding. The engine then marks the other jobs on the same
+	// endpoint in the same component with HostTarget.CertificateReported.
+	VerifiesCertificates bool
 }
 
 // Validator is an optional interface a Controller may implement to check a descriptor for
