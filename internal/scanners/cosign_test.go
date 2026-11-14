@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"slices"
@@ -445,20 +446,163 @@ func TestCosignDiscoversAnAttestationIdentity(t *testing.T) {
 	const refusal = `Error: no matching attestations: failed to verify certificate identity: ` +
 		`expected SAN value "x", got "https://github.com/acme/payments/.github/workflows/release.yml@refs/heads/main"`
 
-	s, calls := stubCosign(t, ok(attestationPayload), said(refusal))
+	const issuerRefusal = `Error: no matching attestations: failed to verify certificate identity: ` +
+		`expected issuer value "y", got "https://token.actions.githubusercontent.com"`
+
+	s, calls := stubCosign(t, ok(attestationPayload), said(refusal), said(issuerRefusal))
 	rep := scan(t, s, plugin.Config{"unmatched": "observe"})
 	if len(rep.Results) != 0 {
 		t.Errorf("observing is not a finding, got %v", rep.Results)
 	}
-	if got := rep.Provenance[0].Describe(); !strings.Contains(got, "acme/payments/.github/workflows/release.yml") {
+	got := rep.Provenance[0].Describe()
+	if !strings.Contains(got, "acme/payments/.github/workflows/release.yml") {
 		t.Errorf("account = %q, want the identity the attestation carries", got)
 	}
-	if len(*calls) != 2 {
-		t.Fatalf("want a permissive read then a probe, got %d calls", len(*calls))
+	if !strings.Contains(got, "https://token.actions.githubusercontent.com") {
+		t.Errorf("account = %q, want the issuer the attestation carries", got)
+	}
+	if len(*calls) != 3 {
+		t.Fatalf("want a permissive read, then a probe for the identity and one for the issuer, got %d calls", len(*calls))
 	}
 	// The probe names an identity nothing can carry, which is what makes cosign say what it found.
 	if !strings.Contains(strings.Join((*calls)[1], " "), impossibleIdentity) {
 		t.Errorf("the probe should ask for an impossible identity: %v", (*calls)[1])
+	}
+	// Then the identity it found and an issuer nothing can carry, because cosign checks the
+	// identity first and names the issuer only once the identity matches.
+	second := strings.Join((*calls)[2], " ")
+	if !strings.Contains(second, "--certificate-identity https://github.com/acme/payments/") ||
+		!strings.Contains(second, "--certificate-oidc-issuer "+impossibleIssuer) {
+		t.Errorf("the second probe should name the identity found and an impossible issuer: %v", (*calls)[2])
+	}
+}
+
+// bundleCert is the part of a Fulcio certificate cosign checks: the identity and its issuer.
+type bundleCert struct{ san, issuer string }
+
+// bundleCosign stands in for cosign reading signatures in the Sigstore bundle format, from the
+// rules it applies rather than from a script of answers: the permissive read verifies and prints a
+// payload with no identity in it, and a strict one verifies a bundle whose identity and issuer
+// both match, refusing each other bundle in the sentence cosign 3 writes, identity before issuer,
+// one line per bundle, under `no matching attestations` and exit 1.
+func bundleCosign(t *testing.T, certs ...bundleCert) *cosignVerifier {
+	t.Helper()
+	s, _ := NewCosign().(*cosignVerifier)
+	const payload = `[{"critical":{"type":"https://sigstore.dev/cosign/sign/v1"},"optional":{}}]`
+	s.run = func(_ context.Context, argv []string) ([]byte, []byte, int, error) {
+		flag := func(name string) string {
+			if i := slices.Index(argv, name); i >= 0 && i+1 < len(argv) {
+				return argv[i+1]
+			}
+			return ""
+		}
+		if flag("--certificate-identity-regexp") == ".*" && flag("--certificate-oidc-issuer-regexp") == ".*" {
+			return []byte(payload), nil, 0, nil
+		}
+		identity, issuer := flag("--certificate-identity"), flag("--certificate-oidc-issuer")
+		if identity == "" || issuer == "" {
+			t.Fatalf("a strict read names an exact identity and issuer: %v", argv)
+		}
+		refusals := make([]string, 0, len(certs))
+		for _, c := range certs {
+			switch {
+			case c.san != identity:
+				refusals = append(refusals, fmt.Sprintf(`failed to verify certificate identity: no matching CertificateIdentity found, last error: expected SAN value "%s", got "%s"`, identity, c.san))
+			case c.issuer != issuer:
+				refusals = append(refusals, fmt.Sprintf(`failed to verify certificate identity: no matching CertificateIdentity found, last error: expected issuer value "%s", got "%s"`, issuer, c.issuer))
+			default:
+				return []byte(payload), nil, 0, nil
+			}
+		}
+		return nil, []byte("Error: no matching attestations: " + strings.Join(refusals, "\n")), 1, errors.New("exit status 1")
+	}
+	return s
+}
+
+// Discovery reads a bundle signature's issuer from the signature, as it reads the identity, and
+// the signer written from what it read verifies the image it was read from.
+//
+// Two images: one carrying two bundle signatures issued by Google to service accounts, one carrying
+// a single signature from GitHub Actions. Each records its own issuer, which an assumed issuer
+// cannot do for both.
+func TestDiscoveryReadsTheIssuerOfABundleSignature(t *testing.T) {
+	const (
+		google  = "https://accounts.google.com"
+		github  = "https://token.actions.githubusercontent.com"
+		account = "keyless@acme-release.iam.gserviceaccount.com"
+		other   = "keyless@acme-mirror.iam.gserviceaccount.com"
+		release = "https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3"
+	)
+	images := map[string][]bundleCert{
+		"ghcr.io/acme/tool@sha256:aaaa": {{account, google}, {other, google}},
+		"ghcr.io/acme/api@sha256:bbbb":  {{release, github}},
+	}
+	for ref, certs := range images {
+		got, err := bundleCosign(t, certs...).whoSigned(context.Background(), ref, expectation{})
+		if err != nil {
+			t.Fatalf("%s: %v", ref, err)
+		}
+		want := Signature{Identity: certs[0].san, Issuer: certs[0].issuer, Signed: true}
+		if got != want {
+			t.Errorf("%s: whoSigned = %+v, want %+v", ref, got, want)
+		}
+
+		// The signer survey writes from that answer, checked against the same image.
+		rep, err := bundleCosign(t, certs...).Scan(context.Background(), plugin.ImageTarget{Ref: ref}, plugin.Config{
+			"signer": "adopted", "identity": got.Identity, "issuer": got.Issuer, "unmatched": "observe",
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", ref, err)
+		}
+		if len(rep.Results) != 0 {
+			t.Errorf("%s: the signer read from the image does not verify it: %v", ref, rep.Results)
+		}
+	}
+}
+
+// The right identity under the wrong issuer is refused, and the refusal names the issuer. The
+// finding names the identity found all the same: an issuer in that place reads as the identity of
+// whoever signed.
+func TestAnIssuerMismatchNamesTheIdentityNotTheIssuer(t *testing.T) {
+	const account = "keyless@acme-release.iam.gserviceaccount.com"
+	s := bundleCosign(t, bundleCert{account, "https://accounts.google.com"})
+	rep, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/tool@sha256:aaaa"}, plugin.Config{
+		"signer": "our-ci", "identity": account,
+		"issuer": "https://token.actions.githubusercontent.com", "unmatched": "observe",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 || rep.Results[0].RuleID != "provenance-unexpected-identity" {
+		t.Fatalf("results = %v, want one provenance-unexpected-identity", rep.Results)
+	}
+	msg := rep.Results[0].Message
+	if strings.Contains(msg, "accounts.google.com") || !strings.Contains(msg, account) {
+		t.Errorf("message = %q, want the identity found and no issuer in its place", msg)
+	}
+}
+
+// A refusal about the issuer never supplies an identity, and one about the identity never supplies
+// an issuer. cosign writes both in the same shape, so reading `got "…"` from the first that appears
+// takes whichever it happened to say.
+func TestEachFieldIsReadOnlyFromARefusalAboutIt(t *testing.T) {
+	const issuerOnly = `Error: no matching attestations: failed to verify certificate identity: ` +
+		`expected issuer value "x", got "https://accounts.google.com"`
+	if got := sanFrom(issuerOnly); got != "" {
+		t.Errorf("sanFrom read %q from a refusal about the issuer", got)
+	}
+	if got := issuerFrom(issuerOnly); got != "https://accounts.google.com" {
+		t.Errorf("issuerFrom = %q", got)
+	}
+	const regexpRefusal = `expected SAN value to match regex "^x$", got "https://github.com/acme/ci/.github/workflows/r.yml@refs/heads/main"`
+	if got := sanFrom(regexpRefusal); got != "https://github.com/acme/ci/.github/workflows/r.yml@refs/heads/main" {
+		t.Errorf("sanFrom = %q, want the identity from a refusal against a pattern", got)
+	}
+	if got := issuerFrom(regexpRefusal); got != "" {
+		t.Errorf("issuerFrom read %q from a refusal about the identity", got)
+	}
+	if got := sanFrom(`expected SAN value "x", got "unterminated`); got != "" {
+		t.Errorf("sanFrom = %q from a value with no closing quote", got)
 	}
 }
 
@@ -498,17 +642,41 @@ func TestWhoSignedIsTheReadDiscoveryAndVerificationShare(t *testing.T) {
 		},
 		{
 			// An attestation's identity is in the certificate, not the payload, so the first read
-			// succeeds with nothing in it and a second read has to ask.
-			name: "an attestation needs the second read",
+			// succeeds with nothing in it and further reads have to ask: one for the identity and
+			// one for who issued it.
+			name: "an attestation needs the further reads",
 			answers: []func([]string) ([]byte, []byte, int, error){
 				ok(`[{"critical":{"type":"https://slsa.dev/provenance/v1"},"optional":{}}]`),
-				said(`no matching attestations: failed to verify certificate identity: got "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main"`),
+				said(`no matching attestations: failed to verify certificate identity: expected SAN value "x", got "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main"`),
+				said(`no matching attestations: failed to verify certificate identity: expected issuer value "y", got "https://token.actions.githubusercontent.com"`),
 			},
 			want: Signature{
 				Identity: "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main",
-				Issuer:   githubOIDCIssuer,
+				Issuer:   "https://token.actions.githubusercontent.com",
 				Signed:   true,
 			},
+		},
+		{
+			// An identity whose issuer could not be read keeps its identity and claims no issuer.
+			name: "an attestation whose issuer could not be read",
+			answers: []func([]string) ([]byte, []byte, int, error){
+				ok(`[{"critical":{"type":"https://slsa.dev/provenance/v1"},"optional":{}}]`),
+				said(`no matching attestations: failed to verify certificate identity: expected SAN value "x", got "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main"`),
+				said(`no matching attestations: something cosign has not said before`),
+			},
+			want: Signature{
+				Identity: "https://github.com/acme/build/.github/workflows/attest.yml@refs/heads/main",
+				Signed:   true,
+			},
+		},
+		{
+			// With no identity read there is nothing to ask the issuer of, and no third read.
+			name: "an attestation whose identity could not be read",
+			answers: []func([]string) ([]byte, []byte, int, error){
+				ok(`[{"critical":{"type":"https://slsa.dev/provenance/v1"},"optional":{}}]`),
+				said(`no matching attestations: something cosign has not said before`),
+			},
+			want: Signature{Signed: true},
 		},
 		{
 			// Most of what a project runs is published by somebody else. Not an error, and not a

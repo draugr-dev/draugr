@@ -157,6 +157,46 @@ func TestASignatureWhoseIdentityIsUnreadableProposesNothing(t *testing.T) {
 	}
 }
 
+// TestEachSignerCarriesTheIssuerItWasReadWith. Two images, two issuers: a signer written with
+// any issuer but the one on the signature fails the image it was read from. An identity whose
+// issuer could not be read proposes nothing, rather than a signer the schema refuses or one with a
+// guessed issuer.
+func TestEachSignerCarriesTheIssuerItWasReadWith(t *testing.T) {
+	t.Parallel()
+	const (
+		google = "https://accounts.google.com"
+		github = "https://token.actions.githubusercontent.com"
+	)
+	p := signed(map[string]scanners.Signature{
+		"ghcr.io/acme/tool@sha256:aaaa": {Identity: "keyless@acme-release.iam.gserviceaccount.com", Issuer: google, Signed: true},
+		"ghcr.io/acme/api@sha256:bbbb":  {Identity: "https://github.com/acme/ci/.github/workflows/r.yml@refs/tags/v1", Issuer: github, Signed: true},
+		"ghcr.io/acme/web@sha256:cccc":  {Identity: "keyless@acme-web.iam.gserviceaccount.com", Signed: true},
+	}, nil)
+	frag, err := surveyImages(t, p, "ghcr.io/acme/tool@sha256:aaaa", "ghcr.io/acme/api@sha256:bbbb", "ghcr.io/acme/web@sha256:cccc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sagatest.FragmentAccepted(t, frag)
+	issuers := map[string]string{}
+	for _, s := range signersIn(t, frag) {
+		keyless, _ := s["keyless"].(map[string]any)
+		identity, _ := keyless["identity"].(string)
+		issuers[identity], _ = keyless["issuer"].(string)
+	}
+	want := map[string]string{
+		"keyless@acme-release.iam.gserviceaccount.com":                    google,
+		"https://github.com/acme/ci/.github/workflows/r.yml@refs/tags/v1": github,
+	}
+	if len(issuers) != len(want) {
+		t.Fatalf("signers by identity = %v, want %v", issuers, want)
+	}
+	for identity, issuer := range want {
+		if issuers[identity] != issuer {
+			t.Errorf("signer for %s has issuer %q, want %q", identity, issuers[identity], issuer)
+		}
+	}
+}
+
 // TestOneUnreadableImageDoesNotDiscardTheRest. The registry hands back a fragment only from a
 // surveyor that returned no error, so failing here would throw away every image that did answer,
 // and an inventory of fourteen would depend on all fourteen being reachable at once.
