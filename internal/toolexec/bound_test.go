@@ -216,6 +216,55 @@ func TestParallelismReadsThisMachine(t *testing.T) {
 	}
 }
 
+// Each tool run under a MemoryPeak reports its process's peak to it and to the one the context
+// already carried, through every entry point, and the larger peak is kept. A run under no
+// MemoryPeak reports to nothing, and Draugr's own peak is readable apart from the tools'.
+func TestAMemoryPeakSeesEachToolRunUnderIt(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("the operating system does not report a process's resident memory")
+	}
+	var run, job MemoryPeak
+	ctx := WithMemoryPeak(WithMemoryPeak(context.Background(), &run), &job)
+	if _, err := Run(ctx, "", []string{"sh", "-c", "true"}); err != nil {
+		t.Fatal(err)
+	}
+	small := job.Bytes()
+	if small == 0 || run.Bytes() != small {
+		t.Fatalf("job %d run %d, want the same peak in both", small, run.Bytes())
+	}
+	// A process holding tens of megabytes: awk building a string of that length.
+	big := `awk 'BEGIN { s = sprintf("%60000000s", ""); print length(s) }'`
+	if _, err := RunCombined(ctx, "", []string{"sh", "-c", big}); err != nil {
+		t.Fatal(err)
+	}
+	if job.Bytes() < 50<<20 || run.Bytes() != job.Bytes() {
+		t.Errorf("after a 60 MB process: job %d run %d", job.Bytes(), run.Bytes())
+	}
+	before := job.Bytes()
+	if _, _, err := RunWithStderr(ctx, "", []string{"sh", "-c", "true"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if job.Bytes() != before {
+		t.Errorf("a smaller process lowered the peak to %d", job.Bytes())
+	}
+	if _, err := Run(context.Background(), "", []string{"sh", "-c", big}); err != nil {
+		t.Fatal(err)
+	}
+	if job.Bytes() != before {
+		t.Error("a run under no MemoryPeak reported to one")
+	}
+	if own, ok := OwnPeakMemory(); !ok || own == 0 {
+		t.Errorf("OwnPeakMemory() = %d, %v", own, ok)
+	}
+	if _, ok := processPeak(nil); ok {
+		t.Error("a process that never ran reported a peak")
+	}
+	recordPeak(ctx, nil)
+	if job.Bytes() != before {
+		t.Error("a process that never ran changed the peak")
+	}
+}
+
 // Once a tool has run and been waited for, its resident memory is readable.
 func TestPeakMemoryReadsTheProcessesWaitedFor(t *testing.T) {
 	if _, err := Run(context.Background(), "", []string{"env"}); err != nil {

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // A tool sizes its own parallelism to the machine. A Go tool runs GOMAXPROCS threads, every core
@@ -176,4 +177,65 @@ func setsBuildParallelism(goflags string) bool {
 // covers the life of this process.
 func PeakMemory() (uint64, bool) {
 	return peakChildMemory()
+}
+
+// OwnPeakMemory is the largest resident memory, in bytes, this process itself has reached, the
+// tools it ran left out, and false where the operating system does not report it. It covers the
+// life of this process.
+//
+// Draugr's own memory is part of what a scan takes: it holds every finding the tools report, and
+// reads and decodes their reports. A figure for the tools alone reads the same whether Draugr took
+// a little of the machine or most of it.
+func OwnPeakMemory() (uint64, bool) {
+	return selfPeakMemory()
+}
+
+// MemoryPeak is the largest resident memory, in bytes, any one tool process run under a context
+// carrying it (WithMemoryPeak) reached, together with the processes it waited for. The zero value
+// has seen no process. It is safe for concurrent use.
+type MemoryPeak struct{ max atomic.Uint64 }
+
+// Bytes is the largest resident memory seen, zero where no process run under it reported one.
+func (p *MemoryPeak) Bytes() uint64 { return p.max.Load() }
+
+// see records a process's peak, keeping the larger.
+func (p *MemoryPeak) see(b uint64) {
+	for {
+		cur := p.max.Load()
+		if b <= cur || p.max.CompareAndSwap(cur, b) {
+			return
+		}
+	}
+}
+
+// peakKey is the context key under which the MemoryPeaks a tool run reports to travel.
+type peakKey struct{}
+
+// peaks is a MemoryPeak and the ones of the contexts it was added under.
+type peaks struct {
+	peak   *MemoryPeak
+	parent *peaks
+}
+
+// WithMemoryPeak returns a context under which every tool run reports its process's peak to p, as
+// well as to any MemoryPeak ctx already carries. A job's peak is then its own, and a run's covers
+// its jobs.
+func WithMemoryPeak(ctx context.Context, p *MemoryPeak) context.Context {
+	parent, _ := ctx.Value(peakKey{}).(*peaks)
+	return context.WithValue(ctx, peakKey{}, &peaks{peak: p, parent: parent})
+}
+
+// recordPeak reports the peak of the exited process state to every MemoryPeak ctx carries.
+func recordPeak(ctx context.Context, state *os.ProcessState) {
+	chain, _ := ctx.Value(peakKey{}).(*peaks)
+	if chain == nil {
+		return
+	}
+	b, ok := processPeak(state)
+	if !ok {
+		return
+	}
+	for ; chain != nil; chain = chain.parent {
+		chain.peak.see(b)
+	}
 }

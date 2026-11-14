@@ -1,0 +1,1 @@
+- **report.json says how much memory Draugr itself took, and each job's tools.** stats.peakDraugrMemoryBytes records Draugr's own peak beside stats.peakToolMemoryBytes, and stats.jobMemory lists the largest tool process of each job that ran one, failed jobs included.

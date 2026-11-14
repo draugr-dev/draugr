@@ -676,7 +676,8 @@ n is half the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 
 the ones Draugr may use after a container's CPU limit. The memory is the lower of the machine's and
 any cgroup v2 `memory.max` on Draugr's group or a parent, such as a container's limit or a systemd
 scope's `MemoryMax`. Where neither reports memory, n is half the CPUs. `stats.peakToolMemoryBytes`
-records the largest resident memory any one tool process reached; see the [report
+records the largest resident memory any one tool process reached, `stats.peakDraugrMemoryBytes`
+Draugr's own, and `stats.jobMemory` each job's largest tool process; see the [report
 schema](report-schema.md#tool-memory).
 
 **Severity bands.** The console reports each finding's severity band (critical, high, medium or

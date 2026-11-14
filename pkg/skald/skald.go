@@ -930,6 +930,21 @@ type statsInfo struct {
 	// PeakToolMemoryBytes is the largest resident memory any single tool process reached, not a
 	// sum. Omitted where the platform does not report it.
 	PeakToolMemoryBytes uint64 `json:"peakToolMemoryBytes,omitempty"`
+	// PeakDraugrMemoryBytes is the largest resident memory Draugr's own process reached, the tools
+	// left out. Omitted where the platform does not report it.
+	PeakDraugrMemoryBytes uint64 `json:"peakDraugrMemoryBytes,omitempty"`
+	// JobMemory is each job's largest tool process, for the jobs that ran a tool.
+	JobMemory []jobMemory `json:"jobMemory,omitempty"`
+}
+
+// jobMemory is the largest resident memory one tool process of a job reached.
+type jobMemory struct {
+	Scanner   string `json:"scanner"`
+	Control   string `json:"control"`
+	Component string `json:"component,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Target    string `json:"target,omitempty"`
+	PeakBytes uint64 `json:"peakBytes"`
 }
 
 // dataRefresh is one scanner's data refresh: the data, how long it took, and whether it failed.
@@ -1075,7 +1090,9 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			OrderWaitsMs: millisBy(run.Stats.OrderWaits),
 			DataRefresh:  dataRefreshFrom(run.Stats.DataRefresh),
 
-			PeakToolMemoryBytes: run.Stats.PeakToolMemory,
+			PeakToolMemoryBytes:   run.Stats.PeakToolMemory,
+			PeakDraugrMemoryBytes: run.Stats.PeakOwnMemory,
+			JobMemory:             jobMemoryFrom(run.Stats.JobMemory),
 		},
 	}
 	seen := make(map[string]bool, len(verdict.Controls))
@@ -1545,6 +1562,19 @@ func dataRefreshFrom(rs []engine.DataRefresh) []dataRefresh {
 	}
 	if len(out) == 0 {
 		return nil
+	}
+	return out
+}
+
+// jobMemoryFrom is each job's tool memory as report.json writes it, nil where no job ran a tool.
+func jobMemoryFrom(ms []engine.JobMemory) []jobMemory {
+	if len(ms) == 0 {
+		return nil
+	}
+	out := make([]jobMemory, 0, len(ms))
+	for _, m := range ms {
+		out = append(out, jobMemory{Scanner: m.Scanner, Control: m.Control, Component: m.Component,
+			Kind: m.Kind, Target: m.Target, PeakBytes: m.PeakBytes})
 	}
 	return out
 }
