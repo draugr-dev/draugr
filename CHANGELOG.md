@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.177.0] - 2026-11-14
+
+### Changed
+
+- **The Kubernetes control decides nine more CIS checks, 29 of 34:** who holds the RBAC permissions CIS singles out, such as impersonate; namespaces with no NetworkPolicy; secrets passed as environment variables; and whether any policy mechanism is in place. A cluster may show new findings. A credential refused the new reads leaves those checks for a person.
+
 ## [0.176.1] - 2026-11-14
 
 ### Fixed
@@ -7141,7 +7147,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.176.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.177.0...HEAD
+[0.177.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.177.0
 [0.176.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.1
 [0.176.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.0
 [0.175.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.175.0
