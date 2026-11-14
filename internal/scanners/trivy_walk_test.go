@@ -108,7 +108,7 @@ func TestAFileOneScannerMissedIsRecordedWithThatScanner(t *testing.T) {
 		if err := os.WriteFile(inventoryPath(argv), readersFixture(t, "grype-"+name+".cdx.json"), 0o600); err != nil {
 			return nil, err
 		}
-		return readersFixture(t, "grype-"+name+".sarif"), nil
+		return grypeOutput(string(readersFixture(t, "grype-"+name+".sarif")), "{}"), nil
 	}
 
 	reg := engine.NewRegistry()

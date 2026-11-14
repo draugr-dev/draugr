@@ -269,7 +269,7 @@ func TestGrypeFSAccountsFromItsInventory(t *testing.T) {
 		if err := os.WriteFile(inventoryPath(argv), []byte(inventory), 0o600); err != nil {
 			return nil, err
 		}
-		return []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"grype"}},"results":[]}]}`), nil
+		return grypeOutput(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"grype"}},"results":[]}]}`, "{}"), nil
 	}
 	rep, err := g.Scan(context.Background(), plugin.RepositoryTarget{URL: "https://example.com/app.git"}, plugin.Config{})
 	if err != nil {

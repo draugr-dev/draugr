@@ -1,0 +1,1 @@
+- **Draugr needs half the memory to read a Grype scan.** It now reads Grype's SARIF and JSON reports once each instead of rewriting and re-reading the SARIF, so a run with 2,254 findings allocates 32 MB rather than 66 MB and is read in half the time. Findings are unchanged.

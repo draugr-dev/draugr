@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -45,6 +46,11 @@ func grypeJSON(matches ...string) string {
 
 // fakeGrypeOutputs writes what Grype would write for each `-o <format>=<path>` in argv: the JSON
 // report given, and an empty inventory for CycloneDX.
+// grypeOutput is what a Grype run returns for the SARIF and JSON reports given.
+func grypeOutput(sarifOut, jsonOut string) []byte {
+	return grypeReports{SARIF: []byte(sarifOut), JSON: []byte(jsonOut)}.bytes()
+}
+
 func fakeGrypeOutputs(t *testing.T, argv []string, report string) {
 	t.Helper()
 	for i, a := range argv {
@@ -184,12 +190,16 @@ func TestGrypeDefaultRulesAreNotExclusions(t *testing.T) {
 	if kernel == grypeIgnoredJinja2 {
 		t.Fatal("fixture did not change")
 	}
-	out, err := withGrypeJSON([]byte(grypeActiveSARIF), []byte(grypeJSON(kernel)), nil)
+	got, err := parseGrypeSARIF(grypeOutput(grypeActiveSARIF, grypeJSON(kernel)), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(out) != grypeActiveSARIF {
-		t.Errorf("SARIF changed for a match only a built-in rule ignored:\n%s", out)
+	want, err := parseGrypeSARIF(grypeOutput(grypeActiveSARIF, grypeJSON()), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("report changed for a match only a built-in rule ignored:\n%+v", got.Results)
 	}
 }
 
@@ -211,11 +221,7 @@ func TestAGrypeExclusionNamesOnlyTheFileHoldingIt(t *testing.T) {
 	}
 	unreasoned := strings.Replace(grypeIgnoredJinja2, `"reason": "not reachable from the entry point", `, "", 1)
 	unreasoned = strings.ReplaceAll(unreasoned, "CVE-2020-28493", "CVE-2099-0001")
-	out, err := withGrypeJSON([]byte(grypeActiveSARIF), []byte(grypeJSON(grypeIgnoredJinja2, unreasoned)), grypeConfigRules(dir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	rep, err := parseGrypeSARIF(out)
+	rep, err := parseGrypeSARIF(grypeOutput(grypeActiveSARIF, grypeJSON(grypeIgnoredJinja2, unreasoned)), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,53 +238,67 @@ func TestAGrypeExclusionNamesOnlyTheFileHoldingIt(t *testing.T) {
 }
 
 // A run that wrote no JSON report fails rather than reporting that its configuration excluded
-// nothing, which Draugr cannot know. A failed run is Grype's own error, unchanged.
+// nothing, which Draugr cannot know, and so does one whose JSON report cannot be read. A failed run
+// is Grype's own error, unchanged.
 func TestAGrypeRunWithNoRecordOfExclusionsFails(t *testing.T) {
 	if _, err := runGrypeRecordingExclusions(func([]string) ([]byte, error) {
 		return []byte(grypeActiveSARIF), nil
-	}, "", []string{"grype"}); err == nil {
+	}, []string{"grype"}); err == nil {
 		t.Error("an empty JSON report was read as nothing excluded")
 	}
 	boom := errors.New("boom")
-	if _, err := runGrypeRecordingExclusions(func([]string) ([]byte, error) { return nil, boom }, "", nil); !errors.Is(err, boom) {
+	if _, err := runGrypeRecordingExclusions(func([]string) ([]byte, error) { return nil, boom }, nil); !errors.Is(err, boom) {
 		t.Errorf("err = %v, want Grype's own", err)
 	}
-	if _, err := runGrypeRecordingExclusions(func(argv []string) ([]byte, error) {
+	out, err := runGrypeRecordingExclusions(func(argv []string) ([]byte, error) {
 		fakeGrypeOutputs(t, argv, "not json")
 		return []byte(grypeActiveSARIF), nil
-	}, "", []string{"grype"}); err == nil {
-		t.Error("an unreadable JSON report was read as nothing excluded")
+	}, []string{"grype"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseGrypeRepoSARIF(out, "", nil); err == nil || !strings.Contains(err.Error(), "JSON report") {
+		t.Errorf("err = %v, want an unreadable JSON report named", err)
 	}
 }
 
 // With nothing excluded the SARIF is returned byte for byte; with something, it must still be a
 // document the reader accepts, and unreadable SARIF is an error rather than an empty report.
 func TestWithGrypeExclusionsKeepsTheDocument(t *testing.T) {
-	if out, err := withGrypeJSON([]byte(grypeActiveSARIF), []byte(grypeJSON()), nil); err != nil || string(out) != grypeActiveSARIF {
-		t.Errorf("out %s err %v, want the SARIF untouched", out, err)
-	}
-	if _, err := withGrypeJSON([]byte("not sarif"), []byte(grypeJSON(grypeIgnoredJinja2)), nil); err == nil {
-		t.Error("unreadable SARIF was accepted")
-	}
-	out, err := withGrypeJSON([]byte(`{"version":"2.1.0","runs":[]}`), []byte(grypeJSON(grypeIgnoredJinja2, grypeIgnoredJinja2)), nil)
+	plain, err := sarif.FromSARIF([]byte(grypeActiveSARIF))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var doc struct {
-		Runs []struct {
-			Tool struct {
-				Driver struct {
-					Rules []json.RawMessage `json:"rules"`
-				} `json:"driver"`
-			} `json:"tool"`
-			Results []json.RawMessage `json:"results"`
-		} `json:"runs"`
+	got, err := parseGrypeSARIF(grypeOutput(grypeActiveSARIF, grypeJSON()), "")
+	if err != nil || len(got.Results) != len(plain.Results) || !reflect.DeepEqual(got.Rules, plain.Rules) {
+		t.Errorf("results %d, rules %v, err %v; want the SARIF's own, with nothing excluded", len(got.Results), got.Rules, err)
 	}
-	if err := json.Unmarshal(out, &doc); err != nil {
+
+	// A document with no run still takes the ignored matches, under Grype's name, the rule once.
+	rep, err := parseGrypeSARIF(grypeOutput(`{"version":"2.1.0","runs":[]}`, grypeJSON(grypeIgnoredJinja2, grypeIgnoredJinja2)), "")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(doc.Runs) != 1 || len(doc.Runs[0].Results) != 2 || len(doc.Runs[0].Tool.Driver.Rules) != 1 {
-		t.Errorf("SARIF %s, want one run, both results and the rule once", out)
+	if len(rep.Results) != 2 || len(rep.Rules) != 1 || rep.Tool != "grype" {
+		t.Fatalf("results %d, rules %d, tool %q; want both results, the rule once, under grype", len(rep.Results), len(rep.Rules), rep.Tool)
+	}
+	for _, r := range rep.Results {
+		if r.Tool != "grype" || !r.Suppressed() || r.Package == nil {
+			t.Errorf("%s: tool %q, suppressed %v, package %+v", r.RuleID, r.Tool, r.Suppressed(), r.Package)
+		}
+	}
+
+	// A rule Grype's own SARIF holds is kept as Grype wrote it.
+	report := sarif.Report{Rules: map[string]sarif.Rule{"CVE-2020-28493-jinja2": {ShortDescription: "Grype's own"}}}
+	var doc grypeDoc
+	if err := json.Unmarshal([]byte(grypeJSON(grypeIgnoredJinja2)), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if err := withGrypeExclusions(&report, doc, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := report.Rules["CVE-2020-28493-jinja2"].ShortDescription; got != "Grype's own" || len(report.Results) != 1 {
+		t.Errorf("rule %q, results %d; want Grype's rule kept and the result added", got, len(report.Results))
 	}
 }
 
