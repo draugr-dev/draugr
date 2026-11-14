@@ -1998,10 +1998,15 @@ was never there.
 | `vex` | What this suppression claims about the product, for [`--report vex`](../guides/vex.md). Optional. See [below](#declaring-what-a-suppression-means-in-vex). |
 
 **Who, why, and until when.** The question asked of a suppression is not whether the scanner ran. It
-is who decided this was acceptable, and when. `reason` answers why and `expires` until when. Who is
-answered by the repository's history of the exclusion's line, the last commit to change it, its
-author and its date, which a reviewer reads with `git blame` and the report carries for each
-exclusion.
+is who decided this was acceptable, and when. `reason` answers why and `expires` until when. The
+repository's history of the exclusion's line says who last changed it and when: the last commit to
+change the line, its author and its date, which a reviewer reads with `git blame` and the report
+carries for each exclusion.
+
+That author is who wrote the line, not who approved it, and git records whatever name the person
+committing configured. The approval is the review of the pull request or merge request that added
+the line, so it exists only where the branch requires a review before a change merges. Where the
+branch does not, nothing records a decision beyond the author's own.
 
 `--evidence` prints each exclusion that set findings aside, with its file and line and git's record
 of that line. From a scan of a descriptor and one fragment, each committed by a different author:
