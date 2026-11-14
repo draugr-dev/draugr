@@ -251,6 +251,21 @@ func (s *cosignVerifier) check(ctx context.Context, ref string, expect expectati
 			Message:  fmt.Sprintf("Signed by %s, not %s.", withoutHost(found), expect.Signer),
 		}, "", nil
 	}
+	// A signature in the bundle format that does not verify: one made with a key and no
+	// transparency-log entry, as an organization signing offline makes, or one whose log entry
+	// names another certificate. cosign answers both with exit 1 and a sentence rather than a code
+	// of its own. The registry holds a signature and it is not the declared signer's, which is the
+	// same finding as a signature with no certificate; any other exit 1 still stops the control.
+	if signedButUnverified(code, stderr) {
+		return &sarif.Result{
+			Tool:     cosignScannerName,
+			RuleID:   "provenance-unexpected-identity",
+			Level:    sarif.LevelError,
+			Score:    9.0,
+			HasScore: true,
+			Message:  fmt.Sprintf("Signed by %s, not %s.", withoutHost(""), expect.Signer),
+		}, "", nil
+	}
 	switch code {
 	case 0:
 		return nil, "", nil

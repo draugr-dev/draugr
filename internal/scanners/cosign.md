@@ -72,12 +72,20 @@ reads only those. Observed against cosign 3.1.1:
 | 11 | the reference does not exist | `provenance-unsigned` |
 | 12 | signed, by none of the expected identities | `provenance-unexpected-identity` |
 | 13 | signed, no certificate on the signature | `provenance-unexpected-identity` |
+| 1, message starts `no matching attestations` | signed, the signature does not verify against the declared signer | `provenance-unexpected-identity` |
 | anything else | cosign could not answer | the control reports an error |
 
 The last row is the one that matters. cosign returns 1 for everything it has no specific code for,
 which includes a registry it could not reach and a transparency log that did not answer. Reading
 that as "unsigned" would turn an unreachable registry into a finding somebody triages, and reading
 it as a pass would turn it into nothing at all.
+
+Exit 1 with a message starting `no matching attestations` is the exception. cosign prints it only
+after it has fetched a signature, so the image is signed and the signature does not verify against
+the declared signer: a signature made with a key and no transparency-log entry, or one whose log
+entry names a different certificate. The finding is `provenance-unexpected-identity`, with the same
+message as code 13, since neither signature offers an identity that can be believed. Sign with the declared
+signer, or declare the signer that signs.
 
 On code 12 the image is read back a second time with a permissive identity pattern, to say **who**
 did sign it. That read never produces a pass; it only supplies a name for a finding that has

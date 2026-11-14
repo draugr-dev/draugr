@@ -155,6 +155,15 @@ func TestCosignClassifiesEveryOutcome(t *testing.T) {
 		{"cosign could not answer", expecting(),
 			[]func([]string) ([]byte, []byte, int, error){exits(1)},
 			"", "verifying"},
+		// A key signature with no transparency-log entry, and one whose log entry names another
+		// certificate, both say so under exit 1. The registry holds a signature that is not the
+		// declared signer's, which is a finding about the image rather than a failure to read it.
+		{"a key signature with no log entry", expecting(),
+			[]func([]string) ([]byte, []byte, int, error){said(keySignedUnlogged)},
+			"provenance-unexpected-identity", ""},
+		{"a signature that does not verify", expecting(),
+			[]func([]string) ([]byte, []byte, int, error){said(signatureDoesNotVerify)},
+			"provenance-unexpected-identity", ""},
 		{"uncovered and unsigned, observed", plugin.Config{"unmatched": "observe"},
 			[]func([]string) ([]byte, []byte, int, error){exits(cosignExitNoSignature)},
 			"", ""},

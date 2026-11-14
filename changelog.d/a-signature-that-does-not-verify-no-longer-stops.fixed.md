@@ -1,0 +1,1 @@
+- **A signature that does not verify no longer stops the `provenance` control under a declared signer.** An image signed with a key and no transparency-log entry, or one whose log entry names another certificate, is now reported as `provenance-unexpected-identity`, and the control goes on to the other images.
