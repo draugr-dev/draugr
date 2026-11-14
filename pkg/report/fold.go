@@ -163,7 +163,9 @@ func listCount(as []action) string {
 			return english.Count(len(rows), "action")
 		}
 	}
-	if len(as) > len(rows) {
+	// The lines only where they say something the findings beside them do not: a line count equal to
+	// the finding count is the same number said twice.
+	if len(as) > len(rows) && len(as) != cleared(as) {
 		return english.Count(len(rows), "action") + " on " + english.Count(len(as), "line")
 	}
 	return english.Count(len(rows), "action")

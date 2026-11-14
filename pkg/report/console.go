@@ -1894,11 +1894,6 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 		return 0
 	}
 
-	// Every action and every finding, across the lists. Each list says what it holds and how much of
-	// it is not shown, so the heading speaks for the whole and the lists account for the rest.
-	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, fmt.Sprintf(
-		"%s %s %s", listCount(actions), clears(actions), english.Count(cleared(actions), "finding"))))
-
 	// One list per kind of work, in WorkOrder. Grouped after ranking, so each list keeps the order
 	// the ranking gave its actions.
 	// Decided over every action, not per list: a list whose rows share one component would
@@ -1912,6 +1907,20 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 	for _, a := range actions {
 		byKind[a.kind] = append(byKind[a.kind], a)
 	}
+
+	// Every action and every finding, across the lists. Each list says what it holds and how much of
+	// it is not shown, so the heading speaks for the whole and the lists account for the rest.
+	if total := acrossLists(actions, byKind); total != "" {
+		_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "What to do"), col.Paint(cDim, total))
+	} else {
+		_, _ = fmt.Fprintf(w, "%s\n", heading(col, "What to do"))
+	}
+	// Said once for the run, under the count that sets checks apart, because it is the same for
+	// every check: a check that finds nothing wrong leaves the code as it is, and the finding returns
+	// on every scan until somebody records that decision.
+	if _, checks := splitChecks(actions); len(checks) > 0 {
+		_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, checkEnding))
+	}
 	for _, kind := range listKinds(byKind) {
 		as := byKind[kind]
 		rows := foldLines(as)
@@ -1921,8 +1930,7 @@ func writeActions(w io.Writer, col tui.Painter, s summary, d Data, limit int) (l
 		if limit >= 0 && len(shown) > limit && kind != skald.KindImage {
 			shown = shown[:limit]
 		}
-		_, _ = fmt.Fprintf(w, "\n%s  %s\n", listName(kind), col.Paint(cDim, fmt.Sprintf("%s %s %s",
-			listCount(as), clears(as), english.Count(cleared(as), "finding"))))
+		_, _ = fmt.Fprintf(w, "\n%s  %s\n", listName(kind), col.Paint(cDim, countLine(as)))
 		// Counted over the rows listed, so the note never speaks for rows it does not show.
 		for _, note := range policyNotes(shown) {
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cDim, note))
@@ -2408,6 +2416,68 @@ func claimSummary(c vex.Claim) string {
 	return c.Vulnerability + " · " + c.PURL
 }
 
+// checkEnding says what ends an action that asks the reader to check something, when the check
+// finds nothing to change.
+const checkEnding = "A Check row ends in a change, or in config.exclude with a reason."
+
+// isCheck reports whether an action asks the reader to look at something before changing anything,
+// which every instruction opening with "Check" does.
+func (a action) isCheck() bool { return strings.HasPrefix(a.title, "Check ") }
+
+// splitChecks divides actions into the ones that change something and the ones that ask for a check
+// first, each in the order given.
+func splitChecks(as []action) (changes, checks []action) {
+	for _, a := range as {
+		if a.isCheck() {
+			checks = append(checks, a)
+		} else {
+			changes = append(changes, a)
+		}
+	}
+	return changes, checks
+}
+
+// countLine is what a list's heading says it holds: the actions that clear findings, and apart from
+// them the checks, whose findings clear only if the check finds something to change.
+func countLine(as []action) string {
+	changes, checks := splitChecks(as)
+	var parts []string
+	if len(changes) > 0 {
+		parts = append(parts, fmt.Sprintf("%s %s %s", listCount(changes), clears(changes),
+			english.Count(cleared(changes), "finding")))
+	}
+	if len(checks) > 0 {
+		on := english.Count(cleared(checks), "finding")
+		if len(changes) > 0 {
+			on = fmt.Sprintf("%d more", cleared(checks))
+		}
+		parts = append(parts, english.Count(len(foldLines(checks)), "check")+" on "+on)
+	}
+	return strings.Join(parts, " · ")
+}
+
+// acrossLists is what the heading over the lists counts: the changes and the checks of every list,
+// less a part one list holds whole. That list's heading counts it, and the same count over it is one
+// number said twice. Empty where every part is one list's.
+func acrossLists(as []action, lists map[skald.ActionKind][]action) string {
+	holding := func(check bool) (n int) {
+		for _, l := range lists {
+			if slices.ContainsFunc(l, func(a action) bool { return a.isCheck() == check }) {
+				n++
+			}
+		}
+		return n
+	}
+	changes, checks := splitChecks(as)
+	if holding(false) == 1 {
+		changes = nil
+	}
+	if holding(true) == 1 {
+		checks = nil
+	}
+	return countLine(append(changes, checks...))
+}
+
 // clears reads as a verb agreeing with the count before it.
 func clears(actions []action) string {
 	if len(actions) == 1 {
@@ -2513,7 +2583,7 @@ func renderActionRows(w io.Writer, col tui.Painter, actions []action, compact, n
 		// count carries the accent: it is what ranks one action above another, and a line of one
 		// flat grey gives a reader nothing to find.
 		meta := []string{col.Paint(tui.StyleFixed, english.Count(a.count(), "finding"))}
-		if a.lines > 1 {
+		if namesLines(a) {
 			meta = append([]string{col.Paint(tui.StyleFixed, english.Count(a.lines, "line"))}, meta...)
 		}
 		if nameControls {
@@ -2555,6 +2625,11 @@ func elideTitle(title string, width int) string {
 	return quoted(title[:open], inner, width)
 }
 
+// namesLines reports whether a row folded from several lines counts them beside its findings. A
+// line count equal to the finding count is the same number said twice, and the places after it
+// name the lines either way.
+func namesLines(a action) bool { return a.lines > 1 && a.lines != a.count() }
+
 // metaWidth is what an action's labeled facts occupy before the detail is added, so the detail
 // can be budgeted against what is left rather than against the whole line.
 func metaWidth(a action, parts int, named, controls bool) int {
@@ -2562,7 +2637,7 @@ func metaWidth(a action, parts int, named, controls bool) int {
 	if controls {
 		n += len("control ") + len(a.control)
 	}
-	if a.lines > 1 {
+	if namesLines(a) {
 		n += len(english.Count(a.lines, "line"))
 	}
 	if named && a.component != "" {
