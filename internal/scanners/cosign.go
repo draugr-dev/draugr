@@ -340,35 +340,44 @@ func signedButUnverified(code int, stderr []byte) bool {
 }
 
 // observe reads back whoever signed the image, for a descriptor that has not said who should
-// have. Never a pass and never a failure on its own: it reports what is there so somebody can
-// decide, which is the step before a policy exists.
+// have. Under the default `unmatched: observe` it is never a pass and never a failure on its own:
+// it reports what is there so somebody can decide, which is the step before a policy exists.
+//
+// Under `warn` or `fail` the absence of a signer is the finding, whatever the registry holds. A
+// signature from an identity nobody declared establishes only that somebody signed, and anybody
+// can: accepting it would let a descriptor that requires coverage pass an image signed by whoever
+// pushed it.
 func (s *cosignVerifier) observe(ctx context.Context, ref string, expect expectation) (*sarif.Result, string, error) {
 	sig, err := s.whoSigned(ctx, ref, expect)
-	switch {
-	case err != nil:
+	if err != nil {
 		return nil, "", err
-	case sig.Signed:
-		// No finding. An image somebody else signed, that this descriptor has not claimed, is not
-		// something to fix, and a note per image is how an inventory of fourteen becomes fourteen
-		// rows nobody reads. It is recorded instead, where the control accounts for the run.
-		return nil, observedIdentity(ref, sig.Identity, sig.Issuer), nil
-	default:
-		if expect.Unmatched != unmatchedWarn && expect.Unmatched != unmatchedFail {
-			return nil, unsignedNote(ref), nil
-		}
-		level, score := sarif.LevelWarning, 4.0
-		if expect.Unmatched == unmatchedFail {
-			level, score = sarif.LevelError, 7.0
-		}
-		return &sarif.Result{
-			Tool:     cosignScannerName,
-			RuleID:   "provenance-not-covered",
-			Level:    level,
-			Score:    score,
-			HasScore: true,
-			Message:  "No signer covers this image and it carries no signature in the registry.",
-		}, unsignedNote(ref), nil
 	}
+	observed, message := unsignedNote(ref),
+		"No signer covers this image and it carries no signature in the registry."
+	if sig.Signed {
+		// Recorded either way, where the control accounts for the run: the identity found is the
+		// answer to what a signer for this image would declare.
+		observed = observedIdentity(ref, sig.Identity, sig.Issuer)
+		message = fmt.Sprintf("No signer covers this image, which is signed by %s.", withoutHost(sig.Identity))
+	}
+	if expect.Unmatched != unmatchedWarn && expect.Unmatched != unmatchedFail {
+		// No finding. An image somebody else signed, or nobody did, that this descriptor has not
+		// claimed is not something to fix, and a note per image is how an inventory of fourteen
+		// becomes fourteen rows nobody reads.
+		return nil, observed, nil
+	}
+	level, score := sarif.LevelWarning, 4.0
+	if expect.Unmatched == unmatchedFail {
+		level, score = sarif.LevelError, 7.0
+	}
+	return &sarif.Result{
+		Tool:     cosignScannerName,
+		RuleID:   "provenance-not-covered",
+		Level:    level,
+		Score:    score,
+		HasScore: true,
+		Message:  message,
+	}, observed, nil
 }
 
 // The two shapes an observation takes, so the control can tell them apart when it aggregates.

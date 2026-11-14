@@ -164,7 +164,7 @@ var reasonedInstruction = map[string]string{ // #nosec G101 -- sentences for a r
 	// and nothing in the code tells the two apart, so the first step is finding out which.
 	"provenance-unexpected-identity": "Find out what signed the image before running it",
 	"provenance-unsigned":            "Sign the image in the build that publishes it, or ask its publisher to",
-	"provenance-not-covered":         "Declare a signer for the image, or accept it unsigned",
+	"provenance-not-covered":         "Declare a signer that covers the image, or accept it uncovered",
 }
 
 // instructionOf is the instruction for a rule, from whichever table holds it.
