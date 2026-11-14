@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.176.1] - 2026-11-14
+
+### Fixed
+
+- **CIS 5.2.7 (containers that can run as root) now checks containers that set no security context.** Such a container runs as root unless its pod sets `runAsNonRoot` or a non-zero `runAsUser`, and the check now reports it. A cluster that passed 5.2.7 before may now show findings.
+
 ## [0.176.0] - 2026-11-13
 
 ### Changed
@@ -7135,7 +7141,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.176.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.176.1...HEAD
+[0.176.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.1
 [0.176.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.0
 [0.175.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.175.0
 [0.174.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.174.0
