@@ -367,15 +367,25 @@ func groupActions(findings []finding, unpinned []string, copies ...finding) (act
 	order := []string{}
 	byKey := map[string]*action{}
 
-	for _, f := range placeLines(findings) {
+	placed := placeLines(findings)
+	secrets := secretsByLine(placed)
+	for _, f := range placed {
 		if f.remediation == sarif.RemediationExternal {
 			external = append(external, f)
 			continue
 		}
 		key, title, kind, byRule := actionFor(f)
+		control := f.control
+		// A line of code a secrets rule flagged joins the credential's action where a code rule
+		// asks the same of the same line, because the one change clears both and the rotation is
+		// the part of it a code row would leave out.
+		if s, ok := secrets[secretLineKey(f)]; ok && onALine(f) {
+			key, title, kind, byRule = actionFor(s)
+			control = s.control
+		}
 		a, seen := byKey[key]
 		if !seen {
-			a = &action{key: key, title: title, kind: kind, control: f.control, priority: f.priority, byRule: byRule}
+			a = &action{key: key, title: title, kind: kind, control: control, priority: f.priority, byRule: byRule}
 			byKey[key] = a
 			order = append(order, key)
 		}
@@ -718,6 +728,29 @@ const lineKey = "line\x00"
 // grouping on its rule.
 func onALine(f finding) bool {
 	return f.control == "sast" && lineSuffix.MatchString(f.location)
+}
+
+// secretsByLine maps each line a secrets finding sits on, with the instruction its rule takes, to
+// that finding. Only a finding whose rule has an instruction is mapped: two rules asking for the
+// same change at one line describe one flaw, and two rules at one line asking for different changes
+// do not.
+func secretsByLine(fs []finding) map[string]finding {
+	out := map[string]finding{}
+	for _, f := range fs {
+		if f.control != "secrets" || !lineSuffix.MatchString(f.location) || instructionOf(f.ruleID) == "" {
+			continue
+		}
+		if _, seen := out[secretLineKey(f)]; !seen {
+			out[secretLineKey(f)] = f
+		}
+	}
+	return out
+}
+
+// secretLineKey is what a secrets finding and a code finding share when they ask for one change at
+// one line: the component, repository and location, and the instruction.
+func secretLineKey(f finding) string {
+	return f.component + "\x00" + f.repository + "\x00" + f.location + "\x00" + instructionOf(f.ruleID)
 }
 
 // lineKeyOf is the key every finding at one line of code shares: its component, repository and
