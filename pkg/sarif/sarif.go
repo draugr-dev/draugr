@@ -224,6 +224,10 @@ type sarifProperties struct {
 	Priority         string `json:"priority,omitempty"`
 	// Detail is read back, so a report re-read by `draugr diff` keeps the sentence it left with.
 	Detail string `json:"detail,omitempty"`
+	// Title is the rule's title where the result's message.text is the finding's own sentence
+	// instead (see sarifMessageOf). Read back as the finding's message, so a report written and
+	// re-read keeps the identity, the row and the action it left with.
+	Title string `json:"title,omitempty"`
 	// Tool is the originating scanner (e.g. "trivy", "semgrep"). Draugr reports as a single
 	// "Draugr" SARIF tool; this preserves per-finding attribution to the scanner that found it.
 	Tool string `json:"tool,omitempty"`
@@ -513,10 +517,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				ruleScanners[res.RuleID][tool] = true
 			}
 		}
+		text, title := sarifMessageOf(res, r.Rules[res.RuleID])
 		sr := sarifResult{
 			RuleID:              res.RuleID,
 			Level:               string(res.Level),
-			Message:             sarifMessage{Text: res.Message},
+			Message:             sarifMessage{Text: text},
 			PartialFingerprints: res.PartialFingerprints,
 		}
 		// A suppressed finding is still emitted, marked. Deleting it would leave no trace that
@@ -558,6 +563,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
+				Title:    title,
 				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
 				Fingerprint:   res.Fingerprint(),
 				UpgradePolicy: res.UpgradePolicy,
@@ -614,7 +620,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		rule := r.Rules[id]
 		out := sarifRule{ID: id, HelpURI: r.HelpURI(id)}
 		if !opts.Compact {
-			out.Name = rule.Name
+			out.Name = ruleName(rule)
 			out.ShortDescription = message(clampDescription(rule.ShortDescription))
 			out.FullDescription = message(clampDescription(rule.FullDescription))
 			out.Help = message(rule.Help)
@@ -631,6 +637,35 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		return json.Marshal(log)
 	}
 	return json.MarshalIndent(log, "", "  ")
+}
+
+// sarifMessageOf is what a result's message.text says, and the title it stands in for, if any.
+//
+// A finding whose message is only its rule's title, Trivy's `Privileged` for KSV-0017, carries the
+// sentence about this occurrence as its detail: "Container 'api' of Pod 'demo-api' should set
+// 'securityContext.privileged' to false". A SARIF viewer, an editor and GitHub code scanning all print
+// the rule's title beside each finding already, and show message.text as what is wrong at the line, so
+// the sentence is written there and the title goes to properties.title. Inside Draugr the message stays
+// the title: the fingerprint hashes it, and an action groups and is titled by it, so writing the
+// sentence changes no finding's identity.
+func sarifMessageOf(res Result, rule Rule) (text, title string) {
+	if res.Detail == "" || res.Detail == res.Message || rule.ShortDescription == "" || res.Message != rule.ShortDescription {
+		return res.Message, ""
+	}
+	return res.Detail, res.Message
+}
+
+// trivyMisconfigurationName is the name Trivy gives every one of its configuration rules.
+const trivyMisconfigurationName = "Misconfiguration"
+
+// ruleName is the name a rule is written under. A SARIF viewer prints it beside the rule's id above
+// the rule's findings, so a name every configuration rule shares says nothing there, and the rule's
+// title, `Privileged`, says what it is about.
+func ruleName(rule Rule) string {
+	if rule.Name == trivyMisconfigurationName && rule.ShortDescription != "" {
+		return rule.ShortDescription
+	}
+	return rule.Name
 }
 
 // uriBaseID names the root Draugr's relative paths are relative to. Scanners run against a
@@ -886,6 +921,14 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Priority = sr.Properties.Priority
 		if sr.Properties.Detail != "" {
 			res.Detail = sr.Properties.Detail
+		}
+		// The rule's title, where message.text carried the finding's sentence, is the message the
+		// finding had before it was written: its identity, its row and its action are built on it.
+		if sr.Properties.Title != "" {
+			if res.Detail == "" {
+				res.Detail = sr.Message.Text
+			}
+			res.Message = sr.Properties.Title
 		}
 		// Read back, not only written. Both are part of Fingerprint, and a report is written and
 		// re-read by `draugr diff` on every pull request, so dropping them here made two components

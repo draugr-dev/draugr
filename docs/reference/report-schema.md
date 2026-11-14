@@ -174,6 +174,7 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `tool` | The scanner that found it, `trivy`, `semgrep`, `gitleaks` |
 | `component` | The part of the application it belongs to |
 | `repository` | Which repository it was found in, for a component holding more than one |
+| `title` | The rule's title, such as `Privileged`, on a finding whose `message.text` is the sentence about this occurrence, such as `Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false`. Absent where the message is the title |
 | `priority` | The band Draugr computed from that component's exposure and criticality |
 | `exposure`, `criticality` | That component's declared classification, the two inputs to the band that do not come from the scanner |
 | `security-severity` | The numeric score, where the scanner gave one |
@@ -190,7 +191,9 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | `package.own` | `true` on a finding about a package the repository itself builds, such as a `package-lock.json`'s root or a Cargo workspace member. Absent on a dependency, and where no dependency file or scanner named the package as the project's own. Each entry in `report.json`'s `findings` carries it as `own`. [Own packages](saga-schema.md#own-packages) lists the files read |
 | `objects` | Every object a finding stands for, where one finding lists the objects failing a check: the pods, containers, roles, bindings or namespaces of a `kubernetes` check, named as the message names them, and all of them where the message shortens the list. `draugr diff` reads it to tell a check that gained an object from one that was fixed. Absent on a finding about one thing |
 | `noLocation` | In `report.json`'s `findings` only: `true` on a finding whose scanner gave no location, where `location` is absent. The console, markdown and HTML reports show `no location from the scanner` in its place. gosec does this for a position inside cgo-generated code |
-| `fingerprint` | The finding's identity, a hash of its tool, rule, level, message, location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
+| `fingerprint` | The finding's identity, a hash of its tool, rule, level, message (its `title`, where it has one), location, component and repository. `report.json` names findings by it in `actions[].findings[]`, and in `findings[].fingerprint` when `--min-priority` lists them |
+
+A rule Trivy names `Misconfiguration` is written under its title, such as `Privileged`, which is what a SARIF viewer shows beside the rule's id.
 
 Beside the property bag, a finding at a line of a file carries `partialFingerprints.primaryLocationLineHash/v1`, its identity across runs, hashed from the text of the line and the two lines either side so that it holds when the finding moves within the file. Two findings of one rule in one file whose lines read alike hash alike, so in line order the second has `:2` appended and the third `:3`.
 

@@ -1436,3 +1436,79 @@ func TestAFieldDumpKeepsItsOccurrenceLine(t *testing.T) {
 		t.Errorf("after a round trip = %+v", back.Results)
 	}
 }
+
+// A finding whose message is only its rule's title is written with its own sentence as message.text,
+// which is what a viewer, an editor and code scanning show at the line, and the title in
+// properties.title. Read back it is the finding it was, with the identity it had, and a report an
+// older Draugr wrote, carrying the title as its message, has that identity too.
+func TestATitledFindingWritesItsSentenceAsTheMessage(t *testing.T) {
+	sentence := "Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false"
+	f := Result{Tool: "Trivy", RuleID: "KSV-0017", Level: LevelError, Message: "Privileged", Detail: sentence,
+		Location: Location{URI: "deploy/pod.yaml", StartLine: 8}, Component: "api"}
+	rep := Report{Tool: "Trivy", Results: []Result{f}, Rules: map[string]Rule{
+		"KSV-0017": {Name: "Misconfiguration", ShortDescription: "Privileged"},
+	}}
+	raw, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc sarifLog
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	written := doc.Runs[0].Results[0]
+	if written.Message.Text != sentence || written.Properties == nil || written.Properties.Title != "Privileged" {
+		t.Errorf("written message %q, title %+v", written.Message.Text, written.Properties)
+	}
+	if written.Properties.Fingerprint != f.Fingerprint() {
+		t.Error("writing the sentence moved the fingerprint")
+	}
+	if name := doc.Runs[0].Tool.Driver.Rules[0].Name; name != "Privileged" {
+		t.Errorf("rule name = %q, want the rule's title", name)
+	}
+
+	back, err := FromSARIF(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := back.Results[0]; got.Message != "Privileged" || got.Detail != sentence || got.Fingerprint() != f.Fingerprint() {
+		t.Errorf("read back as %q / %q, identity kept %v", got.Message, got.Detail, got.Fingerprint() == f.Fingerprint())
+	}
+
+	// An older Draugr wrote the title as the message and had no title property.
+	older := strings.Replace(string(raw), `"text": "`+strings.ReplaceAll(sentence, "'", `'`)+`"`, `"text": "Privileged"`, 1)
+	older = strings.Replace(older, `"title": "Privileged",`, "", 1)
+	if older == string(raw) {
+		t.Fatal("the older report was not made")
+	}
+	old, err := FromSARIF([]byte(older))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if old.Results[0].Fingerprint() != f.Fingerprint() {
+		t.Error("a report from before the change reads as a different finding, so a diff across it shows one new and one fixed")
+	}
+}
+
+// A message that is anything but its rule's title is written as it is, and so is one with no
+// sentence, or a sentence that only repeats it. A rule Trivy did not name generically keeps its name.
+func TestOnlyATitledFindingChangesItsMessage(t *testing.T) {
+	rule := Rule{Name: "Misconfiguration", ShortDescription: "Privileged"}
+	for name, res := range map[string]Result{
+		"a message that is not the title": {Message: "Something else", Detail: "a sentence"},
+		"no sentence":                     {Message: "Privileged"},
+		"a sentence that is the message":  {Message: "Privileged", Detail: "Privileged"},
+	} {
+		if text, title := sarifMessageOf(res, rule); text != res.Message || title != "" {
+			t.Errorf("%s: written as %q with title %q", name, text, title)
+		}
+	}
+	if text, _ := sarifMessageOf(Result{Message: "Privileged", Detail: "x"}, Rule{}); text != "Privileged" {
+		t.Errorf("a rule with no title changed the message to %q", text)
+	}
+	for _, r := range []Rule{{Name: "OsPackageVulnerability", ShortDescription: "x"}, {Name: "Misconfiguration"}} {
+		if got := ruleName(r); got != r.Name {
+			t.Errorf("ruleName(%+v) = %q", r, got)
+		}
+	}
+}
