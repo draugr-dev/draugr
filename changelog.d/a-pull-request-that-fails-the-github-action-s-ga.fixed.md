@@ -1,0 +1,1 @@
+- **A pull request that fails the GitHub Action's gate still shows its new findings in code scanning.** The Action writes the new-findings report before it fails the step, so code scanning annotates the findings that tripped the gate instead of receiving the whole scan.

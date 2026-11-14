@@ -41,7 +41,9 @@ case "$1" in
     if [ "$2" = "--help" ]; then exec "$0" help; fi
     echo "diff ${*:2}" >> "$STUB_LOG"
     case " ${*:2} " in *" --format markdown "*) echo "## stub markdown diff" ;; esac
-    # As the real one: a tripped gate exits non-zero, and so does a comment that cannot be posted.
+    case " ${*:2} " in *" --format sarif "*) [ -n "$STUB_SARIF_EMPTY" ] || echo '{"version":"2.1.0","runs":[]}' ;; esac
+    # As the real one: a tripped gate exits non-zero after writing the report, and so does a
+    # comment that cannot be posted.
     if [ -n "$STUB_GATE_TRIPS" ]; then echo "1 new finding at or above P1" >&2; exit 1; fi
     case " ${*:2} " in *" --publish "*)
       if [ -n "$STUB_PUBLISH_FAILS" ]; then echo "the gate passed, but publishing failed: 403" >&2; exit 1; fi ;;
@@ -378,6 +380,39 @@ func TestTheActionFailsAForkOnItsGate(t *testing.T) {
 		"FORK_PR=true", "STUB_GATE_TRIPS=1", "GITHUB_STEP_SUMMARY="+filepath.Join(t.TempDir(), "summary.md"))
 	if ok {
 		t.Fatalf("the step passed on a fork whose gate tripped:\n%s", out)
+	}
+}
+
+// A tripped gate still hands code scanning the new findings rather than the whole scan: the step
+// fails on the gate only after the new-findings SARIF and the `sarif` output are written.
+func TestATrippedGateStillUploadsOnlyTheNewFindings(t *testing.T) {
+	t.Parallel()
+	output := filepath.Join(t.TempDir(), "github-output")
+	out, diffs, ok := runActionDiff(t, []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"},
+		"FORK_PR=", "STUB_GATE_TRIPS=1", "GITHUB_OUTPUT="+output)
+	if ok {
+		t.Fatalf("the step passed on a gate that tripped:\n%s", out)
+	}
+	if !strings.Contains(diffs, "--format sarif") {
+		t.Fatalf("no new-findings diff ran after the gate tripped:\n%s", diffs)
+	}
+	b, err := os.ReadFile(output) // #nosec G304 -- under t.TempDir()
+	if err != nil || !strings.Contains(string(b), "sarif=") || !strings.Contains(string(b), "results-new.sarif") {
+		t.Errorf("the sarif output does not name the new findings (%v):\n%s", err, b)
+	}
+}
+
+// A new-findings diff that writes no report fails the step, rather than leaving code scanning the
+// whole scan without a word.
+func TestANewFindingsDiffThatWritesNothingFailsTheStep(t *testing.T) {
+	t.Parallel()
+	out, _, ok := runActionDiff(t, []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"},
+		"FORK_PR=", "STUB_SARIF_EMPTY=1")
+	if ok {
+		t.Fatalf("the step passed with no new-findings report:\n%s", out)
+	}
+	if !strings.Contains(out, "wrote no report") {
+		t.Errorf("the failure does not say the report is missing:\n%s", out)
 	}
 }
 
