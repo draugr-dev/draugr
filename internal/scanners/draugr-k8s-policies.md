@@ -426,8 +426,14 @@ kubectl create rolebinding draugr-k8s-policies --namespace=team-a \
 
 A binding made in a namespace grants the role's permissions in that namespace only, which covers
 every required read. It cannot grant the two cluster-wide ones, `get` on ClusterRoles and `create`
-on SubjectAccessReviews, so with namespace bindings alone 5.1.2 and 5.1.4 are left for a person, and
-so are 5.1.8 and 5.1.13 where a binding in the namespaces names a ClusterRole.
+on SubjectAccessReviews, so with namespace bindings alone 5.1.2, 5.1.4, 5.1.8 and 5.1.13 are left
+for a person: the binding above names a ClusterRole, the one this page defines, and the scan cannot
+read it through that binding. To have the four decided, grant those two permissions across the
+cluster as well, with a ClusterRoleBinding to a ClusterRole holding only them.
+
+`kubectl auth can-i --list --namespace <namespace>` lists those two permissions under a namespace
+binding, because it prints the rules of the role that binding names. They take effect only across
+the cluster, which is why the scan leaves the four checks for a person.
 
 ## Links
 

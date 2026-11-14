@@ -1,0 +1,1 @@
+- **Adding someone to a Kubernetes role is not a new finding.** In draugr diff and scan --base, an access check (5.1.8 to 5.1.13) now pairs on the role, so a holder joining or leaving leaves it unchanged; the finding still names who holds it. The draugr-k8s-policies page says which checks a namespace binding always leaves for a person.
