@@ -398,6 +398,9 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 // gosec names a file relative to the module it analyzed, so each document's locations are put back
 // under that module's directory: `main.go` in the module at service/ is service/main.go.
 //
+// A result on a line a `//nolint` covering gosec reaches is then marked suppressed in source, as a
+// `#nosec` result is (markNolintSuppressed).
+//
 // A record onGosecModule wrote in place of a module's report stands for that module. A module with
 // no Go package is an input gosec did not analyze, with the reason manifests.NoGoPackages. A module
 // whose run failed is named in a *moduleFailures returned beside the report of the other modules.
@@ -460,6 +463,7 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		if selected {
 			rep.Results = slices.DeleteFunc(rep.Results, outOfSelection)
 		}
+		markNolintSuppressed(&rep, dir)
 		reports = append(reports, rep)
 	}
 	if dir != "" && docs != len(modules) {

@@ -1,0 +1,1 @@
+- **A `//nolint:gosec` line is no longer a new finding.** gosec ignores the golangci-lint directive, so a line a project had reviewed came back as a finding. Draugr now keeps the result suppressed in source, as it does for `#nosec`, with the text after the second `//` as the reason, and counts it under `scanner exclusions`.

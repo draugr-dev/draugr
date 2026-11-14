@@ -2073,13 +2073,14 @@ values:
 |---|---|---|
 | `saga` | a rule in this descriptor | whoever committed the rule's line, as its git history records |
 | `vex` | a claim [imported from a supplier's document](#reading-a-suppliers-vex-componentsvex-configvexsources) | the supplier |
-| `tool` | a directive in the scanned file, a `#nosec`, a `# nosemgrep` or a `gitleaks:allow` | whoever committed the line |
+| `tool` | a directive in the scanned file, a `#nosec` or `//nolint:gosec`, a `# nosemgrep` or a `gitleaks:allow` | whoever committed the line |
 | `scanner` | the scanner's own configuration, a `.trivyignore` line or a Grype `ignore:` rule | whoever owns that file |
 
 Draugr writes the first two and reads the other two from the scanner's own record of what it
 excluded, using SARIF's `kind` where the scanner writes one. It records which party made the claim and does not check the claim: nothing here opens
 the supplier's document or reads the comment, so the origin says who to ask and never that the
-answer is right.
+answer is right. Draugr reads one directive itself, because gosec ignores it:
+[`//nolint:gosec`](../../internal/scanners/gosec.md#what-a-nolintgosec-becomes).
 
 Neither of the scanner's own is a decision this project recorded. They are listed and counted
 under `scanner exclusions`, never under `config.exclude`.
@@ -2201,7 +2202,7 @@ ACCEPTED
 ```
 
 **`scanner exclusions` is every finding a scanner set aside on its own**, with nothing in this
-descriptor asking it to: a `# nosemgrep`, a `#nosec` or a `gitleaks:allow` beside the line, or a
+descriptor asking it to: a `# nosemgrep`, `#nosec`, `//nolint:gosec` or `gitleaks:allow` beside the line, or a
 rule in a file the scanner reads such as `.trivyignore`, `.gitleaksignore` or `.grype.yaml`. Draugr reports them rather
 than letting them disappear, because a finding somebody excluded and a finding nobody ever had look
 identical once the scanner has dropped it.
