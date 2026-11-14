@@ -1,1 +1,0 @@
-- **See how much memory a scan needed with `--evidence`.** A `memory` row beside the run's timing names the scanner that used the most and its peak, Draugr's own peak and the memory the run could use, so you can size a CI runner without opening report.json.

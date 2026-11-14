@@ -12,6 +12,90 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.178.0] - 2026-11-14
+
+### Added
+
+- **See how much memory a scan needed with `--evidence`.** A `memory` row beside the run's timing names the scanner that used the most and its peak, Draugr's own peak and the memory the run could use, so you can size a CI runner without opening report.json.
+
+- **Trade scan speed for less memory and CPU with `draugr scan --share-workers`.** Semgrep and Trivy then size their worker pools to each job's share of Draugr's parallelism bound rather than to the whole machine. It is off by default, because a long Semgrep job that starts beside many short ones runs slower with it.
+
+### Changed
+
+- **A component's row no longer lists the files it could not read.** In the HTML and markdown reports, a component a failing caveat concerns reads ERROR and says nothing more; the Caveats section lists every caveat, however many files went unread.
+
+- **A Trivy configuration finding in the SARIF says what to change.** Its `message.text` is Trivy's sentence, such as `Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false`, and the rule's title, `Privileged`, moves to `properties.title`. Rules are named by their title, not `Misconfiguration`. Fingerprints are unchanged, so `draugr diff` reports nothing new.
+
+- **Copy a config.exclude entry straight from the output.** TRY now prints the entry's two required lines, the full rule id and the reason, and the HTML report shows the same block on every run with findings, so you can set a rule aside without the docs. The HTML fix list prints rule ids whole, the form an exclusion matches.
+
+- **New findings lead the lists.** When a scan is judged on its change, the HTML and markdown reports list what the change introduced first, each marked `+ new`, so a long backlog no longer hides it, and the HTML Findings tab gains a Change menu that narrows to them.
+
+- **Reach FIX FIRST without scrolling past unread files.** CAVEATS folds the files skipped for one reason into a counted row, shows every group even when the gate fails on them, says what to do about a file over 1 MB or one named like an archive, and fits 80 columns; --top 0 still lists every file.
+
+- **report.json says how much memory Draugr itself took, and each job's tools.** stats.peakDraugrMemoryBytes records Draugr's own peak beside stats.peakToolMemoryBytes, and stats.jobMemory lists the largest tool process of each job that ran one, failed jobs included.
+
+- **See everything a change did, in its own tab.** When a scan is judged on its change, the HTML report gains a Change tab: the gate and its verdict, then new, unaccepted, accepted, fixed, moved and unchanged findings as draugr diff counts them, each a way to its findings, and what to do about the change. Markdown opens alike.
+
+- **See which fix list rows are checks, and how a check ends.** In `--view actions`, a Check row (one asking you to look before you change anything) is counted apart from the changes, so a heading no longer says it clears findings, and one line says a check ends in a change or in config.exclude with a reason.
+
+- **The install script's closing steps start with a scan that needs no descriptor.** `draugr tools install`, then `draugr scan .`, as the quickstart teaches, with `draugr init` last for when you want to choose what runs.
+
+### Fixed
+
+- **5.2.1 is left for a person, not failed, when Draugr cannot read the ValidatingAdmissionPolicy bindings.** A refused read, or a cluster older than Kubernetes 1.30, failed it with "no ValidatingAdmissionPolicy is bound". It now stays open unless a namespace enforces a Pod Security level above `privileged` or a Gatekeeper or Kyverno webhook passes it.
+
+- **A deprecated package keeps its publisher's whole reason in `report.json` and the SARIF.** The reason was cut at 120 bytes, often partway through the address it pointed to, and the cut could split a character and leave text that is not valid UTF-8.
+
+- **A flaw in a Cargo workspace member counts once when Trivy and Grype both report it.** Grype gives a workspace member no package URL and Trivy gives it one; the two findings are now matched on the package's type, name and version. With `ownPackages: report`, Grype's copy is listed beside Trivy's instead of counted again.
+
+- **A Kubernetes refusal says what to grant.** When the API server refuses a read, the errors block now gives the verb, resource, API group and scope, such as cannot list clusterrolebindings (rbac.authorization.k8s.io) at the cluster scope, instead of the scan identity cut off partway through the resource name. report.json keeps the full message.
+
+- **A pull request that fails the GitHub Action's gate still shows its new findings in code scanning.** The Action writes the new-findings report before it fails the step, so code scanning annotates the findings that tripped the gate instead of receiving the whole scan.
+
+- **A signature that does not verify no longer stops the `provenance` control under a declared signer.** An image signed with a key and no transparency-log entry, or one whose log entry names another certificate, is now reported as `provenance-unexpected-identity`, and the control goes on to the other images.
+
+- **Adding someone to a Kubernetes role is not a new finding.** In draugr diff and scan --base, an access check (5.1.8 to 5.1.13) now pairs on the role, so a holder joining or leaving leaves it unchanged; the finding still names who holds it. The draugr-k8s-policies page says which checks a namespace binding always leaves for a person.
+
+- **Adopt signers from images signed outside GitHub Actions.** Discovery and `draugr survey provenance` now read a bundle signature's issuer from the signature, so a signer surveyed from an image a Google service account signed names Google's issuer and verifies it. A mismatch names the identity found, never an issuer.
+
+- **`draugr classify` changes only the two values it sets.** It rewrote the whole descriptor, collapsing aligned comments and moving a commented-out block such as `draugr init`'s `images:` stub under the key above it, where uncommenting it nested it in the wrong place. Every other line now stays as written.
+
+- **`draugr controls` describes the secrets control as it runs by default.** Its summary no longer says past commits are searched, since that needs the gitleaks `history` option, which is off unless you turn it on.
+
+- **Draugr needs half the memory to read a Grype scan.** It now reads Grype's SARIF and JSON reports once each instead of rewriting and re-reading the SARIF, so a run with 2,254 findings allocates 32 MB rather than 66 MB and is read in half the time. Findings are unchanged.
+
+- **Get headers results from a host whose certificate fails verification.** When tls checks the same host in the same component, headers reads the response without verifying the certificate, which tls already reports, instead of ending in ERROR. Redirects to other hosts are still verified, and a run without tls keeps the error.
+
+- **History scans in the secrets control need far less memory.** With history: true, Gitleaks writes its history report as CSV, which takes it a fraction of the memory SARIF did on a long history, and Draugr reads the same findings from it.
+
+- **One leaked key is one thing to do.** When the secrets scanner and a code scanner both flag the same line, the fix list shows a single action under credentials, at the more urgent of the two priorities, clearing both findings, instead of two actions for the one key.
+
+- **Read what failed when you explain a cloud check.** `draugr explain` on a Prowler check no longer prints the check's title, which describes a passing account, under its id; it prints the sentence its findings say. The remediation is headed FIX and wraps to the terminal.
+
+- **Require signer coverage and have it hold.** With `unmatched: warn` or `fail`, `provenance` now reports an image no signer covers even when it carries a signature, and names the identity that signed it. Until now an image signed by anybody passed.
+
+- **Run `provenance` over images signed with a key.** An image whose signature carries no Sigstore certificate, or does not verify, is now recorded as signed with its identity unread, and the control carries on with the other images instead of stopping the run with an error.
+
+- **Scans hold less memory while reading what their tools report.** Draugr keeps only the lines it reads of Gitleaks' trace log and Trivy's debug log, decodes Semgrep's and Trivy's image reports once instead of several times, and asks Nuclei to leave each finding's raw request and response out of its output.
+
+- **See which objects joined or left a Kubernetes check in `draugr diff` and `scan --base`.** An OBJECTS block after CHANGED lists each object that joined a check, then each that left, one line per object under `--view compact`; the pull-request comment lists them too. A check that only lost objects now shows instead of "Nothing changed".
+
+- **See which permission to grant when a cloud or Kubernetes check could not be decided.** A refused read is listed under CAVEATS as unread with the read that was denied, instead of counted as left for a person. An AWS member account is told to scan from the management account. `--evidence` lists every undecided check by kind.
+
+- **See why an AWS member account's Organizations checks were not decided.** cloud now reads the Organizations denials Prowler logs as warnings, so organizations_delegated_administrators and iam_root_credentials_management_enabled are listed as unread with the denial, not left as an unexplained gap in the coverage count. LOG_LEVEL=ERROR hiding them is now said on AWS too.
+
+- **The docs say where an exclusion approval is recorded.** They said an exclusion git author is who decided it was acceptable. The author is who wrote the line; the approval is the review of the change that added it, which exists only where the branch requires a review.
+
+- **The `provenance` scope field now counts a declared signer that matches none of your images.** A descriptor whose signer patterns matched no image read `scope: no signers declared`. It now reads, for example, `scope: 2 signers, 1 matching an image`; fix the patterns of the signer that matches nothing, or remove it.
+
+- **Trust draugr diff and scan --base on Kubernetes checks.** A kubernetes check that gains a pod is reported new and still trips the gate; one that keeps or loses pods stays unchanged, instead of the old check reading as fixed while every object it listed still fails it. Each such finding lists its objects in SARIF as objects.
+
+- **Use the signers `draugr survey provenance` writes on images declared with `digest:`.** A signer naming `<repository>@<digest>` now covers an image declared with a tag and a separate digest, so the image is checked, not only observed. The survey also names such a signer after the image.
+
+- **With `dependencyHealth` on, a malicious package is reported even when no scanner flagged it.** The lookup now asks deps.dev about every package `trivy-fs` lists, not only those carrying a finding, and a package on the OSSF Malicious Packages list becomes a critical `malicious-package` finding with the action `Remove <package> <version>, flagged as malicious`.
+
+- **You can grant draugr-k8s-policies what it needs.** Its page said a refused read never stops a scan, but five do: listing ClusterRoleBindings, ClusterRoles, Roles, ServiceAccounts and Pods. The page now separates required reads from optional ones for whole-cluster and namespace scans, says the built-in view role is not enough, and gives a ClusterRole to apply.
+
 ## [0.177.0] - 2026-11-14
 
 ### Changed
@@ -7147,7 +7231,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.177.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.178.0...HEAD
+[0.178.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.178.0
 [0.177.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.177.0
 [0.176.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.1
 [0.176.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.0
