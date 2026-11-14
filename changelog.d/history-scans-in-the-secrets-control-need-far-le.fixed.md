@@ -1,0 +1,1 @@
+- **History scans in the secrets control need far less memory.** With history: true, Gitleaks writes its history report as CSV, which takes it a fraction of the memory SARIF did on a long history, and Draugr reads the same findings from it.

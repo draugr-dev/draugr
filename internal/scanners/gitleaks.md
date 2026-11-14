@@ -50,6 +50,12 @@ memory. `paths` and `ignore` lower neither: Draugr drops a history finding outsi
 scope only after Gitleaks has reported it. Leave `history` off where the machine lacks that memory
 or the time.
 
+The history pass runs `gitleaks git . --report-format csv`, and Draugr turns the CSV into the
+SARIF Gitleaks would have written, one row at a time. Gitleaks builds a whole SARIF or JSON report
+in memory before writing it, and writes CSV a row at a time, so on a long history the CSV run needs
+a fraction of the memory. The commit's author, email, date and message, which the CSV carries, are
+not kept.
+
 When the history pass does not finish, the tree pass's findings are still reported and the `secrets`
 control is in error, naming the repository. If the kernel kills Draugr itself rather than Gitleaks,
 the run ends with no report.
