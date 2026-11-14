@@ -85,10 +85,22 @@ func trivyLogKept(line []byte) bool {
 
 // trivyConfigExec runs Trivy with its log kept beside its report, retrying while another job in the
 // run holds its cache.
+//
+// TMPDIR is a directory made for this run and removed after it. Trivy keeps the remote Terraform
+// modules it downloads in `.aqua/cache` under the temporary directory, and reads that cache before
+// it tries to fetch, so under the system's own every Trivy on the machine shares it: a module some
+// other run downloaded would be loaded and checked, offline included, and the same commit would give
+// different findings on a laptop and on a fresh runner. In a directory of its own the scan reads
+// only what it fetched itself, and writes nothing another program reads.
 func trivyConfigExec(ctx context.Context, dir string, argv []string) ([]byte, []byte, error) {
-	var env []string
+	tmp, err := os.MkdirTemp("", "draugr-trivy-config-*")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+	env := []string{"TMPDIR=" + tmp}
 	if netpolicy.Offline() {
-		env = offlineModuleEnv
+		env = append(env, offlineModuleEnv...)
 	}
 	return trivyExecLogged(ctx, dir, argv, env)
 }
