@@ -1,0 +1,1 @@
+- **See why an AWS member account's Organizations checks were not decided.** cloud now reads the Organizations denials Prowler logs as warnings, so organizations_delegated_administrators and iam_root_credentials_management_enabled are listed as unread with the denial, not left as an unexplained gap in the coverage count. LOG_LEVEL=ERROR hiding them is now said on AWS too.

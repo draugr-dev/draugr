@@ -138,9 +138,9 @@ var (
 	azureGraphStatusRE = regexp.MustCompile(`\bCode: (429|5\d\d)\b`)
 )
 
-// azureHiddenLogLevel is LOG_LEVEL where it hides the warnings the scan reads. Prowler lets the
-// environment override --log-level.
-func azureHiddenLogLevel(getenv func(string) string) string {
+// prowlerHiddenLogLevel is LOG_LEVEL where it hides the warnings the scan reads, on Azure and on AWS.
+// Prowler lets the environment override --log-level.
+func prowlerHiddenLogLevel(getenv func(string) string) string {
 	switch level := getenv("LOG_LEVEL"); level {
 	case "ERROR", "CRITICAL":
 		return level

@@ -70,6 +70,90 @@ func TestAWSLoggedDenialsAreDenialsOnly(t *testing.T) {
 	}
 }
 
+// memberAccountLog is what Prowler logs at WARNING in an AWS member account, which is neither the
+// organization's management account nor a delegated administrator, in the recorded log's shape.
+func memberAccountLog() string {
+	line := func(file, module, message string) string {
+		return `{"timestamp": "2026-11-07 00:00:00,000", "filename": "` + file + `", "level": "WARNING", "module": "` +
+			module + `", "message": "` + message + `"}`
+	}
+	return strings.Join([]string{
+		line("iam_service.py:1", "iam_service", "us-east-1 -- AccountNotManagementOrDelegatedAdministratorException[1]: "+
+			"An error occurred (AccountNotManagementOrDelegatedAdministratorException) when calling the "+
+			"ListOrganizationsFeatures operation: Input account 111111111111 is neither management account nor delegated admin."),
+		line("organizations.py:1", "organizations", "us-east-1 -- AccessDeniedException[1]: An error occurred "+
+			"(AccessDeniedException) when calling the DescribeAccount operation: You don't have permissions to access this resource."),
+		line("organizations_service.py:1", "organizations_service", "us-east-1 -- AccessDeniedException[1]: An error occurred "+
+			"(AccessDeniedException) when calling the ListPolicies operation: You don't have permissions to access this resource."),
+	}, "\n") + "\n"
+}
+
+// In a member account, Prowler logs the Organizations calls it is refused at WARNING, and the two
+// checks reading Organizations emit nothing there. The scan reads the log at that level, so both
+// are unread with the denial rather than missing from the count unexplained. The refusal from the
+// provider's own lookup, outside a service module, and IAM's precondition, which is not a denial,
+// leave IAM's other checks decided.
+func TestAMemberAccountsOrganizationsDenialsAreRead(t *testing.T) {
+	f := &fakeProwler{
+		checks: []string{
+			"iam_password_policy_minimum_length_14", "iam_root_credentials_management_enabled",
+			"organizations_delegated_administrators",
+		},
+		findings: []map[string]any{
+			ocsf("iam_password_policy_minimum_length_14", "PASS", "medium", "us-east-1", "111111111111"),
+		},
+		log: memberAccountLog(),
+	}
+	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), webProd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := argAfter(f.argv[1], "--log-level"); got != "WARNING" {
+		t.Errorf("--log-level %s, want WARNING, where Prowler logs these denials", got)
+	}
+	partly, unread := partlyAndUnread(report)
+	if len(partly) != 0 {
+		t.Errorf("partly read = %v, want none", partly)
+	}
+	if want := []string{"iam_root_credentials_management_enabled", "organizations_delegated_administrators"}; !slices.Equal(unread, want) {
+		t.Errorf("unread = %v, want %v", unread, want)
+	}
+	for _, u := range report.Unchecked {
+		if u.Group != "organizations" || u.Reason != "denied the ListPolicies call" {
+			t.Errorf("row %s = group %q, reason %q; want organizations, denied the ListPolicies call", u.Check, u.Group, u.Reason)
+		}
+	}
+	if len(report.Decided) != 1 || report.Decided[0].ID != "iam_password_policy_minimum_length_14" {
+		t.Errorf("decided = %+v, want only the IAM check Prowler answered", report.Decided)
+	}
+}
+
+// On AWS too, LOG_LEVEL above WARNING hides the denials the scan reads, and the measured-against line
+// says so. INFO hides none of them.
+func TestAnAWSLogLevelHidingWarningsIsSaid(t *testing.T) {
+	for level, hides := range map[string]bool{"ERROR": true, "CRITICAL": true, "INFO": false, "": false} {
+		f := &fakeProwler{
+			checks:   []string{"iam_password_policy_minimum_length_14"},
+			findings: []map[string]any{ocsf("iam_password_policy_minimum_length_14", "PASS", "medium", "us-east-1", "111111111111")},
+		}
+		s := newTestProwler(f, &grantAll{})
+		s.getenv = func(k string) string {
+			if k == "LOG_LEVEL" {
+				return level
+			}
+			return ""
+		}
+		report, err := s.Scan(context.Background(), webProd, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := report.Provenance[0].Describe()
+		if said := strings.Contains(got, "LOG_LEVEL="+level+" hides Prowler's warnings, Organizations denials"); said != hides {
+			t.Errorf("LOG_LEVEL=%q: provenance = %q", level, got)
+		}
+	}
+}
+
 // recordedAWSScan is the recorded run as the fake Prowler replays it: every CIS 7.0 check listed,
 // the recorded findings and the recorded log.
 func recordedAWSScan(t *testing.T) *fakeProwler {

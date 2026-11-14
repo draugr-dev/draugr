@@ -64,11 +64,16 @@ coverage figure counts the checks the installed Prowler runs.
    role commonly may not, leave the log alone to name the denials, and neither case is an error.
    The measured-against line says which ran, `permissions: simulated before the scan, then read
    from Prowler's log` or `permissions: read from Prowler's log`.
-3. **The log is read for denied calls**, after a preflight too. A denied call is one a service
+3. **The log is read for denied calls**, after a preflight too, at `WARNING`: Prowler logs a
+   refused Organizations call there, which a member account gets for every call only the
+   management account or a delegated administrator may make. A denied call is one a service
    module logged as failing with `AccessDenied`, `AccessDeniedException`, `AuthorizationError`
    (SNS) or `UnauthorizedOperation` (EC2), and a throttled call is not one. The reason is the
    action the error names, `denied kms:DescribeKey`, or the call where it names none, `denied the
-   GetEventSelectors call`.
+   GetEventSelectors call`. In a member account, `organizations_delegated_administrators` and
+   `iam_root_credentials_management_enabled` are then unread with the Organizations denial, rather
+   than missing from the coverage count. `LOG_LEVEL` in the environment overrides `--log-level`, so
+   `ERROR` or `CRITICAL` hides those warnings, and the measured-against line says so.
 4. **A denial is judged per check.** Prowler starts a service by making every call its module
    makes, so a denied call leaves every check of the service in doubt, and is often one some of
    them do not need. A check of a denied service with no pass or fail is unread, and its result
@@ -97,8 +102,8 @@ alone.
    `permissions: listed before the scan, then read from Prowler's log`. Prowler's Azure base class
    discards what its worker threads raise, so a denial there may leave no log line, and the preflight
    carries more weight than on the other clouds.
-4. **The log is read for refused and failed reads**, at `WARNING` rather than the `ERROR` the other clouds
-   use. A refused read is `AuthorizationFailed`, a `Forbidden` code, or a 403 from Microsoft Graph, in a
+4. **The log is read for refused and failed reads**, at `WARNING`, as on AWS, rather than the `ERROR`
+   Google Cloud uses. A refused read is `AuthorizationFailed`, a `Forbidden` code, or a 403 from Microsoft Graph, in a
    line from a service module. A failed read ended with no answer: a dropped connection, named as
    `read failed, RemoteProtocolError`, or a 429 or 5xx from Microsoft Graph, named as
    `read failed, HTTP 503`. Its service's checks are treated as a denied service's are, because the same
