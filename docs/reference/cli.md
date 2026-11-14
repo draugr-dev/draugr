@@ -605,6 +605,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
+| `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains |
 | `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -671,6 +672,15 @@ count as one. Within its turn, gosec loads two packages at once, each building w
 its job's share, rounded down, so its compile processes also stay within that share. A run with
 several such loads takes longer than loads in parallel would, and each job's wait is in
 `stats.orderWaitsMs`.
+
+Some tools size a pool of their own, which `GOMAXPROCS` does not reach. Semgrep starts an analysis
+process for each CPU it can see, up to sixteen, and where several Semgrep jobs run at once each gets
+`--jobs` at the CPUs divided among them. Trivy reads five files at once. With `--share-workers`,
+Semgrep's `--jobs` and Trivy's `--parallel` are instead each job's share of n, never more than the
+tool's own default. The run then holds less memory and CPU, and can take longer, because a share is
+fixed when the tool starts and a long Semgrep job that starts beside many short ones keeps its small
+share after they finish. Syft, Grype, Gitleaks, Nuclei, Prowler and Mend's `ua` take no such setting from
+Draugr.
 
 n is half the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. The CPUs are
 the ones Draugr may use after a container's CPU limit. The memory is the lower of the machine's and
