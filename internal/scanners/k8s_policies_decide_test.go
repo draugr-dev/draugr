@@ -95,7 +95,7 @@ func clusterRolesOf(t *testing.T, c *fake.Clientset) ([]rbacv1.ClusterRole, []rb
 }
 
 // Each access check names the roles somebody is bound to, its own apart from the distribution's, and
-// leaves out a role nothing binds.
+// leaves out a role nothing binds. The role is the object; who holds it is in the finding's words.
 func TestAccessChecksNameTheBoundRoles(t *testing.T) {
 	t.Parallel()
 
@@ -104,12 +104,12 @@ func TestAccessChecksNameTheBoundRoles(t *testing.T) {
 	got := evaluateAccess(context.Background(), c, nil, crs, roles)
 
 	for id, want := range map[string]struct{ owned, distribution []string }{
-		"5.1.8":  {owned: []string{"role team-a/deployer (bound to serviceaccount team-a/ci)"}},
-		"5.1.9":  {owned: []string{"clusterrole storage-admin (bound to user ari, user dana, user kim and 1 more)"}},
+		"5.1.8":  {owned: []string{"role team-a/deployer"}},
+		"5.1.9":  {owned: []string{"clusterrole storage-admin"}},
 		"5.1.10": {},
-		"5.1.11": {distribution: []string{"clusterrole system:certificates-approver (bound to serviceaccount kube-system/certificate-controller)"}},
+		"5.1.11": {distribution: []string{"clusterrole system:certificates-approver"}},
 		"5.1.12": {},
-		"5.1.13": {owned: []string{"clusterrole token-maker (bound to group builders)"}},
+		"5.1.13": {owned: []string{"clusterrole token-maker"}},
 	} {
 		v, ok := got[id]
 		if !ok {
@@ -146,7 +146,8 @@ func TestAccessChecksScopedToANamespace(t *testing.T) {
 	if ids := len(got); ids != 2 {
 		t.Errorf("decided %d checks, want the 2 namespaced ones: %v", ids, got)
 	}
-	if v := got["5.1.13"]; strings.Join(v.Owned, ",") != "clusterrole token-maker (bound to group builders)" {
+	if v := got["5.1.13"]; strings.Join(v.Owned, ",") != "clusterrole token-maker" ||
+		!strings.Contains(v.Detail, "clusterrole token-maker (bound to group builders)") {
 		t.Errorf("5.1.13 owned %v, want the ClusterRole team-b binds", v.Owned)
 	}
 	if !got["5.1.8"].Compliant {
@@ -323,5 +324,25 @@ func TestSubjectName(t *testing.T) {
 		if got := subjectName(tc.s, "team-a"); got != tc.want {
 			t.Errorf("subjectName(%+v) = %q, want %q", tc.s, got, tc.want)
 		}
+	}
+}
+
+// Somebody joining or leaving a role changes who the finding names and not what fails the check, so
+// the object a comparison of two scans pairs on stays the role.
+func TestAnAccessFindingsObjectIsTheRoleWhoeverHoldsIt(t *testing.T) {
+	t.Parallel()
+	role := boundRole{name: "role team-a/deployer", subjects: []string{"serviceaccount team-a/ci"},
+		rules: []rbacv1.PolicyRule{{APIGroups: []string{"rbac.authorization.k8s.io"}, Resources: []string{"roles"}, Verbs: []string{"bind"}}}}
+	before := checkAccess(accessChecks[0], []boundRole{role})
+	role.subjects = append(role.subjects, "user dana")
+	after := checkAccess(accessChecks[0], []boundRole{role})
+	if before.Compliant || after.Compliant {
+		t.Fatalf("a role granting bind passed: %q, %q", before.Detail, after.Detail)
+	}
+	if strings.Join(before.Owned, ",") != strings.Join(after.Owned, ",") || strings.Join(after.Owned, ",") != "role team-a/deployer" {
+		t.Errorf("objects %v then %v, want the role alone both times", before.Owned, after.Owned)
+	}
+	if !strings.Contains(after.Detail, "user dana") {
+		t.Errorf("the finding does not name who holds the role: %q", after.Detail)
 	}
 }

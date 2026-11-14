@@ -196,21 +196,31 @@ func boundRoles(
 	return out
 }
 
-// checkAccess implements one access check over the roles somebody is bound to. Each offender names
-// the role and who holds it, "role team-a/deployer (bound to serviceaccount team-a/ci)", since the
-// question the finding leaves the reader is whether those subjects should.
+// checkAccess implements one access check over the roles somebody is bound to. Each offender is the
+// role, and the finding names who holds it, "role team-a/deployer (bound to serviceaccount team-a/ci)",
+// since the question it leaves the reader is whether those subjects should.
+//
+// The role alone is the object a comparison of two scans pairs the check on. Its holders change
+// whenever somebody joins or leaves a team, and the role failing the check is the same failure
+// either way: a holder in the object would make a check that still fails read as fixed, or one
+// somebody was only removed from read as new.
 func checkAccess(c accessCheck, roles []boundRole) policyVerdict {
 	var offenders []string
 	distribution := map[string]bool{}
+	held := map[string]string{}
 	for _, r := range roles {
 		if grantsAny(r.rules, c.grants) {
-			o := r.name + " (bound to " + r.holders() + ")"
-			offenders = append(offenders, o)
-			distribution[o] = r.distribution
+			offenders = append(offenders, r.name)
+			distribution[r.name] = r.distribution
+			held[r.name] = r.name + " (bound to " + r.holders() + ")"
 		}
 	}
 	return failing(offenders, func(o string) bool { return distribution[o] }, func(l []string) string {
-		return english.Count(len(l), "role") + " granting permission to " + c.phrase + ": " + summarize(l)
+		named := make([]string, 0, len(l))
+		for _, o := range l {
+			named = append(named, held[o])
+		}
+		return english.Count(len(l), "role") + " granting permission to " + c.phrase + ": " + summarize(named)
 	})
 }
 
