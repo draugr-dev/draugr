@@ -18,21 +18,52 @@ writes the file, binds it to its commit, and scans.
 
 ## What it does
 
-Reads a SARIF file a component imports and adds its findings to the control the descriptor names,
-as though one of that control's scanners had produced them. Each finding then takes the component's
-exposure and criticality into its priority, counts toward the gate, and appears in the fix list and
-every report beside the findings Draugr's own scanners made.
+Reads a SARIF file a component imports and adds its findings to the control the descriptor names.
+Each finding then takes the component's exposure and criticality into its priority, counts toward
+the gate, and appears in the fix list and every report. [Before you import](#before-you-import) lists
+what to set up first.
 
 The file is read as SARIF 2.1.0:
 
-- **Severity** comes from each result's numeric `security-severity` property, the convention GitHub
-  code scanning reads, inherited from its rule where the result has none. A result without one,
-  in a file Bandit wrote, is rated from its `issue_severity` and `issue_confidence` (see
-  [Bandit](#bandit)). Any other result falls back to its `level`, mapped as every other SARIF level
-  is: `error` to high, `warning` to medium, `note` to low.
-- **Package and fix** come through only where the file carries them in the properties Draugr reads.
-  Without them a finding becomes a "Fix <rule>" action rather than an upgrade.
+- **Severity** comes from each result's `security-severity` property, a CVSS-style score written as
+  a string such as `"7.5"`, the convention GitHub code scanning reads, inherited from its rule where
+  the result has none. A result without one, in a file Bandit wrote, is rated from its
+  `issue_severity` and `issue_confidence` (see [Bandit](#bandit)). Any other result falls back to
+  its `level`, mapped as every other SARIF level is: `error` to high, `warning` to medium, `note`
+  to low.
+  - A file that states only levels never yields a critical finding.
+  - A tool that writes only `warning` produces medium findings. A medium finding ranks P2 at most,
+    so with the default gate, which fails on P1, such a file cannot fail the run unless KEV or EPSS
+    raises a finding whose rule id holds a CVE.
+- **Package and fix** come through only where the file carries Draugr's own `package` property. A
+  dependency finding from another tool's file names no package, its fix reads `no package
+  reported`, and it becomes a "Fix <rule>" action rather than an upgrade.
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
+
+## Before you import
+
+- **Switch off the control's own scanner when you import its tool's file.** An imported finding is
+  not merged with the same finding from that scanner, so a tool Draugr also runs lists each finding
+  twice, ranked twice.
+
+  | Imported tool | Control | Switch off |
+  |---|---|---|
+  | Semgrep | `sast` | `config.controls.sast.semgrep.enabled: false` |
+  | Trivy, vulnerabilities | `sca` | `config.controls.sca.trivyFs.enabled: false` |
+  | Trivy, misconfigurations | `iac` | `config.controls.iac.trivyConfig.enabled: false` |
+
+  The same block under `components[].controls` switches it off for one component.
+- **Write paths relative to the repository's root.** Each location is kept as the file writes it.
+  An absolute path or a `file://` URI is reported as written, and
+  [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) `paths` match it only as
+  written.
+- **Set aside an imported finding with `config.exclude`.** A repository's `paths:` and `ignore:`
+  narrow the scanners Draugr runs, not an imported file: every finding in it belongs to the
+  component.
+- **Expect the file's own suppressions to hold.** A result with an entry in `suppressions` stays in
+  the report, suppressed, whatever the entry's `status`.
+- **Expect KEV and EPSS only on a CVE.** They read a CVE id in the rule id, so a finding whose rule
+  id is a GHSA id or a tool's own code, such as `B602`, gets neither.
 
 ## What the report says about the file
 
@@ -95,6 +126,14 @@ repositories, the address has to name one of them.
 A file that is missing, unreadable, empty, not SARIF, a SARIF version other than 2.1.0, or a log
 with no runs stops the run as a scanner that could not run does, and `--allow-scan-errors` accepts
 it. A valid file with no results is a clean result.
+
+A file is also unreadable where a result property Draugr reads by name has another shape:
+`security-severity` written as a JSON number, or one of Draugr's own result properties (`priority`
+as a number, `labels` as an array, `package` as a string). The error names the field, as in
+`not a SARIF log: json: cannot unmarshal number into Go struct field …security-severity of type
+string`. Write `security-severity` as a string, `"7.5"`. Draugr reads a result's rule from `ruleId`
+and its path from `artifactLocation.uri`: a result that names its rule only by `ruleIndex` has no
+rule id, and a location given only by `artifactLocation.index` has no path.
 
 ## License & terms
 
