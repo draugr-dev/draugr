@@ -173,7 +173,8 @@ Draugr reports as one SARIF tool, so every finding keeps its own attribution in 
 | Property | What it says |
 |---|---|
 | `control` | The check that produced it, `sca`, `sast`, `secrets`, `iac`, `images`, `licenses` |
-| `tool` | The scanner that found it, `trivy`, `semgrep`, `gitleaks` |
+| `tool` | The tool that found it, as it names itself, such as `Trivy`, `Semgrep OSS` or `gitleaks`. Part of the finding's identity |
+| `scanner` | The Draugr scanner whose run found it, such as `trivy-config`, `trivy-fs` or `semgrep`, as `draugr controls` lists it. Two scanners can run one tool, as `trivy-config` and `trivy-fs` both run Trivy, and the HTML report names findings by this. A finding imported from another tool's SARIF carries `sarif-import`, and the HTML report shows its `tool`. Each entry in `report.json`'s `findings` carries it under the same name |
 | `component` | The part of the application it belongs to |
 | `repository` | Which repository it was found in, for a component holding more than one |
 | `title` | The rule's title, such as `Privileged`, on a finding whose `message.text` is the sentence about this occurrence, such as `Container 'api' of Pod 'demo-api' should set 'securityContext.privileged' to false`. Absent where the message is the title |

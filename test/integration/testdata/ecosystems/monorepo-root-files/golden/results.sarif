@@ -66,6 +66,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -105,6 +106,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2018-1000656"
@@ -143,6 +145,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2018-1000656"
@@ -180,6 +183,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -218,6 +222,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-root-files",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },

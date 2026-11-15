@@ -216,3 +216,24 @@ func TestARunRecordsWhyABandWasHeldDown(t *testing.T) {
 		}
 	}
 }
+
+// A run stamps each finding with the scanner whose job reported it.
+func TestARunNamesEachFindingsScanner(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterScanner(fixtureScanner{name: "s"})
+	reg.RegisterController(jobPerRepo{name: "iac", scanner: "s"})
+	m := saga.Model{
+		Release:    saga.Release{Version: "1"},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"iac": {"enabled": true}}},
+		Components: []saga.Component{{Name: "api", Repositories: []saga.Repository{{URL: "https://example.test/api.git"}}}},
+	}
+	res, err := New(reg).Run(context.Background(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range res.Controls["iac"].Report.Results {
+		if r.Scanner != "s" {
+			t.Errorf("%s: scanner %q, want the job's", r.Location.URI, r.Scanner)
+		}
+	}
+}

@@ -59,6 +59,7 @@
             },
             "priority": "P1",
             "repository": "./python-pylock",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2018-1000656"

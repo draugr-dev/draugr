@@ -74,6 +74,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -113,6 +114,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"
@@ -144,6 +146,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "scanner": "semgrep",
             "tool": "Semgrep OSS"
           },
           "ruleId": "draugr-fixture-eval"
@@ -181,6 +184,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -220,6 +224,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"
@@ -251,6 +256,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-paths",
+            "scanner": "semgrep",
             "tool": "Semgrep OSS"
           },
           "ruleId": "draugr-fixture-eval"

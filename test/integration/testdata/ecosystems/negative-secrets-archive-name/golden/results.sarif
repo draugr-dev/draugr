@@ -123,6 +123,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./negative-secrets-archive-name",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },

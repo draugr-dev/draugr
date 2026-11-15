@@ -52,6 +52,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G702"
@@ -83,6 +84,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G702"
@@ -114,6 +116,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G702"
@@ -145,6 +148,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G401"
@@ -176,6 +180,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"
@@ -207,6 +212,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G501"
@@ -238,6 +244,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G401"
@@ -269,6 +276,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G501"
@@ -300,6 +308,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"
@@ -331,6 +340,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G401"
@@ -362,6 +372,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"
@@ -393,6 +404,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G501"
@@ -424,6 +436,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-gosec",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G306"

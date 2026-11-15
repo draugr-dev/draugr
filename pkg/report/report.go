@@ -717,12 +717,37 @@ func automationList(names []string) string {
 // in the whole id.
 func automationSegment(s string) string { return strings.ReplaceAll(s, "/", "-") }
 
+// scannerShown is the name the HTML report gives the scanner behind a finding: Draugr's name for
+// it, as `draugr controls` lists it, so `trivy-config` and `trivy-fs` read as the two scanners they
+// are rather than as one tool spelled `Trivy` and `trivy`. A finding imported from another tool's
+// SARIF, and one read from a file that recorded no scanner, keep the tool's own name: an import is
+// about that tool, and `sarif-import` would name nobody's tool. The console and the markdown report
+// print the tool, as they always have, so text quoted from them stays true.
+func scannerShown(res sarif.Result) string {
+	if res.Scanner == "" || res.Scanner == plugin.ImportScanner {
+		return res.Tool
+	}
+	return res.Scanner
+}
+
+// scannerName is the name the HTML report shows for the finding's scanner: scannerShown's, or the
+// tool's own where the finding records no scanner.
+func (f finding) scannerName() string {
+	if f.scanner != "" {
+		return f.scanner
+	}
+	return f.tool
+}
+
 // --- shared summary used by the human reporters ---
 
 type finding struct {
 	// priorityCap is why the band was held below what severity and context gave
 	// (sarif.Result.PriorityCap), empty where nothing held it down.
 	priorityCap string
+	// scanner is the name the HTML report gives the scanner behind the finding (scannerShown), where
+	// tool is the name the tool gives itself and stays the finding's identity.
+	scanner string
 	// module is the downloaded Terraform module the finding lies in, nil where it lies in none.
 	module *sarif.Module
 	// detail is the scanner's sentence about this occurrence, where the message is the rule's title.
@@ -933,7 +958,7 @@ func summarize(d Data) summary {
 			// findings were set aside rather than never found.
 			if res.Suppressed() {
 				s.excluded = append(s.excluded, finding{
-					control: name, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+					control: name, ruleID: res.RuleID, tool: res.Tool, scanner: scannerShown(res), priority: res.Priority,
 					component:  res.Component,
 					repository: res.Repository,
 					location:   locationOf(res), message: res.Message,
@@ -1030,7 +1055,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		control = res.Control
 	}
 	return finding{
-		control: control, ruleID: res.RuleID, tool: res.Tool, priority: res.Priority,
+		control: control, ruleID: res.RuleID, tool: res.Tool, scanner: scannerShown(res), priority: res.Priority,
 		fingerprint:   res.Fingerprint(),
 		escalation:    res.Escalation,
 		exploited:     exploitedOf(res),

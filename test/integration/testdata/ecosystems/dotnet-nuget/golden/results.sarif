@@ -59,6 +59,7 @@
             },
             "priority": "P1",
             "repository": "./dotnet-nuget",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2024-21907"

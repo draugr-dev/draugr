@@ -134,6 +134,7 @@
               ]
             },
             "repository": "./go-nested",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"
@@ -191,6 +192,7 @@
               ]
             },
             "repository": "./go-nested",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"

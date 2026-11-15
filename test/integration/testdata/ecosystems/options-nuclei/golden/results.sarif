@@ -178,6 +178,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -202,6 +203,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -226,6 +228,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -250,6 +253,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -274,6 +278,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -298,6 +303,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -322,6 +328,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P3",
+            "scanner": "nuclei",
             "security-severity": "2",
             "tool": "nuclei"
           },
@@ -346,6 +353,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P2",
+            "scanner": "nuclei",
             "security-severity": "5",
             "tool": "nuclei"
           },

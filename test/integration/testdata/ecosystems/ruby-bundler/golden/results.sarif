@@ -59,6 +59,7 @@
             },
             "priority": "P1",
             "repository": "./ruby-bundler",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2022-30122"

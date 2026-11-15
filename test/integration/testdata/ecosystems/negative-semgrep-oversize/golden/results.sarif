@@ -88,6 +88,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./negative-semgrep-oversize",
+            "scanner": "semgrep",
             "tool": "Semgrep OSS"
           },
           "ruleId": "draugr-fixture-eval"

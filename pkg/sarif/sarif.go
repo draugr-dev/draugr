@@ -295,6 +295,9 @@ type sarifProperties struct {
 	// Aside is Result.Aside. It survives the file for the same reason NonShipping does: the order a
 	// report lists findings in reads it.
 	Aside string `json:"aside,omitempty"`
+	// Scanner is Result.Scanner. It survives the file because the HTML report names a finding's
+	// scanner by it, and a report read back by `draugr diff` has to name it as the run did.
+	Scanner string `json:"scanner,omitempty"`
 	// Platforms is Result.Platforms. It survives the file because it says why code the machine's own
 	// build leaves out was read at all, and a report read back by `draugr diff` has to say it too.
 	Platforms []string `json:"platforms,omitempty"`
@@ -576,7 +579,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.PriorityCap != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Aside != "" || len(res.Platforms) > 0 || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
+			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Aside != "" || res.Scanner != "" || len(res.Platforms) > 0 || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
 			res.Module != nil {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
@@ -600,6 +603,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Historical:            res.Historical,
 				NonShipping:           res.NonShipping,
 				Aside:                 res.Aside,
+				Scanner:               res.Scanner,
 				Platforms:             res.Platforms,
 				DetectSecretsBaseline: res.DetectSecretsBaseline,
 				Undecided:             res.Undecided,
@@ -971,6 +975,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Historical = sr.Properties.Historical
 		res.NonShipping = sr.Properties.NonShipping
 		res.Aside = sr.Properties.Aside
+		res.Scanner = sr.Properties.Scanner
 		res.Platforms = sr.Properties.Platforms
 		res.DetectSecretsBaseline = sr.Properties.DetectSecretsBaseline
 		res.Undecided = sr.Properties.Undecided

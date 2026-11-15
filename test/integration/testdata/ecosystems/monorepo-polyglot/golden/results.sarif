@@ -99,6 +99,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
+            "scanner": "semgrep",
             "tool": "Semgrep OSS"
           },
           "ruleId": "draugr-fixture-os-popen"
@@ -137,6 +138,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-polyglot",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2018-1000656"
@@ -175,6 +177,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-polyglot",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"
@@ -206,6 +209,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
+            "scanner": "semgrep",
             "tool": "Semgrep OSS"
           },
           "ruleId": "draugr-fixture-eval"
@@ -243,6 +247,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./monorepo-polyglot",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -317,6 +322,7 @@
               ]
             },
             "repository": "./monorepo-polyglot",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"

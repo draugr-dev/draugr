@@ -307,6 +307,10 @@ type findingReport struct {
 	// Aside is why a counted finding is listed after the rest: generated, tooling or pinned. Absent
 	// for every other finding.
 	Aside string `json:"aside,omitempty"`
+	// Scanner is the Draugr scanner that reported the finding, such as trivy-config, as `draugr
+	// controls` lists it; tool is the name the tool gives itself. Absent on a finding read from an
+	// older results.sarif.
+	Scanner string `json:"scanner,omitempty"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code the finding lies
 	// in, where a Go analyzer read it in a run for a platform beside the machine's own. Absent for
 	// code the machine's own build holds.
@@ -1294,6 +1298,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Score:         res.Score,
 		Control:       control,
 		Tool:          res.Tool,
+		Scanner:       res.Scanner,
 		RuleID:        res.RuleID,
 		Message:       res.Message,
 		Location:      loc,

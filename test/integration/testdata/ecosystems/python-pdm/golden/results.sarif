@@ -68,6 +68,7 @@
             },
             "priority": "P1",
             "repository": "./python-pdm",
+            "scanner": "grype-fs",
             "security-severity": "7",
             "tool": "grype"
           },

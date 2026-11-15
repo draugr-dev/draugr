@@ -125,6 +125,7 @@
               ]
             },
             "repository": "./go-submodule",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"
@@ -156,6 +157,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-submodule",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G702"
@@ -187,6 +189,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./go-submodule",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"

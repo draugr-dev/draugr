@@ -90,6 +90,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./js-npm",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -129,6 +130,7 @@
             },
             "priority": "P1",
             "repository": "./js-npm",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"
@@ -160,6 +162,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./js-npm",
+            "scanner": "semgrep",
             "tool": "Semgrep OSS"
           },
           "ruleId": "draugr-fixture-eval"
@@ -192,6 +195,7 @@
             },
             "priority": "P2",
             "repository": "./js-npm",
+            "scanner": "retirejs",
             "security-severity": "5",
             "tool": "retirejs"
           },
