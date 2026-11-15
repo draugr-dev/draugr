@@ -200,6 +200,11 @@ type Result struct {
 	// resource. Set by the scanners that know, which is those reading a package manifest or an
 	// image's installed set.
 	Package *Package `json:"package,omitempty"`
+	// Module is the downloaded Terraform module a finding lies in, when it lies in one. Its Location
+	// is then the `module` block in the repository that brought the module in, the one line the
+	// repository holds and its maintainer can change, and Module says where in the module the
+	// setting is.
+	Module *Module `json:"module,omitempty"`
 	// Aliases are the other identifiers the scanner reported for this same finding, beside the one
 	// its rule id carries. retire.js names an advisory's CVEs and its GitHub advisory id together,
 	// and a rule id holds one of them; govulncheck names the Go advisory id beside the CVE or GitHub
@@ -362,6 +367,17 @@ type Layer struct {
 	// history. "RUN /bin/sh -c apt-get install …". It names the line to change, which is more use
 	// than a layer digest and more honest than a guessed base image.
 	CreatedBy string `json:"createdBy,omitempty"`
+}
+
+// Module is a downloaded Terraform module a finding lies in.
+type Module struct {
+	// Source is the module block's `source`, such as terraform-aws-modules/s3-bucket/aws.
+	Source string `json:"source"`
+	// Version is the block's `version`, empty where it gives none.
+	Version string `json:"version,omitempty"`
+	// File and Line are where in the module the finding is, the path relative to the module.
+	File string `json:"file,omitempty"`
+	Line int    `json:"line,omitempty"`
 }
 
 // Package is the dependency a finding is about.
@@ -785,7 +801,7 @@ func (r Result) Imported() bool {
 // Fingerprint is a stable identifier for deduplication: two results with the same
 // fingerprint are considered the same finding.
 func (r Result) Fingerprint() string {
-	sum := sha256.Sum256([]byte(strings.Join([]string{
+	parts := []string{
 		r.Tool, r.RuleID, string(r.Level), r.Message,
 		r.Location.URI, strconv.Itoa(r.Location.StartLine),
 		// The component is part of the identity, not decoration. Two components sharing a repository
@@ -798,7 +814,14 @@ func (r Result) Fingerprint() string {
 		// fragment may contribute one from another project entirely. Two of them with the same file at
 		// the same line are two findings, one leaked credential per repository, not one between them.
 		r.Repository,
-	}, "\x00")))
+	}
+	// A finding inside a downloaded module is located at the block that calls the module, and every
+	// finding of one rule in that module would share the block's line. Where in the module each is
+	// tells them apart. Added only for such a finding, so no other finding's identity moves.
+	if r.Module != nil {
+		parts = append(parts, r.Module.Source, r.Module.File, strconv.Itoa(r.Module.Line))
+	}
+	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(sum[:])
 }
 

@@ -42,12 +42,12 @@ const trivyLicenseConfigSchema = `{
     "deny": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. \"unknown\" matches any license the scanner could not identify."
+      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. \"unknown\" matches any license the scanner could not identify. A GNU license the scanner names by its bare id, such as GPL-3.0, matches an entry for its -only or -or-later form."
     },
     "warn": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. \"unknown\" matches any license the scanner could not identify."
+      "description": "SPDX identifiers reported as warnings rather than failures, e.g. [\"GPL-3.0-only\"]. \"unknown\" matches any license the scanner could not identify. A GNU license the scanner names by its bare id, such as GPL-3.0, matches an entry for its -only or -or-later form."
     },` + licensePolicySourceProperties + trivyLicenseReadOnlyProperties + `
   }
 }`
@@ -577,13 +577,64 @@ func readLicensePolicy(cfg plugin.Config) licensePolicy {
 // mention the license has nowhere to go next. The rule stays policy-free: one rule id is shared by
 // every component, and the components' lists differ.
 func (p licensePolicy) match(id string) (sarif.Level, string, bool) {
-	switch {
-	case slices.Contains(p.deny, id):
-		return sarif.LevelError, policyReason("Denied", denyKey, p.denyFrom[id]), true
-	case slices.Contains(p.warn, id):
-		return sarif.LevelWarning, policyReason("Flagged", warnKey, p.warnFrom[id]), true
+	if entry, ok := listedAs(p.deny, id); ok {
+		return sarif.LevelError, policyReason("Denied", denyKey, p.denyFrom[entry]), true
+	}
+	if entry, ok := listedAs(p.warn, id); ok {
+		return sarif.LevelWarning, policyReason("Flagged", warnKey, p.warnFrom[entry]), true
 	}
 	return "", "", false
+}
+
+// listedAs returns the entry of list that names the license id, and whether one does.
+//
+// An entry names an id when the two are the same, or when they are one GNU license at one version
+// and either is the bare identifier SPDX deprecated, such as `GPL-3.0`. Trivy names license files
+// and source headers with the bare form, which says nothing of whether the grant is for that version
+// only or that version or any later one, so it matches an entry for either: a list naming
+// `GPL-3.0-only` has to deny a file Trivy calls `GPL-3.0`, or a denied license passes. An entry
+// naming the bare form matches both suffixed forms for the same reason. `-only` and `-or-later`
+// stay apart from each other, and every other identifier matches only itself.
+func listedAs(list []string, id string) (string, bool) {
+	for _, entry := range list {
+		if entry == id || sameGNULicense(entry, id) {
+			return entry, true
+		}
+	}
+	return "", false
+}
+
+// gnuBareIDs are the GNU licenses whose bare SPDX identifier is deprecated in favor of an `-only`
+// and an `-or-later` form.
+var gnuBareIDs = map[string]bool{
+	"GPL-1.0": true, "GPL-2.0": true, "GPL-3.0": true,
+	"LGPL-2.0": true, "LGPL-2.1": true, "LGPL-3.0": true,
+	"AGPL-1.0": true, "AGPL-3.0": true,
+	"GFDL-1.1": true, "GFDL-1.2": true, "GFDL-1.3": true,
+}
+
+// gnuForm splits a GNU license identifier into its license and version, and the range of versions
+// it grants: "only", "later", or "" for the bare form. ok is false for any other identifier.
+func gnuForm(id string) (base, form string, ok bool) {
+	switch {
+	case strings.HasSuffix(id, "-only"):
+		base, form = strings.TrimSuffix(id, "-only"), "only"
+	case strings.HasSuffix(id, "-or-later"):
+		base, form = strings.TrimSuffix(id, "-or-later"), "later"
+	case strings.HasSuffix(id, "+"):
+		base, form = strings.TrimSuffix(id, "+"), "later"
+	default:
+		base = id
+	}
+	return base, form, gnuBareIDs[base]
+}
+
+// sameGNULicense reports whether a and b are one GNU license at one version, with the same range or
+// with either in the bare form, which may stand for either range.
+func sameGNULicense(a, b string) bool {
+	baseA, formA, okA := gnuForm(a)
+	baseB, formB, okB := gnuForm(b)
+	return okA && okB && baseA == baseB && (formA == formB || formA == "" || formB == "")
 }
 
 // policyReason is the sentence a policy finding ends with. A job the control did not plan carries

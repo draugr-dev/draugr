@@ -1505,6 +1505,12 @@ whether you distribute, which the Saga doesn't say. If you ship binaries to cust
 **`deny` and `warn` name SPDX ids and beat the category**, because whether a license is acceptable
 depends on what you do with your software. Trivy can't know that; you always do.
 
+Trivy names a license file or a source header for the GNU licenses by the bare id SPDX deprecated,
+such as `GPL-3.0`, which does not say whether the grant is for that version only or for any later
+one. So a bare id matches an entry for either form: `deny: ["GPL-3.0-only"]` denies a file Trivy
+calls `GPL-3.0`, and so does `deny: ["GPL-3.0-or-later"]`. An entry naming the bare id matches both
+forms. `-only` and `-or-later` don't match each other, and every other id matches only itself.
+
 **Gate it separately from vulnerabilities** with [`config.gate`](#configgate). License policy is
 usually owned by different people than security policy:
 

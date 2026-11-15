@@ -40,6 +40,10 @@ One scanner over two target kinds rather than two scanners, so a component's lic
 differ by where the code happens to sit and `doctor` names one tool. `--license-full` is available
 in both modes behind `full: true`. It reads `LICENSE` files and source headers instead of only
 package metadata, which finds licenses no manifest declares and costs a walk of every file.
+Trivy names what it finds there for the GNU licenses by the bare SPDX id, such as `GPL-3.0` or
+`AGPL-3.0`, even where a header grants the version "or any later version", so the range is not
+recorded. A `deny` or `warn` entry for either range matches the bare id; see
+[`licenses`](../../docs/reference/saga-schema.md#license-policy-controlslicenses).
 
 A repository is read with the same `--file-patterns` as `trivy-fs`, taken from
 `config.controls.sca.trivyFs.filePatterns` and a component's own `trivyFs` block, so a

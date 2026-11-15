@@ -267,6 +267,10 @@ type sarifProperties struct {
 	// and by the formats a platform consumes, and a fact that only exists in memory is one every
 	// one of those has to do without.
 	Package *Package `json:"package,omitempty"`
+	// Module is the downloaded Terraform module a finding lies in. It survives the file because the
+	// finding's identity includes it, and because the location alone names the block that called
+	// the module and not the setting inside it.
+	Module *Module `json:"module,omitempty"`
 	// Image and OperatingSystem describe the container a finding was found in. They survive the file
 	// for the reason Repository does. A report is written and read back by `draugr diff` and by every
 	// platform format, and a fact that exists only in memory is one all of them have to do without.
@@ -564,7 +568,8 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
-			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 {
+			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
+			res.Module != nil {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
 				Title:    title,
@@ -576,7 +581,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Rating:        res.Rating,
 				PriorityFloor: res.PriorityFloor,
 				SeverityFloor: res.SeverityFloor,
-				Repository:    res.Repository, Package: res.Package,
+				Repository:    res.Repository, Package: res.Package, Module: res.Module,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:          res.Reachability,
 				Correlation:           res.Correlation,
@@ -958,6 +963,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Undecided = sr.Properties.Undecided
 		res.Objects = sr.Properties.Objects
 		res.Package = sr.Properties.Package
+		res.Module = sr.Properties.Module
 		res.Reachability = sr.Properties.Reachability
 		res.Correlation = sr.Properties.Correlation
 		res.Escalation = sr.Properties.Escalation

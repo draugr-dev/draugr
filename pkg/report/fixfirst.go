@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
@@ -168,6 +169,12 @@ func writeBlockWhere(w io.Writer, col tui.Painter, f finding, width int, blobs b
 		linked += col.Paint(cDim, " · ") + f.nonShipping
 		where += " · " + f.nonShipping
 	}
+	// The module a finding in downloaded code lies in, beside the block that called it: the
+	// location names the line the reader can change, and this says which module to look in.
+	if note := moduleNote(f.module, width-blockIndent-utf8.RuneCountInString(where)-len(" · ")); note != "" {
+		linked += col.Paint(cDim, " · "+note)
+		where += " · " + note
+	}
 
 	// The working behind the mark on the line above: which analyzer, which floor, what else found
 	// it, and for a secret already published, that deleting it is not remediation.
@@ -192,6 +199,40 @@ func writeBlockWhere(w io.Writer, col tui.Painter, f finding, width int, blobs b
 	}
 	_, _ = fmt.Fprintln(w, blockLine(col, []string{linked}, width))
 	_, _ = fmt.Fprintln(w, blockLine(col, []string{elideParts(col, said, min(width-blockIndent, messageWidth))}, width))
+}
+
+// moduleNote names the downloaded module a finding lies in, "module
+// terraform-aws-modules/s3-bucket/aws 4.1.2", in room columns, or "" for a finding in none.
+//
+// The fact line never wraps, so a long address gives way in its middle, where a registry address
+// repeats what its two ends already say. The whole address, and the file and line inside the module,
+// are in report.json and the SARIF.
+func moduleNote(m *sarif.Module, room int) string {
+	if m == nil || m.Source == "" {
+		return ""
+	}
+	const lead = "module "
+	tail := ""
+	if m.Version != "" {
+		tail = " " + m.Version
+	}
+	return lead + elideMiddle(m.Source, max(room-len(lead)-len(tail), minModuleWidth)) + tail
+}
+
+// minModuleWidth is the fewest columns a module's address is cut to, enough to keep its namespace
+// and its name recognizable on a narrow terminal.
+const minModuleWidth = 20
+
+// elideMiddle shortens s to width columns by replacing its middle with "…", keeping its first and
+// last characters, which for an address name the publisher and the module.
+func elideMiddle(s string, width int) string {
+	r := []rune(s)
+	if len(r) <= width || width < 3 {
+		return s
+	}
+	head := (width - 1) / 2
+	tail := width - 1 - head
+	return string(r[:head]) + "…" + string(r[len(r)-tail:])
 }
 
 // elideParts renders the working to a width, cutting the last part rather than dropping any.
