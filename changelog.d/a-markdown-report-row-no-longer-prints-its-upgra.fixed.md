@@ -1,0 +1,1 @@
+- **A markdown report row no longer prints its Upgrade text twice.** A package advisory with no title of its own filled both the Upgrade and the Finding cell with the same words, such as `dpkg 1.21.22, no fix available`; the Finding cell now shows a dash.
