@@ -364,6 +364,8 @@ type sarifProperties struct {
 	// report saw a P2 on a supporting internal component with nothing accounting for it, which is
 	// the same gap `escalation` was added to close for the other direction.
 	PriorityFloor string `json:"priorityFloor,omitempty"`
+	// PriorityCap is Result.PriorityCap, kept so a report read back shows why the band was lowered.
+	PriorityCap string `json:"priorityCap,omitempty"`
 	// SeverityFloor is the minimum severity the control holds its findings at, where it raised this
 	// one's rating. It survives the file because the gate on new findings reads the ranked severity
 	// back from here, and without it a floored finding is judged at the rating the run did not use.
@@ -571,7 +573,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.SeverityFloor != "" || res.HasScore ||
+		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.PriorityCap != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Aside != "" || len(res.Platforms) > 0 || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
@@ -586,6 +588,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Exploited:     res.Exploited,
 				Rating:        res.Rating,
 				PriorityFloor: res.PriorityFloor,
+				PriorityCap:   res.PriorityCap,
 				SeverityFloor: res.SeverityFloor,
 				Repository:    res.Repository, Package: res.Package, Module: res.Module,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
@@ -980,6 +983,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Exploited = sr.Properties.Exploited
 		res.Rating = sr.Properties.Rating
 		res.PriorityFloor = sr.Properties.PriorityFloor
+		res.PriorityCap = sr.Properties.PriorityCap
 		res.SeverityFloor = sr.Properties.SeverityFloor
 	}
 	res.Suppression = readSuppression(sr.Suppressions)

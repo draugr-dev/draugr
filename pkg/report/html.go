@@ -1263,6 +1263,7 @@ var movementMenu = []struct{ key, label string }{
 	{moveEscalation, "raised by a signal"},
 	{moveFloor, "floored by a control"},
 	{moveUnreachable, "lowered as unreachable"},
+	{movePinned, "held at P3, pinned by actions.lock"},
 	{moveMinimum, "raised to a minimum severity"},
 	{moveUntouched, "ranked from severity alone"},
 }

@@ -127,6 +127,7 @@ P1, and the lowering leaves P2 in place.
 | `↑ malicious` | the package is in the OSSF Malicious Packages Project | to <span class="dr-crit">critical</span> | `config.dependencyHealth.enabled` | after every scanner finishes |
 | `↑ deprecated` | the publisher marked the version deprecated | up one level | `config.dependencyHealth.enabled` | after every scanner finishes |
 | `↓ unreachable` | `govulncheck` found no call path to the flaw, Go only | down one level | `config.reachability.analyzers` | after every scanner finishes |
+| `↓ pinned` | `.github/workflows/actions.lock` pins the action reference to a commit | holds the band at P3 | an `actions.lock` in the repository | as the finding is ranked |
 
 Other marks share the line under a finding. `↑ floor` means a leaked credential, ranked at C1
 whatever its component declares, as [Context floor](#context-floor) describes. `↑ minimum` means a
