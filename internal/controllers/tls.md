@@ -46,3 +46,5 @@ certificate-expiry windows tuned. See [`draugr-tls.md`](../scanners/draugr-tls.m
 - The host must be reachable from wherever the scan runs. An endpoint that can't be connected to
   at all is a scan **error**, not a silent pass, except when the failure is itself a
   certificate problem or a legacy-only TLS stack, which are reported as findings.
+- Revocation is not checked: a revoked certificate gets no finding. See
+  [`draugr-tls.md`](../scanners/draugr-tls.md#limitations).
