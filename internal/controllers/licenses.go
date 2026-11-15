@@ -74,12 +74,12 @@ var licenseOptionSchema = json.RawMessage(`{
     "deny": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. \"unknown\" matches any license the scanner could not identify. A component may add to the project's list; it cannot remove from it."
+      "description": "SPDX identifiers that fail the gate, e.g. [\"AGPL-3.0-only\", \"SSPL-1.0\"]. \"unknown\" matches any license the scanner could not identify. A GNU license the scanner names by its bare id, such as GPL-3.0, matches an entry for its -only or -or-later form. A component may add to the project's list; it cannot remove from it."
     },
     "warn": {
       "type": "array",
       "items": {"type": "string"},
-      "description": "SPDX identifiers reported as a warning rather than an error, e.g. [\"MPL-2.0\"]. \"unknown\" matches any license the scanner could not identify."
+      "description": "SPDX identifiers reported as a warning rather than an error, e.g. [\"MPL-2.0\"]. \"unknown\" matches any license the scanner could not identify. A GNU license the scanner names by its bare id, such as GPL-3.0, matches an entry for its -only or -or-later form."
     }
   }
 }`)
