@@ -85,6 +85,12 @@ type Result struct {
 	// a reader can tell a flaw in what ships from the same flaw in a test fixture. Whether a marked
 	// finding counts is the control's nonShippingPaths setting; the mark is there either way.
 	NonShipping string `json:"nonShipping,omitempty"`
+	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
+	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
+	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty
+	// for a finding in code the machine's own build holds, and for every analyzer that reads source
+	// without building it.
+	Platforms []string `json:"platforms,omitempty"`
 	// DetectSecretsBaseline marks a secrets finding on a `hashed_secret` field of a detect-secrets
 	// baseline, a `.secrets.baseline` file, where the value is the 40-character SHA-1 detect-secrets
 	// recorded in place of what it found. The value is a digest, not a credential, and whether such a
@@ -563,6 +569,11 @@ type Reachability struct {
 	// revision of the code and stops being true when the code changes, so a claim without a date
 	// is not one a reader can check.
 	AsOf string `json:"asOf,omitempty"`
+	// Platforms are the platforms, as GOOS/GOARCH, whose build the verdict was reached over, where
+	// it was not the machine's own: a call into the vulnerable code from a file behind
+	// `//go:build windows`, found on Linux by a run for windows/amd64. Empty for a verdict over the
+	// machine's own build.
+	Platforms []string `json:"platforms,omitempty"`
 }
 
 // CallPath is one route from this project's code to a vulnerable symbol, ordered caller first

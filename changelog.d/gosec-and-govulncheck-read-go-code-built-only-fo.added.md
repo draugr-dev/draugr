@@ -1,0 +1,1 @@
+- **gosec and govulncheck read Go code built only for other platforms.** A file behind `//go:build windows` on Linux is analyzed in a run for windows/amd64, and its findings name that build. The run adds gosec time in proportion to the packages holding such code. Files no analyzed platform builds, and platform code govulncheck skipped, are `unread-files` caveats.

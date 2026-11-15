@@ -503,6 +503,9 @@ type htmlFinding struct {
 	// NonShipping is the kind of directory, docs, example or test, the finding's file sits under,
 	// shown beside its location. Empty for a finding in shipped code.
 	NonShipping string
+	// Platforms names the builds the finding's code is in where only another platform's build holds
+	// it, "windows/amd64 build", as the console prints it beside the location.
+	Platforms string
 	// Search is the lower-cased haystack the filter box matches against, precomputed so the
 	// page does not rebuild it per keystroke.
 	Search string
@@ -1093,6 +1096,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Justification: f.justification,
 		Package:       pkgLabel,
 		NonShipping:   f.nonShipping,
+		Platforms:     platformNote(f.platforms),
 		ActionKey:     actionKeyFor(f),
 		// What the row shows is what it finds.
 		Search: strings.ToLower(strings.Join(
@@ -2467,7 +2471,7 @@ prints each scanner's full output.</p>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
-    <div class="sub">{{if and .Change (ne .Change "unchanged")}}<span class="moved{{if or (eq .Change "new") (eq .Change "unaccepted")}} up{{end}}"><span class="g">{{index $.StateMarks .Change}}</span>{{.Change}}</span>{{end}}{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+    <div class="sub">{{if and .Change (ne .Change "unchanged")}}<span class="moved{{if or (eq .Change "new") (eq .Change "unaccepted")}} up{{end}}"><span class="g">{{index $.StateMarks .Change}}</span>{{.Change}}</span>{{end}}{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}{{if .Platforms}}{{.Platforms}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
     {{with .Accepted}}<div class="sub"><span class="lbl">accepted</span> {{.}}</div>{{end}}
   </div>
 </div>{{end}}
