@@ -124,6 +124,17 @@ aside stays a suppressed finding of its own, and the shipped copy's row does not
 [Non-shipping paths](../../docs/reference/saga-schema.md#non-shipping-paths) in the Saga reference
 lists the directories.
 
+## Developer tools
+
+A finding in a dependency file of a tool the developers install, rather than of the application,
+is labeled `developer tool, runs in CI` beside its location and listed after the application's
+dependencies. It still counts at its priority: the tool runs on developers' machines and in CI, so a
+flaw in it is a risk to those even where the program does not ship it. A file is read as a tool's
+when it sits under `.config/mise/`, where mise keeps the lockfiles of the tools it installs. A Go
+module in a `tools` directory is not, because it may hold programs the project builds and ships.
+
+No setting changes it; `config.exclude` sets one aside.
+
 ## Unread
 
 A dependency file is **unread** when no scanner serving the control took packages from it. The

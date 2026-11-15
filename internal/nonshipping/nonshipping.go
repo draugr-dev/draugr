@@ -73,3 +73,18 @@ func KindOf(rel string) string {
 	}
 	return ""
 }
+
+// ToolDependency reports whether the file at rel, a slash-separated path relative to the
+// repository's root, is a dependency file of a tool the developers install rather than of the
+// application: one under `.config/mise/`, where mise keeps the lockfiles of the tools it installs.
+// The tools still run on developers' machines and in CI, so a flaw in one of their dependencies is
+// a risk to those, not to the program the repository ships.
+//
+// A directory mise does not own is not matched. A Go module in a `tools` directory may hold the
+// tools a project builds and ships, and only its go.mod can say otherwise, which a path cannot.
+func ToolDependency(rel string) bool {
+	if rel == "" || strings.Contains(rel, "://") || strings.HasPrefix(rel, "/") {
+		return false
+	}
+	return strings.HasPrefix(path.Clean(rel), ".config/mise/")
+}

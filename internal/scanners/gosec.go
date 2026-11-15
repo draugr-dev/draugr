@@ -571,6 +571,7 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	merged := sarif.Merge(joinPlatforms(reports)...)
 	merged.Inputs = append(merged.Inputs, inputs...)
 	merged.Inputs = append(merged.Inputs, unbuiltInputs(dir, unbuilt, "gosec")...)
+	markGenerated(dir, merged.Results)
 	if len(failed) > 0 {
 		return merged, &moduleFailures{failed: failed, read: len(reports) > 0}
 	}

@@ -359,6 +359,15 @@ type htmlUnmatched struct {
 // have no code to change, and an instruction nobody can carry out is worse than none, because it
 // teaches a reader that this column is not worth reading.
 func fixPhrase(f finding) string {
+	// A generated file is rewritten the next time its generator runs, so a change made to it is lost.
+	if f.aside == sarif.AsideGenerated {
+		return "change the generator, then regenerate"
+	}
+	// The pin holds only while the lockfile matches the workflows, which `gh actions-lock --verify`
+	// checks.
+	if f.aside == sarif.AsidePinned {
+		return "keep actions.lock verified in CI"
+	}
 	if u := imageUpdate(f); u != "" {
 		return u
 	}
@@ -503,6 +512,9 @@ type htmlFinding struct {
 	// NonShipping is the kind of directory, docs, example or test, the finding's file sits under,
 	// shown beside its location. Empty for a finding in shipped code.
 	NonShipping string
+	// Aside is why the finding is listed after the rest though it may ship, in the words the
+	// console gives it beside the location. Empty for every other finding.
+	Aside string
 	// Platforms names the builds the finding's code is in where only another platform's build holds
 	// it, "windows/amd64 build", as the console prints it beside the location.
 	Platforms string
@@ -1096,11 +1108,12 @@ func toHTMLFinding(f finding) htmlFinding {
 		Justification: f.justification,
 		Package:       pkgLabel,
 		NonShipping:   f.nonShipping,
+		Aside:         asideNote(f.aside),
 		Platforms:     platformNote(f.platforms),
 		ActionKey:     actionKeyFor(f),
 		// What the row shows is what it finds.
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.detail, findingInstruction(f), f.priority, string(sev), fix, pkgName, f.nonShipping}, " ")),
+			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.detail, findingInstruction(f), f.priority, string(sev), fix, pkgName, f.nonShipping, asideNote(f.aside)}, " ")),
 	}
 }
 
@@ -2471,7 +2484,7 @@ prints each scanner's full output.</p>
   <div class="what">
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
-    <div class="sub">{{if and .Change (ne .Change "unchanged")}}<span class="moved{{if or (eq .Change "new") (eq .Change "unaccepted")}} up{{end}}"><span class="g">{{index $.StateMarks .Change}}</span>{{.Change}}</span>{{end}}{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}{{if .Platforms}}{{.Platforms}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
+    <div class="sub">{{if and .Change (ne .Change "unchanged")}}<span class="moved{{if or (eq .Change "new") (eq .Change "unaccepted")}} up{{end}}"><span class="g">{{index $.StateMarks .Change}}</span>{{.Change}}</span>{{end}}{{if .MovedLabel}}<span class="moved {{.MovedDir}}"><span class="g">{{.MovedGlyph}}</span>{{.MovedLabel}}</span>{{end}}{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}{{if .NonShipping}}{{.NonShipping}}<span class="faint"> · </span>{{end}}{{if .Aside}}{{.Aside}}<span class="faint"> · </span>{{end}}{{if .Platforms}}{{.Platforms}}<span class="faint"> · </span>{{end}}<span class="lbl">scanner</span> {{.Tool}}<span class="faint"> · </span><span class="lbl">fix</span> {{.Fix}}</div>
     {{with .Accepted}}<div class="sub"><span class="lbl">accepted</span> {{.}}</div>{{end}}
   </div>
 </div>{{end}}

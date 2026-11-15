@@ -300,6 +300,8 @@ func parseSemgrep(out []byte, dir string, cfg plugin.Config) (sarif.Report, erro
 	for _, prefix := range prefixes {
 		renameSemgrepRules(&report, prefix)
 	}
+	markGenerated(dir, report.Results)
+	markPinned(dir, report.Results)
 	return report, nil
 }
 

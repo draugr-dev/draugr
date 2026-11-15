@@ -301,6 +301,9 @@ type findingReport struct {
 	// documentation, examples or tests: docs, example or test. Absent for a finding in shipped code
 	// and for a control that does not mark one, such as secrets.
 	NonShipping string `json:"nonShipping,omitempty"`
+	// Aside is why a counted finding is listed after the rest: generated, tooling or pinned. Absent
+	// for every other finding.
+	Aside string `json:"aside,omitempty"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code the finding lies
 	// in, where a Go analyzer read it in a run for a platform beside the machine's own. Absent for
 	// code the machine's own build holds.
@@ -1304,6 +1307,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		CPEMatch:      res.Package != nil && res.Package.CPEMatch,
 		Own:           res.Package != nil && res.Package.Own,
 		NonShipping:   res.NonShipping,
+		Aside:         res.Aside,
 		Platforms:     res.Platforms,
 		Undecided:     res.Undecided,
 	}

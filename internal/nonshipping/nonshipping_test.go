@@ -108,3 +108,27 @@ func TestNamesAndDirKindAgree(t *testing.T) {
 		t.Errorf("Names() has %d entries, the list %d", len(names), len(dirs))
 	}
 }
+
+// A tool's dependency file is matched under `.config/mise/` and nowhere else: a Go module in a
+// tools directory may hold programs the project ships.
+func TestToolDependency(t *testing.T) {
+	for rel, want := range map[string]bool{
+		".config/mise/locks/mise.extras/pypi-aiautocommit/0.28.1/uv.lock": true,
+		"./.config/mise/x.lock":          true,
+		"_tools/go.mod":                  false,
+		"internal/tools/go.sum":          false,
+		"tools/go.mod":                   false,
+		"go.mod":                         false,
+		"tools/main.go":                  false,
+		"tools/package.json":             false,
+		"mytools/go.mod":                 false,
+		"config/mise/uv.lock":            false,
+		"":                               false,
+		"/abs/.config/mise/uv.lock":      false,
+		"file:///x/.config/mise/uv.lock": false,
+	} {
+		if got := ToolDependency(rel); got != want {
+			t.Errorf("ToolDependency(%q) = %v, want %v", rel, got, want)
+		}
+	}
+}

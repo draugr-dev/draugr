@@ -35,6 +35,23 @@ or tests`. A component's setting replaces the project's.
 [Non-shipping paths](../../docs/reference/saga-schema.md#non-shipping-paths) in the Saga reference
 lists the directories.
 
+## Generated code and pinned actions
+
+Two kinds of finding are counted at their priority and listed after the rest, each labeled beside
+its location. No setting changes either; `config.exclude` sets one aside.
+
+- **`generated`**: a finding in a Go file whose header holds the standard marker,
+  `// Code generated … DO NOT EDIT.` (`go help generate`). Its fix reads `change the generator,
+  then regenerate`: the check the rule asks for belongs in the generator, because its next run
+  rewrites the file. Generated code is compiled into the program, so the finding still counts. A
+  file without the marker is not labeled, whatever its name.
+- **`pinned by actions.lock`**: a Semgrep `github-actions-mutable-action-tag` finding on a `uses:`
+  reference that `.github/workflows/actions.lock`, the lockfile `gh actions-lock` writes, lists for
+  the same workflow with a commit. Its fix reads `keep actions.lock verified in CI`, which
+  `gh actions-lock --verify` does. A reference the lockfile does not list, one in a composite
+  action under `.github/actions/`, and a reusable workflow's call, which the lockfile does not pin,
+  are reported as before.
+
 ## Unread
 
 A source file is **unread** when Semgrep left it out of the scan or stopped checking it before

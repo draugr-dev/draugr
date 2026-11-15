@@ -1837,6 +1837,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	markDevCopies(res.Controls)
 	// And each finding under documentation, examples or tests takes that mark, for the same reason.
 	e.markNonShipping(res.Controls, model)
+	// And each dependency of a developer tool rather than of the application.
+	markToolDependencies(res.Controls, model)
 
 	// Exclusions apply after aggregation, to what every consumer will see. Doing it here rather than
 	// per scanner means one syntax covers every tool, including ones added later. And it is what
