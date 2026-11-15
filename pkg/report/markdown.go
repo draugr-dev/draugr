@@ -173,9 +173,15 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		if m := movedBy(f); m != nil {
 			sev += " " + strings.TrimSpace(m.glyph+" "+m.label)
 		}
+		// A scanner that had no advisory title to give wrote the upgrade note alone as its message, and
+		// the Upgrade cell already says it.
+		upgrade, title := markdownUpgrade(f), findingTitle(f)
+		if title == upgrade || title == upgradeLabel(f) {
+			title = ""
+		}
 		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s | %s | %s |\n",
 			dash(f.priority), sev, ruleLink(f), f.tool, component, labeledWhere(f, whereShown(f.location)),
-			dash(markdownUpgrade(f)), findingTitle(f))
+			dash(upgrade), dash(title))
 	}
 	if len(s.findings) > markdownTopN {
 		_, _ = fmt.Fprintf(w, "\n_…and %s more._\n", english.Count(len(s.findings)-markdownTopN, "finding"))
