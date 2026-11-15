@@ -1455,6 +1455,11 @@ Reports dependency licenses that carry an obligation. Requires Trivy.
 | `unknown` | note | Trivy couldn't identify it |
 | `notice`, `permissive`, `unencumbered` | *not reported* | |
 
+A file Trivy names `Copyright` isn't reported. Trivy gives that name to a file holding a © sign or
+a field called Copyright, with no license in it. So the `licenses` control doesn't find code that
+carries a copyright notice and no license; a file holding only "All rights reserved" gives Trivy
+0.76.1 nothing to report either.
+
 Permissive licenses aren't findings, they're inventory. Every dependency has one, and listing them
 buries the few that matter under dozens that don't. On Draugr's own repository that's 77 licenses,
 of which zero carry an obligation. The inventory question is what [`config.sbom`](#sbom-generation)
