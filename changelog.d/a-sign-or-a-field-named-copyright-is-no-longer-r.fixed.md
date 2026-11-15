@@ -1,0 +1,1 @@
+- **A © sign or a field named Copyright is no longer reported as an unidentified license.** With `full: true`, Trivy names such a file `Copyright` though it grants no license, and Draugr asked you to read terms that do not exist. Those files are now left out. A license Trivy could not identify is still reported.

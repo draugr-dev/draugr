@@ -537,6 +537,9 @@ func (d trivyLicenseDoc) devLicenses() func(sarif.Result, trivyLicense) sarif.Re
 // SPDX ids directly and beat Trivy's category, because whether a license is acceptable depends on
 // what you do with your software. Something Trivy cannot know and the team always does.
 func licenseLevel(lic trivyLicense, policy licensePolicy) (sarif.Level, string, bool) {
+	if notALicense(lic) {
+		return "", "", false
+	}
 	// The name first, then `unknown`. Trivy files a license under its `unknown` category whenever
 	// its classifier does not know the name, which can still be a real id a policy lists, and a
 	// deny that stopped matching because Trivy could not classify the license would fail silently.
@@ -553,6 +556,19 @@ func licenseLevel(lic trivyLicense, policy licensePolicy) (sarif.Level, string, 
 		return "", "", false // permissive, notice, unencumbered: inventory, not a finding
 	}
 	return meta.level, meta.why, true
+}
+
+// trivyCopyrightName is the name Trivy gives a file it reads a copyright notice in. It is not an
+// SPDX identifier, and its link names a page SPDX does not have.
+const trivyCopyrightName = "Copyright"
+
+// notALicense reports whether Trivy's result names no license at all: a file it read under
+// --license-full and named `Copyright`, filed as unknown. Trivy names a file so on a © sign or a
+// field called Copyright, with no license in it, and reported it would send a reader to read terms
+// that do not exist. A package's license keeps whatever name its metadata gave, and any other name
+// Trivy could not identify is still reported, since that one may be a license.
+func notALicense(lic trivyLicense) bool {
+	return lic.PkgName == "" && lic.Name == trivyCopyrightName
 }
 
 // licensePolicy is the deny/warn policy a job carries, and the settings each listed id came from.

@@ -43,7 +43,8 @@ package metadata, which finds licenses no manifest declares and costs a walk of 
 Trivy names what it finds there for the GNU licenses by the bare SPDX id, such as `GPL-3.0` or
 `AGPL-3.0`, even where a header grants the version "or any later version", so the range is not
 recorded. A `deny` or `warn` entry for either range matches the bare id; see
-[`licenses`](../../docs/reference/saga-schema.md#license-policy-controlslicenses).
+[`licenses`](../../docs/reference/saga-schema.md#license-policy-controlslicenses). A file Trivy
+names `Copyright`, from a © sign or a field called Copyright, holds no license and isn't reported.
 
 A repository is read with the same `--file-patterns` as `trivy-fs`, taken from
 `config.controls.sca.trivyFs.filePatterns` and a component's own `trivyFs` block, so a
