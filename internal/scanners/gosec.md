@@ -38,6 +38,24 @@ such as `vendor-api/`. These are not analyzed:
 - a module nested inside it, which has a run of its own
 - a directory holding only `_test.go` files, and a file behind a build tag not in `tags`
 
+### Code for other platforms
+
+gosec builds a module for the platform it runs on, so on Linux a file behind `//go:build windows`,
+or named `*_windows.go`, is not in the build and gosec would not read it. Draugr reads it too. A
+module holding code the machine's own build leaves out gets a run for each of linux/amd64,
+windows/amd64 and darwin/arm64 that builds it, apart from the machine's own platform, with `GOOS`
+and `GOARCH` set to that platform and `CGO_ENABLED=0`. That run reads only the packages holding such code, and keeps only its findings in those
+files, since the machine's own run reports the rest.
+
+A finding from such a run names the build after its location, as
+`internal/checks/audit_process_windows.go:21 · windows/amd64 build`, and carries the platform in
+`platforms` in `report.json` and the SARIF.
+
+A Go file that only another platform builds, such as one behind `//go:build plan9` or
+`//go:build !unix && !windows`, is an `unread-files` caveat with the reason
+`gosec: not built for linux/amd64, windows/amd64, darwin/arm64`. A file behind a tag that is not a
+platform, such as `integration`, is read only when `tags` names it.
+
 gosec writes its SARIF report to a temporary file and the same findings as JSON to its output. The
 JSON names each file by its full path, which Draugr uses to locate each SARIF finding under its
 module.

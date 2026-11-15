@@ -52,6 +52,20 @@ only requires it is not lent that call path. Two components sharing a repository
 is analyzed as the workspace builds it, which is the build `go build` in that directory produces,
 and a module the workspace does not use is analyzed on its own.
 
+**Code for other platforms is analyzed where it calls a dependency.** A module holding code the
+machine's own build leaves out, such as a file behind `//go:build windows` on Linux, gets a run for
+each of linux/amd64, windows/amd64 and darwin/arm64 that builds that code, apart from the machine's
+own platform, when that code imports a package outside the standard library. The run has `GOOS` and
+`GOARCH` set to that platform and starts from the packages holding that code. A call it finds into a
+vulnerable function makes the finding `reachable` whatever the machine's own run said, and the line
+under it names the build, as `reachable in the windows/amd64 build: winapi.init →
+windows.GetCurrentProcessId`. Otherwise the machine's own verdict stands.
+
+Code for another platform that imports only the standard library gets no run, and the module's
+`go.mod` is an `unread-files` caveat counting the files of that code, as `Go standard-library
+advisories not checked for windows/amd64-only code · 2 files`. An advisory on the Go standard
+library is still reported against the Go version.
+
 **A module with nothing to build is passed by.** A `go.mod` whose module holds no Go file in the
 build, under the default build constraints for the machine and any `-tags` your `GOFLAGS` sets, has
 no code to start a call graph from, and govulncheck does not run over it. A `tools` module holding

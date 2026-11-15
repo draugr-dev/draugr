@@ -169,6 +169,12 @@ func writeBlockWhere(w io.Writer, col tui.Painter, f finding, width int, blobs b
 		linked += col.Paint(cDim, " · ") + f.nonShipping
 		where += " · " + f.nonShipping
 	}
+	// The build the code is in, where the machine's own build leaves the file out: a reader who never
+	// compiles for that platform would otherwise look for the flaw in code they do not ship.
+	if note := platformNote(f.platforms); note != "" {
+		linked += col.Paint(cDim, " · ") + note
+		where += " · " + note
+	}
 	// The module a finding in downloaded code lies in, beside the block that called it: the
 	// location names the line the reader can change, and this says which module to look in.
 	if note := moduleNote(f.module, width-blockIndent-utf8.RuneCountInString(where)-len(" · ")); note != "" {

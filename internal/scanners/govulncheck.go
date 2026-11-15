@@ -8,6 +8,7 @@ import (
 	"go/build"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -18,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -56,7 +58,7 @@ func NewGovulncheck() plugin.Scanner {
 	s.cacheVersion = govulncheckCacheVersion
 	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
 	s.prewarm = refreshGovulnDB
-	s.run = onRuntime(s.info.Binary, onBuildGo(onUnloaded(onGoWork(inModuleDir(execArgvInDirWithEnv)))))
+	s.run = onRuntime(s.info.Binary, onBuildGo(onUnloaded(onGoWork(onGoPlatform(inModuleDir(execArgvInDirWithEnv))))))
 	return s
 }
 
@@ -153,17 +155,85 @@ func localGovulncheckVersion(url string) *toolVersionProbe {
 // never populated, or one that went stale, would read as a clean result; the checks are what make
 // a local copy safe to pass. Without one, govulncheck queries vuln.go.dev, and a machine with no
 // route to it is refused before anything runs.
+//
+// A module holding code the host does not build that imports a package outside the standard
+// library gets a run for each platform that builds it, from the packages holding that code
+// (govulncheckPlan).
 func govulncheckArgs(dir string, entry []string, _ plugin.Config) [][]string {
 	db := resolveGovulnDB().url
 	mods := goModuleDirs(dir)
-	var out [][]string
-	for _, mod := range govulncheckModules(dir) {
-		argv := []string{"govulncheck", "-C", mod}
+	runs, _ := govulncheckPlan(dir)
+	out := make([][]string, 0, len(runs))
+	for _, r := range runs {
+		argv := []string{"govulncheck", "-C", r.mod}
 		if db != "" {
 			argv = append(argv, "-db", db)
 		}
 		argv = append(argv, "-format", "json")
-		out = append(out, append(argv, govulncheckPatterns(dir, mod, mods, entry)...))
+		if r.build == nil {
+			out = append(out, append(argv, govulncheckPatterns(dir, r.mod, mods, entry)...))
+			continue
+		}
+		out = append(out, withGoPlatform(append(argv, platformPatterns(r.mod, r.build)...), r.build.Platform))
+	}
+	return out
+}
+
+// govulncheckPlanned is one run of govulncheck govulncheckArgs plans: over a module for the host, or
+// for a platform beside it where build is set.
+type govulncheckPlanned struct {
+	mod   string
+	build *platformBuild
+}
+
+// govulncheckPlan lists govulncheck's runs over the checkout at dir: each module holding a package
+// the host builds (govulncheckModules), and for each Go module a run for every platform of
+// analyzedGoPlatforms that builds code of the module the host does not, where that code imports a
+// package outside the standard library.
+//
+// A run for another platform starts from the packages holding that code alone. A path into a
+// dependency only that platform takes starts in that code, because the rest of the module builds
+// the same everywhere and the host's run has followed it.
+//
+// Code for another platform that imports only the standard library gets no run: a dependency's
+// advisory is what such a run is for, and one on the Go standard library is fixed by the same
+// upgrade of Go whatever calls it. It is returned beside the runs, by module, for the caveat
+// saying what was not checked (stdlibOnlyInputs).
+func govulncheckPlan(dir string) ([]govulncheckPlanned, map[string][]platformBuild) {
+	tags := goflagsTags(os.Getenv("GOFLAGS"))
+	hosted := govulncheckModules(dir)
+	var runs []govulncheckPlanned
+	stdlibOnly := map[string][]platformBuild{}
+	for _, mod := range goModuleDirs(dir) {
+		if slices.Contains(hosted, mod) {
+			runs = append(runs, govulncheckPlanned{mod: mod})
+		}
+		builds := goModulePlatforms(mod, tags, hostGoPlatform).Builds
+		for i := range builds {
+			if !builds[i].Imports {
+				stdlibOnly[mod] = append(stdlibOnly[mod], builds[i])
+				continue
+			}
+			runs = append(runs, govulncheckPlanned{mod: mod, build: &builds[i]})
+		}
+	}
+	return runs, stdlibOnly
+}
+
+// platformPatterns are the package patterns of a run for another platform over the module at mod:
+// the directories of the packages holding the code only that platform builds.
+func platformPatterns(mod string, b *platformBuild) []string {
+	var out []string
+	for _, d := range b.Dirs {
+		rel, ok := relSlash(mod, d)
+		if !ok {
+			continue
+		}
+		if rel == "." {
+			out = append(out, ".")
+			continue
+		}
+		out = append(out, "./"+rel)
 	}
 	return out
 }
@@ -249,6 +319,7 @@ func relSlash(root, target string) (string, bool) {
 // any whose name starts with `.` or `_`, are passed by here too.
 func holdsGoPackage(dir string) bool {
 	ctx := build.Default
+	ctx.GOOS, ctx.GOARCH = hostGoPlatform.OS, hostGoPlatform.Arch
 	ctx.BuildTags = goflagsTags(os.Getenv("GOFLAGS"))
 	found := false
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
@@ -444,14 +515,15 @@ func parseGovulncheck(out []byte, dir string, _ plugin.Config) (sarif.Report, er
 // parseGovulncheckAt is parseGovulncheck with the moment of the analysis passed in rather than read
 // from the wall clock, so a test can fix the day a verdict is dated.
 func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, error) {
-	var modules []string
+	var plan []govulncheckPlanned
+	var stdlibOnly map[string][]platformBuild
 	if dir != "" {
-		modules = govulncheckModules(dir)
+		plan, stdlibOnly = govulncheckPlan(dir)
 	}
 	if len(out) == 0 {
 		// Silence over a tree that holds modules is runs that wrote nothing, not a tree with none.
-		if len(modules) > 0 {
-			return sarif.Report{}, fmt.Errorf("govulncheck wrote 0 runs for %d modules", len(modules))
+		if len(plan) > 0 {
+			return sarif.Report{}, fmt.Errorf("govulncheck wrote 0 runs for %s", plannedGovulncheckRuns(plan))
 		}
 		coverage := "no go.mod found, so nothing here carries a verdict"
 		if dir != "" && len(goModuleDirs(dir)) > 0 {
@@ -488,27 +560,144 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 	// builds would lend one module's call path to the other's finding.
 	manifests := goModuleManifests(dir)
 	asOf := now.UTC().Format("2006-01-02")
-	var results []sarif.Result
 	runs := splitGovulncheckRuns(msgs)
-	// One run per module, as govulncheckArgs ran them. Fewer means a module whose run printed
-	// nothing, and its findings would be absent from a report that looks complete.
-	if len(modules) > 0 && len(runs) != len(modules) {
-		return sarif.Report{}, fmt.Errorf("govulncheck wrote %d runs for %d modules", len(runs), len(modules))
+	// One run per module and platform, as govulncheckArgs ran them. Fewer means a module whose run
+	// printed nothing, and its findings would be absent from a report that looks complete.
+	if len(plan) > 0 && len(runs) != len(plan) {
+		return sarif.Report{}, fmt.Errorf("govulncheck wrote %d runs for %s", len(runs), plannedGovulncheckRuns(plan))
 	}
 	var inputs []sarif.Input
-	for _, run := range runs {
+	var host, other []sarif.Result
+	for i, run := range runs {
+		var build *platformBuild
+		if i < len(plan) {
+			build = plan[i].build
+		}
 		// A module that did not load is named as unread, and has no results: its findings keep the
 		// band the manifest scanner gave them, with no verdict.
 		if u := run[0].Unloaded; u != nil {
-			inputs = append(inputs, sarif.Input{Path: u.GoMod, Unread: u.Reason, Analysis: true})
+			reason := u.Reason
+			if u.Platform != "" {
+				reason = strings.Replace(reason, "govulncheck: ", "govulncheck for "+u.Platform+": ", 1)
+			}
+			inputs = append(inputs, sarif.Input{Path: u.GoMod, Unread: reason, Analysis: true})
 			continue
 		}
-		results = append(results, govulncheckRunResults(run, manifests, asOf)...)
+		rs := govulncheckRunResults(run, manifests, asOf)
+		if build == nil {
+			host = append(host, rs...)
+			continue
+		}
+		for j := range rs {
+			reach := *rs[j].Reachability
+			reach.Platforms = []string{build.Platform.String()}
+			rs[j].Reachability = &reach
+		}
+		other = append(other, rs...)
 	}
+	results := withPlatformVerdicts(host, other)
+	inputs = append(inputs, stdlibOnlyInputs(dir, stdlibOnly)...)
 	return sarif.Report{Tool: govulncheckScanner, Results: results, Inputs: inputs, Provenance: []sarif.Provenance{{
 		Tool:   govulncheckScanner,
 		Fields: []sarif.Field{{Key: "database", Value: resolveGovulnDB().describe()}},
 	}}}, nil
+}
+
+// plannedGovulncheckRuns says what govulncheckPlan planned, for the error of a count of runs that
+// does not match it: "2 modules", or "2 modules and 1 run for another platform".
+func plannedGovulncheckRuns(plan []govulncheckPlanned) string {
+	mods := 0
+	for _, r := range plan {
+		if r.build == nil {
+			mods++
+		}
+	}
+	said := english.Count(mods, "module")
+	if other := len(plan) - mods; other > 0 {
+		said += " and " + english.Count(other, "run") + " for another platform"
+	}
+	return said
+}
+
+// withPlatformVerdicts folds the verdicts of runs for platforms beside the host into the host's,
+// one result per advisory identifier, module and go.mod.
+//
+// A call into a vulnerable function from code only another platform builds makes the finding
+// reachable, whatever the host's run said: that code ships in that platform's build. Otherwise the
+// host's verdict stands, because it is over the whole module and a platform's run starts from part
+// of it. A finding the host's run did not report, in a module only another platform's code
+// imports, takes that platform's verdict. Each verdict from a platform's run names it.
+func withPlatformVerdicts(host, other []sarif.Result) []sarif.Result {
+	key := func(r sarif.Result) string {
+		name := ""
+		if r.Package != nil {
+			name = r.Package.Name
+		}
+		return r.RuleID + "\x00" + name + "\x00" + r.Location.URI
+	}
+	out := slices.Clone(host)
+	at := make(map[string]int, len(out))
+	for i, r := range out {
+		at[key(r)] = i
+	}
+	for _, r := range other {
+		k := key(r)
+		i, ok := at[k]
+		if !ok {
+			at[k] = len(out)
+			out = append(out, r)
+			continue
+		}
+		had, got := out[i].Reachability, r.Reachability
+		switch {
+		case got.State != sarif.ReachabilityReachable:
+		case had.State != sarif.ReachabilityReachable:
+			out[i] = r
+		case len(had.Platforms) > 0:
+			// Reachable on two platforms beside the host: the verdict names both.
+			both := *had
+			both.Platforms = append(slices.Clone(had.Platforms), got.Platforms...)
+			out[i].Reachability = &both
+		}
+	}
+	return out
+}
+
+// stdlibOnlyInputs names each go.mod whose module holds code only another platform builds that
+// imports nothing outside the standard library, which govulncheck did not check for advisories on
+// the Go standard library (govulncheckPlan). Relative to the checkout at dir.
+func stdlibOnlyInputs(dir string, stdlibOnly map[string][]platformBuild) []sarif.Input {
+	mods := slices.Sorted(maps.Keys(stdlibOnly))
+	var out []sarif.Input
+	for _, mod := range mods {
+		rel, ok := relSlash(dir, filepath.Join(mod, "go.mod"))
+		if !ok {
+			continue
+		}
+		var names []string
+		files := map[string]bool{}
+		for _, b := range stdlibOnly[mod] {
+			names = append(names, b.Platform.String())
+			for f := range b.Files {
+				files[f] = true
+			}
+		}
+		out = append(out, sarif.Input{Path: rel, Unread: stdlibOnlyReason(names, len(files)), Analysis: true})
+	}
+	return out
+}
+
+// stdlibOnlyReason is why govulncheck did not check a module's code for other platforms, in the
+// words the caveat prints beside its go.mod: "Go standard-library advisories not checked for
+// windows/amd64-only code · 2 files", the files being that code. Short enough for the console's
+// reason column with one platform.
+func stdlibOnlyReason(platforms []string, files int) string {
+	only := make([]string, len(platforms))
+	for i, p := range platforms {
+		only[i] = p + "-only"
+	}
+	return fmt.Sprintf("Go standard-library advisories not checked for %s code · %s",
+		strings.Join(only, " or "), english.Count(files, "file"))
 }
 
 // splitGovulncheckRuns divides a concatenated stream into one slice per govulncheck run. Each run

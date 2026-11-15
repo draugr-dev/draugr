@@ -26,6 +26,8 @@ type govulncheckUnloaded struct {
 	GoMod string `json:"goMod"`
 	// Reason is why it did not load, from govulncheck's diagnostics.
 	Reason string `json:"reason"`
+	// Platform is the platform a run for one beside the host was for, "windows/amd64".
+	Platform string `json:"platform,omitempty"`
 }
 
 // onUnloaded turns a run over a module govulncheck could not load into a record of that module, so
@@ -52,9 +54,11 @@ func onUnloaded(run func(ctx context.Context, root string, argv []string) ([]byt
 			gomod = rel + "/go.mod"
 		}
 		// The run's own output is left out: it is a config message for a run that analyzed nothing.
-		msg, err := json.Marshal(govulncheckMessage{Unloaded: &govulncheckUnloaded{
-			GoMod: gomod, Reason: unloadedReason(root, mod, stderr),
-		}})
+		u := &govulncheckUnloaded{GoMod: gomod, Reason: unloadedReason(root, mod, stderr)}
+		if p, ok := goPlatformOf(argv); ok {
+			u.Platform = p.String()
+		}
+		msg, err := json.Marshal(govulncheckMessage{Unloaded: u})
 		if err != nil {
 			return nil, err
 		}

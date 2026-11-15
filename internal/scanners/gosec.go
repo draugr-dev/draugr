@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/manifests"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -79,7 +80,7 @@ func NewGosec() plugin.Scanner {
 	s.cacheVersion = sharedGosecVersion.version
 	// gosec loads a module's packages with `go`. Without it, gosec exits 0 having analyzed
 	// nothing, and the control would read as a clean pass.
-	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(onGosecWorkspace(onGosecPackages(execArgvInDirWithEnv)))))
+	s.run = onRuntime(s.info.Binary, onGosecModule(gosecBounded(onGoPlatform(onGosecWorkspace(onGosecPackages(execArgvInDirWithEnv))))))
 	return s
 }
 
@@ -152,6 +153,14 @@ func onGosecPackages(run func(ctx context.Context, dir string, argv, env []strin
 		if err != nil {
 			return nil, fmt.Errorf("go list -e -deps ./... cannot load the module, so gosec did not run: %w", err)
 		}
+		if p, ok := runGoPlatform(ctx); ok {
+			// A run for another platform reads only the packages holding code the host does not
+			// build; the host's run has read the rest.
+			pkgs = onlyPlatformPackages(pkgs, mod, tagValues(tags), p)
+			if len(pkgs) == 0 {
+				return gosecNothingRead, nil
+			}
+		}
 		if len(pkgs) == 0 {
 			// With no directory on its command line, gosec would analyze its working directory.
 			return nil, errNoGoPackages
@@ -173,6 +182,42 @@ func onGosecPackages(run func(ctx context.Context, dir string, argv, env []strin
 		}
 		return gosecUnderModule(doc, issues, mod)
 	}
+}
+
+// gosecNothingRead stands for gosec's output where a run for another platform finds none of its
+// packages in the go command's list: a SARIF report with no results, as onGosecPackages returns it.
+var gosecNothingRead = []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gosec"}},"results":[]}]}`)
+
+// onlyPlatformPackages keeps the package directories of pkgs that hold code the module at mod
+// builds for p and the host does not.
+func onlyPlatformPackages(pkgs []string, mod string, tags []string, p goPlatform) []string {
+	for _, b := range goModulePlatforms(mod, tags, hostGoPlatform).Builds {
+		if b.Platform == p {
+			return slices.DeleteFunc(slices.Clone(pkgs), func(d string) bool { return !slices.Contains(b.Dirs, d) })
+		}
+	}
+	return nil
+}
+
+// tagValues reads the build tags the go command builds with: a `-tags=a,b` argument where there is
+// one, which takes the place of the tags GOFLAGS sets, and otherwise GOFLAGS'.
+func tagValues(flags []string) []string {
+	tags := goflagsTags(os.Getenv("GOFLAGS"))
+	for _, f := range flags {
+		if v, ok := strings.CutPrefix(f, "-tags="); ok {
+			tags = goflagsTags("-tags=" + v)
+		}
+	}
+	return tags
+}
+
+// gosecTags are the build tags gosec's runs build with, from its tags option and GOFLAGS.
+func gosecTags(cfg plugin.Config) []string {
+	var flags []string
+	if v := commaList(cfg, "tags"); v != "" {
+		flags = append(flags, "-tags="+v)
+	}
+	return tagValues(flags)
 }
 
 // errNoGoPackages is a module the go command lists no package of, under gosec's build tags.
@@ -279,6 +324,8 @@ type gosecModule struct {
 	NoPackages bool `json:"noPackages,omitempty"`
 	// Failed is the error of a run that failed for any other reason.
 	Failed string `json:"failed,omitempty"`
+	// Platform is the platform a run for one beside the host was for, "windows/amd64".
+	Platform string `json:"platform,omitempty"`
 }
 
 // onGosecModule turns a run of gosec over one module that did not write a report into a record of
@@ -304,6 +351,9 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 		rec := gosecModule{GoMod: "go.mod"}
 		if rel, ok := relSlash(root, mod); ok && rel != "." {
 			rec.GoMod = rel + "/go.mod"
+		}
+		if p, ok := goPlatformOf(argv); ok {
+			rec.Platform = p.String()
 		}
 		if noPackages {
 			rec.NoPackages = true
@@ -384,12 +434,48 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 	// module, so `./...` from a root with no go.mod analyzes nothing and writes nothing, and a
 	// module nested inside another is outside the outer one's `./...`. When gosec runs,
 	// onGosecPackages names the module's package directories in place of `<module>/...`.
-	var out [][]string
-	for _, mod := range goModuleDirs(dir) {
-		argv := append([]string{}, base...)
-		out = append(out, append(argv, filepath.Join(mod, "...")))
+	//
+	// A module holding code the host does not build, a file behind `//go:build windows` on Linux, gets
+	// a run for each platform that builds it (gosecPlan).
+	runs, _ := gosecPlan(dir, cfg)
+	out := make([][]string, 0, len(runs))
+	for _, r := range runs {
+		argv := append(append([]string{}, base...), filepath.Join(r.mod, "..."))
+		if r.build != nil {
+			argv = withGoPlatform(argv, r.build.Platform)
+		}
+		out = append(out, argv)
 	}
 	return out
+}
+
+// gosecRun is one run of gosec gosecArgs plans: over a module for the host, or for a platform beside
+// it where build is set.
+type gosecRun struct {
+	mod   string
+	build *platformBuild
+}
+
+// gosecPlan lists gosec's runs over the checkout at dir: each Go module for the host, each followed
+// by a run for every platform of analyzedGoPlatforms that builds code of the module the host does
+// not. A run for another platform reads only the packages holding that code (onGosecPackages), and
+// only its findings in that code are kept (parseGosec): the host's run has read the rest.
+//
+// Beside the runs, the files no planned run builds that some other platform does, such as a file
+// for plan9 or js/wasm, by absolute path.
+func gosecPlan(dir string, cfg plugin.Config) ([]gosecRun, []string) {
+	tags := gosecTags(cfg)
+	var runs []gosecRun
+	var unbuilt []string
+	for _, mod := range goModuleDirs(dir) {
+		runs = append(runs, gosecRun{mod: mod})
+		mp := goModulePlatforms(mod, tags, hostGoPlatform)
+		for i := range mp.Builds {
+			runs = append(runs, gosecRun{mod: mod, build: &mp.Builds[i]})
+		}
+		unbuilt = append(unbuilt, mp.Unbuilt...)
+	}
+	return runs, unbuilt
 }
 
 // parseGosec reads the SARIF documents the per-module runs wrote, one after another, in the order
@@ -409,6 +495,11 @@ func gosecArgs(dir string, cfg plugin.Config) [][]string {
 // could not analyze must not read like one it analyzed and found clean.
 func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error) {
 	modules := goModuleDirs(dir)
+	var runs []gosecRun
+	var unbuilt []string
+	if dir != "" {
+		runs, unbuilt = gosecPlan(dir, cfg)
+	}
 	if len(bytes.TrimSpace(out)) == 0 {
 		// Silence over a tree that holds modules is runs that wrote nothing, not a tree with none,
 		// and saying "no go.mod" there would describe a repository that is not this one.
@@ -443,9 +534,14 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		// A module gosec wrote no report for (see onGosecModule).
 		var rec gosecRecord
 		if json.Unmarshal(doc, &rec) == nil && rec.Module != nil {
-			if rec.Module.NoPackages {
+			switch {
+			case rec.Module.Platform != "":
+				failed = append(failed, "over "+rec.Module.GoMod+" for "+rec.Module.Platform+": "+rec.Module.Failed)
+			case rec.Module.NoPackages && i < len(runs) && builtElsewhere(runs, runs[i].mod):
+				// Every package of the module is another platform's, and that platform's run reads it.
+			case rec.Module.NoPackages:
 				inputs = append(inputs, sarif.Input{Path: rec.Module.GoMod, Unread: string(manifests.NoGoPackages), Analysis: true})
-			} else {
+			default:
 				failed = append(failed, "over "+rec.Module.GoMod+": "+rec.Module.Failed)
 			}
 			continue
@@ -457,8 +553,11 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		if err := rateByGosecSeverity(&rep, doc); err != nil {
 			return sarif.Report{}, err
 		}
-		if dir != "" && i < len(modules) {
-			underModule(&rep, dir, modules[i])
+		if i < len(runs) {
+			underModule(&rep, dir, runs[i].mod)
+			if b := runs[i].build; b != nil {
+				onlyPlatformCode(&rep, dir, b)
+			}
 		}
 		if selected {
 			rep.Results = slices.DeleteFunc(rep.Results, outOfSelection)
@@ -466,15 +565,111 @@ func parseGosec(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 		markNolintSuppressed(&rep, dir)
 		reports = append(reports, rep)
 	}
-	if dir != "" && docs != len(modules) {
-		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %d modules", docs, len(modules))
+	if dir != "" && docs != len(runs) {
+		return sarif.Report{}, fmt.Errorf("gosec wrote %d reports for %s", docs, plannedRuns(runs))
 	}
-	merged := sarif.Merge(reports...)
+	merged := sarif.Merge(joinPlatforms(reports)...)
 	merged.Inputs = append(merged.Inputs, inputs...)
+	merged.Inputs = append(merged.Inputs, unbuiltInputs(dir, unbuilt, "gosec")...)
 	if len(failed) > 0 {
 		return merged, &moduleFailures{failed: failed, read: len(reports) > 0}
 	}
 	return merged, nil
+}
+
+// builtElsewhere reports whether runs hold a run for another platform over the module at mod.
+func builtElsewhere(runs []gosecRun, mod string) bool {
+	return slices.ContainsFunc(runs, func(r gosecRun) bool { return r.mod == mod && r.build != nil })
+}
+
+// plannedRuns says what gosecPlan planned, for the error of a count of reports that does not match
+// it: "2 modules", or "2 modules and 1 run for another platform".
+func plannedRuns(runs []gosecRun) string {
+	mods := 0
+	for _, r := range runs {
+		if r.build == nil {
+			mods++
+		}
+	}
+	said := english.Count(mods, "module")
+	if other := len(runs) - mods; other > 0 {
+		said += " and " + english.Count(other, "run") + " for another platform"
+	}
+	return said
+}
+
+// onlyPlatformCode keeps the results of a run for another platform that lie in code only that
+// platform of the host and it builds (b.Files), and names the platform on each. A result elsewhere
+// is in code the host's run read, which reports it.
+func onlyPlatformCode(rep *sarif.Report, dir string, b *platformBuild) {
+	files := make(map[string]bool, len(b.Files))
+	for f := range b.Files {
+		if rel, ok := relSlash(dir, f); ok {
+			files[rel] = true
+		}
+	}
+	rep.Results = slices.DeleteFunc(rep.Results, func(r sarif.Result) bool { return !files[r.Location.URI] })
+	for i := range rep.Results {
+		rep.Results[i].Platforms = []string{b.Platform.String()}
+	}
+}
+
+// joinPlatforms names on one result every platform a finding was found for, where runs for two
+// platforms found it in a file both build. sarif.Merge keeps the first copy of a finding and drops
+// the others, platforms and all.
+func joinPlatforms(reports []sarif.Report) []sarif.Report {
+	first := map[string]*sarif.Result{}
+	for ri := range reports {
+		for i := range reports[ri].Results {
+			r := &reports[ri].Results[i]
+			if len(r.Platforms) == 0 {
+				continue
+			}
+			fp := r.Fingerprint()
+			if f, ok := first[fp]; ok {
+				for _, p := range r.Platforms {
+					if !slices.Contains(f.Platforms, p) {
+						f.Platforms = append(f.Platforms, p)
+					}
+				}
+				continue
+			}
+			first[fp] = r
+		}
+	}
+	return reports
+}
+
+// unbuiltInputs names each file of unbuilt, built for a platform no run analyzed, as a file the
+// scanner did not analyze, relative to the checkout at dir.
+func unbuiltInputs(dir string, unbuilt []string, scanner string) []sarif.Input {
+	var out []sarif.Input
+	for _, f := range unbuilt {
+		rel, ok := relSlash(dir, f)
+		if !ok {
+			continue
+		}
+		out = append(out, sarif.Input{Path: rel, Unread: unbuiltReason(scanner), Analysis: true})
+	}
+	return out
+}
+
+// unbuiltReason is why a file built for another platform was not analyzed, in the words a caveat
+// prints beside it: "gosec: not built for linux/amd64, windows/amd64, darwin/arm64". The scanner is
+// named because a control's other scanners, such as Semgrep, read source without building it.
+func unbuiltReason(scanner string) string {
+	return scanner + ": not built for " + strings.Join(analyzedPlatformNames(), ", ")
+}
+
+// analyzedPlatformNames are the platforms a run analyzes, the host's first.
+func analyzedPlatformNames() []string {
+	names := []string{hostGoPlatform.String()}
+	for _, p := range analyzedGoPlatforms {
+		if p.OS != hostGoPlatform.OS {
+			names = append(names, p.String())
+		}
+	}
+	return names
 }
 
 // gosecSeverityLevel is the SARIF level each of gosec's severity ratings means.

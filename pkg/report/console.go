@@ -666,10 +666,26 @@ func packageKind(f finding) (short, full string) {
 // `tests/fixture.yaml · test`, or the location alone for a finding in shipped code. For the compact
 // cell, markdown and the HTML report; the default view paints the two apart.
 func labeledWhere(f finding, where string) string {
-	if f.nonShipping == "" {
-		return where
+	if f.nonShipping != "" {
+		where += " · " + f.nonShipping
 	}
-	return where + " · " + f.nonShipping
+	if note := platformNote(f.platforms); note != "" {
+		where += " · " + note
+	}
+	return where
+}
+
+// platformNote names the builds a finding's code is in, where only another platform's build holds
+// it: "windows/amd64 build", "windows/amd64 and darwin/arm64 builds". Empty for code the machine's
+// own build holds.
+func platformNote(ps []string) string {
+	switch len(ps) {
+	case 0:
+		return ""
+	case 1:
+		return ps[0] + " build"
+	}
+	return strings.Join(ps[:len(ps)-1], ", ") + " and " + ps[len(ps)-1] + " builds"
 }
 
 // nonShippingNote counts the counted findings under docs, examples or tests, in the words their

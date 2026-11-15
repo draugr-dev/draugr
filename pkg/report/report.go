@@ -773,6 +773,11 @@ type finding struct {
 	// empty for a finding in shipped code. It is the label the finding wears beside its location, and
 	// it lists the finding after every one in shipped code.
 	nonShipping string
+	// platforms are the platforms whose build alone holds the code the finding lies in, as
+	// GOOS/GOARCH, where a Go analyzer read that code in a run for a platform beside the machine's
+	// own (sarif.Result.Platforms). Shown beside the location, because the reader's own build may
+	// never have compiled that file.
+	platforms []string
 	// remediation is what kind of action would resolve this, which decides whether it belongs in
 	// a list of things to fix at all.
 	remediation sarif.Remediation
@@ -1024,6 +1029,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		severityFloor: res.SeverityFloor,
 		historical:    res.Historical,
 		nonShipping:   res.NonShipping,
+		platforms:     res.Platforms,
 		component:     res.Component,
 		repository:    res.Repository,
 		location:      locationOf(res), message: res.Message,
@@ -1551,6 +1557,11 @@ func reachabilityPath(r *sarif.Reachability) string {
 		return ""
 	}
 	out := "reachable"
+	// A path from code only another platform builds is one the reader's own build may never compile,
+	// so the build it is in is named: "reachable in the windows/amd64 build".
+	if note := platformNote(r.Platforms); note != "" {
+		out += " in the " + note
+	}
 	if p := shortestCallPath(r.Paths); p != "" {
 		out += ": " + p
 	}
