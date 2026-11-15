@@ -145,6 +145,11 @@ checkout whose `.git` is a file, as a linked worktree's is, the history pass app
 leaves no record. [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the
 finding and the reason in every case.
 
+A `generic-api-key` finding on a `hashed_secret` line of a `.secrets.baseline` file, the SHA-1
+detect-secrets records, is suppressed by default and kept in the report.
+[`detectSecretsBaselines`](../../docs/reference/saga-schema.md#detect-secrets-baselines) counts it
+again.
+
 ## Skipped
 
 Gitleaks judges by a file's name, not its content, whether the file is an archive, and skips every

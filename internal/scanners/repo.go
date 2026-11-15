@@ -459,6 +459,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	stampLineHashes(report.Results, dir)
 	markPomScopes(report.Results, dir)
 	markOwnPackages(report.Results, dir)
+	markDetectSecretsBaselines(report.Results, dir)
 	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
 	switch {
 	case partial && historyErr != nil:
