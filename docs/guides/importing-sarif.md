@@ -13,7 +13,23 @@ priority, count toward the gate, and appear in **Fix first** beside the findings
 scanners. Draugr does not run the tool. It reads the file an earlier pipeline step left behind.
 
 The steps below use Bandit, which writes no commit into its SARIF, so they include binding the file
-to the commit it scanned. The same steps fit any tool that writes SARIF 2.1.0.
+to the commit it scanned. Another tool's file follows the same steps, with the limits
+[Before you import](../../internal/scanners/sarif-import.md#before-you-import) lists. The ones a
+first import meets:
+
+- **A tool Draugr also runs lists each finding twice.** An imported finding is not merged with the
+  control's own scanner's. Importing Semgrep's file into `sast`, or Trivy's into `sca` or `iac`,
+  means switching that scanner off: `config.controls.sast.semgrep.enabled: false`,
+  `config.controls.sca.trivyFs.enabled: false` or `config.controls.iac.trivyConfig.enabled: false`.
+- **Severity comes from `security-severity`, written as a string, or from the level.** A number
+  there makes the whole file unreadable. A file that
+  states only levels never yields critical, and one that writes only `warning` ranks P2 at most,
+  below the default gate, unless KEV or EPSS raises a finding whose rule id is a CVE.
+- **No package or fix is read.** A dependency finding from another tool's file says
+  `no package reported`, and KEV and EPSS reach it only where its rule id is a CVE.
+- **Paths are kept as written.** Write them relative to the repository's root, as
+  [`config.exclude`](../reference/saga-schema.md#configexclude) matches them as written.
+- **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed.
 
 ## 1. Write the SARIF file
 

@@ -137,8 +137,8 @@ path may be gone; it moves nothing. A finding a signal raised and an unreachable
 shows only the mark that decided its severity, `↓ unreachable`, and `report.json` keeps the raise
 under `escalation`. A finding with no mark was ranked by exposure, criticality and severity alone.
 
-KEV and EPSS reach only findings whose rule id holds a CVE, which is `sca` and `images`; dependency
-health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
+KEV and EPSS reach only findings whose rule id holds a CVE, which is `sca`, `images` and an imported
+file that names its findings by CVE; dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
 low EPSS score and a package nobody has flagged rank as they would with no signal at all. Only
 reachability lowers, and only from an analyzer that shows its method, as
 [Reachability](#reachability) describes. Turning each signal on is the second lever in
@@ -447,8 +447,8 @@ the analysis could not see:
 | `framework-heuristic` | read a framework's conventions about wired handlers | reported, nothing moves |
 | `import-check` | saw whether the vulnerable package is referenced | reported, nothing moves |
 
-govulncheck follows the call graph. A verdict from a weaker method, such as a SARIF import, travels
-in the report and says it moved nothing:
+govulncheck follows the call graph. A verdict from a weaker method travels in the report and says it
+moved nothing. A SARIF import carries one only in Draugr's own `reachability` result property:
 
 ```
 unreachable · framework-heuristic · band unchanged (dep-scan, 2026-08-21)

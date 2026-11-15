@@ -388,10 +388,17 @@ components:
 | `control` | the control the file's findings belong to, such as `sast` or `sca` |
 | `file` | the SARIF 2.1.0 file, relative to where Draugr runs |
 
-Every finding in the file belongs to this component. Severity comes from each result's numeric
-`security-severity` and otherwise from its SARIF `level`, and the report says which. The report
-also names the tool and version the file states, when it was written, and its SHA-256, under
-**Measured against**.
+Every finding in the file belongs to this component, whatever the repository's `paths:` and
+`ignore:` say, and keeps the path the file wrote, so write paths relative to the repository's root.
+Severity comes from each result's `security-severity`, a score written as a string such as `"7.5"`.
+A Bandit file without one is rated from Bandit's `issue_severity` and `issue_confidence`, by the
+table on the [`sarif-import`](../../internal/scanners/sarif-import.md#bandit) page, and any other
+result from its SARIF `level`, which tops out at high. The report says which source each file's
+severities came from, and names the tool and version the file states, when it was written, and its
+SHA-256, under **Measured against**.
+
+Importing a tool Draugr also runs lists each finding twice; [Before you
+import](../../internal/scanners/sarif-import.md#before-you-import) says what to switch off.
 
 A file that states the commit it scanned is held to the commit this run reads, and a different
 commit stops the run. A file that states none is read and listed under **Caveats** as `unbound-imports`,
