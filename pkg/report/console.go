@@ -1057,6 +1057,7 @@ const (
 	moveEscalation  = "escalation"
 	moveFloor       = "floor"
 	moveUnreachable = "unreachable"
+	movePinned      = "pinned"
 	moveMinimum     = "minimum"
 	moveHistory     = "history"
 	moveListed      = "listed"
@@ -1093,6 +1094,10 @@ func marks(f finding) []movement {
 	}
 	if lowered {
 		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: "unreachable", style: cInfo})
+	}
+	// Held at P3 because the repository's lockfile pins the reference the finding is about.
+	if f.priorityCap != "" {
+		out = append(out, movement{key: movePinned, glyph: "↓", label: "pinned", style: cInfo})
 	}
 	// The control's minimum severity raised the scanner's rating, and the floored rating is the one
 	// printed: no signal raised it further and no verdict lowered it. Named apart from the context

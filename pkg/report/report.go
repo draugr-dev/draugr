@@ -720,6 +720,9 @@ func automationSegment(s string) string { return strings.ReplaceAll(s, "/", "-")
 // --- shared summary used by the human reporters ---
 
 type finding struct {
+	// priorityCap is why the band was held below what severity and context gave
+	// (sarif.Result.PriorityCap), empty where nothing held it down.
+	priorityCap string
 	// module is the downloaded Terraform module the finding lies in, nil where it lies in none.
 	module *sarif.Module
 	// detail is the scanner's sentence about this occurrence, where the message is the rule's title.
@@ -1035,6 +1038,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		reachability:  res.Reachability,
 		alsoFoundBy:   alsoFoundBy(res),
 		priorityFloor: res.PriorityFloor,
+		priorityCap:   res.PriorityCap,
 		severityFloor: res.SeverityFloor,
 		historical:    res.Historical,
 		nonShipping:   res.NonShipping,

@@ -278,6 +278,9 @@ type findingReport struct {
 	// one's rating. With escalation and reachability it is the rest of what a consumer needs to
 	// recompute the severity the band, and a severity gate, read.
 	SeverityFloor sarif.Severity `json:"severityFloor,omitempty"`
+	// PriorityCap is why the band was held below what severity and context gave, such as an action
+	// actions.lock pins to a commit. Absent where nothing held it down.
+	PriorityCap string `json:"priorityCap,omitempty"`
 	// Historical says the finding comes from a commit rather than the current tree, so its
 	// location is the path the file had in that commit. A consumer without the mark reads a
 	// location the checkout lacks as a finding already fixed, when a credential in history is still
@@ -1301,6 +1304,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Reachability:  res.Reachability,
 		Rating:        res.Rating,
 		SeverityFloor: res.SeverityFloor,
+		PriorityCap:   res.PriorityCap,
 		Historical:    res.Historical,
 		Dev:           res.Package != nil && res.Package.Dev,
 		Provided:      res.Package != nil && res.Package.Provided,

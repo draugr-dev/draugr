@@ -1,0 +1,1 @@
+- **An action that `.github/workflows/actions.lock` pins to a commit no longer fails the default gate.** Its mutable-tag finding is held at P3 and marked `↓ pinned`, still counted and listed, because GitHub runs the locked commit. A reference the lockfile does not pin keeps its band.

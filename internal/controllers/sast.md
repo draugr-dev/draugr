@@ -37,8 +37,8 @@ lists the directories.
 
 ## Generated code and pinned actions
 
-Two kinds of finding are counted at their priority and listed after the rest, each labeled beside
-its location. No setting changes either; `config.exclude` sets one aside.
+Two kinds of finding are counted and listed after the rest, each labeled beside its location. No
+setting changes either; `config.exclude` sets one aside.
 
 - **`generated`**: a finding in a Go file whose header holds the standard marker,
   `// Code generated … DO NOT EDIT.` (`go help generate`). Its fix reads `change the generator,
@@ -47,7 +47,9 @@ its location. No setting changes either; `config.exclude` sets one aside.
   file without the marker is not labeled, whatever its name.
 - **`pinned by actions.lock`**: a Semgrep `github-actions-mutable-action-tag` finding on a `uses:`
   reference that `.github/workflows/actions.lock`, the lockfile `gh actions-lock` writes, lists for
-  the same workflow with a commit. Its fix reads `keep actions.lock verified in CI`, which
+  the same workflow with a commit. It is held at P3, marked `↓ pinned`, so it does not fail the
+  default gate: GitHub runs the locked commit for a workflow the lockfile covers, so the tag moving
+  no longer changes what runs. Its fix reads `keep actions.lock verified in CI`, which
   `gh actions-lock --verify` does. A reference the lockfile does not list, one in a composite
   action under `.github/actions/`, and a reusable workflow's call, which the lockfile does not pin,
   are reported as before.

@@ -192,3 +192,27 @@ func TestCorrelationCountsAFlawUnderTheShippedCopy(t *testing.T) {
 		t.Errorf("counted under %+v / %+v, want the shipped copy counted", got[0].Correlation, got[1].Correlation)
 	}
 }
+
+// A run records the reason the prioritizer gave for holding a band down.
+func TestARunRecordsWhyABandWasHeldDown(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterScanner(fixtureScanner{name: "s"})
+	reg.RegisterController(jobPerRepo{name: "iac", scanner: "s"})
+	m := saga.Model{
+		Release:    saga.Release{Version: "1"},
+		Config:     saga.Config{Controls: map[string]saga.ControllerSettings{"iac": {"enabled": true}}},
+		Components: []saga.Component{{Name: "api", Repositories: []saga.Repository{{URL: "https://example.test/api.git"}}}},
+	}
+	held := WithPrioritization(func(string, saga.Exposure, saga.Criticality, sarif.Result) Priority {
+		return Priority{Band: "P3", Cap: "pinned"}
+	})
+	res, err := New(reg, held).Run(context.Background(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range res.Controls["iac"].Report.Results {
+		if r.Priority != "P3" || r.PriorityCap != "pinned" {
+			t.Errorf("%s: band %s, cap %q", r.Location.URI, r.Priority, r.PriorityCap)
+		}
+	}
+}

@@ -135,6 +135,9 @@ type Priority struct {
 	// was computed from. Empty where the control declares no floor or the rating was already at or
 	// above it.
 	SeverityFloor sarif.Severity
+	// Cap explains a band held below what the severity and context gave, as sarif.Result.PriorityCap
+	// records it. Empty when nothing held it down.
+	Cap string
 }
 
 // Option configures an Engine.
@@ -2126,6 +2129,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			out.Results[i].Escalation = p.Escalation
 			out.Results[i].Exploited = p.Exploited
 			out.Results[i].PriorityFloor = p.Floor
+			out.Results[i].PriorityCap = p.Cap
 			out.Results[i].SeverityFloor = p.SeverityFloor
 		}
 	}
@@ -2954,6 +2958,7 @@ func (e *Engine) reband(res *sarif.Result, control string, model saga.Model) {
 	res.Escalation = p.Escalation
 	res.Exploited = p.Exploited
 	res.PriorityFloor = p.Floor
+	res.PriorityCap = p.Cap
 	res.SeverityFloor = p.SeverityFloor
 	if res.Reachability != nil {
 		res.Reachability.RankedAs = p.RankedAs

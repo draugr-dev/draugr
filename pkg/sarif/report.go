@@ -123,6 +123,11 @@ type Result struct {
 	// Set only when the floor actually raised the band, so a reader asking "why is this P2 on a
 	// supporting internal component" has the answer in the report rather than in the source.
 	PriorityFloor string `json:"priorityFloor,omitempty"`
+	// PriorityCap is why a band is lower than the finding's severity and context would make it: a
+	// GitHub Actions mutable-tag finding on a reference `.github/workflows/actions.lock` pins to a
+	// commit, held at P3. Set only when the cap lowered the band, so a reader asking why a P3 sits
+	// under a critical component has the answer in the report.
+	PriorityCap string `json:"priorityCap,omitempty"`
 	// SeverityFloor is the minimum severity the finding's control holds its findings at, recorded
 	// only where it raised the rating the band was computed from. A `secrets` finding its scanner
 	// rated medium carries `high` here; one the scanner already rated high or critical carries
