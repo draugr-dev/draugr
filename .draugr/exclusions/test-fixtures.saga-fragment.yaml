@@ -3,6 +3,17 @@
 config:
   exclude:
     - paths:
+        - "internal/scanners/detectsecrets_test.go"
+      rules:
+        - "generic-api-key"
+      reason: >-
+        The fixture for the test that proves a hash in a detect-secrets baseline is set aside by
+        default and the same line anywhere else is not. It has to be a hashed_secret line of exactly
+        40 lowercase hex characters, because that is the shape the rule covers and the shape Gitleaks
+        matches. The value is a made-up digest of nothing, and a test without it would assert
+        nothing.
+
+    - paths:
         - "internal/scanners/mend_sca_test.go"
       rules:
         - "generic-api-key"
