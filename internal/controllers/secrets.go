@@ -1,12 +1,38 @@
 package controllers
 
 import (
+	"encoding/json"
+
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 const gitleaksScanner = "gitleaks"
+
+// detectSecretsBaselinesKey decides whether the findings on the hashes a detect-secrets baseline
+// records count.
+const detectSecretsBaselinesKey = "detectSecretsBaselines"
+
+// secretsOptionSchema describes detectSecretsBaselines where it sits, under the control.
+//
+// The control's rather than Gitleaks's, so the finding is set aside by Draugr, suppressed and kept
+// with the setting's reason, rather than dropped by the scanner's allowlist, where it would leave
+// no trace.
+var secretsOptionSchema = json.RawMessage(`{
+  "type": "object",
+  "properties": {
+    "detectSecretsBaselines": {
+      "type": "string",
+      "default": "suppress",
+      "anyOf": [
+        { "const": "suppress", "description": "Findings on hashes in a detect-secrets baseline stay in the report, suppressed with the reason \"a hash in a detect-secrets baseline\", and out of the counts and the gate." },
+        { "const": "report", "description": "Findings on hashes in a detect-secrets baseline are counted." }
+      ],
+      "description": "Whether generic-api-key findings on a hashed_secret line of a .secrets.baseline file count. The line holds the SHA-1 of a value detect-secrets found, not the value. A component's setting replaces the project's."
+    }
+  }
+}`)
 
 // Secrets is the secret-detection control: it scans a component's repositories for leaked
 // credentials. Any detected secret is reported at the level `error`, and held at the minimum
@@ -24,7 +50,14 @@ func (Secrets) Info() plugin.ControllerInfo {
 		Scope:           plugin.ScopeComponent,
 		Summary:         "Find passwords and keys committed by accident.",
 		DefaultScanners: []string{"gitleaks"},
+		OptionSchema:    secretsOptionSchema,
 	}
+}
+
+// ReportsDetectSecretsBaselines resolves detectSecretsBaselines for one component, and names the
+// key that decided it: the component's setting, then the project's, then the default, suppress.
+func (Secrets) ReportsDetectSecretsBaselines(model saga.Model, component string) (bool, string) {
+	return controlSetting(model, component, "secrets", detectSecretsBaselinesKey, false)
 }
 
 // Plan produces one scan job per repository declared on the component.

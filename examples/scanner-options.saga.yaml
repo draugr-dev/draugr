@@ -180,6 +180,8 @@ config:
 
     secrets:
       enabled: true
+      detectSecretsBaselines: report                 # suppress (default) | report: report
+                                                     # counts the hashes in a .secrets.baseline
       gitleaks:
         history: true                                # the commit history as well as the tree. A
                                                      # secret committed and later removed is still

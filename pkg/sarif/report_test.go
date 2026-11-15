@@ -559,3 +559,18 @@ func TestAgreementNoteNamesEachOtherScannerOnce(t *testing.T) {
 		t.Errorf("other files = %d, want web/package-lock.json alone", got)
 	}
 }
+
+// The detect-secrets baseline mark survives the file, since which findings the setting sets aside
+// reads it.
+func TestDetectSecretsBaselineSurvivesTheFile(t *testing.T) {
+	in := Report{Tool: "gitleaks", Results: []Result{{Tool: "gitleaks", RuleID: "generic-api-key", Level: LevelError,
+		Message: "m", Location: Location{URI: ".secrets.baseline", StartLine: 8}, DetectSecretsBaseline: true}}}
+	doc, err := in.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := FromSARIF(doc)
+	if err != nil || len(out.Results) != 1 || !out.Results[0].DetectSecretsBaseline {
+		t.Fatalf("read back %+v, %v; want the mark", out.Results, err)
+	}
+}

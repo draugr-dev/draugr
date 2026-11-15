@@ -85,6 +85,12 @@ type Result struct {
 	// a reader can tell a flaw in what ships from the same flaw in a test fixture. Whether a marked
 	// finding counts is the control's nonShippingPaths setting; the mark is there either way.
 	NonShipping string `json:"nonShipping,omitempty"`
+	// DetectSecretsBaseline marks a secrets finding on a `hashed_secret` field of a detect-secrets
+	// baseline, a `.secrets.baseline` file, where the value is the 40-character SHA-1 detect-secrets
+	// recorded in place of what it found. The value is a digest, not a credential, and whether such a
+	// finding counts is the secrets control's detectSecretsBaselines setting; the mark is there
+	// either way.
+	DetectSecretsBaseline bool `json:"detectSecretsBaseline,omitempty"`
 	// Undecided marks a benchmark check the scanner could not settle and refers to a person, such as
 	// one the benchmark scores as a manual check. It is a check left to review rather than something
 	// the run found: nothing was seen to fail.
@@ -732,6 +738,10 @@ const JustificationCPEMatch = "matched by CPE only"
 // JustificationOwnPackage is the reason recorded on a finding that config.controls.sca.ownPackages
 // set aside.
 const JustificationOwnPackage = "the project's own package"
+
+// JustificationDetectSecretsBaseline is the reason recorded on a finding that
+// config.controls.secrets.detectSecretsBaselines set aside.
+const JustificationDetectSecretsBaseline = "a hash in a detect-secrets baseline" // #nosec G101 -- a reason phrase naming a file format, not a credential
 
 // JustificationNonShipping is the reason recorded on a finding that a control's nonShippingPaths
 // set aside, such as config.controls.iac.nonShippingPaths.

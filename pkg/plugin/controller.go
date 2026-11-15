@@ -133,6 +133,15 @@ type OwnPackagePolicy interface {
 	ReportsOwnPackages(model saga.Model, component string) (report bool, source string)
 }
 
+// DetectSecretsBaselinePolicy is an optional interface a Controller may implement to decide whether
+// the findings on the hashes a detect-secrets baseline records count, per component.
+//
+// Asked as DevDependencyPolicy is, for the findings carrying the detect-secrets baseline mark.
+// Source names the setting that decided, which the suppression records.
+type DetectSecretsBaselinePolicy interface {
+	ReportsDetectSecretsBaselines(model saga.Model, component string) (report bool, source string)
+}
+
 // NonShippingPolicy is an optional interface a Controller may implement to have its findings marked
 // where their file sits under documentation, examples or tests, and to decide per component whether
 // those findings count.

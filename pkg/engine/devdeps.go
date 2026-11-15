@@ -150,6 +150,25 @@ var ownPackageSetting = settingPolicy{
 	justification: sarif.JustificationOwnPackage,
 }
 
+// detectSecretsBaselineSetting is config.controls.secrets.detectSecretsBaselines.
+var detectSecretsBaselineSetting = settingPolicy{
+	covers: func(r *sarif.Result) bool { return r.DetectSecretsBaseline },
+	decide: func(c plugin.Controller) (func(saga.Model, string) (bool, string), bool) {
+		p, ok := c.(plugin.DetectSecretsBaselinePolicy)
+		if !ok {
+			return nil, false
+		}
+		return p.ReportsDetectSecretsBaselines, true
+	},
+	justification: sarif.JustificationDetectSecretsBaseline,
+}
+
+// applyDetectSecretsBaselines sets aside each finding on a hash a detect-secrets baseline records
+// whose component's secrets control says not to count them, and returns how many it set aside.
+func (e *Engine) applyDetectSecretsBaselines(controls map[string]plugin.ControlResult, model saga.Model) (suppressed int) {
+	return e.applySetting(controls, model, detectSecretsBaselineSetting)
+}
+
 // applyOwnPackages sets aside each finding about the project's own package whose component's control
 // says not to count them, and returns how many it set aside. Before the dependency settings, so a
 // package that is the project's own keeps that reason over any other mark it carries: it is not a

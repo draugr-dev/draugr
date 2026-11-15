@@ -1352,6 +1352,21 @@
       "additionalProperties": false,
       "description": "Find passwords and keys committed by accident.",
       "properties": {
+        "detectSecretsBaselines": {
+          "anyOf": [
+            {
+              "const": "suppress",
+              "description": "Findings on hashes in a detect-secrets baseline stay in the report, suppressed with the reason \"a hash in a detect-secrets baseline\", and out of the counts and the gate."
+            },
+            {
+              "const": "report",
+              "description": "Findings on hashes in a detect-secrets baseline are counted."
+            }
+          ],
+          "default": "suppress",
+          "description": "Whether generic-api-key findings on a hashed_secret line of a .secrets.baseline file count. The line holds the SHA-1 of a value detect-secrets found, not the value. A component's setting replaces the project's.",
+          "type": "string"
+        },
         "enabled": {
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"

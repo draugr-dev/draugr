@@ -551,8 +551,9 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 [`devDependencies`](#licenses-of-development-dependencies), and `sca` takes
 [`devDependencies`](#development-dependencies),
 [`providedDependencies`](#provided-dependencies), [`cpeMatches`](#cpe-matches) and
-[`ownPackages`](#own-packages). `images` takes [`cpeMatches`](#cpe-matches). `sast`, `iac`
-and `sca` each take [`nonShippingPaths`](#non-shipping-paths).
+[`ownPackages`](#own-packages). `images` takes [`cpeMatches`](#cpe-matches). `secrets` takes
+[`detectSecretsBaselines`](#detect-secrets-baselines). `sast`, `iac` and `sca` each take
+[`nonShippingPaths`](#non-shipping-paths).
 
 **Which scanners take options, and which take only `enabled`:**
 
@@ -757,6 +758,43 @@ same flaw are still counted as one, matched on the package's type, name and vers
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies.
+
+### Detect-secrets baselines
+
+`config.controls.secrets.detectSecretsBaselines` decides whether findings on the hashes in a
+detect-secrets baseline count. detect-secrets commits a `.secrets.baseline` file that lists what it
+found, and each entry's `hashed_secret` field holds the SHA-1 of the value, not the value.
+Gitleaks's `generic-api-key` rule matches that field, so each hash was reported as a credential to
+rotate.
+
+| Value | Findings on baseline hashes |
+|---|---|
+| `suppress`, the default | Stays in the report and in `report.json`, suppressed with the reason `a hash in a detect-secrets baseline`, and out of the counts and the gate |
+| `report` | Is counted |
+
+```yaml
+config:
+  controls:
+    secrets:
+      detectSecretsBaselines: report   # count findings on baseline hashes
+components:
+  - name: api
+    controls:
+      secrets:
+        detectSecretsBaselines: suppress   # replaces the project's setting for this component
+```
+
+Set aside means only a `generic-api-key` finding on a line of a file named `.secrets.baseline` that
+holds nothing but a `hashed_secret` field and exactly 40 lowercase hex characters. Everything else
+still counts: other rules' findings in that file, the same field in any other file, the secrets in
+the files the baseline lists, and findings from the repository's history.
+
+One case is set aside wrongly: a real token of 40 lowercase hex characters written into a
+`hashed_secret` field of a `.secrets.baseline` file. The format cannot tell it from a hash. Set
+`report` if your baseline is edited by hand.
+
+Each finding set aside carries a suppression with `origin: setting` and a `source` naming the key
+that decided, `config.controls.secrets.detectSecretsBaselines` or a component's own.
 
 ### Non-shipping paths
 
