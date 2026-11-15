@@ -169,6 +169,10 @@ func writeBlockWhere(w io.Writer, col tui.Painter, f finding, width int, blobs b
 		linked += col.Paint(cDim, " · ") + f.nonShipping
 		where += " · " + f.nonShipping
 	}
+	if note := asideNote(f.aside); note != "" {
+		linked += col.Paint(cDim, " · ") + note
+		where += " · " + note
+	}
 	// The build the code is in, where the machine's own build leaves the file out: a reader who never
 	// compiles for that platform would otherwise look for the flaw in code they do not ship.
 	if note := platformNote(f.platforms); note != "" {

@@ -85,6 +85,14 @@ type Result struct {
 	// a reader can tell a flaw in what ships from the same flaw in a test fixture. Whether a marked
 	// finding counts is the control's nonShippingPaths setting; the mark is there either way.
 	NonShipping string `json:"nonShipping,omitempty"`
+	// Aside is what makes a finding in shipped code, or in a repository's own dependency files, one
+	// to fix after the rest while it still counts at its priority: AsideGenerated, AsideTooling or
+	// AsidePinned. Empty for every other finding.
+	//
+	// Apart from NonShipping because what it marks may ship, as generated code does, so no
+	// nonShippingPaths setting reaches it. A report lists these findings after the rest and names
+	// the reason beside each.
+	Aside string `json:"aside,omitempty"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty
@@ -769,6 +777,19 @@ const JustificationOwnPackage = "the project's own package"
 // JustificationDetectSecretsBaseline is the reason recorded on a finding that
 // config.controls.secrets.detectSecretsBaselines set aside.
 const JustificationDetectSecretsBaseline = "a hash in a detect-secrets baseline" // #nosec G101 -- a reason phrase naming a file format, not a credential
+
+// The values of Result.Aside.
+const (
+	// AsideGenerated marks a finding in a Go file whose header says a generator wrote it, the
+	// `// Code generated ... DO NOT EDIT.` line the go command defines. The fix is in the generator.
+	AsideGenerated = "generated"
+	// AsideTooling marks a finding in a dependency file of a tool the developers install rather than
+	// of the application, one under `.config/mise/`. The tool still runs on their machines and in CI.
+	AsideTooling = "tooling"
+	// AsidePinned marks a GitHub Actions mutable-tag finding on a `uses:` reference that the
+	// repository's `.github/workflows/actions.lock` pins to a commit for that workflow.
+	AsidePinned = "pinned"
+)
 
 // JustificationNonShipping is the reason recorded on a finding that a control's nonShippingPaths
 // set aside, such as config.controls.iac.nonShippingPaths.

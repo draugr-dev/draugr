@@ -3,6 +3,8 @@ package report
 import (
 	"slices"
 	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // ruleInstruction is what to do about a line a rule flags, in Draugr's words, by the rule's short
@@ -140,6 +142,10 @@ func instructionFor(fs []finding) (instruction, also string) {
 func findingInstruction(f finding) string {
 	if !onALine(f) {
 		return ""
+	}
+	// The rule's own instruction, to pin the action, is what the lockfile already does.
+	if f.aside == sarif.AsidePinned {
+		return "Pinned to a commit by .github/workflows/actions.lock"
 	}
 	return instructionOf(f.ruleID)
 }

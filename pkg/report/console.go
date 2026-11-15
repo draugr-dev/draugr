@@ -437,7 +437,13 @@ func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 	// The order is no longer priority alone where findings under docs, examples or tests are listed
 	// after the rest, and a heading claiming it is would be contradicted by the first P1 below a P3.
 	order := "by priority"
-	if s.nonShipping > 0 && s.nonShipping < len(s.findings)+s.hidden {
+	switch later := s.nonShipping + s.aside; {
+	case later == 0 || later >= len(s.findings)+s.hidden:
+	case s.aside > 0:
+		// Generated code ships, so "shipped code first" would describe these wrongly. The heading
+		// names what is listed last, in the words of the labels the rows wear.
+		order = english.And(lastKinds(s.findings)) + " last, by priority"
+	default:
 		order = "shipped code first, by priority"
 	}
 	switch {
@@ -669,6 +675,9 @@ func labeledWhere(f finding, where string) string {
 	if f.nonShipping != "" {
 		where += " · " + f.nonShipping
 	}
+	if note := asideNote(f.aside); note != "" {
+		where += " · " + note
+	}
 	if note := platformNote(f.platforms); note != "" {
 		where += " · " + note
 	}
@@ -686,6 +695,42 @@ func platformNote(ps []string) string {
 		return ps[0] + " build"
 	}
 	return strings.Join(ps[:len(ps)-1], ", ") + " and " + ps[len(ps)-1] + " builds"
+}
+
+// lastKinds names what a listing puts after the rest, in the order it lists them: the kinds of
+// finding set aside, then docs, examples and tests.
+func lastKinds(fs []finding) []string {
+	words := []struct{ aside, nonShipping, word string }{
+		{aside: sarif.AsideGenerated, word: "generated code"},
+		{aside: sarif.AsideTooling, word: "developer tools"},
+		{aside: sarif.AsidePinned, word: "pinned actions"},
+		{nonShipping: "docs", word: "docs"},
+		{nonShipping: "example", word: "examples"},
+		{nonShipping: "test", word: "tests"},
+	}
+	var out []string
+	for _, w := range words {
+		if slices.ContainsFunc(fs, func(f finding) bool {
+			return w.aside != "" && f.nonShipping == "" && f.aside == w.aside || w.nonShipping != "" && f.nonShipping == w.nonShipping
+		}) {
+			out = append(out, w.word)
+		}
+	}
+	return out
+}
+
+// asideNote is the label a finding set aside wears beside its location, or "" for none. A tool's
+// dependency is named as a tool's, not as harmless: it runs on developers' machines and in CI.
+func asideNote(aside string) string {
+	switch aside {
+	case sarif.AsideGenerated:
+		return "generated"
+	case sarif.AsideTooling:
+		return "developer tool, runs in CI"
+	case sarif.AsidePinned:
+		return "pinned by actions.lock"
+	}
+	return aside
 }
 
 // nonShippingNote counts the counted findings under docs, examples or tests, in the words their

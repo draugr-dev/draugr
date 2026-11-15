@@ -773,6 +773,10 @@ type finding struct {
 	// empty for a finding in shipped code. It is the label the finding wears beside its location, and
 	// it lists the finding after every one in shipped code.
 	nonShipping string
+	// aside is why a counted finding is listed after the rest though it is not under docs, examples
+	// or tests (sarif.Result.Aside): generated, tooling or pinned. Shown beside the location in the
+	// words asideNote gives it.
+	aside string
 	// platforms are the platforms whose build alone holds the code the finding lies in, as
 	// GOOS/GOARCH, where a Go analyzer read that code in a run for a platform beside the machine's
 	// own (sarif.Result.Platforms). Shown beside the location, because the reader's own build may
@@ -865,6 +869,9 @@ type summary struct {
 	// finding, for the reason bySignal is: the listing names the ones it shows, and a cut listing
 	// cannot say how many of the rest there are.
 	nonShipping int
+	// aside is how many counted findings are listed after the rest for a reason of their own, such
+	// as code a generator wrote, so the heading does not call the order priority alone.
+	aside int
 
 	// What the run could not do, and what it set aside. A report that omits these describes a thinner
 	// run rather than a broken one. And a reader cannot tell the difference, which is the reading that
@@ -982,6 +989,8 @@ func summarize(d Data) summary {
 			}
 			if res.NonShipping != "" {
 				s.nonShipping++
+			} else if res.Aside != "" {
+				s.aside++
 			}
 			s.findings = append(s.findings, findingOf(name, rep, res))
 		}
@@ -1029,6 +1038,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		severityFloor: res.SeverityFloor,
 		historical:    res.Historical,
 		nonShipping:   res.NonShipping,
+		aside:         res.Aside,
 		platforms:     res.Platforms,
 		component:     res.Component,
 		repository:    res.Repository,
@@ -1059,6 +1069,20 @@ func atOrAbove(got, want string) bool {
 	return g >= order[strings.ToUpper(want)]
 }
 
+// laterRank places a finding in the order before its band does: 0 for the rest, 1 for a finding set
+// aside (generated code, a tool's dependency, a pinned action), 2 for one under docs, examples or
+// tests. The aside findings come before docs and tests because generated code and the tools that
+// run in CI are still part of what runs; a test fixture is not.
+func laterRank(f finding) int {
+	switch {
+	case f.nonShipping != "":
+		return 2
+	case f.aside != "":
+		return 1
+	}
+	return 0
+}
+
 // sortFindings orders most-urgent first: shipped code before docs, examples and tests, then by
 // priority, then numeric score, then SARIF level.
 func sortFindings(fs []finding) {
@@ -1071,8 +1095,8 @@ func sortFindings(fs []finding) {
 		// Ordered within bands, the fixtures of a chart repository fill every row of the list ten
 		// thousand to one, and the shipped chart's findings are on a page nobody reaches. The band is
 		// unchanged and so is the gate, which counts both.
-		if ma, mb := a.nonShipping != "", b.nonShipping != ""; ma != mb {
-			return mb
+		if ma, mb := laterRank(a), laterRank(b); ma != mb {
+			return ma < mb
 		}
 		if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
 			return ra > rb
