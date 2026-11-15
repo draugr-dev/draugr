@@ -134,13 +134,22 @@ func (a action) repositories() map[string]bool {
 // copies share a file, the file is named by the one from the scanner of the earliest finding, so its
 // line is written as that scanner writes the findings' lines. Grype writes line 1 for every package,
 // and Trivy the line that requires it.
+//
+// The findings an upgrade clears are named one per file for the same reason: two scanners counting
+// different advisories in one go.mod is one edit there, not two. The file is named at the line of
+// the first finding whose line is not 1, the line that requires the dependency, and at the first
+// finding's line where none is.
 func (a action) places() []finding {
+	findings := a.findings
+	if a.aboutADependency() {
+		findings = onePerFile(findings)
+	}
 	if len(a.copies) == 0 {
-		return a.findings
+		return findings
 	}
 	files := map[string]bool{}
 	scanner := map[string]int{}
-	for i, f := range a.findings {
+	for i, f := range findings {
 		files[fileKey(f)] = true
 		if _, seen := scanner[f.tool]; !seen {
 			scanner[f.tool] = i
@@ -150,9 +159,9 @@ func (a action) places() []finding {
 		if i, ok := scanner[c.tool]; ok {
 			return i
 		}
-		return len(a.findings)
+		return len(findings)
 	}
-	out := slices.Clone(a.findings)
+	out := slices.Clone(findings)
 	var order []string
 	named := map[string]finding{}
 	for _, c := range a.copies {
@@ -171,6 +180,39 @@ func (a action) places() []finding {
 		out = append(out, named[k])
 	}
 	return out
+}
+
+// aboutADependency reports whether the action upgrades a dependency or says none clears it, where
+// every finding is about a package and its place is the file that declares it.
+func (a action) aboutADependency() bool {
+	return strings.HasPrefix(a.key, "upgrade\x00") || strings.HasPrefix(a.key, "nofix\x00")
+}
+
+// onePerFile keeps one finding per file, in the order the files first appear: the first whose line
+// is not 1, or the file's first finding where every line is 1 or none is written.
+func onePerFile(fs []finding) []finding {
+	index := map[string]int{}
+	var out []finding
+	for _, f := range fs {
+		k := fileKey(f)
+		i, seen := index[k]
+		if !seen {
+			index[k] = len(out)
+			out = append(out, f)
+			continue
+		}
+		if !declaresLine(out[i]) && declaresLine(f) {
+			out[i] = f
+		}
+	}
+	return out
+}
+
+// declaresLine reports whether a finding's location names a line other than 1, the one Grype writes
+// for every package whatever line declares it.
+func declaresLine(f finding) bool {
+	m := lineSuffix.FindString(f.location)
+	return m != "" && m != ":1"
 }
 
 // fileKey is a finding's file: its repository and its location without the line. An image reference
@@ -275,7 +317,7 @@ func (a action) id() string {
 // depend on which finding is most urgent, because that changes between runs and the name is what
 // identifies the work in anything following it across them.
 func (a action) dependency() *sarif.Package {
-	if !strings.HasPrefix(a.key, "upgrade\x00") && !strings.HasPrefix(a.key, "nofix\x00") {
+	if !a.aboutADependency() {
 		return nil
 	}
 	var p *sarif.Package
