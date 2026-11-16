@@ -338,7 +338,10 @@ fails.
 
 Every block above answers in bands, which is what the gate is set in and what the fix list is
 ordered by. Within a band, a finding on KEV comes first, then one EPSS raised, then the rest, which
-is why a `high` marked `↑ EPSS` sits above a `critical` with no mark. What a scanner called a flaw is
+is why a `high` marked `↑ EPSS` sits above a `critical` with no mark. Next comes reachability: a
+finding a call path reaches before one no analysis answered for, and that one before a finding
+marked `↓ unreachable`, which was lowered a level and could otherwise lead its band on the score it
+had before the verdict. What a scanner called a flaw is
 on the finding's own row, where the judgment about it was made.
 
 ## Observability & security posture
