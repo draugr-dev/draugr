@@ -200,9 +200,8 @@ func lookupNote(d Data, s summary) string {
 		(!consulted(d, exploit.SignalKEV) && !consulted(d, exploit.SignalEPSS)) {
 		return ""
 	}
-	return fmt.Sprintf("KEV and EPSS did not check %s named only by a Go or GitHub advisory id: finding the CVE "+
-		"takes a current Go vulnerability database, which draugr feeds update govulndb fetches.",
-		english.Count(s.needsLookup, "finding"))
+	return fmt.Sprintf("KEV and EPSS did not check %s named only by a Go or GitHub advisory id; "+
+		"run draugr feeds update govulndb to look up their CVEs.", english.Count(s.needsLookup, "finding"))
 }
 
 // feedDid is what an exploitability dataset did: listed whenever the run consulted it, and as not

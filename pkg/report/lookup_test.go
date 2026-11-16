@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // goOnlyRun is two components in two repositories, each with a finding named only by its Go
@@ -50,5 +51,26 @@ func TestARunSaysWhichFindingsItCouldNotLookUp(t *testing.T) {
 	d = kevData(looked)
 	if _, notes := signals(d, summarize(d)); !strings.Contains(strings.Join(notes, "\n"), "did not check 1 finding named") {
 		t.Errorf("notes = %q, want the one finding left counted", notes)
+	}
+}
+
+// The compact view drops the Signals notes, apart from the one that says the answer is less than it
+// appears: findings KEV and EPSS could not check. It keeps that one even where no signal row is
+// unread, so the section prints for it alone.
+func TestTheCompactViewKeepsTheLookupNote(t *testing.T) {
+	d := kevData(goOnlyRun())
+	s := summarize(d)
+	var b bytes.Buffer
+	writeSignals(&b, tui.Plain(), d, s, true)
+	if out := b.String(); !strings.Contains(out, "did not check 2 findings") || !strings.Contains(out, "SIGNALS") {
+		t.Errorf("compact signals = %q, want the lookup note under its heading", out)
+	}
+
+	read := kevData(goOnlyRun())
+	read.Exploitability = append(read.Exploitability, FeedProvenance{Name: "govulndb"})
+	b.Reset()
+	writeSignals(&b, tui.Plain(), read, summarize(read), true)
+	if strings.Contains(b.String(), "did not check") {
+		t.Errorf("compact signals = %q, want no lookup note where the database was read", b.String())
 	}
 }

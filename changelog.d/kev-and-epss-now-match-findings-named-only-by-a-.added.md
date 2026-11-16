@@ -1,0 +1,1 @@
+- **KEV and EPSS now match findings named only by a Go advisory id.** When `--kev` or `--epss` reads the feed cache, a `GO-…` or `GHSA-…` finding with no CVE is matched on the CVE its Go vulnerability database record lists, recorded as `cveLookup`. Without a current copy, the Signals section counts the findings left unchecked.
