@@ -1,0 +1,1 @@
+- **A Go dependency your build never compiles is ranked as unreachable.** After govulncheck loads a module cleanly, a `go.mod` requirement missing from the build it analyzed is marked `↓ not built`, and the line under the row names the platforms and build tags read. A module that failed to load keeps its caveat and no verdict.
