@@ -1755,12 +1755,13 @@ components:
 a dependency. An upgrade the policy covers stays one action. Where some of a package's findings
 need a larger step, the package gets two actions: the upgrade within the policy, banded by the
 findings it clears, and the step past it, banded by the findings only it clears and labeled with
-its size and the policy. On draugr-demo with `upgrade: minor`:
+its size and the setting it goes past, `config.fixes.upgrade` or the component's own
+`components["billing"].fixes.upgrade`. On draugr-demo with `upgrade: minor`:
 
 ```
   P2  Upgrade jquery 1.8.3 → 1.12.0
       component api · control sca · 3 findings · app/static/js/jquery.min.js vendored · CVE-2012-6708 +2
-  P1  Upgrade jquery 1.12.0 → 3.5.0  major · beyond policy minor
+  P1  Upgrade jquery 1.12.0 → 3.5.0  major, past config.fixes.upgrade: minor
       component api · control sca · 4 findings · app/static/js/jquery.min.js vendored · CVE-2020-11023 +3
 ```
 

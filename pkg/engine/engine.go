@@ -434,6 +434,9 @@ type PlannedJob struct {
 	// UpgradePolicy is the largest version step the fix list may propose for this component's
 	// dependency findings, empty where it is the default of major.
 	UpgradePolicy saga.UpgradeStep
+	// UpgradePolicyFrom is the descriptor key that set UpgradePolicy, `config.fixes.upgrade` or the
+	// component's own. Empty with UpgradePolicy.
+	UpgradePolicyFrom string
 	// owner decides which of a module-wide analysis's findings are this job's, for a job widened
 	// to the modules its paths belong to. Nil for every other job. See widenToModules.
 	owner *moduleOwner
@@ -461,7 +464,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 			}
 			jobs, verrs := e.validateConfigs(name, jobs, permitted)
 			errs = append(errs, verrs...)
-			planned = appendJobs(planned, name, nil, "", e.resolveRemotes(e.markWorkingTree(jobs)))
+			planned = appendJobs(planned, name, nil, model.Config, e.resolveRemotes(e.markWorkingTree(jobs)))
 		case plugin.ScopeComponent:
 			if !e.scope.includesControl(name) {
 				continue
@@ -478,7 +481,7 @@ func (e *Engine) Plan(model saga.Model) ([]PlannedJob, error) {
 				}
 				jobs, verrs := e.validateConfigs(name+"/"+comp.Name, jobs, permitted)
 				errs = append(errs, verrs...)
-				planned = appendJobs(planned, name, comp, comp.UpgradePolicy(model.Config), e.resolveRemotes(e.markWorkingTree(jobs)))
+				planned = appendJobs(planned, name, comp, model.Config, e.resolveRemotes(e.markWorkingTree(jobs)))
 			}
 		}
 	}
@@ -2008,15 +2011,15 @@ func (e *Engine) markCertificateReported(planned []PlannedJob) {
 	}
 }
 
-func appendJobs(dst []PlannedJob, control string, comp *saga.Component, policy saga.UpgradeStep, jobs []plugin.ScanJob) []PlannedJob {
+func appendJobs(dst []PlannedJob, control string, comp *saga.Component, cfg saga.Config, jobs []plugin.ScanJob) []PlannedJob {
 	var p PlannedJob
 	if comp != nil {
 		p = PlannedJob{
 			Component: comp.Name, Exposure: comp.Exposure,
 			Criticality: comp.Criticality, Labels: comp.Labels,
 		}
-		if policy != saga.UpgradeMajor {
-			p.UpgradePolicy = policy
+		if policy := comp.UpgradePolicy(cfg); policy != saga.UpgradeMajor {
+			p.UpgradePolicy, p.UpgradePolicyFrom = policy, comp.UpgradePolicyFrom(cfg)
 		}
 	}
 	p.Control = control
@@ -2127,6 +2130,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		// advice. Only on a finding about a package, which is the only kind an upgrade is for.
 		if pj.UpgradePolicy != "" && out.Results[i].Package != nil {
 			out.Results[i].UpgradePolicy = string(pj.UpgradePolicy)
+			out.Results[i].UpgradePolicyFrom = pj.UpgradePolicyFrom
 		}
 		if e.prioritize != nil {
 			p := e.prioritize(pj.Control, pj.Exposure, pj.Criticality, out.Results[i])
@@ -3762,7 +3766,7 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 				target.Repositories = append(target.Repositories,
 					plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree})
 			}
-			planned = appendJobs(planned, imp.Control, comp, comp.UpgradePolicy(model.Config),
+			planned = appendJobs(planned, imp.Control, comp, model.Config,
 				[]plugin.ScanJob{{Scanner: plugin.ImportScanner, Target: target}})
 		}
 	}

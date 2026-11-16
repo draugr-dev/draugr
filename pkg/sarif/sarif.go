@@ -254,6 +254,8 @@ type sarifProperties struct {
 	// UpgradePolicy is the component's fixes.upgrade, which the fix list splits this finding's
 	// upgrade by. Absent for the default, major.
 	UpgradePolicy string `json:"upgradePolicy,omitempty"`
+	// UpgradePolicyFrom is the descriptor key that set UpgradePolicy.
+	UpgradePolicyFrom string `json:"upgradePolicyFrom,omitempty"`
 	// Labels are the component's own metadata, so a consumer holding many components can narrow to
 	// the ones somebody is answerable for. The organization's vocabulary rather than Draugr's, and
 	// no key here is privileged or read.
@@ -585,15 +587,16 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
 				Title:    title,
 				Exposure: res.Exposure, Criticality: res.Criticality, Labels: res.Labels,
-				Fingerprint:   res.Fingerprint(),
-				UpgradePolicy: res.UpgradePolicy,
-				Escalation:    res.Escalation,
-				Exploited:     res.Exploited,
-				Rating:        res.Rating,
-				PriorityFloor: res.PriorityFloor,
-				PriorityCap:   res.PriorityCap,
-				SeverityFloor: res.SeverityFloor,
-				Repository:    res.Repository, Package: res.Package, Module: res.Module,
+				Fingerprint:       res.Fingerprint(),
+				UpgradePolicy:     res.UpgradePolicy,
+				UpgradePolicyFrom: res.UpgradePolicyFrom,
+				Escalation:        res.Escalation,
+				Exploited:         res.Exploited,
+				Rating:            res.Rating,
+				PriorityFloor:     res.PriorityFloor,
+				PriorityCap:       res.PriorityCap,
+				SeverityFloor:     res.SeverityFloor,
+				Repository:        res.Repository, Package: res.Package, Module: res.Module,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:          res.Reachability,
 				Correlation:           res.Correlation,
@@ -964,6 +967,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Exposure = sr.Properties.Exposure
 		res.Criticality = sr.Properties.Criticality
 		res.UpgradePolicy = sr.Properties.UpgradePolicy
+		res.UpgradePolicyFrom = sr.Properties.UpgradePolicyFrom
 		res.Labels = sr.Properties.Labels
 		res.Repository = sr.Properties.Repository
 		res.Image = sr.Properties.Image

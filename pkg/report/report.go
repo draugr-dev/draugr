@@ -826,6 +826,9 @@ type finding struct {
 	// upgradePolicy is the component's fixes.upgrade, patch or minor, which the fix list splits this
 	// finding's upgrade by. Empty for the default, major.
 	upgradePolicy string
+	// policyFrom is the descriptor key that set upgradePolicy, `config.fixes.upgrade` or the
+	// component's own. Empty in a report written before it was recorded.
+	policyFrom string
 	// image is the container image a finding was found in, for the controls that scan one. The
 	// location is not always the image: a license Trivy read from a file is located at the file.
 	image string
@@ -1081,6 +1084,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		module:          res.Module,
 		operatingSystem: res.OperatingSystem,
 		upgradePolicy:   res.UpgradePolicy,
+		policyFrom:      res.UpgradePolicyFrom,
 		image:           res.Image,
 		ruleSummary:     rep.Rules[res.RuleID].ShortDescription,
 		detail:          res.Detail,

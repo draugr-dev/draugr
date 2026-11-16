@@ -190,6 +190,9 @@ type Result struct {
 	// default. Carried for the reason Exposure is: a report read back without the descriptor gives
 	// the same advice.
 	UpgradePolicy string `json:"upgradePolicy,omitempty"`
+	// UpgradePolicyFrom is the descriptor key that set UpgradePolicy, `config.fixes.upgrade` or
+	// `components["web"].fixes.upgrade`, so the fix list names the setting a reader would change.
+	UpgradePolicyFrom string `json:"upgradePolicyFrom,omitempty"`
 	// Labels are the component's own metadata, carried so a consumer holding many components can
 	// narrow to the ones somebody is answerable for.
 	//

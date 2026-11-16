@@ -912,14 +912,18 @@ func TestAComponentsUpgradePolicyOverridesTheProjects(t *testing.T) {
 		comp Component
 		cfg  Config
 		want UpgradeStep
+		from string
 	}{
-		{Component{}, Config{}, UpgradeMajor},
-		{Component{}, minor, UpgradeMinor},
-		{Component{Fixes: &FixesConfig{Upgrade: UpgradePatch}}, minor, UpgradePatch},
-		{Component{Fixes: &FixesConfig{}}, minor, UpgradeMinor},
+		{Component{}, Config{}, UpgradeMajor, ""},
+		{Component{}, minor, UpgradeMinor, "config.fixes.upgrade"},
+		{Component{Name: "web", Fixes: &FixesConfig{Upgrade: UpgradePatch}}, minor, UpgradePatch, `components["web"].fixes.upgrade`},
+		{Component{Fixes: &FixesConfig{}}, minor, UpgradeMinor, "config.fixes.upgrade"},
 	} {
 		if got := c.comp.UpgradePolicy(c.cfg); got != c.want {
 			t.Errorf("UpgradePolicy(%+v, %+v) = %q, want %q", c.comp.Fixes, c.cfg.Fixes, got, c.want)
+		}
+		if got := c.comp.UpgradePolicyFrom(c.cfg); got != c.from {
+			t.Errorf("UpgradePolicyFrom(%+v, %+v) = %q, want %q", c.comp.Fixes, c.cfg.Fixes, got, c.from)
 		}
 	}
 }

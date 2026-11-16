@@ -63,6 +63,10 @@ type Action struct {
 	// Policy is the component's fixes.upgrade, patch or minor, for an upgrade it applies to. Absent
 	// where the component left the default of major.
 	Policy string `json:"policy,omitempty"`
+	// PolicyFrom is the descriptor key that set Policy, `config.fixes.upgrade` or
+	// `components["web"].fixes.upgrade`, which a reader changes for the fix list to propose a larger
+	// step. Absent with Policy, and in a report whose findings did not record it.
+	PolicyFrom string `json:"policyFrom,omitempty"`
 	// WithinPolicy says whether this step stays within Policy. A step past it carries the findings
 	// only it clears, and After names the step within the policy it follows.
 	WithinPolicy *bool `json:"withinPolicy,omitempty"`
@@ -73,7 +77,7 @@ type Action struct {
 	After string `json:"after,omitempty"`
 	// Beyond is the size of a step past Policy, minor or major, measured from the release the After
 	// step reaches, or from the installed version where there is none. The label
-	// `major · beyond policy minor` is Beyond and Policy.
+	// `major, past config.fixes.upgrade: minor` is Beyond, PolicyFrom and Policy.
 	Beyond string `json:"beyond,omitempty"`
 	// FixedVersions are the releases the advisories name as fixing these findings, in the order
 	// first seen, each advisory's own answer.

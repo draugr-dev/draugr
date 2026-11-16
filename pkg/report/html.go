@@ -1145,7 +1145,7 @@ type htmlAction struct {
 	Priority string
 	// Component the action belongs to, set only where the list spans more than one.
 	Component string
-	// Policy marks a step past the component's fixes.upgrade, "major · beyond policy minor".
+	// Policy marks a step past the component's fixes.upgrade, "major, past config.fixes.upgrade: minor".
 	Policy string
 	// NotApplied is the policy that could not apply to this action, and Ecosystem the ecosystem it
 	// is in, for the note counting such actions. Both empty for every other action.

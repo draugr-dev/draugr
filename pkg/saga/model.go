@@ -1169,6 +1169,19 @@ func (comp Component) UpgradePolicy(cfg Config) UpgradeStep {
 	return UpgradeMajor
 }
 
+// UpgradePolicyFrom names the key UpgradePolicy read, as a reader would find it in the descriptor:
+// `components["web"].fixes.upgrade` or `config.fixes.upgrade`. Empty where neither is written and
+// the policy is the default.
+func (comp Component) UpgradePolicyFrom(cfg Config) string {
+	if comp.Fixes != nil && comp.Fixes.Upgrade != "" {
+		return fmt.Sprintf("components[%q].fixes.upgrade", comp.Name)
+	}
+	if cfg.Fixes != nil && cfg.Fixes.Upgrade != "" {
+		return "config.fixes.upgrade"
+	}
+	return ""
+}
+
 // BuiltByValues are the values builtBy accepts.
 var BuiltByValues = []BuiltBy{BuiltBySelf, BuiltByUpstream}
 

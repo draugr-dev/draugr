@@ -184,6 +184,11 @@ func markdownActionLine(a action, nameComponents bool) string {
 		}
 	}
 	line := fmt.Sprintf("- **%s** %s · %s", ha.Priority, ha.Title, clears)
+	// A step past the component's fixes.upgrade says so after the instruction, as the console's row
+	// does, with the setting as code so it reads as the key to copy.
+	if s := a.step; s.past() {
+		line = fmt.Sprintf("- **%s** %s · %s, past `%s` · %s", ha.Priority, ha.Title, s.beyond, s.setting(), clears)
+	}
 	if nameComponents && ha.Component != "" {
 		line += " · " + ha.Component
 	}
