@@ -201,7 +201,7 @@ func (r trivyVulnResult) ownPackages() map[string]bool {
 type trivyVuln struct {
 	VulnerabilityID string `json:"VulnerabilityID"`
 	// VendorIDs are the vulnerability's identifiers in the advisory databases Trivy matched it in,
-	// other than VulnerabilityID: the GitHub advisory id beside a CVE, the Go id beside both. For an
+	// other than VulnerabilityID, such as the GitHub advisory id beside a CVE. For an
 	// operating-system package they are the distribution's errata instead.
 	VendorIDs        []string `json:"VendorIDs"`
 	PkgName          string   `json:"PkgName"`
@@ -436,7 +436,7 @@ func trivyVulnResultOf(
 // VendorIDs, each once.
 //
 // For a language package they are the vulnerability's ids in the advisory database it was matched
-// in, the GitHub advisory id beside a CVE and the Go id beside both. That is Trivy's statement that
+// in, such as the GitHub advisory id beside a CVE. That is Trivy's statement that
 // those ids name the flaw it matched, so correlation counts the finding once with another scanner's
 // copy keyed on any of them, and a reachability verdict given under one of them reaches this one.
 //
