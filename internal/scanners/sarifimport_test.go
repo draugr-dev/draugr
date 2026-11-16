@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -194,5 +195,55 @@ func TestSARIFImportHelpers(t *testing.T) {
 	info := NewSARIFImport().Info()
 	if info.Name != plugin.ImportScanner || len(info.TargetKinds) != 1 || info.TargetKinds[0] != plugin.TargetFile {
 		t.Errorf("info = %+v", info)
+	}
+}
+
+// Paths come back relative to the component's checkouts, from either of two, and a path in none of
+// them is kept as written, its finding still counted, and listed once as an input whose path rules
+// do not reach.
+func TestSARIFImportPlacesPathsInTheComponentsCheckouts(t *testing.T) {
+	api, web := t.TempDir(), t.TempDir()
+	at := func(uri string) string {
+		return `{"ruleId":"EX2","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"` + uri + `"}}}]}`
+	}
+	results := strings.Join([]string{
+		at("file://" + filepath.ToSlash(api) + "/cmd/main.go"),
+		at(filepath.ToSlash(web) + "/src/app.ts"),
+		at("/opt/ci/build/gen.go"),
+		at("/opt/ci/build/gen.go"),
+		at("relative/ok.go"),
+	}, ",")
+	repos := []plugin.RepositoryTarget{{URL: api}, {URL: web}, {URL: "https://github.com/acme/remote"}}
+	rep, err := NewSARIFImport().Scan(context.Background(),
+		plugin.FileTarget{Path: writeFile(t, exampleLog(results, "")), Component: "app", Repositories: repos}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for _, r := range rep.Results {
+		paths = append(paths, r.Location.URI)
+	}
+	want := []string{"cmd/main.go", "src/app.ts", "/opt/ci/build/gen.go", "/opt/ci/build/gen.go", "relative/ok.go"}
+	if !slices.Equal(paths, want) {
+		t.Errorf("paths = %q, want %q", paths, want)
+	}
+	if len(rep.Inputs) != 1 || rep.Inputs[0].Path != "/opt/ci/build/gen.go" || rep.Inputs[0].Scanner != plugin.ImportScanner ||
+		rep.Inputs[0].Unread != outsideCheckout {
+		t.Errorf("inputs = %+v, want the one path outside both checkouts, once", rep.Inputs)
+	}
+}
+
+// A file Draugr's own reader refused, for a numeric score and property names Draugr uses for
+// something else, imports, with the score read and the properties left alone.
+func TestSARIFImportReadsANumericScoreAndIgnoresDraugrsPropertyNames(t *testing.T) {
+	results := `{"ruleId":"EX2","message":{"text":"m"},"properties":{"security-severity":9.3,"priority":2,` +
+		`"labels":["x"],"package":"lib","aside":"generated"}}`
+	rep, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: writeFile(t, exampleLog(results, ""))}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := rep.Results[0]
+	if !r.HasScore || r.Score != 9.3 || r.Priority != "" || r.Aside != "" || r.Package != nil {
+		t.Errorf("result = %+v, want the score read and nothing else from the property bag", r)
 	}
 }

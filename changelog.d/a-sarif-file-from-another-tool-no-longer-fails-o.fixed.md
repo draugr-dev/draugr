@@ -1,0 +1,1 @@
+- **A SARIF file from another tool no longer fails on a numeric `security-severity`.** A rule named by `ruleIndex`, a location by artifact index or `originalUriBaseIds` base, and an absolute path inside a local checkout are now read. Draugr's own `priority` and `aside` are ignored there. `draugr doctor` fails on a file the scan would refuse.

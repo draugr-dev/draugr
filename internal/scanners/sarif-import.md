@@ -26,8 +26,8 @@ what to set up first.
 The file is read as SARIF 2.1.0:
 
 - **Severity** comes from each result's `security-severity` property, a CVSS-style score written as
-  a string such as `"7.5"`, the convention GitHub code scanning reads, inherited from its rule where
-  the result has none. A result without one, in a file Bandit wrote, is rated from its
+  a string such as `"7.5"`, the convention GitHub code scanning reads, or as a number. A result with
+  none inherits its rule's. A result without one, in a file Bandit wrote, is rated from its
   `issue_severity` and `issue_confidence` (see [Bandit](#bandit)). Any other result falls back to
   its `level`, mapped as every other SARIF level is: `error` to high, `warning` to medium, `note`
   to low.
@@ -35,9 +35,15 @@ The file is read as SARIF 2.1.0:
   - A tool that writes only `warning` produces medium findings. A medium finding ranks P2 at most,
     so with the default gate, which fails on P1, such a file cannot fail the run unless KEV or EPSS
     raises a finding whose rule id holds a CVE.
-- **Package and fix** come through only where the file carries Draugr's own `package` property. A
-  dependency finding from another tool's file names no package, its fix reads `no package
+- **Package and fix** come through only where the file carries Draugr's own `package` property, an
+  object. A dependency finding from another tool's file names no package, its fix reads `no package
   reported`, and it becomes a "Fix <rule>" action rather than an upgrade.
+- **The rule** is the result's `ruleId`, its `rule.id`, or the rule its `ruleIndex` or `rule.index`
+  points at in the run's `tool.driver.rules`.
+- **Other result properties are ignored.** Draugr's own `priority`, `aside` and suppression origin
+  have no effect in a file another tool wrote. The properties read are `security-severity`,
+  `package` (an object), Bandit's `issue_severity` and `issue_confidence`, and a suppression's
+  `kind` and `justification`, which make it the tool's own.
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
 
 ## Before you import
@@ -53,10 +59,19 @@ The file is read as SARIF 2.1.0:
   | Trivy, misconfigurations | `iac` | `config.controls.iac.trivyConfig.enabled: false` |
 
   The same block under `components[].controls` switches it off for one component.
-- **Write paths relative to the repository's root.** Each location is kept as the file writes it.
-  An absolute path or a `file://` URI is reported as written, and
-  [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) `paths` match it only as
-  written.
+- **Paths are read relative to the repository's root.** A location may be a URI, an index into the
+  run's `artifacts`, or a URI relative to a base the run declares in `originalUriBaseIds`.
+  - A relative path, or one relative to a base the run leaves undefined, such as `%SRCROOT%`, is
+    read as relative to the repository's root.
+  - A path relative to a base outside every local checkout, such as the directory a build machine
+    scanned, is read as the part below that base.
+  - An absolute path or `file://` URI inside a local checkout of the component, the repository's
+    `url` when it is a path, is made relative to that checkout.
+  - Any other absolute path is kept as written. Its finding still counts, the scan lists the path
+    under `unread-files`, and
+    [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) `paths` and links to the
+    line do not match it. A repository named by a remote address has no local directory, so write
+    the file's paths relative to the repository root.
 - **Set aside an imported finding with `config.exclude`.** A repository's `paths:` and `ignore:`
   narrow the scanners Draugr runs, not an imported file: every finding in it belongs to the
   component.
@@ -127,13 +142,20 @@ A file that is missing, unreadable, empty, not SARIF, a SARIF version other than
 with no runs stops the run as a scanner that could not run does, and `--allow-scan-errors` accepts
 it. A valid file with no results is a clean result.
 
-A file is also unreadable where a result property Draugr reads by name has another shape:
-`security-severity` written as a JSON number, or one of Draugr's own result properties (`priority`
-as a number, `labels` as an array, `package` as a string). The error names the field, as in
-`not a SARIF log: json: cannot unmarshal number into Go struct field …security-severity of type
-string`. Write `security-severity` as a string, `"7.5"`. Draugr reads a result's rule from `ruleId`
-and its path from `artifactLocation.uri`: a result that names its rule only by `ruleIndex` has no
-rule id, and a location given only by `artifactLocation.index` has no path.
+A file is also unreadable where:
+
+- `ruleIndex` or `rule.index` is not an entry of `tool.driver.rules`;
+- `artifactLocation.index` has no `uri` beside it and is not an entry of `artifacts`;
+- a `uriBaseId` resolves through more than 8 entries of `originalUriBaseIds`, which two entries
+  referring to each other always do.
+
+The error names the run and the result, counted from 1, as in `run 1, result 3: ruleIndex 7 is not an
+entry of tool.driver.rules, which has 4 rules (0 to 3)`.
+
+`draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor
+with the same message, and a file that passes reports how many results it holds. Doctor does not
+compare paths with the component's checkout; the scan lists a path it cannot place under
+`unread-files`.
 
 ## License & terms
 

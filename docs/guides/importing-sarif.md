@@ -21,14 +21,17 @@ first import meets:
   control's own scanner's. Importing Semgrep's file into `sast`, or Trivy's into `sca` or `iac`,
   means switching that scanner off: `config.controls.sast.semgrep.enabled: false`,
   `config.controls.sca.trivyFs.enabled: false` or `config.controls.iac.trivyConfig.enabled: false`.
-- **Severity comes from `security-severity`, written as a string, or from the level.** A number
-  there makes the whole file unreadable. A file that
-  states only levels never yields critical, and one that writes only `warning` ranks P2 at most,
+- **Severity comes from `security-severity`, written as a string or a number, or from the level.**
+  A file that states only levels never yields critical, and one that writes only `warning` ranks P2 at most,
   below the default gate, unless KEV or EPSS raises a finding whose rule id is a CVE.
 - **No package or fix is read.** A dependency finding from another tool's file says
   `no package reported`, and KEV and EPSS reach it only where its rule id is a CVE.
-- **Paths are kept as written.** Write them relative to the repository's root, as
-  [`config.exclude`](../reference/saga-schema.md#configexclude) matches them as written.
+- **Paths are read relative to the repository's root.** An absolute path or `file://` URI inside the
+  component's repository, when its `url` is a local path, is made relative to it. Any other absolute
+  path is kept as written: its finding still counts, the scan lists the path under `unread-files`,
+  and [`config.exclude`](../reference/saga-schema.md#configexclude) paths and links to the line do
+  not match it. A component whose `url` is a remote address has no local directory to compare
+  against, so write the file's paths relative to the repository root.
 - **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed.
 
 ## 1. Write the SARIF file

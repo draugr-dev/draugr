@@ -65,7 +65,7 @@ func rateBandit(rep *sarif.Report, data []byte) error {
 	if err := json.Unmarshal(data, &log); err != nil {
 		return fmt.Errorf("read Bandit's ratings: %w", err)
 	}
-	// FromSARIF flattens the runs' results in order, so the i-th result read here is rep's i-th.
+	// FromForeignSARIF flattens the runs' results in order, so the i-th result read here is rep's i-th.
 	i := 0
 	for _, run := range log.Runs {
 		bandit := strings.EqualFold(run.Tool.Driver.Name, "bandit")

@@ -9,7 +9,6 @@ package preflight
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -26,6 +25,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/registry"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // Status is how a check ended.
@@ -486,18 +486,12 @@ func fileCheck(path string) Check {
 		c.Status, c.Detail = Failed, err.Error()
 		return c
 	}
-	var log struct {
-		Version string            `json:"version"`
-		Runs    []json.RawMessage `json:"runs"`
-	}
-	if err := json.Unmarshal(data, &log); err != nil {
-		c.Status, c.Detail = Failed, "not a SARIF file: "+err.Error()
+	// The reader the scan uses, so a file the scan would refuse fails here with the same words.
+	rep, _, err := sarif.FromForeignSARIF(data, nil)
+	if err != nil {
+		c.Status, c.Detail = Failed, err.Error()
 		return c
 	}
-	if log.Version != "2.1.0" {
-		c.Status, c.Detail = Failed, fmt.Sprintf("states SARIF version %q, and Draugr reads 2.1.0", log.Version)
-		return c
-	}
-	c.Status, c.Detail = Passed, "SARIF 2.1.0, "+english.Count(len(log.Runs), "run")
+	c.Status, c.Detail = Passed, "SARIF 2.1.0, "+english.Count(len(rep.Results), "result")
 	return c
 }
