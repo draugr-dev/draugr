@@ -23,6 +23,8 @@ func TestTheFactLineNamesTheModuleAFindingLiesIn(t *testing.T) {
 		at("infra/main.tf", 12, &sarif.Module{Source: long, File: "main.tf", Line: 25}),
 		at("bucket.tf", 3, nil),
 	}}}}}}
+	// One rule, so each finding takes a row of its own only under --top 0.
+	d.TopN = -1
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatal(err)

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -72,17 +73,38 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 		padPainted(col.Paint(severityColor(rankedSeverity(f)), severity), severity, 10)
 
 	rule := col.Link(f.helpURI, f.ruleID)
+	// A row standing for several findings says how many beside the rule they share, and in how many
+	// files where that is more than one: the location below is the first of them.
+	count := ""
+	if f.repeats > 0 {
+		count = english.Count(f.repeats+1, "finding")
+		if f.repeatFiles > 1 {
+			count += " in " + english.Count(f.repeatFiles, "file")
+		}
+	}
 	if who, expected, ok := unexpectedSigner(f); ok {
 		// The signer the descriptor expected is short and goes whole on the title line; the identity
 		// that signed the image is long and takes the line beneath, where the reader compares it with
 		// the signer they declared.
-		_, _ = fmt.Fprintln(w, line+rule+col.Paint(cDim, " · ")+"not "+expected)
+		head := line + rule + col.Paint(cDim, " · ") + "not " + expected
+		if count != "" {
+			head += col.Paint(cDim, " · ") + count
+		}
+		_, _ = fmt.Fprintln(w, head)
 		_, _ = fmt.Fprintln(w, "      "+signingIdentity(col, who, width-blockIndent))
 		return
 	}
-	if blockGutter+utf8.RuneCountInString(f.ruleID) <= width {
+	switch {
+	case count != "" && blockGutter+utf8.RuneCountInString(f.ruleID)+len(" · ")+len(count) <= width:
+		_, _ = fmt.Fprintln(w, line+rule+col.Paint(cDim, " · ")+count)
+	case count != "":
+		// The count ends the first line whatever the id's length, so a reader finds it in one place on
+		// every row; an id with no room beside it takes the line beneath.
+		_, _ = fmt.Fprintln(w, line+count)
+		_, _ = fmt.Fprintln(w, "      "+rule)
+	case blockGutter+utf8.RuneCountInString(f.ruleID) <= width:
 		_, _ = fmt.Fprintln(w, line+rule)
-	} else {
+	default:
 		_, _ = fmt.Fprintln(w, strings.TrimRight(line, " "))
 		_, _ = fmt.Fprintln(w, "      "+rule)
 	}

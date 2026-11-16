@@ -305,20 +305,42 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 
 	if d.View != ViewActions {
 		limit := consoleFixFirstLimit(d.TopN)
-		shown := s.findings
+		// Folded in the blocks a shortlist draws, and not under --top 0, which asks for every
+		// finding, nor in the compact view, whose point is showing how much there is.
+		rows := s.findings
+		if limit >= 0 && d.View != ViewCompact {
+			rows = foldFindings(rows)
+		}
+		shown := rows
 		if limit >= 0 && len(shown) > limit {
 			shown = shown[:limit]
 		}
-		_, _ = fmt.Fprintln(w, fixFirstHeading(col, s, len(shown), len(s.findings)))
+		represented := 0
+		for _, f := range shown {
+			represented += 1 + f.repeats
+		}
+		s.folded = len(rows) < len(s.findings)
+		_, _ = fmt.Fprintln(w, fixFirstHeading(col, s, represented, len(s.findings)))
 		renderFixFirst(w, col, shown, d.View == ViewCompact, blobLinks(d))
 
 		// Two different readers, two different answers. Somebody looking at a truncated list wants
 		// the rest of *this* list, and answering that with a machine format sends them to a
 		// document they did not ask for. Human-readable is the default here, so the follow-up
 		// should be too.
-		if len(shown) < len(s.findings) {
-			_, _ = fmt.Fprintf(w, "\n… and %s not listed.\n",
-				english.Count(len(s.findings)-len(shown), "finding"))
+		//
+		// The rows left out and the findings they stand for, where the two differ; where every row
+		// is one finding, the one count says both.
+		leftRows, leftFindings := len(rows)-len(shown), len(s.findings)-represented
+		switch {
+		case leftRows > 0 && leftRows < leftFindings:
+			_, _ = fmt.Fprintf(w, "\n… and %s, %s, not listed.\n",
+				english.Count(leftRows, "more row"), english.Count(leftFindings, "finding"))
+		case leftFindings > 0:
+			_, _ = fmt.Fprintf(w, "\n… and %s, not listed.\n", english.Count(leftFindings, "more finding"))
+		}
+		// A folded list left findings off the screen even where every row fits, and --top 0 is how
+		// to see each of them.
+		if represented < len(s.findings) || s.folded {
 			listed = len(shown)
 		}
 		_, _ = fmt.Fprint(w, "\n")
@@ -446,15 +468,17 @@ func fixFirstHeading(col tui.Painter, s summary, shown, total int) string {
 	default:
 		order = "shipped code first, by priority"
 	}
+	// The heading counts findings, the ones the rows stand for and of how many where the list is cut,
+	// and never the rows, which the reader can see and which may each stand for several findings.
 	switch {
 	case shown < total:
 		return heading(col, "Fix first") + "  " +
-			col.Paint(cDim, fmt.Sprintf("top %d of %d, %s%s", shown, total, order, filter))
+			col.Paint(cDim, fmt.Sprintf("%d of %d findings, %s%s", shown, total, order, filter))
 	case total == 1:
 		return heading(col, "The finding") + "  " + col.Paint(cDim, order+filter)
 	default:
 		return heading(col, "Fix first") + "  " +
-			col.Paint(cDim, fmt.Sprintf("all %d, %s%s", total, order, filter))
+			col.Paint(cDim, fmt.Sprintf("%d findings, %s%s", total, order, filter))
 	}
 }
 
@@ -2066,9 +2090,12 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		// Only where something was left out. Offering to show everything below a list that is
 		// already everything is advice that reads as the product not knowing what it printed. The
 		// number is the one printed, which --top sets.
-		if d.View == ViewActions {
+		switch {
+		case d.View == ViewActions:
 			row("--top 0", "every action, not the first "+english.Word(listed)+" in each list")
-		} else {
+		case s.folded:
+			row("--top 0", "every finding, one row each")
+		default:
 			row("--top 0", "every one of them, not the first "+english.Word(listed))
 		}
 	}
@@ -2088,9 +2115,14 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 			row("--view compact", "one line each, to see how much there is")
 		}
 		if d.View == ViewActions {
-			if acts, _ := groupActions(s.findings, nil, s.copies...); foldsAny(acts) {
+			// The findings view folds a rule's findings too, so "one row each" needs --top 0 wherever
+			// either view would put two on a row.
+			switch acts, _ := groupActions(s.findings, nil, s.copies...); {
+			case foldsAny(acts):
 				row("--view findings --top 0", "every flagged line, one row each")
-			} else {
+			case len(foldFindings(s.findings)) < len(s.findings):
+				row("--view findings --top 0", "every finding, one row each")
+			default:
 				row("--view findings", "the findings themselves, one row each")
 			}
 		} else {

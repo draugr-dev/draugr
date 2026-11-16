@@ -18,7 +18,7 @@ UNMATCHED
   config.exclude  paths tests* · test files that are not deployed
   VEX             CVE-2023-45803 · pkg:pypi/urllib3
 
-FIX FIRST  top 6 of 10, by priority
+FIX FIRST  6 of 10 findings, by priority
   Priority  Rule                                                                   Location                Fix                        Summary
   P1        CVE-2019-10906                                                         app/requirements.txt:5  jinja2 → 2.10.1            python-jinja2: str.format_map allows sandbox escape
   P1        CVE-2019-20477                                                         app/requirements.txt:4  no package reported        PyYAML: command execution through python/object/apply constructor in FullLoader
@@ -27,7 +27,7 @@ FIX FIRST  top 6 of 10, by priority
   P2        python.flask.security.injection.tainted-sql-string.tainted-sql-string  app/main.py:42          change the code            Detected user input flowing into a raw SQL string
   P2        private-key                                                            app/config.pem:1        rotate the credential      private-key has detected secret for file app/config.pem.
 
-… and 4 findings not listed.
+… and 4 more findings, not listed.
 
 TRY
   --report json,sarif,html -o .draugr/out  every finding in one searchable page

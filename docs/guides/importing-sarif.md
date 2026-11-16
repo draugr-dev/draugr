@@ -94,7 +94,7 @@ belongs to the component that imports it. A component can import several files, 
 
 ```console
 $ draugr scan --controls sast --components api --top 3
-DRAUGR  FAIL  draugr-demo 1.0  9.19s
+DRAUGR  FAIL  draugr-demo 1.0  8.172s
 
  9 P1 6 P2 6 P3 0 P4
  Scoped to 1 of 3 components and the sast control.
@@ -105,7 +105,8 @@ CONTROLS
 MEASURED AGAINST
   sast  sarif-import · tool: Bandit 1.9.4 · file: reports/bandit.sarif · written: 2026-10-11
         04:57 UTC · severity: issue_severity and issue_confidence · commit: not stated ·
-        component: api · sha256: 989dfee1ddac26aab9d76c86197c84eb29af9d5a375cd4fa923873fcf61bc…
+        component: api · sha256:
+        989dfee1ddac26aab9d76c86197c84eb29af9d5a375cd4fa923873fcf61bc6a2
 
 CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that do
   unbound-imports · api
@@ -120,7 +121,7 @@ SIGNALS
   KEV   nothing listed
   EPSS  nothing raised
 
-FIX FIRST  top 3 of 21, by priority
+FIX FIRST  3 of 21 findings, by priority
   P1  critical  python.lang.security.dangerous-system-call.dangerous-system-call
       Found user-controlled data used in a system call. This could allow a malicious actor to…
       Run the command as an argument list, without a shell
@@ -139,7 +140,7 @@ FIX FIRST  top 3 of 21, by priority
       scanner bandit · fix change the code
       app/app.py:23 · issue_severity high
 
-… and 18 findings not listed.
+… and 18 more findings, not listed.
 
 TRY
   --top 0                                  every one of them, not the first three

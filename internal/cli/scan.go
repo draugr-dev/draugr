@@ -220,7 +220,7 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().DurationVar(&opts.policyWait, "policy-wait", publish.DefaultPolicyWait,
 		"total time to wait for the draugr-api servers' policy verdict on the published run; a verdict not decided by then "+
 			"is named on the POLICY line, and is an error under --policy (0 = do not wait)")
-	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max findings to list in the ranked table (0 = all)")
+	cmd.Flags().IntVar(&opts.top, "top", 10, "console: max rows in the ranked table; findings of one rule share a row (0 = every finding, one row each)")
 	cmd.Flags().BoolVar(&opts.noTips, "no-tips", false,
 		"suppress the console's contextual tips and progress line (also DRAUGR_NO_TIPS, or output.tips: false in draugr.config.yaml)")
 	cmd.Flags().StringSliceVar(&opts.components, "components", nil,

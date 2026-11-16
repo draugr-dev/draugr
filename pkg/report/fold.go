@@ -79,6 +79,47 @@ func lineRows(as []action) []int {
 	return rows
 }
 
+// foldFindings puts the findings that share a findingFoldKey on the row of the first of them, in the
+// order the ranking gave, and returns the rows. A row's repeats is how many more findings it stands
+// for, and repeatFiles how many files they are in, its own included.
+//
+// One rule firing across a codebase is one decision for a reader, and a row per firing fills the
+// list with copies of one sentence and pushes every other rule below the cut. The row keeps the
+// place of the first, so the list keeps its order.
+func foldFindings(fs []finding) []finding {
+	out := make([]finding, 0, len(fs))
+	at := map[string]int{}
+	files := map[string]map[string]bool{}
+	for _, f := range fs {
+		k := findingFoldKey(f)
+		if files[k] == nil {
+			files[k] = map[string]bool{}
+		}
+		files[k][lineSuffix.ReplaceAllString(f.location, "")] = true
+		if i, ok := at[k]; ok {
+			out[i].repeats++
+			continue
+		}
+		at[k] = len(out)
+		out = append(out, f)
+	}
+	for k, i := range at {
+		out[i].repeatFiles = len(files[k])
+	}
+	return out
+}
+
+// findingFoldKey is what two findings share when foldFindings puts them on one row: the rule, the
+// band, the component and the repository, for the reasons lineFoldKey gives, and the group the
+// ranking lists before the band, so a row never joins shipped code to a test fixture whose findings
+// the order puts after it. The package and its fix as well, because one advisory in two packages is
+// two upgrades, and a row names one.
+func findingFoldKey(f finding) string {
+	pkg, fixed := packageFix(f, false)
+	return strings.Join([]string{f.priority, f.ruleID, f.component, f.repository,
+		f.nonShipping, f.aside, pkg, fixed}, "\x00")
+}
+
 // foldedPlaces names a folded row's lines, each file once with its line numbers together, within
 // room columns. Lines that do not fit are counted, and the first always appears, with its directories
 // cut if it must be, because a row that names no file sends the reader nowhere.

@@ -88,7 +88,7 @@ SIGNALS
   EPSS   not read · --epss auto reads it
   floor  nothing raised
 
-FIX FIRST  top 3 of 11, by priority
+FIX FIRST  3 of 11 findings, by priority
   P1  critical  CVE-2019-10906
       str.format_map allows sandbox escape
       scanner trivy · jinja2 2.10 → 2.10.1
@@ -104,7 +104,7 @@ FIX FIRST  top 3 of 11, by priority
       scanner trivy · flask 2.0.1 → 2.2.5
       requirements.txt:1
 
-… and 8 findings not listed.
+… and 8 more findings, not listed.
 
 TRY
   --top 0                                  every one of them, not the first three

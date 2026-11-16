@@ -230,17 +230,17 @@ terminal (verdict, priorities, severities) and honors `NO_COLOR`.
 A worked example:
 
 ```text
-DRAUGR  FAIL  draugr-demo 1.0  9.522s
+DRAUGR  FAIL  draugr-demo 1.0  12.618s
 
- 271 P1 690 P2 260 P3 18 P4
+ 269 P1 698 P2 255 P3 18 P4
 
 CONTROLS
   iac         FAIL   4 P1 5 P2 15 P3 16 P4
-  images      FAIL   231 P1 313 P2 61 P3
+  images      FAIL   229 P1 322 P2 56 P3
   licenses    FAIL   353 P2 178 P3 · 2 files unread
   provenance  pass   no findings
   sast        FAIL   9 P1 6 P2 6 P3 2 P4
-  sca         FAIL   26 P1 13 P2
+  sca         FAIL   26 P1 12 P2
   secrets     FAIL   1 P1
 
 MEASURED AGAINST
@@ -248,9 +248,10 @@ MEASURED AGAINST
               pinning: none, all by tag
   sast        sarif-import · tool: Bandit 1.9.4 · file: reports/bandit.sarif · written:
               2026-10-11 04:57 UTC · severity: issue_severity and issue_confidence · commit:
-              not stated · component: api · sha256: 989dfee1ddac26aab9d76c86197c84eb29af9d5a3…
+              not stated · component: api · sha256:
+              989dfee1ddac26aab9d76c86197c84eb29af9d5a375cd4fa923873fcf61bc6a2
   sca         govulncheck v1.9.0;db@2026-11-11 02:51:11 · database: local copy, fetched
-              2026-11-11
+              2026-11-15
 
 CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
   ✗ unread-files · licenses · api
@@ -261,7 +262,7 @@ CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
       reports/bandit.sarif  names no commit, so nothing ties its findings to this code
 
 COMPONENTS
-  api         ERROR  263 P1 689 P2 257 P3
+  api         ERROR  261 P1 697 P2 252 P3
   storefront  ERROR  8 P1 1 P2
   platform    pass   3 P3 18 P4
 
@@ -271,13 +272,13 @@ SIGNALS
   malicious     nothing raised
   deprecated    12 findings raised
   floor         nothing raised
-  reachability  govulncheck · 3 reachable, 3 unreachable (1 finding only it reported)
+  reachability  govulncheck · 2 reachable, 3 unreachable
 
 ACCEPTED
   config.exclude  1 finding suppressed
   VEX             1 finding excused
 
-FIX FIRST  top 10 of 1239, by priority
+FIX FIRST  10 of 1240 findings, by priority
   P1  critical  CVE-2020-11023
       Untrusted code execution via <option> tag in HTML passed to DOM manipulation methods
       ↑ KEV · component storefront · scanner trivy · jquery 1.8.3 → 3.5.0

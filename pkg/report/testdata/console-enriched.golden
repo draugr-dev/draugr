@@ -9,7 +9,7 @@ SIGNALS
   KEV   1 finding listed · 1 raised
   EPSS  1 finding raised
 
-FIX FIRST  all 3, by priority
+FIX FIRST  3 findings, by priority
   P1  critical  CVE-2024-3094
       xz: malicious code in the upstream tarballs
       ↑ KEV · scanner trivy · github.com/ulikunitz/xz 0.5.11 → 0.5.12
