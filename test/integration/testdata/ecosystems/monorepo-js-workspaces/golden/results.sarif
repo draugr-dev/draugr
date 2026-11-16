@@ -59,6 +59,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-js-workspaces",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"
@@ -97,6 +98,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-js-workspaces",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"
@@ -135,6 +137,7 @@
             },
             "priority": "P1",
             "repository": "./monorepo-js-workspaces",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"

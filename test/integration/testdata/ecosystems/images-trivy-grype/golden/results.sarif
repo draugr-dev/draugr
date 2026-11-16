@@ -83,6 +83,7 @@
               "version": "0.12.2"
             },
             "priority": "P1",
+            "scanner": "grype",
             "security-severity": "7",
             "tool": "grype"
           },
@@ -123,6 +124,7 @@
               "version": "0.12.2"
             },
             "priority": "P1",
+            "scanner": "trivy",
             "tool": "trivy"
           },
           "ruleId": "CVE-2018-1000656"

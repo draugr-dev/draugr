@@ -2105,6 +2105,11 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 	copy(out.Results, report.Results)
 	for i := range out.Results {
 		out.Results[i].Component = pj.Component
+		// Which of Draugr's scanners reported it. A scanner that reads several tools' output, as an
+		// import does, has named each finding's tool already, and that name is the one shown.
+		if out.Results[i].Scanner == "" {
+			out.Results[i].Scanner = pj.Job.Scanner
+		}
 		// Never cleared: a scanner that already knows more than the descriptor does, kube-bench deciding
 		// which controls the provider runs. Must not have that answer overwritten by a target that
 		// simply does not declare one.

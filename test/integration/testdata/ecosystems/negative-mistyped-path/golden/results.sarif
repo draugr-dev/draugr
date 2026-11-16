@@ -104,6 +104,7 @@
             },
             "priority": "P1",
             "repository": "./negative-mistyped-path",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2018-1000656"

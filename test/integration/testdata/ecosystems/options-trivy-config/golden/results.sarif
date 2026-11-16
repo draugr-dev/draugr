@@ -53,6 +53,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-config",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Base image from an untrusted registry",
             "tool": "Trivy"
@@ -87,6 +88,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-config",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Base image from an untrusted registry",
             "tool": "Trivy"
@@ -121,6 +123,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-trivy-config",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Image user should not be 'root'",
             "tool": "Trivy"
@@ -164,6 +167,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-config",
+            "scanner": "trivy-config",
             "security-severity": "5.5",
             "title": "Image names no maintainer",
             "tool": "Trivy"
@@ -198,6 +202,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./options-trivy-config",
+            "scanner": "trivy-config",
             "security-severity": "5.5",
             "title": "Image names no maintainer",
             "tool": "Trivy"

@@ -51,8 +51,15 @@ type Location struct {
 
 // Result is a single finding.
 type Result struct {
-	// Tool is the scanner that produced the finding.
-	Tool    string `json:"tool,omitempty"`
+	// Tool is the scanner that produced the finding, as the tool names itself: the SARIF driver name,
+	// such as `Trivy` or `Semgrep OSS`, or the name the scanner's parser writes. It is part of
+	// Fingerprint, so it never changes for a finding that already exists.
+	Tool string `json:"tool,omitempty"`
+	// Scanner is the name of the Draugr scanner whose job reported the finding, such as
+	// `trivy-config` or `trivy-fs`, as `draugr controls` lists it. Stamped by the engine, and left
+	// out of Fingerprint. Two scanners can run one tool, as `trivy-fs` and `trivy-config` both run
+	// Trivy, and only this tells them apart.
+	Scanner string `json:"scanner,omitempty"`
 	RuleID  string `json:"ruleId"`
 	Level   Level  `json:"level"`
 	Message string `json:"message"`

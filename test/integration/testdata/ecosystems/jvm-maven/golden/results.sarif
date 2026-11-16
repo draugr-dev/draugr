@@ -95,6 +95,7 @@
             },
             "priority": "P1",
             "repository": "./jvm-maven",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44228"

@@ -59,6 +59,7 @@
             },
             "priority": "P1",
             "repository": "./php-composer",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2022-29248"

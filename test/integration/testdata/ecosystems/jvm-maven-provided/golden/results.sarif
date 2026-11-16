@@ -69,6 +69,7 @@
             },
             "priority": "P1",
             "repository": "./jvm-maven-provided",
+            "scanner": "grype-fs",
             "security-severity": "9",
             "tool": "grype"
           },
@@ -120,6 +121,7 @@
             },
             "priority": "P1",
             "repository": "./jvm-maven-provided",
+            "scanner": "grype-fs",
             "security-severity": "9",
             "tool": "grype"
           },

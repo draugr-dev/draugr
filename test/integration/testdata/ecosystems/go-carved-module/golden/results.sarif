@@ -118,6 +118,7 @@
               ]
             },
             "repository": "./go-carved-module",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"
@@ -174,6 +175,7 @@
               ]
             },
             "repository": "./go-carved-module",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"

@@ -109,6 +109,7 @@
               ]
             },
             "repository": "./monorepo-go-reachability",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"
@@ -163,6 +164,7 @@
               ]
             },
             "repository": "./monorepo-go-reachability",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2020-36067"

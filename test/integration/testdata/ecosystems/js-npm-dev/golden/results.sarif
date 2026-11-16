@@ -60,6 +60,7 @@
             },
             "priority": "P1",
             "repository": "./js-npm-dev",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-44906"

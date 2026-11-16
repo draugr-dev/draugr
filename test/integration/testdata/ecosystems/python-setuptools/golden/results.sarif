@@ -68,6 +68,7 @@
             },
             "priority": "P1",
             "repository": "./python-setuptools",
+            "scanner": "grype-fs",
             "security-severity": "7",
             "tool": "grype"
           },

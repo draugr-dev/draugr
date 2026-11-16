@@ -59,6 +59,7 @@
             "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -98,6 +99,7 @@
             "historical": true,
             "priority": "P1",
             "repository": "./monorepo-secret-history",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },

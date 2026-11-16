@@ -84,6 +84,7 @@
             "control": "dast",
             "fingerprint": "<cleared>",
             "priority": "P2",
+            "scanner": "nuclei",
             "security-severity": "5",
             "tool": "nuclei"
           },

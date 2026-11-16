@@ -60,6 +60,7 @@
             },
             "priority": "P1",
             "repository": "./options-grype-fs",
+            "scanner": "grype-fs",
             "security-severity": "9",
             "tool": "grype"
           },
@@ -100,6 +101,7 @@
             },
             "priority": "P1",
             "repository": "./options-grype-fs",
+            "scanner": "grype-fs",
             "security-severity": "9",
             "tool": "grype"
           },
@@ -139,6 +141,7 @@
             },
             "priority": "P1",
             "repository": "./options-grype-fs",
+            "scanner": "grype-fs",
             "security-severity": "7",
             "tool": "grype"
           },

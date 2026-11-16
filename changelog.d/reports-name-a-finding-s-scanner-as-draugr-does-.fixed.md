@@ -1,0 +1,1 @@
+- **The HTML report's Scanner filter tells `trivy-config` and `trivy-fs` apart.** Both run Trivy, and the filter listed them as `Trivy` and `trivy`, one tool apparently split by case. It now names each finding's scanner as `draugr controls` does; an imported finding keeps its tool's name. report.json and the SARIF add `scanner` beside `tool`.

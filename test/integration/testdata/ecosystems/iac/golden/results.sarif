@@ -53,6 +53,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Image user should not be 'root'",
             "tool": "Trivy"
@@ -87,6 +88,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Access to host network",
             "tool": "Trivy"
@@ -121,6 +123,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Privileged",
             "tool": "Trivy"
@@ -155,6 +158,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "8",
             "title": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.",
             "tool": "Trivy"
@@ -189,6 +193,7 @@
             "fingerprint": "<cleared>",
             "priority": "P3",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "2",
             "title": "No HEALTHCHECK defined",
             "tool": "Trivy"
@@ -223,6 +228,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "5.5",
             "title": "Restrict container images to trusted registries",
             "tool": "Trivy"
@@ -257,6 +263,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./iac",
+            "scanner": "trivy-config",
             "security-severity": "5.5",
             "title": "Restrict container images to trusted registries",
             "tool": "Trivy"

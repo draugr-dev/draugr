@@ -59,6 +59,7 @@
             "historical": true,
             "priority": "P1",
             "repository": "./options-gitleaks",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -97,6 +98,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gitleaks",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -135,6 +137,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./options-gitleaks",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },

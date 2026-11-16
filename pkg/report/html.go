@@ -1091,7 +1091,7 @@ func toHTMLFinding(f finding) htmlFinding {
 	}
 	return htmlFinding{
 		Priority: dash(f.priority), Severity: string(sev), SevClass: "sev-" + string(sev),
-		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.tool),
+		Score: scoreStr(f), RuleID: f.ruleID, Control: f.control, Tool: dash(f.scannerName()),
 		Component: dash(f.component),
 		Location:  whereShown(f.location), Message: title, Full: full, HelpURI: f.helpURI,
 		Detail:        f.addedDetail(),
@@ -1113,7 +1113,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		ActionKey:     actionKeyFor(f),
 		// What the row shows is what it finds.
 		Search: strings.ToLower(strings.Join(
-			[]string{f.ruleID, f.control, f.tool, f.component, f.location, f.message, f.detail, findingInstruction(f), f.priority, string(sev), fix, pkgName, f.nonShipping, asideNote(f.aside)}, " ")),
+			[]string{f.ruleID, f.control, f.scannerName(), f.tool, f.component, f.location, f.message, f.detail, findingInstruction(f), f.priority, string(sev), fix, pkgName, f.nonShipping, asideNote(f.aside)}, " ")),
 	}
 }
 

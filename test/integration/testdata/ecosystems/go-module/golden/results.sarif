@@ -97,6 +97,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-module",
+            "scanner": "gitleaks",
             "severityFloor": "high",
             "tool": "gitleaks"
           },
@@ -167,6 +168,7 @@
               ]
             },
             "repository": "./go-module",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2021-38561"
@@ -215,6 +217,7 @@
               ]
             },
             "repository": "./go-module",
+            "scanner": "trivy-fs",
             "tool": "trivy"
           },
           "ruleId": "CVE-2022-32149"
@@ -246,6 +249,7 @@
             "fingerprint": "<cleared>",
             "priority": "P1",
             "repository": "./go-module",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G702"
@@ -277,6 +281,7 @@
             "fingerprint": "<cleared>",
             "priority": "P2",
             "repository": "./go-module",
+            "scanner": "gosec",
             "tool": "gosec"
           },
           "ruleId": "G204"
