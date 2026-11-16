@@ -71,7 +71,8 @@ echo "▶ self-scan (sast)"
 #
 # Skipped rather than fatal when the pieces are missing, and it says which piece: this is the one
 # check here that needs tools beyond the Go toolchain, and a contributor should not have to
-# install Semgrep to run the tests.
+# install Semgrep to run the tests. A skip still joins the last line's list, as the linter's does,
+# so a gate that scanned nothing does not end on the line of one that did.
 # bin/draugr, never one on PATH. A gate is a claim about the code in front of you, and an
 # installed Draugr is whatever release somebody last downloaded, the one on this machine is nine
 # versions behind and does not have the flag below. Checking HEAD with an old binary would answer
@@ -85,9 +86,11 @@ if [ -x bin/draugr ]; then
 		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips
 	else
 		echo "  no sast scanner found, skipping (pipx install semgrep, or draugr tools install gosec)"
+		skipped+=(self-scan)
 	fi
 else
 	echo "  bin/draugr not built, skipping (run: make build)"
+	skipped+=(self-scan)
 fi
 
 echo "▶ no-conflict-markers"
