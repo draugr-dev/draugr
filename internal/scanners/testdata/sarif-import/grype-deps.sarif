@@ -1,0 +1,433 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "grype",
+          "version": "0.121.0",
+          "informationUri": "https://github.com/anchore/grype",
+          "rules": [
+            {
+              "id": "GHSA-35jh-r3h4-6jhm-lodash",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-35jh-r3h4-6jhm high vulnerability for lodash package"
+              },
+              "fullDescription": {
+                "text": "Command Injection in lodash"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm",
+              "help": {
+                "text": "Vulnerability GHSA-35jh-r3h4-6jhm\nSeverity: high\nPackage: lodash\nVersion: 4.17.15\nFix Version: 4.17.21\nType: npm\nLocation: /package-lock.json\nData Namespace: github:language:javascript\nLink: [GHSA-35jh-r3h4-6jhm](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)",
+                "markdown": "**Vulnerability GHSA-35jh-r3h4-6jhm**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | lodash  | 4.17.15  | 4.17.21  | npm  | /package-lock.json  | github:language:javascript  | [GHSA-35jh-r3h4-6jhm](https://github.com/advisories/GHSA-35jh-r3h4-6jhm)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:npm/lodash@4.17.15"
+                ],
+                "security-severity": "7.2"
+              }
+            },
+            {
+              "id": "GHSA-p6mc-m468-83gw-lodash",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-p6mc-m468-83gw high vulnerability for lodash package"
+              },
+              "fullDescription": {
+                "text": "Prototype Pollution in lodash"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-p6mc-m468-83gw",
+              "help": {
+                "text": "Vulnerability GHSA-p6mc-m468-83gw\nSeverity: high\nPackage: lodash\nVersion: 4.17.15\nFix Version: 4.17.19\nType: npm\nLocation: /package-lock.json\nData Namespace: github:language:javascript\nLink: [GHSA-p6mc-m468-83gw](https://github.com/advisories/GHSA-p6mc-m468-83gw)",
+                "markdown": "**Vulnerability GHSA-p6mc-m468-83gw**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | lodash  | 4.17.15  | 4.17.19  | npm  | /package-lock.json  | github:language:javascript  | [GHSA-p6mc-m468-83gw](https://github.com/advisories/GHSA-p6mc-m468-83gw)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:npm/lodash@4.17.15"
+                ],
+                "security-severity": "7.4"
+              }
+            },
+            {
+              "id": "GHSA-29mw-wpgm-hmr9-lodash",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-29mw-wpgm-hmr9 medium vulnerability for lodash package"
+              },
+              "fullDescription": {
+                "text": "Regular Expression Denial of Service (ReDoS) in lodash"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-29mw-wpgm-hmr9",
+              "help": {
+                "text": "Vulnerability GHSA-29mw-wpgm-hmr9\nSeverity: medium\nPackage: lodash\nVersion: 4.17.15\nFix Version: 4.17.21\nType: npm\nLocation: /package-lock.json\nData Namespace: github:language:javascript\nLink: [GHSA-29mw-wpgm-hmr9](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)",
+                "markdown": "**Vulnerability GHSA-29mw-wpgm-hmr9**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | lodash  | 4.17.15  | 4.17.21  | npm  | /package-lock.json  | github:language:javascript  | [GHSA-29mw-wpgm-hmr9](https://github.com/advisories/GHSA-29mw-wpgm-hmr9)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:npm/lodash@4.17.15"
+                ],
+                "security-severity": "5.3"
+              }
+            },
+            {
+              "id": "GHSA-r5fr-rjxr-66jc-lodash",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-r5fr-rjxr-66jc high vulnerability for lodash package"
+              },
+              "fullDescription": {
+                "text": "lodash vulnerable to Code Injection via `_.template` imports key names"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc",
+              "help": {
+                "text": "Vulnerability GHSA-r5fr-rjxr-66jc\nSeverity: high\nPackage: lodash\nVersion: 4.17.15\nFix Version: 4.18.0\nType: npm\nLocation: /package-lock.json\nData Namespace: github:language:javascript\nLink: [GHSA-r5fr-rjxr-66jc](https://github.com/advisories/GHSA-r5fr-rjxr-66jc)",
+                "markdown": "**Vulnerability GHSA-r5fr-rjxr-66jc**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | lodash  | 4.17.15  | 4.18.0  | npm  | /package-lock.json  | github:language:javascript  | [GHSA-r5fr-rjxr-66jc](https://github.com/advisories/GHSA-r5fr-rjxr-66jc)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:npm/lodash@4.17.15"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "GHSA-69ch-w2m2-3vjp-golang.org/x/text",
+              "name": "GoModuleMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-69ch-w2m2-3vjp high vulnerability for golang.org/x/text package"
+              },
+              "fullDescription": {
+                "text": "golang.org/x/text/language Denial of service via crafted Accept-Language header"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-69ch-w2m2-3vjp",
+              "help": {
+                "text": "Vulnerability GHSA-69ch-w2m2-3vjp\nSeverity: high\nPackage: golang.org/x/text\nVersion: v0.3.5\nFix Version: 0.3.8\nType: go-module\nLocation: /go.mod\nData Namespace: github:language:go\nLink: [GHSA-69ch-w2m2-3vjp](https://github.com/advisories/GHSA-69ch-w2m2-3vjp)",
+                "markdown": "**Vulnerability GHSA-69ch-w2m2-3vjp**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | golang.org/x/text  | v0.3.5  | 0.3.8  | go-module  | /go.mod  | github:language:go  | [GHSA-69ch-w2m2-3vjp](https://github.com/advisories/GHSA-69ch-w2m2-3vjp)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:golang/golang.org/x/text@v0.3.5"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "GHSA-ppp9-7jff-5vj2-golang.org/x/text",
+              "name": "GoModuleMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-ppp9-7jff-5vj2 high vulnerability for golang.org/x/text package"
+              },
+              "fullDescription": {
+                "text": "golang.org/x/text/language Out-of-bounds Read vulnerability"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-ppp9-7jff-5vj2",
+              "help": {
+                "text": "Vulnerability GHSA-ppp9-7jff-5vj2\nSeverity: high\nPackage: golang.org/x/text\nVersion: v0.3.5\nFix Version: 0.3.7\nType: go-module\nLocation: /go.mod\nData Namespace: github:language:go\nLink: [GHSA-ppp9-7jff-5vj2](https://github.com/advisories/GHSA-ppp9-7jff-5vj2)",
+                "markdown": "**Vulnerability GHSA-ppp9-7jff-5vj2**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | golang.org/x/text  | v0.3.5  | 0.3.7  | go-module  | /go.mod  | github:language:go  | [GHSA-ppp9-7jff-5vj2](https://github.com/advisories/GHSA-ppp9-7jff-5vj2)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:golang/golang.org/x/text@v0.3.5"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "GHSA-xxjr-mmjv-4gpg-lodash",
+              "name": "JavascriptMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GHSA-xxjr-mmjv-4gpg medium vulnerability for lodash package"
+              },
+              "fullDescription": {
+                "text": "Lodash has Prototype Pollution Vulnerability in `_.unset`, `_.omit`, and `_.pullAt` functions"
+              },
+              "helpUri": "https://github.com/advisories/GHSA-xxjr-mmjv-4gpg",
+              "help": {
+                "text": "Vulnerability GHSA-xxjr-mmjv-4gpg\nSeverity: medium\nPackage: lodash\nVersion: 4.17.15\nFix Version: 4.17.23\nType: npm\nLocation: /package-lock.json\nData Namespace: github:language:javascript\nLink: [GHSA-xxjr-mmjv-4gpg](https://github.com/advisories/GHSA-xxjr-mmjv-4gpg)",
+                "markdown": "**Vulnerability GHSA-xxjr-mmjv-4gpg**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| medium  | lodash  | 4.17.15  | 4.17.23  | npm  | /package-lock.json  | github:language:javascript  | [GHSA-xxjr-mmjv-4gpg](https://github.com/advisories/GHSA-xxjr-mmjv-4gpg)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:npm/lodash@4.17.15"
+                ],
+                "security-severity": "6.9"
+              }
+            },
+            {
+              "id": "GO-2026-5970-golang.org/x/text",
+              "name": "GoModuleMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GO-2026-5970 high vulnerability for golang.org/x/text package"
+              },
+              "fullDescription": {
+                "text": "A norm.Iter can enter an infinite loop when handling input containing invalid UTF-8 bytes."
+              },
+              "helpUri": "https://go.dev/issue/80142",
+              "help": {
+                "text": "Vulnerability GO-2026-5970\nSeverity: high\nPackage: golang.org/x/text\nVersion: v0.3.5\nFix Version: 0.39.0\nType: go-module\nLocation: /go.mod\nData Namespace: govulndb:language:go\nLink: [GO-2026-5970](https://go.dev/issue/80142)",
+                "markdown": "**Vulnerability GO-2026-5970**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | golang.org/x/text  | v0.3.5  | 0.39.0  | go-module  | /go.mod  | govulndb:language:go  | [GO-2026-5970](https://go.dev/issue/80142)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:golang/golang.org/x/text@v0.3.5"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "GO-2026-6629-golang.org/x/text",
+              "name": "GoModuleMatcherExactDirectMatch",
+              "shortDescription": {
+                "text": "GO-2026-6629 high vulnerability for golang.org/x/text package"
+              },
+              "fullDescription": {
+                "text": "The Nickname profile can panic with an out-of-bounds slice error when transforming crafted input into a short destination buffer."
+              },
+              "helpUri": "https://go.dev/cl/793360",
+              "help": {
+                "text": "Vulnerability GO-2026-6629\nSeverity: high\nPackage: golang.org/x/text\nVersion: v0.3.5\nFix Version: 0.41.0\nType: go-module\nLocation: /go.mod\nData Namespace: govulndb:language:go\nLink: [GO-2026-6629](https://go.dev/cl/793360)",
+                "markdown": "**Vulnerability GO-2026-6629**\n| Severity | Package | Version | Fix Version | Type | Location | Data Namespace | Link |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| high  | golang.org/x/text  | v0.3.5  | 0.41.0  | go-module  | /go.mod  | govulndb:language:go  | [GO-2026-6629](https://go.dev/cl/793360)  |\n"
+              },
+              "properties": {
+                "purls": [
+                  "pkg:golang/golang.org/x/text@v0.3.5"
+                ],
+                "security-severity": "7.5"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "GHSA-35jh-r3h4-6jhm-lodash",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in npm package: lodash, version 4.17.15 was found at: /package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5a06491b43a63f644fafd300f993cfa91dbd0e0f5b58f0ce8e6cc730e484d05b:1"
+          }
+        },
+        {
+          "ruleId": "GHSA-p6mc-m468-83gw-lodash",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in npm package: lodash, version 4.17.15 was found at: /package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5a06491b43a63f644fafd300f993cfa91dbd0e0f5b58f0ce8e6cc730e484d05b:1"
+          }
+        },
+        {
+          "ruleId": "GHSA-29mw-wpgm-hmr9-lodash",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in npm package: lodash, version 4.17.15 was found at: /package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5a06491b43a63f644fafd300f993cfa91dbd0e0f5b58f0ce8e6cc730e484d05b:1"
+          }
+        },
+        {
+          "ruleId": "GHSA-r5fr-rjxr-66jc-lodash",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in npm package: lodash, version 4.17.15 was found at: /package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5a06491b43a63f644fafd300f993cfa91dbd0e0f5b58f0ce8e6cc730e484d05b:1"
+          }
+        },
+        {
+          "ruleId": "GHSA-69ch-w2m2-3vjp-golang.org/x/text",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in go-module package: golang.org/x/text, version v0.3.5 was found at: /go.mod"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/go.mod"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "69eb2a2c82ed523b66aaf0a504371f75f33552ad0c491314594dff283badc3ec:1"
+          }
+        },
+        {
+          "ruleId": "GHSA-ppp9-7jff-5vj2-golang.org/x/text",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in go-module package: golang.org/x/text, version v0.3.5 was found at: /go.mod"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/go.mod"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "69eb2a2c82ed523b66aaf0a504371f75f33552ad0c491314594dff283badc3ec:1"
+          }
+        },
+        {
+          "ruleId": "GHSA-xxjr-mmjv-4gpg-lodash",
+          "level": "warning",
+          "message": {
+            "text": "A medium vulnerability in npm package: lodash, version 4.17.15 was found at: /package-lock.json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/package-lock.json"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "5a06491b43a63f644fafd300f993cfa91dbd0e0f5b58f0ce8e6cc730e484d05b:1"
+          }
+        },
+        {
+          "ruleId": "GO-2026-5970-golang.org/x/text",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in go-module package: golang.org/x/text, version v0.3.5 was found at: /go.mod"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/go.mod"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "69eb2a2c82ed523b66aaf0a504371f75f33552ad0c491314594dff283badc3ec:1"
+          }
+        },
+        {
+          "ruleId": "GO-2026-6629-golang.org/x/text",
+          "level": "error",
+          "message": {
+            "text": "A high vulnerability in go-module package: golang.org/x/text, version v0.3.5 was found at: /go.mod"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/go.mod"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "69eb2a2c82ed523b66aaf0a504371f75f33552ad0c491314594dff283badc3ec:1"
+          }
+        }
+      ]
+    }
+  ]
+}

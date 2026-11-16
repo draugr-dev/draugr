@@ -24,8 +24,14 @@ first import meets:
 - **Severity comes from `security-severity`, written as a string or a number, or from the level.**
   A file that states only levels never yields critical, and one that writes only `warning` ranks P2 at most,
   below the default gate, unless KEV or EPSS raises a finding whose rule id is a CVE.
-- **No package or fix is read.** A dependency finding from another tool's file says
-  `no package reported`, and KEV and EPSS reach it only where its rule id is a CVE.
+- **A dependency finding's package and fix are read where the tool states them**, for Trivy's,
+  Grype's and OSV-Scanner's files, so their findings in one package become one upgrade to the
+  release that clears them. [Dependency findings](../../internal/scanners/sarif-import.md#dependency-findings)
+  lists where each tool puts them. A file that names no package, as most code scanners' do, gets a
+  "Fix <rule>" action per rule.
+- **KEV and EPSS need a CVE**, in the rule id or listed by the file beside it, as OSV-Scanner lists
+  an advisory's other identifiers. Grype names its findings by GitHub and Go advisory and lists no
+  CVE, so neither reaches them, and **Signals** counts the imported findings that name no CVE.
 - **Paths are read relative to the repository's root.** An absolute path or `file://` URI inside the
   component's repository, when its `url` is a local path, is made relative to it. Any other absolute
   path is kept as written: its finding still counts, the scan lists the path under `unread-files`,

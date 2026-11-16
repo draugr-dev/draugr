@@ -718,6 +718,13 @@ func automationList(names []string) string {
 // in the whole id.
 func automationSegment(s string) string { return strings.ReplaceAll(s, "/", "-") }
 
+// importedVulnerability reports a finding read from another tool's file that is about a
+// vulnerability, by an advisory id or a package, the findings KEV and EPSS could be asked about. A
+// rule of the tool's own about a line of code, such as Bandit's B602, is not one.
+func importedVulnerability(res sarif.Result) bool {
+	return res.Scanner == plugin.ImportScanner && (res.Package != nil || res.VulnerabilityID() != "")
+}
+
 // scannerShown is the name the HTML report gives the scanner behind a finding: Draugr's name for
 // it, as `draugr controls` lists it, so `trivy-config` and `trivy-fs` read as the two scanners they
 // are rather than as one tool spelled `Trivy` and `trivy`. A finding imported from another tool's
@@ -906,6 +913,13 @@ type summary struct {
 	// findings KEV and EPSS reach only through the Go vulnerability database. Counted over every
 	// finding, for the reason onKEV is.
 	needsLookup int
+	// importedNoCVE is how many findings read from another tool's file are about a vulnerability or
+	// a package and name no CVE, which KEV and EPSS therefore never see. Counted over every finding,
+	// for the reason matchable is.
+	importedNoCVE int
+	// importedNeedsLookup is how many of those importedNoCVE counts also need the lookup, so a run
+	// whose lookup note already counts them does not count them twice.
+	importedNeedsLookup int
 	// onKEV is how many findings KEV lists, whether or not it raised them. Counted over every
 	// finding, for the reason bySignal is.
 	onKEV int
@@ -1029,6 +1043,11 @@ func summarize(d Data) summary {
 			}
 			if exploit.CVE(res) != "" {
 				s.matchable++
+			} else if importedVulnerability(res) {
+				s.importedNoCVE++
+				if exploit.NeedsLookup(res) {
+					s.importedNeedsLookup++
+				}
 			}
 			if exploit.NeedsLookup(res) {
 				s.needsLookup++

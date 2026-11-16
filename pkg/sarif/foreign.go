@@ -20,10 +20,13 @@ import (
 // `priority`, `aside`, `nonShipping`, a rating, a suppression's origin. In a file somebody else
 // wrote, each of those would be a claim Draugr never made about a finding it never ranked, and a
 // tool, or a hand-edited file, could set a finding aside or forge a descriptor's acceptance just by
-// naming the property. This reader reads none of them. From a result's property bag it takes
-// `security-severity`, the score SARIF producers agree on, as a number or as a string, and
-// `package`, where it is an object in the shape Draugr writes: a fact about the finding rather than
-// a decision about it, and the one way a file can name a dependency finding's package today.
+// naming the property. This reader reads none of them. From a property bag it takes
+// `security-severity`, the score SARIF producers agree on, as a number or as a string; `package`,
+// where it is an object in the shape Draugr writes; `purls`; and `tags`. Each is a fact about the
+// finding rather than a decision about it.
+//
+// A dependency finding's package, the version that fixes it and the advisory's other identifiers are
+// read from wherever the file states them, which differs by tool: see packageOf and statedAliases.
 //
 // It also reads the parts of SARIF that Draugr never writes and other tools do: a rule named only by
 // its index, a location given as an index into the run's artifacts, and a URI relative to a base the
@@ -99,7 +102,8 @@ type foreignRun struct {
 	} `json:"tool"`
 	Results   []foreignResult `json:"results"`
 	Artifacts []struct {
-		Location foreignArtifactLocation `json:"location"`
+		Location   foreignArtifactLocation `json:"location"`
+		Properties *foreignProperties      `json:"properties"`
 	} `json:"artifacts"`
 	OriginalURIBaseIDs map[string]foreignArtifactLocation `json:"originalUriBaseIds"`
 }
@@ -109,18 +113,59 @@ type foreignRule struct {
 	Name                 string        `json:"name"`
 	ShortDescription     *sarifMessage `json:"shortDescription"`
 	FullDescription      *sarifMessage `json:"fullDescription"`
-	Help                 *sarifMessage `json:"help"`
+	Help                 *foreignText  `json:"help"`
 	HelpURI              string        `json:"helpUri"`
 	DefaultConfiguration *struct {
 		Level string `json:"level"`
 	} `json:"defaultConfiguration"`
-	Properties *foreignProperties `json:"properties"`
+	// DeprecatedIDs are the ids the rule was known by before, which name the same rule and so the
+	// same flaw.
+	DeprecatedIDs looseStrings       `json:"deprecatedIds"`
+	Properties    *foreignProperties `json:"properties"`
+}
+
+// foreignText is a SARIF multiformat message: the plain text, and the Markdown some tools fill with
+// more than the text holds.
+type foreignText struct {
+	Text     string `json:"text"`
+	Markdown string `json:"markdown"`
+}
+
+func (m *foreignText) text() string {
+	if m == nil {
+		return ""
+	}
+	return m.Text
+}
+
+func (m *foreignText) markdown() string {
+	if m == nil {
+		return ""
+	}
+	return m.Markdown
 }
 
 // foreignProperties is the property-bag members read from another tool's file.
 type foreignProperties struct {
 	SecuritySeverity looseScore   `json:"security-severity"`
 	Package          loosePackage `json:"package"`
+	// PURLs are the package URLs of the dependency a rule or a result is about.
+	PURLs looseStrings `json:"purls"`
+	// Tags are SARIF's own property for the labels a tool attaches to a rule or a result, among which
+	// some tools list an advisory's other identifiers.
+	Tags looseStrings `json:"tags"`
+}
+
+// looseStrings is an array of strings. Anything else under the name, a string or an object, is none
+// rather than a reason to refuse the file, as for loosePackage.
+type looseStrings []string
+
+func (l *looseStrings) UnmarshalJSON(b []byte) error {
+	var s []string
+	if json.Unmarshal(b, &s) == nil {
+		*l = s
+	}
+	return nil
 }
 
 // loosePackage is a `package` property in the shape Draugr writes, an object. Another tool may use
@@ -151,7 +196,9 @@ type foreignResult struct {
 			ArtifactLocation foreignArtifactLocation `json:"artifactLocation"`
 			Region           *sarifRegion            `json:"region"`
 		} `json:"physicalLocation"`
+		LogicalLocations looseLogicalLocations `json:"logicalLocations"`
 	} `json:"locations"`
+	Fixes        looseFixes `json:"fixes"`
 	Suppressions []struct {
 		Kind          string `json:"kind"`
 		Justification string `json:"justification"`
@@ -211,6 +258,9 @@ type foreignRunReader struct {
 	ruleLevel   map[string]Level
 	ruleScore   map[string]float64
 	ruleSummary map[string]string
+	// rules are the run's rules by id, the first where two share one, for what a result reads from
+	// its rule beyond these: the package and fix the rule states, and the identifiers it lists.
+	rules map[string]*foreignRule
 }
 
 func newForeignRun(run foreignRun, roots []string) foreignRunReader {
@@ -220,8 +270,12 @@ func newForeignRun(run foreignRun, roots []string) foreignRunReader {
 		ruleLevel:   map[string]Level{},
 		ruleScore:   map[string]float64{},
 		ruleSummary: map[string]string{},
+		rules:       map[string]*foreignRule{},
 	}
-	for _, rule := range run.Tool.Driver.Rules {
+	for i, rule := range run.Tool.Driver.Rules {
+		if _, seen := fr.rules[rule.ID]; !seen {
+			fr.rules[rule.ID] = &run.Tool.Driver.Rules[i]
+		}
 		if rule.DefaultConfiguration != nil && rule.DefaultConfiguration.Level != "" {
 			fr.ruleLevel[rule.ID] = Level(rule.DefaultConfiguration.Level)
 		}
@@ -274,9 +328,9 @@ func (fr foreignRunReader) result(sr foreignResult) (Result, string, error) {
 			res.Location.StartLine = loc.Region.StartLine
 		}
 	}
-	if sr.Properties != nil {
-		res.Package = sr.Properties.Package.pkg
-	}
+	rule := fr.rules[ruleID]
+	res.Package = fr.packageOf(sr, rule, res.Location.URI)
+	res.Aliases = statedAliases(sr, rule, ruleID)
 	if score, ok := sr.Properties.score(); ok {
 		res.Score, res.HasScore = score, true
 	} else if score, ok := fr.ruleScore[ruleID]; ok {

@@ -139,7 +139,8 @@ shows only the mark that decided its severity, `↓ unreachable`, and `report.js
 under `escalation`. A finding with no mark was ranked by exposure, criticality and severity alone.
 
 KEV and EPSS reach only findings that name a CVE, which is `sca`, `images` and an imported file that
-names its findings by CVE. The CVE is read from the rule id, or, where the rule id holds none, from
+names its findings by CVE or lists one beside the rule id, and **Signals** counts the imported
+findings that name none. The CVE is read from the rule id, or, where the rule id holds none, from
 the first CVE the finding lists as an alias, as Grype with `byCve: false` lists the CVE it relates
 to a `GHSA-…` advisory. Such a row names the CVE beside its mark, `↑ KEV (CVE-2020-35669)`, and
 `report.json` records it as the escalation's `cve`.
