@@ -1,0 +1,1 @@
+- **`__fixtures__/` and `test_fixtures/` count as test directories.** A finding under either is labeled `test` and listed after shipped code, still counted. Where a component sets `nonShippingPaths`, findings there are now set aside too, and `draugr init` proposes an `ignore:` line for each. `test_server/` is not included, since a test server may ship.
