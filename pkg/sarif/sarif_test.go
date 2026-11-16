@@ -1007,6 +1007,27 @@ func TestAListingSurvivesTheFile(t *testing.T) {
 	}
 }
 
+// A CVE looked up for a finding that named none survives the file with where it came from, and
+// alone: nothing else on the finding writes the property bag.
+func TestALookedUpCVESurvivesTheFile(t *testing.T) {
+	lookup := &CVELookup{CVEs: []string{"CVE-2020-36567"}, ID: "GO-2020-0001", Record: "GO-2020-0001",
+		Dataset: "govulndb", AsOf: "2026-11-16"}
+	rep := Report{Results: []Result{{RuleID: "GO-2020-0001", Level: LevelWarning, Message: "gin", CVELookup: lookup}}}
+	encoded, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := back.Results[0].CVELookup
+	if got == nil || got.Record != lookup.Record || got.ID != lookup.ID || got.Dataset != lookup.Dataset ||
+		got.AsOf != lookup.AsOf || len(got.CVEs) != 1 || got.CVEs[0] != lookup.CVEs[0] {
+		t.Errorf("lookup = %+v, want %+v", got, lookup)
+	}
+}
+
 func TestWhatElseMatchedSurvivesTheFile(t *testing.T) {
 	// The record of a dataset that applied and did not win is only worth writing if it reaches
 	// whatever reads the file. It travels inside the escalation rather than beside it, so this is

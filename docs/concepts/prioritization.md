@@ -142,7 +142,19 @@ KEV and EPSS reach only findings that name a CVE, which is `sca`, `images` and a
 names its findings by CVE. The CVE is read from the rule id, or, where the rule id holds none, from
 the first CVE the finding lists as an alias, as Grype with `byCve: false` lists the CVE it relates
 to a `GHSA-…` advisory. Such a row names the CVE beside its mark, `↑ KEV (CVE-2020-35669)`, and
-`report.json` records it as the escalation's `cve`. Dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
+`report.json` records it as the escalation's `cve`.
+
+A finding that names no CVE at all, only a Go advisory id (`GO-…`) or a GitHub advisory id
+(`GHSA-…`), is looked up in the Go vulnerability database, which lists each record's CVEs beside
+its other ids. The lookup reads the copy `draugr feeds update govulndb` keeps in the feed cache,
+and only when KEV or EPSS is read from the cache too. It gives the finding the CVEs of the one
+record that names it. A finding whose ids lead to more than one record, to none, or to a record that
+lists no CVE gets nothing. The
+finding's `cveLookup` in `report.json` names the record, so a CVE Draugr looked up can be told from
+one the scanner reported. With no current copy, nothing is looked up, and the Signals section
+counts the findings KEV and EPSS could not check and names the command that fetches it.
+
+Dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
 low EPSS score and a package nobody has flagged rank as they would with no signal at all. Only
 reachability lowers, and only from an analyzer that shows its method, as
 [Reachability](#reachability) describes. Turning each signal on is the second lever in

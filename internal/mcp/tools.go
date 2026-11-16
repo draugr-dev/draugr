@@ -324,7 +324,7 @@ type Accepted struct {
 
 // Feed is an exploitability dataset the scan had loaded.
 type Feed struct {
-	Signal    string  `json:"signal" jsonschema:"kev or epss"`
+	Signal    string  `json:"signal" jsonschema:"kev, epss, dependency-health, or govulndb (the Go vulnerability database, read to find the CVE of a finding named only by a Go or GitHub advisory id)"`
 	AsOf      string  `json:"asOf,omitempty" jsonschema:"the day the copy was obtained, YYYY-MM-DD; empty for a file supplied by hand"`
 	Stale     bool    `json:"stale,omitempty" jsonschema:"the copy was older than the scan's maxAge when it was read"`
 	Entries   int     `json:"entries,omitempty"`

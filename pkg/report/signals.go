@@ -182,7 +182,43 @@ func signals(d Data, s summary) (rows []signalRow, notes []string) {
 		}
 		notes = append(notes, n...)
 	}
+	if note := lookupNote(d, s); note != "" {
+		notes = append(notes, note)
+	}
 	return rows, notes
+}
+
+// lookupNote says how many findings KEV and EPSS could not check because they name only a Go or
+// GitHub advisory id and no copy of the Go vulnerability database was read to find their CVE.
+//
+// Empty where neither dataset was read, which their own rows already say, and where the database was
+// read: a finding it gave no CVE has none it lists, which is not something a fetch would change.
+// Without the note, a run that could not look a finding up reads like one that looked and found it
+// on neither list.
+func lookupNote(d Data, s summary) string {
+	if s.needsLookup == 0 || consulted(d, exploit.DatasetGoVulnDB) ||
+		(!consulted(d, exploit.SignalKEV) && !consulted(d, exploit.SignalEPSS)) {
+		return ""
+	}
+	head := fmt.Sprintf("KEV and EPSS did not check %s named only by a Go or GitHub advisory id.",
+		english.Count(s.needsLookup, "finding"))
+	if !fromFeedCache(d) {
+		// A file given as a path reads no cache, so fetching the database would change nothing here.
+		return head + " The lookup reads the feed cache, which a file path does not: use --kev auto or --epss auto."
+	}
+	return head + " Run draugr feeds update govulndb, then scan again, to look up their CVEs."
+}
+
+// fromFeedCache reports whether KEV or EPSS came from the feed cache rather than a file the operator
+// gave as a path, which records no URL. Only a run that reads the cache can read the Go
+// vulnerability database beside it.
+func fromFeedCache(d Data) bool {
+	for _, f := range d.Exploitability {
+		if (f.Name == exploit.SignalKEV || f.Name == exploit.SignalEPSS) && f.URL != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // feedDid is what an exploitability dataset did: listed whenever the run consulted it, and as not

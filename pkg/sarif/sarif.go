@@ -340,6 +340,9 @@ type sarifProperties struct {
 	// the listing moved its band. It survives the file because the fix list ranks by it, and a report
 	// read back from this file has to order its actions the way the run did.
 	Exploited *Match `json:"exploited,omitempty"`
+	// CVELookup is the CVE an advisory database lists for a finding that named none. It survives the
+	// file beside Escalation, which names that CVE and would otherwise not say where it came from.
+	CVELookup *CVELookup `json:"cveLookup,omitempty"`
 	// Correlation says another scanner reported this same flaw: on the finding that is counted it
 	// names who else found it, and on the others it names the one they are counted under.
 	//
@@ -578,7 +581,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// Image and OperatingSystem are in the condition because they are the whole content of a
 		// container-scanning finding: writing the block only for a tool, a score or a priority
 		// would drop them for any finding carrying nothing else.
-		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.Rating != nil || res.PriorityFloor != "" || res.PriorityCap != "" || res.SeverityFloor != "" || res.HasScore ||
+		if tool != "" || res.Detail != "" || res.Control != "" || res.Escalation != nil || res.Exploited != nil || res.CVELookup != nil || res.Rating != nil || res.PriorityFloor != "" || res.PriorityCap != "" || res.SeverityFloor != "" || res.HasScore ||
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Aside != "" || res.Scanner != "" || len(res.Platforms) > 0 || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
@@ -592,6 +595,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				UpgradePolicyFrom: res.UpgradePolicyFrom,
 				Escalation:        res.Escalation,
 				Exploited:         res.Exploited,
+				CVELookup:         res.CVELookup,
 				Rating:            res.Rating,
 				PriorityFloor:     res.PriorityFloor,
 				PriorityCap:       res.PriorityCap,
@@ -990,6 +994,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Correlation = sr.Properties.Correlation
 		res.Escalation = sr.Properties.Escalation
 		res.Exploited = sr.Properties.Exploited
+		res.CVELookup = sr.Properties.CVELookup
 		res.Rating = sr.Properties.Rating
 		res.PriorityFloor = sr.Properties.PriorityFloor
 		res.PriorityCap = sr.Properties.PriorityCap

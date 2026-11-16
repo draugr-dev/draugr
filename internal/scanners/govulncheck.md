@@ -305,3 +305,8 @@ as before.
 The database the run read is recorded under `database` in the evidence: `local copy, fetched
 <date>`, `vuln.go.dev`, or `vuln.go.dev` with the reason a local copy was refused and why fetching it again failed. The cache key
 carries the database's own `modified` date, so refreshing the copy invalidates cached results.
+
+The same copy serves KEV and EPSS, whatever scanner reported the finding. Its `index/vulns.json`
+lists each record's aliases, the CVE and GitHub advisory ids of the same vulnerability, and a
+finding named only by a `GO-…` or `GHSA-…` id is matched on the CVEs of the one record naming it.
+The [prioritization concept](../../docs/concepts/prioritization.md#exploitability) has the rule.

@@ -123,6 +123,9 @@ type Priority struct {
 	// Exploited is the catalog of observed exploitation that lists the finding, whether or not it
 	// raised the severity. Nil where none does.
 	Exploited *sarif.Match
+	// CVELookup is the CVE an advisory database lists for a finding that names none itself, the one
+	// KEV and EPSS were asked about. Nil where the finding names its CVE or nothing was found.
+	CVELookup *sarif.CVELookup
 	// Floor explains a band that the component's classification alone does not account for,
 	// because the control declared that exposure does not bound its findings. Empty when the
 	// matrices' own answer stood.
@@ -2146,6 +2149,7 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 			out.Results[i].Priority = p.Band
 			out.Results[i].Escalation = p.Escalation
 			out.Results[i].Exploited = p.Exploited
+			out.Results[i].CVELookup = p.CVELookup
 			out.Results[i].PriorityFloor = p.Floor
 			out.Results[i].PriorityCap = p.Cap
 			out.Results[i].SeverityFloor = p.SeverityFloor
@@ -2996,6 +3000,7 @@ func (e *Engine) reband(res *sarif.Result, control string, model saga.Model) {
 	res.Priority = p.Band
 	res.Escalation = p.Escalation
 	res.Exploited = p.Exploited
+	res.CVELookup = p.CVELookup
 	res.PriorityFloor = p.Floor
 	res.PriorityCap = p.Cap
 	res.SeverityFloor = p.SeverityFloor

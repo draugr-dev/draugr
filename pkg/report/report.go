@@ -902,6 +902,10 @@ type summary struct {
 	// matchable is how many findings name a CVE, in the rule id or among the aliases, the findings
 	// KEV and EPSS could raise. Counted over every finding, for the reason onKEV is.
 	matchable int
+	// needsLookup is how many findings name no CVE and do name a Go or GitHub advisory id, the
+	// findings KEV and EPSS reach only through the Go vulnerability database. Counted over every
+	// finding, for the reason onKEV is.
+	needsLookup int
 	// onKEV is how many findings KEV lists, whether or not it raised them. Counted over every
 	// finding, for the reason bySignal is.
 	onKEV int
@@ -1025,6 +1029,9 @@ func summarize(d Data) summary {
 			}
 			if exploit.CVE(res) != "" {
 				s.matchable++
+			}
+			if exploit.NeedsLookup(res) {
+				s.needsLookup++
 			}
 			if res.PriorityFloor != "" {
 				s.floored++

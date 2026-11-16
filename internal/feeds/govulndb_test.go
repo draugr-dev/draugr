@@ -93,6 +93,43 @@ func TestCheckGoVulnDB(t *testing.T) {
 	}
 }
 
+// The record index is read as each record's id and the aliases it lists, and an index that is
+// missing, unreadable or empty is an error rather than a database with no CVE in it.
+func TestGoVulnAliases(t *testing.T) {
+	cases := map[string]struct {
+		vulns string
+		want  string
+	}{
+		"sound":      {goVulnDBFiles["index/vulns.json"], ""},
+		"missing":    {"", "no index/vulns.json"},
+		"unreadable": {`{"id":"GO-2021-0113"}`, "index/vulns.json cannot be read"},
+		"empty":      {`[{"aliases":["CVE-2021-38561"]}]`, "lists no records"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tc.vulns != "" {
+				if err := os.MkdirAll(filepath.Join(dir, "index"), 0o750); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "index", "vulns.json"), []byte(tc.vulns), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := GoVulnAliases(dir)
+			if tc.want != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.want) {
+					t.Errorf("err = %v, want one naming %q", err, tc.want)
+				}
+				return
+			}
+			if err != nil || len(got) != 1 || len(got["GO-2021-0113"]) != 1 || got["GO-2021-0113"][0] != "CVE-2021-38561" {
+				t.Errorf("records = %v, err = %v, want GO-2021-0113 listing CVE-2021-38561", got, err)
+			}
+		})
+	}
+}
+
 // serveZip points the Go database source at a stub returning body.
 func serveZip(t *testing.T, body []byte) {
 	t.Helper()
