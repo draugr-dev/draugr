@@ -104,11 +104,19 @@ func TestFixFirstNamesTheImageToUpdate(t *testing.T) {
 
 // TestTheOtherFormatsNameTheImageToo: markdown and the HTML report say what the console says.
 func TestTheOtherFormatsNameTheImageToo(t *testing.T) {
+	var md bytes.Buffer
+	if err := (markdownReporter{}).Render(&md, Data{Verdict: norn.Result{Verdict: norn.Fail}, Run: upstreamImagesRun()}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(md.String(), "- **P2** Update python:3.8-slim · 2 findings") {
+		t.Errorf("markdown should name the image to update:\n%s", md.String())
+	}
+	if strings.Contains(md.String(), "openssl") {
+		t.Errorf("markdown offers an upgrade inside an upstream image:\n%s", md.String())
+	}
+
 	f := finding{control: "images", ruleID: "CVE-1", location: "python:3.8-slim", builtUpstream: true,
 		pkg: &sarif.Package{Name: "openssl", Version: "3.0.11", FixedVersion: "3.0.18"}}
-	if got := markdownUpgrade(f); got != "openssl 3.0.11 · update python:3.8-slim" {
-		t.Errorf("markdown cell = %q", got)
-	}
 	if got := fixPhrase(f); got != "update python:3.8-slim" {
 		t.Errorf("fix phrase = %q", got)
 	}
@@ -125,9 +133,6 @@ func TestTheOtherFormatsNameTheImageToo(t *testing.T) {
 	// An image the project builds keeps the package upgrade.
 	own := finding{control: "images", ruleID: "CVE-1", location: "ghcr.io/acme/api:1",
 		pkg: &sarif.Package{Name: "openssl", Version: "3.0.11", FixedVersion: "3.0.18"}}
-	if got := markdownUpgrade(own); got != "openssl 3.0.11 → 3.0.18" {
-		t.Errorf("markdown cell for an image the project builds = %q", got)
-	}
 	if got := compactFix(own); !strings.Contains(got, "→") {
 		t.Errorf("compact cell for an image the project builds = %q", got)
 	}

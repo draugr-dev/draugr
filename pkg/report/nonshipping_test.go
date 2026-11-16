@@ -127,25 +127,16 @@ func TestTheHeadingKeepsPriorityWhereEveryFindingIsMarked(t *testing.T) {
 	}
 }
 
-// Markdown says the count under the bands and labels each marked location in the table.
-func TestMarkdownCountsAndLabelsNonShippingFindings(t *testing.T) {
-	var buf bytes.Buffer
-	if err := (markdownReporter{}).Render(&buf, nonShippingData()); err != nil {
-		t.Fatal(err)
+// Markdown says the count under the bands, and Fix first, which lists actions, still names the
+// places the marked findings are in.
+func TestMarkdownCountsNonShippingFindings(t *testing.T) {
+	out := renderWith(t, markdownReporter{}, nonShippingData())
+	counts, fixFirst := strings.Index(out, "2 findings in docs, examples or tests, counted above."), strings.Index(out, "### Fix first")
+	if counts < 0 || fixFirst < 0 || counts > fixFirst {
+		t.Errorf("want the count under the bands, ahead of Fix first:\n%s", out)
 	}
-	out := buf.String()
-	for _, want := range []string{
-		"2 findings in docs, examples or tests, counted and listed after the rest.",
-		" tests/Dockerfile:1 · test |",
-		" examples/app.js:1 · example |",
-		" Dockerfile:1 |",
-	} {
-		if !strings.Contains(out, want) {
-			t.Errorf("markdown lacks %q:\n%s", want, out)
-		}
-	}
-	if strings.Index(out, "deploy/Dockerfile:1") > strings.Index(out, "tests/Dockerfile:1 · test") {
-		t.Error("markdown lists a marked finding before one in shipped code")
+	if !strings.Contains(out[fixFirst:], "examples/app.js:1") {
+		t.Errorf("Fix first does not name the marked finding's place:\n%s", out)
 	}
 }
 

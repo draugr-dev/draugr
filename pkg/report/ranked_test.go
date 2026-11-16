@@ -73,10 +73,6 @@ func TestThePrintedSeverityIsTheRankedSeverity(t *testing.T) {
 	if err := (consoleReporter{}).Render(&console, d); err != nil {
 		t.Fatal(err)
 	}
-	var markdown bytes.Buffer
-	if err := (markdownReporter{}).Render(&markdown, d); err != nil {
-		t.Fatal(err)
-	}
 	printed := map[string]string{
 		"CVE-2099-0001":   "high",
 		"CVE-2021-44228":  "critical",
@@ -95,12 +91,6 @@ func TestThePrintedSeverityIsTheRankedSeverity(t *testing.T) {
 		}
 		if fields := strings.Fields(line); len(fields) < 2 || fields[1] != want {
 			t.Errorf("%s (%s): console row %q, want severity %q beside the band", res.RuleID, res.Message, line, want)
-		}
-		// Markdown writes the mark after the severity, "critical ↑ KEV".
-		md := lineNaming(markdown.String(), res.RuleID)
-		cell := "| " + res.Priority + " | " + want
-		if !strings.Contains(md, cell+" |") && !strings.Contains(md, cell+" ↑") && !strings.Contains(md, cell+" ↓") {
-			t.Errorf("%s (%s): markdown row %q, want %q beside %s", res.RuleID, res.Message, md, want, res.Priority)
 		}
 	}
 	// The same value the finding the renderers hold carries.

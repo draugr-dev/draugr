@@ -3,7 +3,8 @@ package report
 import (
 	"fmt"
 	"io"
-	"slices"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,8 +17,6 @@ import (
 type markdownReporter struct{}
 
 func (markdownReporter) Format() string { return "markdown" }
-
-const markdownTopN = 25
 
 func (markdownReporter) Render(w io.Writer, d Data) error {
 	s := summarize(d)
@@ -47,8 +46,14 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		}
 		// Beside the counts they are part of, as the console has it.
 		if note := nonShippingNote(s.nonShipping); note != "" {
-			_, _ = fmt.Fprintf(w, "%s, counted and listed after the rest.\n\n", note)
+			_, _ = fmt.Fprintf(w, "%s, counted above.\n\n", note)
 		}
+	}
+
+	// Under the counts it acts on, ahead of the tables that describe the whole run: a reader of a
+	// pull-request comment decides what to do from the top of it.
+	if len(s.findings) > 0 {
+		writeFixFirstActions(w, d, s)
 	}
 
 	// Beside the bands it qualifies, which is where the console and the page put it.
@@ -109,86 +114,87 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			_, _ = fmt.Fprintln(w, line)
 		}
 		_, _ = fmt.Fprintln(w)
-		writeRunEvidence(w, d, s)
-		return nil
 	}
-
-	if s.minPriority != "" {
-		heading := fmt.Sprintf("### Fix first (%s and above", strings.ToUpper(s.minPriority))
-		if s.hidden > 0 {
-			heading += "; " + english.Count(s.hidden, "lower-priority finding") + " hidden"
-		}
-		_, _ = fmt.Fprintf(w, "%s)\n\n", heading)
-	} else {
-		_, _ = fmt.Fprintf(w, "### Fix first\n\n")
-	}
-	shown := s.findings
-	// On a run judged on its change, what the change introduced leads, marked as the console marks it,
-	// so the cap never hides it behind the backlog.
-	var stateOf map[string]string
-	if judged {
-		stateOf = headStates(statesOf(d))
-		state := func(st string) func(finding) bool {
-			return func(f finding) bool { return stateOf[f.fingerprint] == st }
-		}
-		shown = slices.Concat(filterFindings(s.findings, state(stateNew)), filterFindings(s.findings, state(stateUnaccepted)),
-			filterFindings(s.findings, func(f finding) bool {
-				st := stateOf[f.fingerprint]
-				return st != stateNew && st != stateUnaccepted
-			}))
-	}
-	if len(shown) > markdownTopN {
-		shown = shown[:markdownTopN]
-	}
-	// Component before Location: a path answers "where inside", and with more than one component the
-	// reader needs "which one" first. Two components can carry the same path. Dropped entirely when
-	// every row carries the same one, which is a column repeating itself.
-	withComponent := varies(shown, func(f finding) string { return f.component })
-	head := "| Priority | Severity | Rule | Scanner | Location | Upgrade | Finding |"
-	rule := "|---|---|---|---|---|---|---|"
-	if withComponent {
-		head = "| Priority | Severity | Rule | Scanner | Component | Location | Upgrade | Finding |"
-		rule = "|---|---|---|---|---|---|---|---|"
-	}
-	if judged {
-		head, rule = "| Change "+head, "|---"+rule
-	}
-	_, _ = fmt.Fprintln(w, head)
-	_, _ = fmt.Fprintln(w, rule)
-	for _, f := range shown {
-		if judged {
-			mark := ""
-			if st := stateOf[f.fingerprint]; st != "" && st != stateUnchanged {
-				mark = stateMarks[st] + " " + st
-			}
-			_, _ = fmt.Fprintf(w, "| %s ", mark)
-		}
-		component := ""
-		if withComponent {
-			component = " " + dash(f.component) + " |"
-		}
-		// The rating the band was computed from, so the row does not contradict the band beside it,
-		// and the mark that moved it, in the words the console uses.
-		sev := string(rankedSeverity(f))
-		if m := movedBy(f); m != nil {
-			sev += " " + strings.TrimSpace(m.glyph+" "+m.label)
-		}
-		// A scanner that had no advisory title to give wrote the upgrade note alone as its message, and
-		// the Upgrade cell already says it.
-		upgrade, title := markdownUpgrade(f), findingTitle(f)
-		if title == upgrade || title == upgradeLabel(f) {
-			title = ""
-		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s | %s | %s |\n",
-			dash(f.priority), sev, ruleLink(f), f.tool, component, labeledWhere(f, whereShown(f.location)),
-			dash(upgrade), dash(title))
-	}
-	if len(s.findings) > markdownTopN {
-		_, _ = fmt.Fprintf(w, "\n_…and %s more._\n", english.Count(len(s.findings)-markdownTopN, "finding"))
-	}
-	_, _ = fmt.Fprintln(w)
 	writeRunEvidence(w, d, s)
 	return nil
+}
+
+// markdownActionsN is how many actions Fix first lists before pointing at the HTML report.
+const markdownActionsN = 10
+
+// placesCut matches the end of a place list cut short, as action.where and foldedPlaces write it.
+var placesCut = regexp.MustCompile(`and (\d+) more$`)
+
+// markdownFixFirstHeading is the Fix first heading, naming the filter where the run has one.
+func markdownFixFirstHeading(s summary) string {
+	if s.minPriority == "" {
+		return "### Fix first\n\n"
+	}
+	heading := fmt.Sprintf("### Fix first (%s and above", strings.ToUpper(s.minPriority))
+	if s.hidden > 0 {
+		heading += "; " + english.Count(s.hidden, "lower-priority finding") + " hidden"
+	}
+	return heading + ")\n\n"
+}
+
+// writeFixFirstActions lists what to do, one bullet per action, built as the HTML report's What to
+// do is, so the two agree row for row.
+//
+// Actions rather than findings: a pull-request comment is narrow, a table with a row per finding
+// scrolls sideways there, and one package's advisories take a row each where one upgrade clears
+// them all.
+func writeFixFirstActions(w io.Writer, d Data, s summary) {
+	grouped, external := groupActions(s.findings, d.Run.Stats.UnpinnedCacheHits, s.copies...)
+	nameComponents := actionsNameComponents(grouped)
+	_, _ = fmt.Fprint(w, markdownFixFirstHeading(s))
+	folded := foldLines(grouped)
+	for i, a := range folded {
+		if i == markdownActionsN {
+			_, _ = fmt.Fprintf(w, "\n_…and %s, in the HTML report's What to do._\n",
+				english.Count(len(folded)-markdownActionsN, "more action"))
+			break
+		}
+		_, _ = fmt.Fprintln(w, markdownActionLine(a, nameComponents))
+	}
+	if len(external) > 0 {
+		if len(folded) > 0 {
+			_, _ = fmt.Fprintln(w)
+		}
+		_, _ = fmt.Fprintf(w, "_%s_\n", externalLine(external))
+	}
+	_, _ = fmt.Fprintln(w)
+}
+
+// markdownActionLine is one action as a bullet: its band, what to do, how many findings it clears,
+// and where.
+func markdownActionLine(a action, nameComponents bool) string {
+	ha := toHTMLAction(a)
+	// The band is the worst of the action's findings, and a total beside it reads as that many at
+	// that band, so a row whose findings sit in more than one band says how many are at its own.
+	clears := english.Count(ha.Clears, "finding")
+	if a.priority != "" {
+		atBand := 0
+		for _, f := range a.findings {
+			if f.priority == a.priority {
+				atBand++
+			}
+		}
+		if atBand < ha.Clears {
+			clears += fmt.Sprintf(", %d at %s", atBand, a.priority)
+		}
+	}
+	line := fmt.Sprintf("- **%s** %s · %s", ha.Priority, ha.Title, clears)
+	if nameComponents && ha.Component != "" {
+		line += " · " + ha.Component
+	}
+	// A place list cut short says where the rest are, which the HTML report lists in full.
+	if ha.Where != "" {
+		line += " · " + placesCut.ReplaceAllStringFunc(ha.Where, func(m string) string {
+			n, _ := strconv.Atoi(placesCut.FindStringSubmatch(m)[1])
+			return "and " + english.Count(n, "more place") + ", in the HTML report"
+		})
+	}
+	return line
 }
 
 // writeFoundRows lists what a run with no descriptor read from the tree, as the console's FOUND
@@ -524,39 +530,6 @@ func writeExploitability(w io.Writer, d Data) {
 	_, _ = fmt.Fprintln(w)
 }
 
-// ruleLink renders a rule id, linked to whatever the scanner published about it.
-//
-// The same thing the console does with the same fact: a reader deciding whether a finding matters
-// is one click from the advisory rather than one search, and in a pull-request comment the link is
-// the only way there.
-func ruleLink(f finding) string {
-	id := "`" + f.ruleID + "`"
-	if f.helpURI == "" {
-		return id
-	}
-	return "[" + id + "](" + f.helpURI + ")"
-}
-
-// varies reports whether a column would say something different on any two rows.
-//
-// A column repeating one value answers nothing and costs the width the rows it sits beside need.
-// The console drops one for the same reason, and this is the table that gets pasted into a pull
-// request where width is scarcest.
-func varies(fs []finding, of func(finding) string) bool {
-	var first string
-	for i, f := range fs {
-		v := of(f)
-		if i == 0 {
-			first = v
-			continue
-		}
-		if v != first {
-			return true
-		}
-	}
-	return false
-}
-
 // writeSignalRows records what argued with this run's ranking, how each signal moves a finding,
 // and what it did.
 //
@@ -588,26 +561,4 @@ func writeSignalRows(w io.Writer, d Data, s summary) {
 	for _, note := range notes {
 		_, _ = fmt.Fprintf(w, "_%s_\n\n", note)
 	}
-}
-
-// markdownUpgrade is the Upgrade cell: the package and the release that clears it, or for a package
-// in an image somebody else builds, the package and the image to update, since nobody reading can
-// upgrade the package inside it.
-func markdownUpgrade(f finding) string {
-	if u := imageUpdate(f); u != "" {
-		name, _ := packageFix(f, true)
-		return name + " · " + u
-	}
-	return upgradeLabel(f)
-}
-
-// filterFindings keeps the findings keep accepts, in order.
-func filterFindings(fs []finding, keep func(finding) bool) []finding {
-	var out []finding
-	for _, f := range fs {
-		if keep(f) {
-			out = append(out, f)
-		}
-	}
-	return out
 }

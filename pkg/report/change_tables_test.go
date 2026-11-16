@@ -225,15 +225,14 @@ func TestTheMarkdownDiffReportLeadsWithTheChange(t *testing.T) {
 // band, and the HTML offers a Change filter over them.
 func TestNewFindingsLeadTheListsMarkedNew(t *testing.T) {
 	d := judgedTablesData()
+	// In markdown the change's own actions lead, and Fix first after them lists the whole run's.
 	md := renderWith(t, markdownReporter{}, d)
-	rows := strings.Split(md[strings.Index(md, "| Change | Priority"):], "\n")
-	for i, rule := range []string{"CVE-NEW-", "CVE-NEW-", "CVE-LOW"} {
-		if row := rows[2+i]; !strings.HasPrefix(row, "| + new |") || !strings.Contains(row, rule) {
-			t.Errorf("markdown row %d = %q, want a new finding, %s", i, row, rule)
-		}
+	change, fixFirst := strings.Index(md, "**What to do about this change**"), strings.Index(md, "### Fix first")
+	if change < 0 || fixFirst < 0 || change > fixFirst {
+		t.Errorf("want the change's actions ahead of Fix first:\n%s", md)
 	}
-	if row := rows[5]; !strings.HasPrefix(row, "|  |") {
-		t.Errorf("markdown row 4 = %q, want a finding from before, unmarked", row)
+	if !strings.Contains(md[change:fixFirst], "- **P3** Upgrade minimist 1.2.0 → 1.2.6 · 1 new at P3") {
+		t.Errorf("the change's actions do not include its P3 finding:\n%s", md)
 	}
 
 	html := renderWith(t, htmlReporter{}, d)

@@ -128,30 +128,6 @@ func TestTheConsoleMarksTheMoveThatDecidedTheSeverity(t *testing.T) {
 	}
 }
 
-// Markdown writes the mark after the severity, in the console's words.
-func TestMarkdownMarksTheMoveThatDecidedTheSeverity(t *testing.T) {
-	var out bytes.Buffer
-	if err := (markdownReporter{}).Render(&out, marksData()); err != nil {
-		t.Fatal(err)
-	}
-	for _, c := range markCases {
-		row := lineNaming(out.String(), c.rule)
-		if row == "" {
-			t.Fatalf("%s: no markdown row:\n%s", c.rule, out.String())
-		}
-		want := "| " + c.severity + " |"
-		if c.mark != "" {
-			want = "| " + c.severity + " " + c.mark + " |"
-		}
-		if !strings.Contains(row, want) {
-			t.Errorf("%s: markdown row %q, want %q", c.rule, row, want)
-		}
-		if c.absent != "" && strings.Contains(row, c.absent) {
-			t.Errorf("%s: markdown row %q says %q", c.rule, row, c.absent)
-		}
-	}
-}
-
 // The HTML report draws the mark on the row's second line, with the glyph apart from the label.
 func TestTheHTMLReportMarksTheMoveThatDecidedTheSeverity(t *testing.T) {
 	page := renderHTML(t, marksData())
