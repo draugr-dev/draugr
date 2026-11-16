@@ -225,7 +225,8 @@ func kevDid(d Data, s summary) ([]didLine, []string) {
 }
 
 // notRead is the row for a dataset the run did not read, where the run has a finding the dataset
-// could have raised: a finding naming a CVE, which is what KEV and EPSS are keyed on.
+// could have raised: a finding naming a CVE, in its rule id or among its aliases, which is what KEV
+// and EPSS are keyed on.
 //
 // A scan reads neither unless a flag or config.exploitability asks, so nothing is fetched without
 // somebody choosing it. Without this row, a run that read neither says nothing about either, and

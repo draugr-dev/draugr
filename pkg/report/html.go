@@ -1066,7 +1066,7 @@ func toHTMLFinding(f finding) htmlFinding {
 	sev := rankedSeverity(f)
 	var glyph, label, dir string
 	if m := movedBy(f); m != nil {
-		glyph, label = m.glyph, m.label
+		glyph, label = m.glyph, m.named()
 		switch m.glyph {
 		case "↑":
 			dir = "up"

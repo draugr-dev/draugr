@@ -152,12 +152,16 @@ type ActionLocation struct {
 type ActionExploitation struct {
 	// Signal names the dataset: "kev" or "epss".
 	Signal string `json:"signal" jsonschema:"kev (observed exploitation) or epss (predicted probability of exploitation)"`
-	// RuleID is the rule of the finding the signal applies to, a CVE.
-	RuleID string `json:"ruleId" jsonschema:"the rule of the finding the signal applies to, a CVE"`
+	// RuleID is the rule of the finding the signal applies to: a CVE, or an advisory id relating the
+	// CVE that CVE names.
+	RuleID string `json:"ruleId" jsonschema:"the rule of the finding the signal applies to: a CVE, or an advisory id relating the CVE in cve"`
 	// Detail is the specific fact, e.g. "on KEV" or "EPSS 0.87".
 	Detail string `json:"detail,omitempty" jsonschema:"the specific fact, e.g. on KEV or EPSS 0.87"`
 	// AsOf is the day the data was fetched, as YYYY-MM-DD.
 	AsOf string `json:"asOf,omitempty" jsonschema:"the day the dataset was obtained, YYYY-MM-DD"`
+	// CVE is the CVE the dataset matched, where RuleID names none and the finding listed it as an
+	// alias.
+	CVE string `json:"cve,omitempty" jsonschema:"the CVE the dataset matched, present where ruleId names none"`
 }
 
 // ActionFinding is one finding an action clears.

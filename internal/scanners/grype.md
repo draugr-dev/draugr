@@ -68,7 +68,8 @@ honest answer to "where is this".
 language-ecosystem finding under the advisory that described it, `GHSA-8q59-q68h-6hv4`, where Trivy
 reports the CVE for the same flaw. Left alone, one vulnerability arrives under two identities
 depending on which scanner saw it, so it counts twice and an exclusion written against the CVE stops
-matching. Set `byCve: false` to see the identifier Grype matched on.
+matching. Set `byCve: false` to see the identifier Grype matched on. KEV and EPSS still read the CVE
+Grype relates to that identifier, and the row names it beside its mark.
 
 **Draugr marks a match Grype made only through a CPE.** On an Alpine package, Grype looks in the NVD
 by CPE for a flaw Alpine's own data does not list. Draugr reads the match details from Grype's JSON
