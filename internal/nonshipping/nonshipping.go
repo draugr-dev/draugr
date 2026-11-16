@@ -92,7 +92,8 @@ const goTestSuffix = "_test.go"
 // a risk to those, not to the program the repository ships.
 //
 // A directory mise does not own is not matched. A Go module in a `tools` directory may hold the
-// tools a project builds and ships, and only its go.mod can say otherwise, which a path cannot.
+// tools a project builds and ships, and only its files can say otherwise, which a path cannot: the
+// repository scanners read them while the checkout exists and mark such a module there.
 func ToolDependency(rel string) bool {
 	if rel == "" || strings.Contains(rel, "://") || strings.HasPrefix(rel, "/") {
 		return false

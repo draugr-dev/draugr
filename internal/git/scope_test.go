@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -253,6 +254,49 @@ func TestScopeKeyDistinguishesSubtrees(t *testing.T) {
 	}
 	if !(Scope{}).Empty() || a.Empty() {
 		t.Error("Empty should report only the unrestricted scope")
+	}
+}
+
+// A directory is whole only where the checkout cannot have left out any file beneath it: Paths
+// selects it or a directory above it, and no Ignore pattern can reach inside it. Where Whole says
+// yes, Contains keeps every file below the directory, so the two never disagree.
+func TestScopeWholeIsTrueOnlyWhereNothingInsideCanBeLeftOut(t *testing.T) {
+	cases := []struct {
+		name  string
+		scope Scope
+		dir   string
+		want  bool
+	}{
+		{"unscoped root", Scope{}, ".", true},
+		{"unscoped subdirectory", Scope{}, "_tools", true},
+		{"a path naming the root", Scope{Paths: []string{"."}}, "", true},
+		{"selected directory", Scope{Paths: []string{"_tools/**"}}, "_tools", true},
+		{"below a selected directory", Scope{Paths: []string{"services"}}, "services/web/tools", true},
+		{"root of a scoped checkout", Scope{Paths: []string{"services"}}, ".", false},
+		{"a selected file inside", Scope{Paths: []string{"_tools/go.mod"}}, "_tools", false},
+		{"a sibling selected", Scope{Paths: []string{"web"}}, "_tools", false},
+		{"ignore elsewhere", Scope{Ignore: []string{"docs/", "api/", "_toolsx/**"}}, "_tools", true},
+		{"ignore inside", Scope{Ignore: []string{"_tools/cmd/"}}, "_tools", false},
+		{"ignore the directory", Scope{Ignore: []string{"_tools"}}, "_tools", false},
+		{"ignore above", Scope{Ignore: []string{"svc/"}}, "svc/tools", false},
+		{"wildcard reaching in", Scope{Ignore: []string{"_tool*/x.go"}}, "_tools", false},
+		{"pattern at any depth", Scope{Ignore: []string{"**/gen.go"}}, "_tools", false},
+		{"blank ignore", Scope{Ignore: []string{" "}}, "_tools", true},
+		{"any ignore reaches the root", Scope{Ignore: []string{"docs/"}}, ".", false},
+		{"outside the repository", Scope{}, "../x", false},
+	}
+	for _, c := range cases {
+		if got := c.scope.Whole(c.dir); got != c.want {
+			t.Errorf("%s: Whole(%q) = %v, want %v", c.name, c.dir, got, c.want)
+		}
+		if !c.want {
+			continue
+		}
+		for _, f := range []string{"go.mod", "tools.go", "cmd/x.go", "x.go", "gen.go"} {
+			if rel := path.Join(c.dir, f); !c.scope.Contains(rel) {
+				t.Errorf("%s: Whole(%q) is true, and Contains leaves out %s", c.name, c.dir, rel)
+			}
+		}
 	}
 }
 
