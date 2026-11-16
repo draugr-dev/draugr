@@ -28,6 +28,10 @@ listed under Caveats as `unread-files`, with the distribution and `OS packages n
 the control's line counts it as an operating system not checked. Its libraries are still scanned.
 A scan narrowed to libraries with `pkgTypes: [library]` asked for no OS packages, and says nothing.
 
+**A library finding keeps the other identifiers Trivy lists for its vulnerability**, as a
+[`trivy-fs`](trivy-fs.md) finding does. An OS package finding keeps none: Trivy lists the
+distribution's errata there (`DSA-…`, `RHSA-…`), and one erratum fixes several flaws.
+
 ## Links
 
 - Home / docs: https://trivy.dev

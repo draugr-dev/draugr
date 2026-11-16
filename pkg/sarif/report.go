@@ -246,7 +246,8 @@ type Result struct {
 	// Aliases are the other identifiers the scanner reported for this same finding, beside the one
 	// its rule id carries. retire.js names an advisory's CVEs and its GitHub advisory id together,
 	// and a rule id holds one of them; govulncheck names the Go advisory id beside the CVE or GitHub
-	// advisory id it reports; Grype names the vulnerabilities it relates to the match.
+	// advisory id it reports; Grype names the vulnerabilities it relates to the match; Trivy names a
+	// language package's other advisory ids, such as the GitHub advisory id, beside the CVE.
 	//
 	// Correlation reads them, so the finding is counted once with another scanner's copy of the flaw
 	// keyed on any of them, and so does the fold of a reachability verdict onto that copy. Only what the scanner said about this one finding, never an identifier

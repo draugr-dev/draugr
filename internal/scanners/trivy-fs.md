@@ -68,6 +68,12 @@ name. Each finding about such a package carries `own` on its package, and
 `config.controls.sca.ownPackages` decides whether it counts; see
 [Own packages](../../docs/reference/saga-schema.md#own-packages).
 
+**Each finding keeps the other identifiers Trivy lists for its vulnerability** in `VendorIDs`: the
+GitHub advisory id beside a CVE, and the Go advisory id beside both. Another scanner's copy keyed on
+any of them is counted once with this one, and a reachability verdict reported under any of them
+reaches it. A CVE in that list is left out, because Trivy reports each of an advisory's CVEs as a
+finding of its own.
+
 Trivy's `--severity` and `--ignorefile` are deliberately absent: both drop findings inside the
 tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` instead.
 

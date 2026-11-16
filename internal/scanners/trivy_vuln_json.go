@@ -199,11 +199,15 @@ func (r trivyVulnResult) ownPackages() map[string]bool {
 }
 
 type trivyVuln struct {
-	VulnerabilityID  string `json:"VulnerabilityID"`
-	PkgName          string `json:"PkgName"`
-	InstalledVersion string `json:"InstalledVersion"`
-	FixedVersion     string `json:"FixedVersion"`
-	Status           string `json:"Status"`
+	VulnerabilityID string `json:"VulnerabilityID"`
+	// VendorIDs are the vulnerability's identifiers in the advisory databases Trivy matched it in,
+	// other than VulnerabilityID, such as the GitHub advisory id beside a CVE. For an
+	// operating-system package they are the distribution's errata instead.
+	VendorIDs        []string `json:"VendorIDs"`
+	PkgName          string   `json:"PkgName"`
+	InstalledVersion string   `json:"InstalledVersion"`
+	FixedVersion     string   `json:"FixedVersion"`
+	Status           string   `json:"Status"`
 	PkgIdentifier    struct {
 		PURL string `json:"PURL"`
 		// UID is the package this finding is about, matching a trivyPackage's.
@@ -417,6 +421,7 @@ func trivyVulnResultOf(
 		Location:        sarif.Location{URI: res.Target},
 		Score:           score,
 		HasScore:        hasScore,
+		Aliases:         trivyVulnAliases(res, v),
 		Package: &sarif.Package{
 			Name:         v.PkgName,
 			Version:      v.InstalledVersion,
@@ -425,6 +430,33 @@ func trivyVulnResultOf(
 			Ecosystem:    res.Type,
 		},
 	}
+}
+
+// trivyVulnAliases are the other identifiers Trivy reports for one vulnerability, from its
+// VendorIDs, each once.
+//
+// For a language package they are the vulnerability's ids in the advisory database it was matched
+// in, such as the GitHub advisory id beside a CVE. That is Trivy's statement that
+// those ids name the flaw it matched, so correlation counts the finding once with another scanner's
+// copy keyed on any of them, and a reachability verdict given under one of them reaches this one.
+//
+// Never a CVE. Trivy keys a finding on its CVE wherever the advisory has one, and reports an
+// advisory with two CVEs as two findings, so a CVE here would be another flaw's name. And never an
+// operating-system package's: a distribution's VendorIDs are its errata (Debian's DSA and DLA, Red
+// Hat's RHSA), each a release that fixes several flaws at once, and naming one as this flaw's other
+// identifier would join it with every other flaw the same release fixed.
+func trivyVulnAliases(res trivyVulnResult, v trivyVuln) []string {
+	if res.Class == trivyClassOSPkgs {
+		return nil
+	}
+	var ids []string
+	for _, id := range v.VendorIDs {
+		if id == "" || id == v.VulnerabilityID || strings.HasPrefix(strings.ToUpper(id), "CVE-") || slices.Contains(ids, id) {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 // trivyVulnRule is the rule documentation a reader follows.
