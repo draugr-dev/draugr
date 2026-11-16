@@ -37,7 +37,15 @@ type Model struct {
 	clusterConflicts []string
 	// accountConflicts is clusterConflicts for accounts.
 	accountConflicts []string
+	// textWarnings names each value written unquoted where a field takes text, in this file and in
+	// the fragments merged into it, for a run and `draugr validate` to print.
+	textWarnings []string
 }
+
+// TextWarnings names each value YAML reads as a number or a boolean that the descriptor, or a
+// fragment merged into it, wrote unquoted in a field that takes text. The value loads as written,
+// and each warning says how to quote it.
+func (m *Model) TextWarnings() []string { return m.textWarnings }
 
 // Release identifies what is being assessed. Its version, and nothing else: what a release is
 // called is the project's name, and naming it twice let a descriptor state two.
@@ -1386,7 +1394,13 @@ type Fragment struct {
 	// Never serialized, for the same reason as ExposureReasons: it is a fact about where the
 	// document came from rather than part of the document.
 	Source string `yaml:"-" json:"-"`
+
+	// textWarnings is Model.textWarnings for this fragment, carried to the descriptor it merges into.
+	textWarnings []string
 }
+
+// TextWarnings is Model.TextWarnings for a fragment on its own.
+func (f Fragment) TextWarnings() []string { return f.textWarnings }
 
 // FragmentConfig is the part of Config a fragment is allowed to set.
 //

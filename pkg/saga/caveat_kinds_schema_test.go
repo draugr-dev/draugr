@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-// The schema lists the kinds of caveat by hand, each with what it means, so an editor can explain
-// them. Every kind Draugr accepts is in that list and nothing else is: a kind missing from it is one
-// an editor flags in a descriptor Draugr runs.
+// The schema lists the kinds of caveat, each with what it means, so an editor can explain them.
+// Every kind Draugr accepts is in that list and nothing else is: a kind missing from it is one an
+// editor flags in a descriptor Draugr runs.
 func TestTheSchemaListsEveryCaveatKind(t *testing.T) {
 	raw, err := os.ReadFile("draugr.saga.schema.json")
 	if err != nil {

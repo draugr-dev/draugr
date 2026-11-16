@@ -90,9 +90,9 @@ var builders = map[string]func(saga.PublisherConfig) (Publisher, error){
 Then, and none of these are optional:
 
 - **`pkg/publish/publish_test.go`**, `TestKinds` asserts the exact list.
-- **`pkg/saga/draugr.saga.schema.json` and `draugr.saga-fragment.schema.json`**, the `kind`
-  `anyOf` is **hand-maintained**; `internal/schemagen` does not touch publishers. A kind missing
-  here is one an editor rejects while Draugr accepts it.
+- **`internal/schemagen/sagafields.go`**, a description for the kind under `publisherConfig.kind`,
+  then `go generate ./pkg/saga/...`. Generation fails until every kind `publish.Kinds()` lists has
+  one, so an editor never rejects a kind Draugr accepts.
 - **`internal/cli/diff.go`**. `diffPublisherKind()` if the publisher is the right default for a CI
   system, plus its case in `diff_test.go`.
 

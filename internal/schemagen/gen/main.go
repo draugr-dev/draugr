@@ -1,4 +1,4 @@
-// Command gen rewrites the Saga JSON Schema's generated sections from the plugin registry, and the
+// Command gen writes the Saga JSON Schema from pkg/saga's types and the plugin registry, and the
 // fragment and config schemas derived from it.
 //
 // Run via `go generate ./pkg/saga/...`.
@@ -16,12 +16,7 @@ func main() {
 	const path = "draugr.saga.schema.json"
 	const fragmentPath = "draugr.saga-fragment.schema.json"
 	const configPath = "draugr.config.schema.json"
-	current, err := os.ReadFile(path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "read schema:", err)
-		os.Exit(1)
-	}
-	out, err := schemagen.Apply(current, builtins.Registry())
+	out, err := schemagen.SagaSchema(builtins.Registry())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "generate:", err)
 		os.Exit(1)

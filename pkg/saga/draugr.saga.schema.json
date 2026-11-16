@@ -1,5 +1,5 @@
 {
-  "$comment": "Half authored, half generated from the plugin registry. Before editing it by hand, read docs/contributing/schema.md in the draugr repository.",
+  "$comment": "Generated in full from pkg/saga and the plugin registry; before editing it by hand, read docs/contributing/schema.md in the draugr repository.",
   "$defs": {
     "account": {
       "additionalProperties": false,
@@ -72,22 +72,13 @@
       "properties": {
         "account": {
           "description": "The AWS account's 12-digit ID, as aws sts get-caller-identity prints it. Quote it: a YAML reader that takes it as a number drops a leading zero.",
-          "maximum": 999999999999,
-          "minimum": 100000000000,
           "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[0-9]{12})$",
-          "type": [
-            "string",
-            "integer"
-          ]
+          "type": "string"
         },
         "project": {
           "description": "The Google Cloud project's ID, as gcloud projects list prints it.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "provider": {
           "anyOf": [
@@ -131,11 +122,7 @@
           "description": "Regions this component's resources are in. Omit to declare the whole account, which is the only entry that receives the findings belonging to no region, such as the account's IAM policy.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array",
           "uniqueItems": true
@@ -164,20 +151,12 @@
         "benchmark": {
           "description": "The CIS benchmark kube-bench audits this cluster against, such as cis-1.10 or eks-1.5.0. Omit to let kube-bench choose from the cluster's version.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "context": {
           "description": "The kubeconfig context that reaches the cluster. Omit to use the kubeconfig's current context.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "operatedBy": {
           "anyOf": [
@@ -190,17 +169,13 @@
               "description": "A cloud provider operates it, so controls it owns are reported as theirs rather than as yours to fix."
             }
           ],
-          "description": "Who runs the cluster. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads — findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
+          "description": "Who runs the cluster. \"provider\" for a managed service, where the control plane, API server and etcd are not reachable by the team that owns the workloads. Findings about those are reported but never presented as work this team can do. RBAC, Pod Security and network policy stay theirs either way. Defaults to \"self\".",
           "type": "string"
         },
         "version": {
           "description": "The Kubernetes version kube-bench selects a benchmark from when it cannot read it from the cluster, such as \"1.34\". Ignored when benchmark is set.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "type": "object"
@@ -218,11 +193,7 @@
           "description": "Namespaces this component owns. Omit to declare the whole cluster, which is the only entry that runs the cluster-wide checks. Only the draugrK8sPolicies scanner can honor a scope; the others refuse rather than silently report the whole cluster.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array",
           "uniqueItems": true
@@ -235,7 +206,7 @@
     },
     "component": {
       "additionalProperties": false,
-      "description": "One logical part of the app. All surface lists are optional — declare what applies.",
+      "description": "One logical part of the app. All surface lists are optional, so declare what applies.",
       "properties": {
         "builtBy": {
           "anyOf": [
@@ -248,7 +219,7 @@
               "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
             }
           ],
-          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
+          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image, where a target added later silently defaults back to self.",
           "type": "string"
         },
         "cloud": {
@@ -278,14 +249,14 @@
           "description": "Overrides config.fixes for this component's findings."
         },
         "hosts": {
-          "description": "Running endpoints — probed by headers, tls, and dast.",
+          "description": "Running endpoints, probed by headers, tls, and dast.",
           "items": {
             "$ref": "#/$defs/host"
           },
           "type": "array"
         },
         "images": {
-          "description": "Container images — scanned by the images control.",
+          "description": "Container images, scanned by the images control.",
           "items": {
             "$ref": "#/$defs/image"
           },
@@ -299,7 +270,7 @@
           "type": "array"
         },
         "kubernetes": {
-          "description": "The clusters this component runs on, by name from clusters: — checked by the kubernetes control.",
+          "description": "The clusters this component runs on, by name from clusters:, checked by the kubernetes control.",
           "items": {
             "$ref": "#/$defs/clusterRef"
           },
@@ -318,14 +289,10 @@
         },
         "name": {
           "description": "Unique component name.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "repositories": {
-          "description": "Source repositories — scanned by sca, secrets, and sast.",
+          "description": "Source repositories, scanned by sca, secrets, and sast.",
           "items": {
             "$ref": "#/$defs/repository"
           },
@@ -389,7 +356,7 @@
           "$ref": "#/$defs/dependencyHealthConfig"
         },
         "exclude": {
-          "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported — marked, with its justification — it just stops counting toward the verdict.",
+          "description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported, marked with its justification, and stops counting toward the verdict.",
           "items": {
             "$ref": "#/$defs/excludeRule"
           },
@@ -422,7 +389,7 @@
           "$ref": "#/$defs/vexConfig"
         },
         "vexSources": {
-          "description": "Exploitability claims applied to every component — the project-wide half of components[].vex, for one document covering everything a team ships.",
+          "description": "Exploitability claims applied to every component, the project-wide half of components[].vex, for one document covering everything a team ships.",
           "items": {
             "$ref": "#/$defs/vexSource"
           },
@@ -1525,7 +1492,7 @@
           "description": "Limited operational impact."
         }
       ],
-      "description": "Business impact if this component fails — the impact axis of risk prioritization.",
+      "description": "Business impact if this component fails, the impact axis of risk prioritization.",
       "type": "string"
     },
     "dependencyHealthConfig": {
@@ -1552,32 +1519,20 @@
           "description": "Location patterns. A pattern ending in '/' matches everything beneath that directory; otherwise it is a glob against the whole location.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
         "reason": {
           "description": "Why this exclusion exists. Required: an exclusion without a reason is indistinguishable from an oversight.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "rules": {
           "description": "Rule ids to suppress, matched exactly.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
@@ -1595,20 +1550,16 @@
       "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one level. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
       "properties": {
         "epss": {
-          "description": "Where the EPSS scores come from: a file path, \"cache\", or \"auto\" — the same three choices as kev. Omit to leave EPSS off.",
+          "description": "Where the EPSS scores come from: a file path, \"cache\" or \"auto\", the same three choices as kev. Omit to leave EPSS off.",
           "examples": [
             "cache",
             "auto",
             "./epss.csv"
           ],
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "epssThreshold": {
-          "description": "EPSS probability at or above which a finding's severity is raised one level. Defaults to 0.5 — a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force.",
+          "description": "EPSS probability at or above which a finding's severity is raised one level. Defaults to 0.5, a coin-flip chance of exploitation within 30 days. Scores are heavily skewed, so lowering this widens the net faster than the number suggests. Zero disables the EPSS bump while leaving KEV in force.",
           "maximum": 1,
           "minimum": 0,
           "type": "number"
@@ -1620,11 +1571,7 @@
             "auto",
             "./kev.json"
           ],
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "maxAge": {
           "description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is stale. It is also the age at which govulncheck stops reading the local Go vulnerability database. A Go duration; defaults to 24h, tracking EPSS being republished daily. Raise it on a runner deliberately pinned to a known copy of the data.",
@@ -1657,7 +1604,7 @@
           "description": "Namespace- or network-policy-scoped."
         }
       ],
-      "description": "How reachable this component is — the likelihood axis of risk prioritization.",
+      "description": "How reachable this component is, the likelihood axis of risk prioritization.",
       "type": "string"
     },
     "fixesConfig": {
@@ -1687,7 +1634,7 @@
     },
     "fragmentComponent": {
       "additionalProperties": false,
-      "description": "One logical part of the app. All surface lists are optional — declare what applies.",
+      "description": "One logical part of the app. All surface lists are optional, so declare what applies.",
       "properties": {
         "builtBy": {
           "anyOf": [
@@ -1700,7 +1647,7 @@
               "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
             }
           ],
-          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image — where a target added later silently defaults back to self.",
+          "description": "Who publishes this component's targets, unless one of them says otherwise: \"self\" (the default) or \"upstream\". Set it once on a component that is entirely somebody else's software, instead of writing it on every repository and image, where a target added later silently defaults back to self.",
           "type": "string"
         },
         "cloud": {
@@ -1722,14 +1669,14 @@
           "description": "Overrides config.fixes for this component's findings."
         },
         "hosts": {
-          "description": "Running endpoints — probed by headers, tls, and dast.",
+          "description": "Running endpoints, probed by headers, tls, and dast.",
           "items": {
             "$ref": "#/$defs/host"
           },
           "type": "array"
         },
         "images": {
-          "description": "Container images — scanned by the images control.",
+          "description": "Container images, scanned by the images control.",
           "items": {
             "$ref": "#/$defs/image"
           },
@@ -1743,7 +1690,7 @@
           "type": "array"
         },
         "kubernetes": {
-          "description": "The clusters this component runs on, by name from clusters: — checked by the kubernetes control.",
+          "description": "The clusters this component runs on, by name from clusters:, checked by the kubernetes control.",
           "items": {
             "$ref": "#/$defs/clusterRef"
           },
@@ -1762,14 +1709,10 @@
         },
         "name": {
           "description": "Unique component name.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "repositories": {
-          "description": "Source repositories — scanned by sca, secrets, and sast.",
+          "description": "Source repositories, scanned by sca, secrets, and sast.",
           "items": {
             "$ref": "#/$defs/repository"
           },
@@ -1901,7 +1844,7 @@
       "description": "Saga fragments to merge in. A fragment adds components, exclusions and a short list of control settings that can only add findings; it cannot change policy, so including one can never lower the gate or turn a control off.",
       "properties": {
         "path": {
-          "description": "Which fragment files to read. Globs use the same dialect as paths and ignore — * within a segment, ** across them. Relative to the file that names it.",
+          "description": "Which fragment files to read. Globs use the same dialect as paths and ignore, * within a segment and ** across them. Relative to the file that names it.",
           "minLength": 1,
           "type": "string"
         },
@@ -2137,11 +2080,7 @@
         },
         "name": {
           "description": "Label for this endpoint.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "spec": {
           "$ref": "#/$defs/hostSpec"
@@ -2150,11 +2089,11 @@
           "anyOf": [
             {
               "const": "browser",
-              "description": "Served to browsers — full security-header suite (default)."
+              "description": "Served to browsers, checked with the full security-header suite (default)."
             },
             {
               "const": "api",
-              "description": "API endpoint — skips browser-only headers."
+              "description": "An API endpoint, which skips browser-only headers."
             }
           ],
           "description": "Tunes which header checks apply.",
@@ -2162,11 +2101,7 @@
         },
         "url": {
           "description": "Endpoint URL. Must be https:// for the tls control.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -2176,23 +2111,15 @@
     },
     "hostAuth": {
       "additionalProperties": false,
-      "description": "Authenticate the dynamic scan of this endpoint. Absent means probe it anonymously — which, against an application that requires a login, tests the login page and reports a pass about everything behind it.",
+      "description": "Authenticate the dynamic scan of this endpoint. Absent means probe it anonymously, which against an application that requires a login tests the login page and reports a pass about everything behind it.",
       "properties": {
         "header": {
           "description": "Header name, required with type \"header\" (e.g. X-API-Key).",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "tokenEnv": {
           "description": "Environment variable holding the credential. There is deliberately no field for the credential itself: a descriptor is committed, so a token written into one is a leaked token.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "type": {
           "anyOf": [
@@ -2202,7 +2129,7 @@
             },
             {
               "const": "header",
-              "description": "Sends a header you name — e.g. X-API-Key."
+              "description": "Sends a header you name, such as X-API-Key."
             }
           ],
           "description": "How to authenticate.",
@@ -2220,7 +2147,7 @@
       "description": "Drive the dynamic scan from an OpenAPI document instead of crawling. An API usually has no HTML to crawl, so a specification is what turns guessing into exercising the routes the service declares.",
       "properties": {
         "methods": {
-          "description": "HTTP methods to exercise. Absent means GET and HEAD. Naming a write method is how you accept that the scan may change data — a specification lists DELETE too, and a scanner handed one will use it.",
+          "description": "HTTP methods to exercise. Absent means GET and HEAD. Naming a write method is how you accept that the scan may change data, since a specification lists DELETE too and a scanner handed one will use it.",
           "items": {
             "enum": [
               "get",
@@ -2237,11 +2164,7 @@
         },
         "path": {
           "description": "The OpenAPI or Swagger document, relative to the descriptor.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -2263,7 +2186,7 @@
               "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
             }
           ],
-          "description": "Who builds this image: \"self\" (the default) or \"upstream\" for one this component runs but somebody else publishes. It decides what the report tells you to do about a vulnerable package inside it — a library in an image you build is yours to upgrade, and the same library in an image you only run is fixed by taking a newer image.",
+          "description": "Who builds this image: \"self\" (the default) or \"upstream\" for one this component runs but somebody else publishes. It decides what the report tells you to do about a vulnerable package inside it. A library in an image you build is yours to upgrade, and the same library in an image you only run is fixed by taking a newer image.",
           "type": "string"
         },
         "digest": {
@@ -2273,11 +2196,7 @@
         },
         "image": {
           "description": "Image reference, e.g. registry.example.com/acme/web:1.0",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "signedBy": {
           "description": "The signer this image is expected to carry, from config.controls.provenance.signers, whatever that signer's own image patterns say. For the one image that came from somewhere else; a signer states which images it covers, so a project whose registry is its own needs nothing here.",
@@ -2300,11 +2219,7 @@
         "file": {
           "description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -2320,30 +2235,18 @@
         "areaPath": {
           "description": "azure-work-item: the area path, such as Shop\\Payments. Defaults to the project's default area.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "assignedTo": {
           "description": "azure-work-item: the identity a new work item is assigned to, as an email address or display name.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "assignees": {
           "description": "github-issue, gitlab-issue: logins on GitHub, usernames on GitLab.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
@@ -2383,32 +2286,20 @@
         "iterationPath": {
           "description": "azure-work-item: the iteration path, such as Shop\\Sprint 12. Defaults to the project's default iteration.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "labels": {
           "description": "github-issue, gitlab-issue: labels applied beside the tracking label.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
         "milestone": {
           "description": "github-issue, gitlab-issue: a milestone's title, open or closed.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "priority": {
           "description": "azure-work-item: Microsoft.VSTS.Common.Priority, 1 highest to 4 lowest.",
@@ -2420,22 +2311,14 @@
           "description": "azure-work-item: tags applied beside the tracking tag.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
         "type": {
           "description": "An issue type the organization defines on GitHub; issue, incident or task on GitLab; a work item type on Azure DevOps, defaulting to the default type of the Task category.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "type": "object"
@@ -2935,11 +2818,7 @@
           "description": "github-issue, gitlab-issue, azure-work-item: the branches whose runs open, rewrite and close issues, as names or globs. Defaults to the repository's default branch.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
@@ -2963,19 +2842,11 @@
         },
         "commit": {
           "description": "github: commit SHA. Defaults to $GITHUB_SHA.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "dir": {
           "description": "file: output directory.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "item": {
           "$ref": "#/$defs/issueItem",
@@ -3026,11 +2897,7 @@
         "label": {
           "description": "github-issue, gitlab-issue, azure-work-item: the label, or tag on Azure DevOps, that finds this entry's items, applied to each one. Defaults to draugr.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "labelBy": {
           "description": "github-issue, gitlab-issue, azure-work-item: the facts every run keeps on an issue as labels, adding the ones that apply and removing the ones that no longer do. Defaults to priority. [] keeps none.",
@@ -3064,11 +2931,7 @@
         },
         "marker": {
           "description": "github-pr-comment / azure-pr-comment / gitlab-mr-comment: hidden marker identifying the sticky comment to update.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "maxChildren": {
           "description": "github-issue, gitlab-issue, azure-work-item: the most children each parent has open, with children: actions or controls. Defaults to 100.",
@@ -3100,11 +2963,7 @@
         },
         "org": {
           "description": "azure-pr-comment, azure-work-item: collection URI. Defaults to $SYSTEM_TEAMFOUNDATIONCOLLECTIONURI.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "pr": {
           "description": "github-pr-comment / azure-pr-comment: pull-request number; gitlab-mr-comment: merge-request IID. Defaults to the CI environment.",
@@ -3113,27 +2972,15 @@
         },
         "project": {
           "description": "azure-pr-comment, azure-work-item: team project. Defaults to $SYSTEM_TEAMPROJECT.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "ref": {
           "description": "github: git ref. Defaults to $GITHUB_REF.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "repo": {
-          "description": "github, github-pr-comment, github-issue: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME). gitlab-mr-comment, gitlab-issue: numeric project id or full path (default $CI_PROJECT_ID).",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "description": "github, github-pr-comment, github-issue: owner/name (default $GITHUB_REPOSITORY). azure-pr-comment: repository name (default $BUILD_REPOSITORY_NAME). gitlab-mr-comment, gitlab-issue: numeric project id, quoted as \"12345\", or full path (default $CI_PROJECT_ID).",
+          "type": "string"
         },
         "reports": {
           "description": "What this destination delivers. A publisher that can deliver only one format renders it for itself and needs none; `file` has no format of its own, so it needs these.",
@@ -3166,11 +3013,7 @@
         },
         "tokenEnv": {
           "description": "Environment variable holding the token. Defaults: GITHUB_TOKEN (github, github-pr-comment, github-issue), SYSTEM_ACCESSTOKEN (azure-pr-comment, azure-work-item), GITLAB_TOKEN (gitlab-mr-comment, gitlab-issue), DRAUGR_API_TOKEN (draugr-api). The token itself is never stored in the Saga.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "url": {
           "description": "draugr-api: where the server is reached. Defaults to $DRAUGR_API_URL. The token comes from $DRAUGR_API_TOKEN (or tokenEnv) and never from this file.",
@@ -3193,11 +3036,7 @@
           "description": "Component names.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
@@ -3245,19 +3084,11 @@
       "properties": {
         "link": {
           "description": "URL to the document.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "type": {
           "description": "Kind of reference, e.g. ThreatModel.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -3272,11 +3103,7 @@
       "properties": {
         "version": {
           "description": "Release version, shown on every report and appended to the VEX product identifier. Supports ${{ ENV_VAR }} substitution.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "type": "object"
@@ -3286,11 +3113,7 @@
       "properties": {
         "filename": {
           "description": "Override the artifact's default output filename.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "format": {
           "anyOf": [
@@ -3370,19 +3193,11 @@
         },
         "template": {
           "description": "Inline Go text/template (format: template). Set exactly one of template / templateFile.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "templateFile": {
           "description": "Path to a Go text/template (format: template).",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -3404,18 +3219,14 @@
               "description": "Somebody else publishes this, so the fix is a newer version rather than a change here."
             }
           ],
-          "description": "Who publishes this repository: \"self\" (the default) or \"upstream\" for one this component uses and somebody else maintains. Falls back to the component's own builtBy. It decides what the report tells you to do — a denied license in the dependency tree of a repository you do not publish is not one you chose and not one you can swap out, so \"change the code\" is the wrong advice.",
+          "description": "Who publishes this repository: \"self\" (the default) or \"upstream\" for one this component uses and somebody else maintains. Falls back to the component's own builtBy. It decides what the report tells you to do. A denied license in the dependency tree of a repository you do not publish is not one you chose and not one you can swap out, so \"change the code\" is the wrong advice.",
           "type": "string"
         },
         "ignore": {
           "description": "Remove matching paths from the scan, applied after `paths`. Gitignore-style: a trailing `/` is a directory, `*` matches within a path segment, `**` across them.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
@@ -3423,29 +3234,17 @@
           "description": "Restrict the scan to these directories and files. A root file is scanned only when an entry names it; the scanners' configuration at the root (.trivyignore, .semgrepignore, .gitleaks.toml and similar) is always kept. An entry the repository does not hold is an error.",
           "items": {
             "minLength": 1,
-            "type": [
-              "string",
-              "number",
-              "boolean"
-            ]
+            "type": "string"
           },
           "type": "array"
         },
         "revision": {
           "description": "Branch, tag, or commit to scan.",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "url": {
           "description": "Repository URL, or a local path such as `.`",
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -3509,22 +3308,14 @@
       "description": "Who is making the claims in a generated VEX document, and what product they are about. Both optional and both worth setting for a document you publish.",
       "properties": {
         "author": {
-          "description": "Who is making these statements — an organization, ideally with a contact. Defaults to the release name, which is a project rather than a party.",
+          "description": "The organization making these statements, ideally with a contact. Defaults to the release name, which is a project rather than a party.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "product": {
           "description": "The product the statements are about, as an IRI; a package URL is conventional. Defaults to a purl over the release. Set it to whatever the SBOM your consumer holds calls this product, or nothing will match.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "type": "object"
@@ -3590,29 +3381,17 @@
         "path": {
           "description": "The document's path inside the repository.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "ref": {
           "description": "The branch, tag or commit to read. Empty takes the default branch. Worth pinning for a claim you gate on; either way the report records the commit actually read.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "url": {
           "description": "The repository holding the document.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         }
       },
       "required": [
@@ -3623,16 +3402,12 @@
     },
     "vexSource": {
       "additionalProperties": false,
-      "description": "Where one supplier's VEX document comes from. Exactly one of path, url or repository — naming a source is how you accept its claims, and the report names their author on every finding they excused.",
+      "description": "Where one supplier's VEX document comes from. Exactly one of path, url or repository. Naming a source is how you accept its claims, and the report names their author on every finding they excused.",
       "properties": {
         "path": {
-          "description": "A document on disk, resolved relative to where Draugr runs — not to the descriptor and not to the repository, which is the rule every other path in a descriptor follows.",
+          "description": "A document on disk, resolved relative to where Draugr runs rather than to the descriptor or the repository, which is the rule every other path in a descriptor follows.",
           "minLength": 1,
-          "type": [
-            "string",
-            "number",
-            "boolean"
-          ]
+          "type": "string"
         },
         "repository": {
           "$ref": "#/$defs/vexRepository"
@@ -3651,7 +3426,7 @@
   "$id": "https://draugr.dev/schema/draugr.saga.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "The draugr.saga.yaml descriptor — a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
+  "description": "The draugr.saga.yaml descriptor, a declarative account of an application's security surface and the controls that must pass. See https://draugr.dev/docs/latest/reference/saga-schema/",
   "properties": {
     "accounts": {
       "additionalProperties": {
@@ -3686,13 +3461,8 @@
     },
     "project": {
       "description": "Which project this descriptor describes: lowercase letters, digits and dashes. A platform files runs under it.",
-      "minimum": 0,
       "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9]([a-z0-9-]*[a-z0-9])?)$",
-      "type": [
-        "string",
-        "integer",
-        "boolean"
-      ]
+      "type": "string"
     },
     "references": {
       "description": "Links to manual or human-performed controls (threat model, architecture diagram, …).",

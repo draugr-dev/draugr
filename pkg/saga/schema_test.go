@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
 )
 
-// The JSON Schema is hand-authored so it can carry real descriptions and enums. Editors show them
-// as hover docs and completions, which a generated schema does poorly. The cost of hand authoring
-// is drift, so this test walks the Go types and fails when a field isn't described. Add a field to
-// the model, add it to the schema.
+// The JSON Schema is generated from this package's types by internal/schemagen, which also covers
+// every field by construction: a descriptor struct or field it cannot describe fails generation,
+// and TestCheckedInSchemaIsUpToDate there fails when this file differs from what it generates. The
+// tests here hold the schema to the loader on the cases people meet.
 const schemaPath = "draugr.saga.schema.json"
 
 const fragmentSchemaPath = "draugr.saga-fragment.schema.json"
@@ -45,103 +44,6 @@ func definitionFor(t *testing.T, doc map[string]any, name string) map[string]any
 		t.Fatalf("schema has no $defs.%s", name)
 	}
 	return def
-}
-
-// yamlFields lists the yaml keys of a struct type.
-func yamlFields(typ reflect.Type) []string {
-	var out []string
-	for i := 0; i < typ.NumField(); i++ {
-		tag := typ.Field(i).Tag.Get("yaml")
-		if tag == "" || tag == "-" {
-			continue
-		}
-		name := strings.Split(tag, ",")[0]
-		if name != "" {
-			out = append(out, name)
-		}
-	}
-	return out
-}
-
-// schemaCase pairs a Go struct with the schema definition that describes it.
-type schemaCase struct {
-	def string
-	typ any
-}
-
-// schemaCases is every Go struct a Saga can contain, and its definition.
-//
-// Hand-written, and TestEveryDescriptorStructIsGuarded is what keeps it honest: a struct reachable
-// from a descriptor and absent here would have its fields checked by nothing.
-func schemaCases() []schemaCase {
-	return []schemaCase{
-		{"", Model{}},
-		{"release", Release{}},
-		{"config", Config{}},
-		{"reportConfig", ReportConfig{}},
-		{"publisherConfig", PublisherConfig{}},
-		{"publisherSelect", PublisherSelect{}},
-		{"issueItem", IssueItem{}},
-		{"component", Component{}},
-		{"repository", Repository{}},
-		{"image", Image{}},
-		{"host", Host{}},
-		{"hostAuth", HostAuth{}},
-		{"hostSpec", HostSpec{}},
-		{"cluster", Cluster{}},
-		{"clusterRef", ClusterRef{}},
-		{"account", Account{}},
-		{"accountRef", AccountRef{}},
-		{"fragmentRef", FragmentRef{}},
-		{"fragmentConfig", FragmentConfig{}},
-		{"reference", Reference{}},
-		{"excludeRule", ExcludeRule{}},
-		{"gateConfig", GateConfig{}},
-		{"import", Import{}},
-		{"fixesConfig", FixesConfig{}},
-		{"sbomConfig", SBOMConfig{}},
-		{"vexConfig", VEXConfig{}},
-		{"vexDecision", VEXDecision{}},
-		{"vexSource", VEXSource{}},
-		{"vexRepository", VEXRepository{}},
-		{"exploitabilityConfig", ExploitabilityConfig{}},
-		{"reachabilityConfig", ReachabilityConfig{}},
-		{"dependencyHealthConfig", DependencyHealthConfig{}},
-		{"ciConfig", CIConfig{}},
-	}
-}
-
-func TestSchemaCoversEveryModelField(t *testing.T) {
-	doc := loadSchema(t)
-
-	for _, c := range schemaCases() {
-		def := definitionFor(t, doc, c.def)
-		props, ok := def["properties"].(map[string]any)
-		if !ok {
-			t.Errorf("%s: schema definition has no properties", c.def)
-			continue
-		}
-		for _, field := range yamlFields(reflect.TypeOf(c.typ)) {
-			if _, described := props[field]; !described {
-				name := c.def
-				if name == "" {
-					name = "(root)"
-				}
-				t.Errorf("%s: field %q exists in the Go model but not in the schema, "+
-					"add it to schema/draugr.saga.schema.json", name, field)
-			}
-		}
-		// The reverse: a property the model no longer has would mislead an editor.
-		known := map[string]bool{}
-		for _, f := range yamlFields(reflect.TypeOf(c.typ)) {
-			known[f] = true
-		}
-		for prop := range props {
-			if !known[prop] {
-				t.Errorf("%s: schema describes %q, which the Go model does not have", c.def, prop)
-			}
-		}
-	}
 }
 
 // The enums are what make editor completion useful; they must match the constants.
@@ -181,8 +83,8 @@ func TestSchemaEnumsMatchConstants(t *testing.T) {
 	})
 }
 
-// The schema's list of fields item.fields may not name is written by hand, and an editor that
-// accepts a field validation refuses tells the reader the descriptor is fine until the run.
+// An editor that accepts an item field validation refuses tells the reader the descriptor is fine
+// until the run.
 func TestSchemaRefusesTheFieldsValidationRefuses(t *testing.T) {
 	for _, path := range []string{schemaPath, fragmentSchemaPath} {
 		fields, _ := definitionFor(t, readSchema(t, path), "issueItem")["properties"].(map[string]any)["fields"].(map[string]any)
@@ -364,64 +266,6 @@ func TestUnknownFieldErrorNamesTheSection(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error should mention %s: %v", want, err)
 		}
-	}
-}
-
-// descriptorStructs walks the model from the root, collecting every named struct a descriptor can
-// contain, through pointers, slices and map values.
-func descriptorStructs(t reflect.Type, seen map[reflect.Type]bool) {
-	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice || t.Kind() == reflect.Map {
-		t = t.Elem()
-	}
-	if t.Kind() != reflect.Struct || seen[t] {
-		return
-	}
-	seen[t] = true
-	for i := range t.NumField() {
-		f := t.Field(i)
-		if !f.IsExported() || f.Tag.Get("yaml") == "-" {
-			continue
-		}
-		descriptorStructs(f.Type, seen)
-	}
-}
-
-// inlinedInSchema are model structs the schema deliberately gives no definition of their own.
-// Each needs a reason here, because "no definition" is also what an unguarded type looks like.
-var inlinedInSchema = map[string]string{
-	"Model":             "the root document, covered by the \"\" case",
-	"Fragment":          "described by the generated fragment schema, kept in step by internal/schemagen",
-	"Resolved":          "a load result, never written by a user",
-	"Source":            "provenance of a loaded file, never written by a user",
-	"EffectPermissions": "two shapes behind one key, described inline by config.allowEffects's oneOf",
-}
-
-// TestEveryDescriptorStructIsGuarded stops the coverage check from silently examining less than the
-// model contains.
-//
-// schemaCases is written by hand, so a struct added to the descriptor is only checked if somebody
-// remembers to add it there. Seven were missing when this was written, each correct, and none of
-// them checked by anything. What that costs is felt in an editor first: a field Draugr accepts and
-// the schema has never heard of is underlined as an error while it works perfectly.
-func TestEveryDescriptorStructIsGuarded(t *testing.T) {
-	t.Parallel()
-
-	reachable := map[reflect.Type]bool{}
-	descriptorStructs(reflect.TypeOf(Model{}), reachable)
-
-	guarded := map[string]bool{}
-	for _, c := range schemaCases() {
-		guarded[reflect.TypeOf(c.typ).Name()] = true
-	}
-
-	for typ := range reachable {
-		name := typ.Name()
-		if guarded[name] || inlinedInSchema[name] != "" {
-			continue
-		}
-		t.Errorf("%s is reachable from a descriptor, and no schemaCases entry covers it. Add "+
-			"{\"<definition>\", %s{}} there, or record in inlinedInSchema why it has no "+
-			"definition of its own", name, name)
 	}
 }
 

@@ -1,64 +1,82 @@
 # Editing the Saga schema
 
-`pkg/saga/draugr.saga.schema.json` is **half authored and half overwritten**, and the line between
-them is not obvious from reading the file.
+`pkg/saga/draugr.saga.schema.json` is **generated in full**, and so are
+`pkg/saga/draugr.saga-fragment.schema.json` and `pkg/saga/draugr.config.schema.json`. An edit to
+any of the three files is lost on the next `go generate`, and
+`TestCheckedInSchemaIsUpToDate` in `internal/schemagen` fails until the file matches what the
+generator writes.
 
-## The authored half
+## Where each part comes from
 
-Definitions describing the descriptor's own shape, `component`, `host`, `repository`, `gateConfig`
-and the rest, are written by hand and guarded.
+The descriptor's shape is read from `pkg/saga`'s types by `internal/schemagen/saga.go`:
 
-`TestSchemaCoversEveryModelField` in `pkg/saga` reflects over the Go structs in both directions, so
-a property whose field no longer exists fails the build, and so does a field with no property.
+- a struct becomes a definition, named in `sagaDefNames`, with `additionalProperties: false`
+- a field becomes a property under its `yaml` key, typed from its Go type, so a `string` is
+  `"type": "string"`, an `int` is `integer`, a pointer is the type it points to, a slice is an
+  array and a map is an object whose values have the map's value type
+- a field holding another struct is a `$ref` to that struct's definition
 
-## The generated half
+What a Go type cannot say comes from two tables in `internal/schemagen/sagafields.go`:
 
-These come from the live plugin registry and **any edit to them is lost**:
+- `sagaFields`, keyed by definition and key (`publisherConfig.dir`), or by the key alone at the top
+  of the file, holds each field's description and any constraint beside its type, such as a
+  `pattern`, a `minLength` or a closed vocabulary
+- `sagaDefinitions` holds each definition's description, the keys it requires, and any rule
+  across its keys, such as the per-provider rules on `account`
 
-- `controlName`
-- the `control_*` definitions
-- `controllers.properties`
-- `config.allowEffects`
-- `reportConfig.properties.format`
+A closed vocabulary is written with `vocab`, which takes the Go list the loader checks against and
+a description for each value, and writes an `anyOf` of `const`. The rest comes from the plugin
+registry:
+
+- `controlName`, the `control_*` definitions and `controllers.properties`
+- `config.allowEffects`, `reachabilityConfig.analyzers` and `reportConfig.format`
 - the rules in `publisherConfig.allOf` marked `"$comment": "generated from pkg/publish"`, one per
   publisher kind, from what `pkg/publish` declares each kind reads, requires and delivers
+- `fragmentControls` and `fragmentComponent`
 
-Generated rather than guarded, because `pkg/saga` cannot import the registry without a cycle, so no
-test is in a position to compare the two.
+The fragment schema is derived from the Saga schema. The config schema copies the Saga schema's
+`controllers` definition and every `control_*` definition it refers to, and reads the rest from
+`config.File` in `internal/schemagen/config.go`, which carries one description per key.
 
-The publisher rules come from the declarations `draugr validate` reads (`reads`, `requires` and
-`accepts` in `pkg/publish/fields.go`), so the schema and `draugr validate` refuse the same fields on
-each kind. A field added to `PublisherConfig` is refused on every kind until it is named there.
+## Changing the schema
 
-## Derived
-
-`pkg/saga/draugr.saga-fragment.schema.json` and `pkg/saga/draugr.config.schema.json` are generated
-in full by the same `go generate`, and an edit to either is lost.
-
-The config schema copies the Saga schema's `controllers` definition and every `control_*`
-definition it refers to, so `controls` means the same thing in both files. The rest is read from
-`config.File` by reflection in `internal/schemagen/config.go`, which carries one description per
-key. A field added to `config.File` fails generation until `configFields` describes it.
-`internal/cli/config_schema_parity_test.go` holds the schema and `draugr config validate` to the
-same answer for every field of `internal/cli/testdata/parity/config/draugr.config.yaml`, and
-requires that file to write every field.
-
-## Held to the loader
-
-The parity tests change every field of every document under `examples/` and
-`internal/cli/testdata/parity/` and require the schema and `draugr validate` to agree. A new field
-has to be written as a live key in one of those documents; when no example should carry it, write
-it in `internal/cli/testdata/parity/fields.saga.yaml`.
-
-## After changing a descriptor struct
+Change the Go type, or its entry in `sagafields.go`, then regenerate:
 
 ```bash
 go generate ./pkg/saga/...
 go test ./pkg/saga/ ./internal/schemagen/
 ```
 
-Edit the definition in the authored half first, then regenerate. Running it the other way round
-looks like it worked and loses the edit.
+Generation refuses to write a schema it cannot vouch for, and names what to fix when:
+
+- a field of a descriptor struct has no entry in `sagaFields`, or an entry names a field that no
+  longer exists
+- a field that is not a reference to a definition has no description
+- a struct reachable from a descriptor has no name in `sagaDefNames`, or a definition has no entry
+  in `sagaDefinitions`
+- a vocabulary offers a value the loader refuses, misses one it accepts, or has a value with no
+  description
+
+## Text is quoted
+
+A field whose Go type is a string is typed `"type": "string"`. YAML reads an unquoted `true` as a
+boolean and `1.10` as a number, and an editor holding the file to the schema marks either in a
+text field. The loader keeps the literal text and warns, naming the field, its line and the quoted
+value to write (`saga.UnquotedTexts`), and a later release refuses it as the schema already does.
+
+The value of a map, such as a component's labels or an issue item's `fields`, keeps any scalar in
+both readers, because its key is the author's own word and `pci: true` says what it means.
+
+## Held to the loader
+
+The parity tests change every field of every document under `examples/` and
+`internal/cli/testdata/parity/` and require the schema and `draugr validate` to agree, counting the
+quoting warning as `draugr validate` objecting. A new field has to be written as a live key in one
+of those documents; when no example should carry it, write it in
+`internal/cli/testdata/parity/fields.saga.yaml`.
+
+`internal/schemagen/strictness_test.go` requires every string property to be closed or listed with
+the reason it is open, and every object to refuse keys it does not list.
 
 ## Why this is not in the file
 

@@ -113,8 +113,7 @@ func TestTheEditorAndDraugrAgreeOnEveryField(t *testing.T) {
 			if err := os.WriteFile(doc.edit, b, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			_, err = loadAndWarn(doc.load)
-			return err == nil
+			return !draugrObjects(doc.load)
 		}
 		editorAccepts := func(d any) bool { return sagatest.SchemaError(t, d, doc.fragment) == nil }
 
@@ -139,6 +138,20 @@ func TestTheEditorAndDraugrAgreeOnEveryField(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+}
+
+// draugrObjects reports whether `draugr validate` refuses the descriptor at path, or warns that a
+// value in it, or in a fragment it collects, is unquoted where a field takes text.
+//
+// The warning counts as an objection because it stands for the refusal a later release makes,
+// and the schema already types the field as text: for one release Draugr loads such a value and
+// says how to quote it, while an editor marks it.
+func draugrObjects(path string) bool {
+	if _, err := loadAndWarn(path); err != nil {
+		return true
+	}
+	res, err := saga.ResolveFile(path, nil)
+	return err != nil || len(res.Model.TextWarnings()) > 0
 }
 
 func excepted(path string) bool {
@@ -219,7 +232,8 @@ func TestTheEditorAndDraugrHoldAccountIDsToTheirProvider(t *testing.T) {
 	}{
 		{"a Google Cloud project", map[string]any{"provider": "gcp", "project": "shop-prod-4821"}, true},
 		{"an AWS account", map[string]any{"provider": "aws", "account": "011111111111"}, true},
-		{"an AWS account written as a number", map[string]any{"provider": "aws", "account": 111111111111}, true},
+		// Loaded as written, with a warning to quote it, which both readers count as an objection.
+		{"an AWS account written as a number", map[string]any{"provider": "aws", "account": 111111111111}, false},
 		{"an AWS account of eleven digits", map[string]any{"provider": "aws", "account": "11111111111"}, false},
 		{"a project on AWS", map[string]any{"provider": "aws", "account": "111111111111", "project": "p-1"}, false},
 		{"an account on Google Cloud", map[string]any{"provider": "gcp", "project": "p-1", "account": "111111111111"}, false},
@@ -248,9 +262,9 @@ func TestTheEditorAndDraugrHoldAccountIDsToTheirProvider(t *testing.T) {
 		}
 		_, loadErr := loadAndWarn(path)
 		schemaErr := sagatest.SchemaError(t, doc, false)
-		if (loadErr == nil) != c.ok || (schemaErr == nil) != c.ok {
+		if !draugrObjects(path) != c.ok || (schemaErr == nil) != c.ok {
 			t.Errorf("%s: draugr validate accepts=%v, the schema accepts=%v, want %v\n  validate: %v\n  schema: %v",
-				c.name, loadErr == nil, schemaErr == nil, c.ok, loadErr, schemaErr)
+				c.name, !draugrObjects(path), schemaErr == nil, c.ok, loadErr, schemaErr)
 		}
 	}
 }

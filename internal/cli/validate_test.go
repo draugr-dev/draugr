@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/builtins"
 )
 
 const validSaga = `project: app
@@ -41,6 +43,64 @@ func TestRunValidateInvalid(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid exposure") {
 		t.Errorf("err = %v, want it to mention the schema problem", err)
+	}
+}
+
+// A value YAML reads as a number or a boolean, in a field that takes text, is a warning under the
+// line saying the file is valid, naming the field, the line and the quoted value to write, and the
+// command succeeds as it did before. The same holds for a fragment checked on its own.
+func TestValidateWarnsAboutUnquotedText(t *testing.T) {
+	descriptor := writeSaga(t, `project: app
+release:
+  version: 1.0
+components:
+  - name: web
+    labels:
+      pci: true
+    images:
+      - image: alpine:3.19
+config:
+  publishers:
+    - kind: file
+      dir: true
+      reports:
+        - format: sarif
+`)
+	var out bytes.Buffer
+	if err := runValidate([]string{descriptor}, &out); err != nil {
+		t.Fatalf("runValidate: %v", err)
+	}
+	for _, want := range []string{
+		"is valid\n",
+		`  ! release.version: 1.0 on line 3 is read as a number, and this field takes text. Write it in quotes, "1.0"; a later release refuses it unquoted.` + "\n",
+		`  ! config.publishers[0].dir: true on line 13 is read as a boolean, and this field takes text. Write it in quotes, "true"; a later release refuses it unquoted.` + "\n",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output does not contain %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "labels") {
+		t.Errorf("a label's value drew a warning:\n%s", out.String())
+	}
+
+	fragment := writeSagaAt(t, t.TempDir(), "team.saga-fragment.yaml", "components:\n  - name: 2026\n")
+	out.Reset()
+	if err := runValidate([]string{fragment}, &out); err != nil {
+		t.Fatalf("runValidate on a fragment: %v", err)
+	}
+	if want := `components[0].name: 2026 on line 2 is read as a number`; !strings.Contains(out.String(), want) {
+		t.Errorf("fragment output does not contain %q:\n%s", want, out.String())
+	}
+
+	// A scan prints the same, before it runs, on the writer it is given.
+	m, err := loadSaga(descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	writeDescriptorWarnings(&out, builtins.Registry(), m)
+	if got := strings.Count(out.String(), "a later release refuses it unquoted.\n"); got != 2 {
+		t.Errorf("a scan wrote %d quoting warnings, want 2:\n%s", got, out.String())
 	}
 }
 

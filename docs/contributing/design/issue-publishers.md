@@ -581,8 +581,9 @@ tests that hold it:
 - `distinguishes`: `repo` for the GitHub and GitLab kinds, `project` for Azure, together with
   `select` and `split`. Two entries of one kind against one destination with the same selection
   would fight over the same item.
-- Both schema files, with an enum or an `openStrings` entry for every new string field
-  (`internal/schemagen/strictness_test.go`), and `TestSchemaCoversEveryModelField`.
+- An entry in `internal/schemagen/sagafields.go` for every new field, then `go generate
+  ./pkg/saga/...`, with an enum or an `openStrings` entry for every new string field
+  (`internal/schemagen/strictness_test.go`).
 - A field set on a kind that does not read it is refused by validation, not ignored.
 
 ## Failure

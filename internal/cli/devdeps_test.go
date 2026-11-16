@@ -84,11 +84,11 @@ func TestScanWritesControlWarnings(t *testing.T) {
 		"sca": {"trivyFs": saga.ControllerSettings{"includeDevDeps": true}},
 	}}}
 	var out bytes.Buffer
-	writeControlWarnings(&out, builtins.Registry(), model)
+	writeDescriptorWarnings(&out, builtins.Registry(), model)
 	if out.String() != includeDevDepsWarning+"\n" {
 		t.Errorf("wrote %q, want the deprecation", out.String())
 	}
-	if got := controlWarnings(builtins.Registry(), nil); got != nil {
+	if got := descriptorWarnings(builtins.Registry(), nil); got != nil {
 		t.Errorf("no descriptor: %q", got)
 	}
 }
