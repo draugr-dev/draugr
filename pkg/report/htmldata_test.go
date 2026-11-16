@@ -236,16 +236,3 @@ func TestRenderedReportsStateTheGate(t *testing.T) {
 		t.Error("the html report does not say what the verdict was measured against")
 	}
 }
-
-// A column that says the same thing on every row answers nothing and takes width from the ones
-// that do, in the format that gets pasted into a pull request where width is scarcest.
-func TestMarkdownDropsAComponentColumnThatRepeatsItself(t *testing.T) {
-	one := []finding{{component: "api"}, {component: "api"}}
-	if varies(one, func(f finding) string { return f.component }) {
-		t.Error("one value across every row is not a column")
-	}
-	two := []finding{{component: "api"}, {component: "web"}}
-	if !varies(two, func(f finding) string { return f.component }) {
-		t.Error("two values is exactly when the column earns its width")
-	}
-}

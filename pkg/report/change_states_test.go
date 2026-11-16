@@ -114,7 +114,6 @@ func TestADiffReportShowsEveryStateAgainstTheBase(t *testing.T) {
 		"| sca | **FAIL** | 1 P2 | 1 P1 | 1 P1 | 1 P1 |",
 		"| api | **FAIL** | 1 P2 |  | 1 P1 | 1 P1 |",
 		"| web | pass |  | 1 P1 |  |  |",
-		"| ! unaccepted | P1 |",
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown lacks %q:\n%s", want, md)

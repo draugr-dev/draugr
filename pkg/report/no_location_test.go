@@ -10,7 +10,8 @@ import (
 )
 
 // A finding the scanner gave no location says so where its location would be, in the console's
-// block and compact views, markdown and HTML, for findings in each of two repositories.
+// block and compact views and HTML, for findings in each of two repositories. Markdown lists actions
+// rather than findings, and an action names only the places it has.
 func TestAFindingWithNoLocationSaysTheScannerGaveNone(t *testing.T) {
 	d := Data{Project: "svc", Run: engine.Result{Controls: map[string]plugin.ControlResult{
 		"sast": {Control: "sast", Report: sarif.Report{Tool: "gosec", Results: []sarif.Result{
@@ -25,7 +26,7 @@ func TestAFindingWithNoLocationSaysTheScannerGaveNone(t *testing.T) {
 		view View
 	}{
 		"console": {consoleReporter{}, ""}, "compact": {consoleReporter{}, ViewCompact},
-		"markdown": {markdownReporter{}, ""}, "html": {htmlReporter{}, ""},
+		"html": {htmlReporter{}, ""},
 	} {
 		d.View = c.view
 		out := renderWith(t, c.r, d)

@@ -147,7 +147,7 @@ func TestMarkdownRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := b.String()
-	for _, want := range []string{"## Draugr · ❌ FAIL", "| Priority |", "| Scanner |", "### Controls", "### Fix first", "`CVE-1`"} {
+	for _, want := range []string{"## Draugr · ❌ FAIL", "| Priority |", "### Controls", "### Fix first", "- **P1** Fix CVE-1 · 1 finding · alpine:1"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("markdown output missing %q\n%s", want, s)
 		}

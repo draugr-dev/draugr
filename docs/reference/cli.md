@@ -646,8 +646,10 @@ draugr scan draugr.saga.yaml --format template --template '{{.Verdict}}: P1={{.P
 ```
 
 **Output formats (`--format`).** stdout defaults to a human **console** summary (verdict,
-priority/severity counts, "fix first"). `markdown` is a portable report for MR comments or wikis;
-`json` and `sarif` are the machine formats; `vex` is an OpenVEX document; `template` renders your
+priority/severity counts, "fix first"). `markdown` is a portable report for MR comments or wikis.
+Its Fix first sits under the priority counts and lists actions rather than findings: up to ten, each
+with its priority, how many findings it clears and where, and the rest in the HTML report's What to
+do. `json` and `sarif` are the machine formats; `vex` is an OpenVEX document; `template` renders your
 own Go `text/template` (see [`config.publishers`](saga-schema.md#configpublishers) for the
 available fields). `html`, `junit` and the GitLab formats are files, written with `--report` into
 `-o`. To render several formats and deliver them somewhere in one run, declare
