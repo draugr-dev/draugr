@@ -12,6 +12,50 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.179.0] - 2026-11-16
+
+### Added
+
+- **gosec and govulncheck read Go code built only for other platforms.** A file behind `//go:build windows` on Linux is analyzed in a run for windows/amd64, and its findings name that build. The run adds gosec time in proportion to the packages holding such code. Files no analyzed platform builds, and platform code govulncheck skipped, are `unread-files` caveats.
+
+### Changed
+
+- **A fix list split by `fixes.upgrade` says why the second step is there.** The step past the policy reads `major, past config.fixes.upgrade: minor`, naming the component's own key where it set one, in the console, HTML report, markdown, report.json (`policyFrom`) and `fix_list`.
+
+- **An action that `.github/workflows/actions.lock` pins to a commit no longer fails the default gate.** Its mutable-tag finding is held at P3 and marked `↓ pinned`, still counted and listed, because GitHub runs the locked commit. A reference the lockfile does not pin keeps its band.
+
+- **Credentials in test files no longer crowd the top of the list.** A `secrets` finding under `tests/`, `docs/` or `examples/`, or in a Go `_test.go` file, is labeled, listed after shipped code and still counted, with the fix `rotate the credential if it is real`. Go `_test.go` files are labeled `test` for every control.
+
+- **Findings in generated Go code, in developer tools' lockfiles and on actions `actions.lock` pins are listed after the rest.** Each still counts at its priority and shows its reason beside its location: `generated`, with the fix pointed at the generator; `developer tool`, for lockfiles under `.config/mise/`; `pinned by actions.lock`. report.json and SARIF name it `aside`.
+
+- **Fix lists lead with shipped code.** The markdown Fix first, the HTML report's What to do, `--view actions` and `fix_list` list an action whose findings are all under docs, examples or tests after the rest, and one in generated code or tooling before those. An action that touches shipped code stays with the shipped ones.
+
+- **One rule that fires many times takes one FIX FIRST row.** Its findings at one priority, in one component and repository, share a row counted beside the rule, such as `G115 · 194 findings in 17 files`, so other rules stay in view, and the heading counts findings. `--top` caps rows; `--top 0` lists every finding on its own row.
+
+- **The markdown report you post on a pull request now says what to do first, right under the priority counts.** Fix first lists up to ten actions, each with how many findings it clears and where, in place of a wide table with a row per finding; the rest are in the HTML report.
+
+### Fixed
+
+- **A detect-secrets baseline no longer fails the `secrets` control.** Gitleaks matched every `hashed_secret` line in a `.secrets.baseline`, so each recorded hash was reported as a credential to rotate. Those findings are now suppressed by default, with the reason "a hash in a detect-secrets baseline", and stay in the report. Set `config.controls.secrets.detectSecretsBaselines: report` to count them again.
+
+- **A license deny or warn list naming `GPL-3.0-only` now applies to a file Trivy names `GPL-3.0`.** Trivy names license files and headers by the bare GNU id, and the policy matched only exact ids, so a denied license came out as a warning and the run could pass. A bare id now matches either its `-only` or `-or-later` entry.
+
+- **A markdown report row no longer prints its Upgrade text twice.** A package advisory with no title of its own filled both the Upgrade and the Finding cell with the same words, such as `dpkg 1.21.22, no fix available`; the Finding cell now shows a dash.
+
+- **A `//nolint:gosec` line is no longer a new finding.** gosec ignores the golangci-lint directive, so a line a project had reviewed came back as a finding. Draugr now keeps the result on that line, or on the statement directly below the directive, suppressed in source as it does for `#nosec`, with the text after the second `//` as the reason.
+
+- **A © sign or a field named Copyright is no longer reported as an unidentified license.** With `full: true`, Trivy names such a file `Copyright` though it grants no license, and Draugr asked you to read terms that do not exist. Those files are now left out. A license Trivy could not identify is still reported.
+
+- **An `iac` finding inside a downloaded Terraform module now points at the `module` block that calls it.** It pointed at the module's own path, a file your repository does not hold, and two blocks calling one module read as one finding. The console location line names the module and its version, and `report.json` and the SARIF carry it as `module`.
+
+- **An upgrade names each dependency file once.** When Trivy and Grype counted different advisories in one `go.mod`, the action listed the file once per scanner, as `go.mod:5 · go.mod:1`. It now names the file once, at the line that requires the dependency.
+
+- **KEV and EPSS now raise Grype findings named by an advisory.** With `byCve: false`, a `GHSA-…` or `GO-…` finding whose related CVE is on KEV, or above the EPSS threshold, is now raised, and its row names the CVE: `↑ KEV (CVE-2020-35669)`.
+
+- **The HTML report's Scanner filter tells `trivy-config` and `trivy-fs` apart.** Both run Trivy, and the filter listed them as `Trivy` and `trivy`, one tool apparently split by case. It now names each finding's scanner as `draugr controls` does; an imported finding keeps its tool's name. report.json and the SARIF add `scanner` beside `tool`.
+
+- **Terraform findings no longer depend on what other Trivy runs left on the machine.** Trivy reads registry modules from a cache under the shared temporary directory before fetching them, so a module another program downloaded was checked even offline, and the same commit could give different findings on two machines. Each `iac` scan now uses its own temporary directory.
+
 ## [0.178.0] - 2026-11-14
 
 ### Added
@@ -7229,7 +7273,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.178.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.179.0...HEAD
+[0.179.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.179.0
 [0.178.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.178.0
 [0.177.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.177.0
 [0.176.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.176.1

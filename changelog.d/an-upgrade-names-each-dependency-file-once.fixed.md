@@ -1,1 +1,0 @@
-- **An upgrade names each dependency file once.** When Trivy and Grype counted different advisories in one `go.mod`, the action listed the file once per scanner, as `go.mod:5 · go.mod:1`. It now names the file once, at the line that requires the dependency.

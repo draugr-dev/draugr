@@ -1,1 +1,0 @@
-- **Credentials in test files no longer crowd the top of the list.** A `secrets` finding under `tests/`, `docs/` or `examples/`, or in a Go `_test.go` file, is labeled, listed after shipped code and still counted, with the fix `rotate the credential if it is real`. Go `_test.go` files are labeled `test` for every control.

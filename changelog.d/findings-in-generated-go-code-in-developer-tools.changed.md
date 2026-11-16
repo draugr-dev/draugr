@@ -1,1 +1,0 @@
-- **Findings in generated Go code, in developer tools' lockfiles and on actions `actions.lock` pins are listed after the rest.** Each still counts at its priority and shows its reason beside its location: `generated`, with the fix pointed at the generator; `developer tool`, for lockfiles under `.config/mise/`; `pinned by actions.lock`. report.json and SARIF name it `aside`.

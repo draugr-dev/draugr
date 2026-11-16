@@ -1,1 +1,0 @@
-- **A fix list split by `fixes.upgrade` says why the second step is there.** The step past the policy reads `major, past config.fixes.upgrade: minor`, naming the component's own key where it set one, in the console, HTML report, markdown, report.json (`policyFrom`) and `fix_list`.

@@ -1,1 +1,0 @@
-- **The markdown report you post on a pull request now says what to do first, right under the priority counts.** Fix first lists up to ten actions, each with how many findings it clears and where, in place of a wide table with a row per finding; the rest are in the HTML report.
