@@ -524,6 +524,28 @@ func TestMergeDeduplicatesInventory(t *testing.T) {
 	}
 }
 
+// A verdict about a package is one statement however many times its report is merged, and the same
+// package in two repositories, two files or for two components is one each.
+func TestMergeDeduplicatesPackageVerdicts(t *testing.T) {
+	v := func(repo, component, path string) PackageVerdict {
+		return PackageVerdict{Repository: repo, Component: component, Path: path, Package: "github.com/labstack/echo/v4",
+			Reachability: Reachability{State: ReachabilityUnreachable, Analyzer: "govulncheck", Method: MethodNotBuilt}}
+	}
+	a := Report{PackageVerdicts: []PackageVerdict{
+		v("one", "api", "go.mod"), v("two", "api", "go.mod"), v("one", "api", "tools/go.mod"), v("one", "web", "go.mod"),
+	}}
+	got := Merge(a, a).PackageVerdicts
+	if len(got) != 4 {
+		t.Fatalf("verdicts = %+v, want the four statements once each", got)
+	}
+	for i := range got {
+		if got[i].Repository != a.PackageVerdicts[i].Repository || got[i].Path != a.PackageVerdicts[i].Path ||
+			got[i].Component != a.PackageVerdicts[i].Component {
+			t.Errorf("verdict %d = %+v, want %+v, in order", i, got[i], a.PackageVerdicts[i])
+		}
+	}
+}
+
 // Unchecked checks merge the same way: one check for one component is one statement however many
 // times its report is merged, and the same check for two components is two.
 func TestMergeDeduplicatesUnchecked(t *testing.T) {

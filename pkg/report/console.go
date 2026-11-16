@@ -1139,7 +1139,13 @@ func marks(f finding) []movement {
 		out = append(out, movement{key: moveFloor, glyph: "↑", label: "floor", style: cHigh})
 	}
 	if lowered {
-		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: "unreachable", style: cInfo})
+		// Named for what was read. A module the build does not compile was never looked at for a call,
+		// and "unreachable" would claim a call graph said so.
+		label := "unreachable"
+		if f.reachability.Method == sarif.MethodNotBuilt {
+			label = "not built"
+		}
+		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: label, style: cInfo})
 	}
 	// Held at P3 because the repository's lockfile pins the reference the finding is about.
 	if f.priorityCap != "" {

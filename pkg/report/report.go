@@ -1675,11 +1675,33 @@ func reachabilityPath(r *sarif.Reachability) string {
 // naming it here separates two analyzers a reader would act on identically, at the cost of the
 // line the finding's own sentence shares. Where the method decided something the reader cannot
 // otherwise see, it is named: see unreachableStanding.
+//
+// A verdict that the module is not in the build names the build, because that is all it read: "not
+// in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)". A module compiled
+// only for another platform or under a tag nobody set is still in somebody's binary.
 func unreachableCredit(r *sarif.Reachability) string {
 	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" {
 		return ""
 	}
+	if r.Method == sarif.MethodNotBuilt {
+		return notBuiltNote(r.Build) + attribution(r)
+	}
 	return strings.TrimSuffix(strings.TrimPrefix(attribution(r), " ("), ")")
+}
+
+// notBuiltNote names the build a module is missing from: its platforms and the build tags set.
+func notBuiltNote(b *sarif.AnalyzedBuild) string {
+	if b == nil || len(b.Platforms) == 0 {
+		return "not in the build analyzed"
+	}
+	out := "not in the " + platformNote(b.Platforms) + " analyzed"
+	if len(b.Platforms) > 1 {
+		out = "in none of the " + platformNote(b.Platforms) + " analyzed"
+	}
+	if len(b.Tags) == 0 {
+		return out + ", no extra build tags"
+	}
+	return out + ", " + english.Choose(len(b.Tags), "build tag ", "build tags ") + english.And(b.Tags)
 }
 
 // unreachableStanding reports an unreachable verdict that left the band where it was.

@@ -155,6 +155,82 @@ func TestApplyReachabilityGivesEachFindingItsOwnVerdict(t *testing.T) {
 	}
 }
 
+// notBuilt is an analyzer's verdict that a module is in none of the packages its build compiled.
+func notBuilt(repo, path, pkg string) sarif.PackageVerdict {
+	return sarif.PackageVerdict{Repository: repo, Component: "api", Path: path, Package: pkg,
+		Reachability: sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+			Method: sarif.MethodNotBuilt, Build: &sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}}}}
+}
+
+// A verdict about a whole module reaches every advisory a manifest scanner reported on it in that
+// go.mod, and only there: the same module in another repository, in another go.mod, or with a verdict
+// about the advisory itself keeps what it had. Each copy is banded on its own.
+func TestApplyReachabilityMovesAPackageVerdictOntoItsFindings(t *testing.T) {
+	inRepo := func(res sarif.Result, uri string) sarif.Result {
+		res.Location.URI = uri
+		return res
+	}
+	ctrls := controlsWith(
+		inRepo(scanned("repo-a", "CVE-2022-40083", "github.com/labstack/echo/v4"), "go.mod"),
+		inRepo(scanned("repo-a", "CVE-2023-0001", "github.com/labstack/echo/v4"), "go.mod"),
+		inRepo(scanned("repo-a", "CVE-2022-40083", "github.com/labstack/echo/v4"), "tools/go.mod"),
+		inRepo(scanned("repo-b", "CVE-2022-40083", "github.com/labstack/echo/v4"), "go.mod"),
+		inRepo(scanned("repo-a", "CVE-2022-32149", "golang.org/x/text"), "go.mod"),
+		inRepo(analyzed("repo-a", "CVE-2022-32149", "golang.org/x/text", sarif.ReachabilityReachable), "go.mod"),
+	)
+	sca := ctrls["sca"]
+	sca.Report.PackageVerdicts = []sarif.PackageVerdict{
+		notBuilt("repo-a", "go.mod", "github.com/labstack/echo/v4"),
+		notBuilt("repo-a", "go.mod", "golang.org/x/text"),
+	}
+	ctrls["sca"] = sca
+
+	e := &Engine{prioritize: func(_ string, _ saga.Exposure, _ saga.Criticality, res sarif.Result) Priority {
+		if res.Reachability != nil && res.Reachability.State == sarif.ReachabilityUnreachable {
+			return Priority{Band: "P2", RankedAs: sarif.SeverityMedium}
+		}
+		return Priority{Band: "P1"}
+	}}
+	got := e.applyReachability(ctrls, saga.Model{})
+
+	verdicts := map[string]string{}
+	for _, r := range ctrls["sca"].Report.Results {
+		key := r.Repository + " " + r.Location.URI + " " + r.RuleID
+		verdicts[key] = "none"
+		if r.Reachability != nil {
+			verdicts[key] = string(r.Reachability.State) + " " + r.Reachability.Method + " " + r.Priority
+		}
+	}
+	want := map[string]string{
+		"repo-a go.mod CVE-2022-40083":       "unreachable not-built P2",
+		"repo-a go.mod CVE-2023-0001":        "unreachable not-built P2",
+		"repo-a tools/go.mod CVE-2022-40083": "none",
+		"repo-b go.mod CVE-2022-40083":       "none",
+		"repo-a go.mod CVE-2022-32149":       "reachable call-graph P1",
+	}
+	if len(verdicts) != len(want) {
+		t.Errorf("findings = %v, want %v", verdicts, want)
+	}
+	for k, v := range want {
+		if verdicts[k] != v {
+			t.Errorf("%s: %q, want %q", k, verdicts[k], v)
+		}
+	}
+	if got.Unreachable != 2 || got.Reachable != 1 {
+		t.Errorf("summary = %+v, want 2 unreachable and 1 reachable", got)
+	}
+	// RankedAs is per finding, so the two findings carrying one module's verdict do not share it.
+	var marked []*sarif.Reachability
+	for _, r := range ctrls["sca"].Report.Results {
+		if r.Reachability != nil && r.Reachability.Method == sarif.MethodNotBuilt {
+			marked = append(marked, r.Reachability)
+		}
+	}
+	if len(marked) != 2 || marked[0] == marked[1] {
+		t.Errorf("not-built verdicts = %v, want one copy per finding", marked)
+	}
+}
+
 func TestApplyReachabilityNoAnalyzerIsANoop(t *testing.T) {
 	ctrls := controlsWith(scanned("repo-a", "CVE-2022-32149", "golang.org/x/text"))
 	e := &Engine{}

@@ -45,6 +45,7 @@ func TestOnlyAStrongMethodLowersABand(t *testing.T) {
 		method string
 		want   Severity
 	}{
+		{MethodNotBuilt, SeverityMedium},
 		{MethodCallGraph, SeverityMedium},
 		{MethodDataFlow, SeverityMedium},
 		{MethodFrameworkHeuristic, SeverityHigh},
@@ -63,6 +64,7 @@ func TestEveryNamedMethodIsClassified(t *testing.T) {
 	// A method constant added without a line in ProvesAbsence reads as unknown and silently stops
 	// de-escalating, which looks like the analysis not running rather than like a missing case.
 	strong := map[string]bool{
+		MethodNotBuilt:           true,
 		MethodCallGraph:          true,
 		MethodDataFlow:           true,
 		MethodFrameworkHeuristic: false,

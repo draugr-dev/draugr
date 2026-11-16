@@ -50,6 +50,13 @@ func marksData() Data {
 				Signal: "kev", Detail: "on KEV", AsOf: "2026-11-05"},
 			Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
 				Method: sarif.MethodCallGraph}},
+		// A module the analyzed build does not compile, lowered on that reading rather than a call graph.
+		{RuleID: "CVE-2099-0004", Level: sarif.LevelError, Score: 7.5, HasScore: true, Priority: "P2",
+			Tool: "trivy", Repository: repoA, Component: "api",
+			Location: sarif.Location{URI: "go.mod", StartLine: 6}, Message: "not compiled",
+			Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+				Method: sarif.MethodNotBuilt, RankedAs: sarif.SeverityMedium, AsOf: "2026-11-16",
+				Build: &sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}}}},
 	}
 	return Data{
 		Project:     "acme",
@@ -79,6 +86,7 @@ var markCases = []markCase{
 	{rule: "tiered-key", severity: "high", mark: "↑ floor", absent: "minimum"},
 	{rule: "CVE-2099-0003", severity: "low", mark: "↓ unreachable", absent: "deprecated"},
 	{rule: "CVE-2021-44228", severity: "critical", mark: "↑ KEV", absent: "unreachable"},
+	{rule: "CVE-2099-0004", severity: "medium", mark: "↓ not built", absent: "unreachable"},
 }
 
 // The console names the mark at the head of the line under the row.
@@ -114,10 +122,12 @@ func TestTheConsoleMarksTheMoveThatDecidedTheSeverity(t *testing.T) {
 		if fields := strings.Fields(row); len(fields) < 2 || fields[1] != c.severity {
 			t.Errorf("%s: console row %q, want severity %q beside the band", c.rule, row, c.severity)
 		}
+		// The mark is the line's first part, before the separator: a label can be two words.
 		mark := strings.Fields(under)
 		got := ""
 		if len(mark) >= 2 && (mark[0] == "↑" || mark[0] == "↓" || mark[0] == "↩") {
-			got = mark[0] + " " + mark[1]
+			head, _, _ := strings.Cut(strings.TrimSpace(under), " · ")
+			got = strings.Join(strings.Fields(head), " ")
 		}
 		if got != c.mark {
 			t.Errorf("%s: console mark %q, want %q, in\n%s\n%s", c.rule, got, c.mark, row, under)
@@ -175,6 +185,7 @@ func TestTheMovementMenuFilesAFindingUnderTheMarkItsRowShows(t *testing.T) {
 		"tiered-key":     "floor minimum",
 		"cve-2099-0003":  "unreachable",
 		"cve-2021-44228": "escalation",
+		"cve-2099-0004":  "unreachable",
 	} {
 		if got, ok := rows[rule]; !ok {
 			t.Errorf("%s: no row", rule)
@@ -189,7 +200,7 @@ func TestTheMovementMenuFilesAFindingUnderTheMarkItsRowShows(t *testing.T) {
 		`value="floor" data-label="floored by a control">floored by a control</span>
         <span class="c">1</span>`,
 		`value="unreachable" data-label="lowered as unreachable">lowered as unreachable</span>
-        <span class="c">1</span>`,
+        <span class="c">2</span>`,
 		`value="minimum" data-label="raised to a minimum severity">raised to a minimum severity</span>
         <span class="c">2</span>`,
 		`value="untouched" data-label="ranked from severity alone">ranked from severity alone</span>

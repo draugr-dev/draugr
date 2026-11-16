@@ -446,12 +446,15 @@ the analysis could not see:
 
 | method | did | an unreachable verdict |
 |---|---|---|
+| `not-built` | read that the module is in none of the packages the build compiled | lowers severity one level |
 | `call-graph` | followed calls from an entry point to the vulnerable symbol | lowers severity one level |
 | `data-flow` | followed the data as well as the calls | lowers severity one level |
 | `framework-heuristic` | read a framework's conventions about wired handlers | reported, nothing moves |
 | `import-check` | saw whether the vulnerable package is referenced | reported, nothing moves |
 
-govulncheck follows the call graph. A verdict from a weaker method travels in the report and says it
+govulncheck follows the call graph, and reads `not-built` for a `go.mod` requirement missing from a
+build it loaded cleanly, naming the platforms and build tags it read. A verdict from a weaker method
+travels in the report and says it
 moved nothing. A SARIF import carries one only in Draugr's own `reachability` result property:
 
 ```

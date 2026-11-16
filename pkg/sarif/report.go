@@ -614,6 +614,38 @@ type Reachability struct {
 	// `//go:build windows`, found on Linux by a run for windows/amd64. Empty for a verdict over the
 	// machine's own build.
 	Platforms []string `json:"platforms,omitempty"`
+	// Build is the build a MethodNotBuilt verdict was read from, and nil for any other method. A
+	// module missing from a build is missing from that build only: one built only under a tag nobody
+	// set, or only for a platform nobody analyzed, is still in somebody's binary, so the verdict names
+	// what it looked at.
+	Build *AnalyzedBuild `json:"build,omitempty"`
+}
+
+// AnalyzedBuild is the build an analyzer compiled: the platforms it built for and the build tags set
+// beyond the go command's defaults.
+type AnalyzedBuild struct {
+	// Platforms are the platforms, as GOOS/GOARCH, the machine's own first.
+	Platforms []string `json:"platforms"`
+	// Tags are the build tags set, from `-tags` in GOFLAGS. Empty means none beyond the defaults.
+	Tags []string `json:"tags,omitempty"`
+}
+
+// PackageVerdict is a reachability verdict about every finding on one package declared in one
+// dependency file, rather than about one advisory.
+//
+// An analyzer reports advisories only for what it analyzed, so a package it never compiled has no
+// finding of its own for a verdict to travel on. The verdict about that package travels here, and
+// the engine moves it onto the findings other scanners reported for the package in that file.
+type PackageVerdict struct {
+	// Repository and Component say whose file it is, stamped after the scan as an Input's are.
+	Repository string `json:"repository,omitempty"`
+	Component  string `json:"component,omitempty"`
+	// Path is the dependency file that declares the package, relative to the repository root.
+	Path string `json:"path"`
+	// Package is the package's name as the file declares it: a Go module path.
+	Package string `json:"package"`
+	// Reachability is the verdict.
+	Reachability Reachability `json:"reachability"`
 }
 
 // CallPath is one route from this project's code to a vulnerable symbol, ordered caller first
@@ -949,6 +981,11 @@ type Report struct {
 	// the findings alone would never ask about it. Kept with a cached result so a cache hit carries
 	// it too. Empty for a scanner that does not list what it read.
 	Inventory []InventoryPackage `json:"inventory,omitempty"`
+	// PackageVerdicts are reachability verdicts about a whole package in one dependency file, for a
+	// package the analyzer has no finding of its own on: a Go module govulncheck's build never
+	// compiled. Folded onto other scanners' findings with the per-advisory verdicts, and kept with a
+	// cached result as Inventory is.
+	PackageVerdicts []PackageVerdict `json:"packageVerdicts,omitempty"`
 	// Unchecked are the checks a scan could not evaluate, or could evaluate only in part, each with the reason:
 	// a read the check needs that the scan's identity was denied.
 	//
@@ -1379,6 +1416,7 @@ func Merge(reports ...Report) Report {
 		out.UnsettledChecks = append(out.UnsettledChecks, rep.UnsettledChecks...)
 		out.addInputs(rep.Inputs)
 		out.addInventory(rep.Inventory)
+		out.addPackageVerdicts(rep.PackageVerdicts)
 		out.addUnchecked(rep.Unchecked)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
@@ -1486,6 +1524,22 @@ func (r *Report) addInventory(pkgs []InventoryPackage) {
 		}
 		seen[p] = true
 		r.Inventory = append(r.Inventory, p)
+	}
+}
+
+// addPackageVerdicts appends verdicts that are not already present. One analyzer's verdict about one
+// package, in one file, for one component is one statement, so merging a report with itself does not
+// double it.
+func (r *Report) addPackageVerdicts(verdicts []PackageVerdict) {
+	for _, v := range verdicts {
+		if slices.ContainsFunc(r.PackageVerdicts, func(existing PackageVerdict) bool {
+			return existing.Repository == v.Repository && existing.Component == v.Component &&
+				existing.Path == v.Path && existing.Package == v.Package &&
+				existing.Reachability.Analyzer == v.Reachability.Analyzer
+		}) {
+			continue
+		}
+		r.PackageVerdicts = append(r.PackageVerdicts, v)
 	}
 }
 
@@ -1696,10 +1750,16 @@ func RepositoriesIn(reports []Report) []RepositoryRef {
 
 // Methods an analyzer may report, strongest evidence first.
 //
-// Four things are sold as reachability and they are not the same claim. The difference is entirely
+// Four things are sold as reachability, a fifth reads whether the code is built at all, and they are
+// not the same claim. The difference is entirely
 // about the negative: saying a flaw is reachable is a positive claim somebody can go and check,
 // and saying it is unreachable is an absence claim worth exactly what the analysis cannot see.
 const (
+	// MethodNotBuilt read the build itself: the package is declared in the dependency file and is in
+	// none of the packages the analyzer compiled. Nothing in that build can call code it does not
+	// contain, so no call graph is needed. Bounded by which build was read, which the verdict names in
+	// Build: code compiled only for another platform, or only under another build tag, is outside it.
+	MethodNotBuilt = "not-built"
 	// MethodCallGraph followed calls from an entry point to the vulnerable symbol. Bounded by what
 	// the language lets a static analysis see, which every such tool publishes and none of which
 	// is nothing.
@@ -1717,17 +1777,18 @@ const (
 
 // ProvesAbsence reports whether a method's unreachable verdict is strong enough to lower a band.
 //
-// The one place this is decided. A call graph that finds no path has looked for one; a framework
-// heuristic that finds no route has read a configuration file. Only the first is evidence that the
-// vulnerable code does not run, and a band lowered by the second is a finding somebody stops
-// looking at on the strength of a guess.
+// The one place this is decided. A call graph that finds no path has looked for one, and a build that
+// does not contain the package has nothing to call it with; a framework heuristic that finds no route
+// has read a configuration file. Only the first two are evidence that the vulnerable code does not
+// run, and a band lowered by the third is a finding somebody stops looking at on the strength of a
+// guess.
 //
 // An unrecognized or absent method is not strong. That is the conservative direction and the right
 // default for a field an analyzer wrote: a tool that will not say how it decided has not earned a
 // de-escalation, and one added later gets the strict reading until somebody classifies it here.
 func ProvesAbsence(method string) bool {
 	switch method {
-	case MethodCallGraph, MethodDataFlow:
+	case MethodNotBuilt, MethodCallGraph, MethodDataFlow:
 		return true
 	default:
 		return false

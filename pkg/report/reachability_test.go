@@ -147,6 +147,38 @@ func TestUnreachableCreditNamesWhoLoweredIt(t *testing.T) {
 	}
 }
 
+// A module the build does not compile is credited with the build that was read, not with a claim that
+// the code is safe: a module built only for another platform or under another tag is still shipped by
+// somebody.
+func TestUnreachableCreditNamesTheBuildAModuleIsNotIn(t *testing.T) {
+	notBuilt := func(b *sarif.AnalyzedBuild) *sarif.Reachability {
+		return &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+			Method: sarif.MethodNotBuilt, RankedAs: sarif.SeverityMedium, AsOf: "2026-11-16", Build: b}
+	}
+	for _, c := range []struct {
+		build *sarif.AnalyzedBuild
+		want  string
+	}{
+		{&sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}},
+			"not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)"},
+		{&sarif.AnalyzedBuild{Platforms: []string{"linux/amd64", "windows/amd64"}, Tags: []string{"dev"}},
+			"in none of the linux/amd64 and windows/amd64 builds analyzed, build tag dev (govulncheck, 2026-11-16)"},
+		{&sarif.AnalyzedBuild{Platforms: []string{"darwin/arm64"}, Tags: []string{"dev", "noassets"}},
+			"not in the darwin/arm64 build analyzed, build tags dev and noassets (govulncheck, 2026-11-16)"},
+		{nil, "not in the build analyzed (govulncheck, 2026-11-16)"},
+	} {
+		if got := unreachableCredit(notBuilt(c.build)); got != c.want {
+			t.Errorf("credit = %q, want %q", got, c.want)
+		}
+	}
+	// A verdict that moved nothing, already at the lowest band, says nothing, as a call graph's does.
+	r := notBuilt(&sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}})
+	r.RankedAs = ""
+	if got := unreachableCredit(r) + unreachableStanding(r); got != "" {
+		t.Errorf("unmoved verdict = %q, want nothing", got)
+	}
+}
+
 func TestUnreachableStandingSaysTheVerdictEarnedNothing(t *testing.T) {
 	// A row with no mark and no line reads as a finding nothing was said about. The verdict is a
 	// lead the reader can follow by hand, and it is only theirs to follow if they are told it
