@@ -9,8 +9,8 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// jobPerRepo is a control planning one job per repository of a component, with no policy, as
-// secrets is.
+// jobPerRepo is a control planning one job per repository of a component, with no policy and no
+// mark, as licenses is.
 type jobPerRepo struct {
 	name    string
 	scanner string
@@ -47,6 +47,12 @@ func (c nonShippingController) ReportsNonShipping(_ saga.Model, component string
 	return c.report[component], "config.controls." + c.name + ".nonShippingPaths"
 }
 
+// markerController is a repository control whose findings are marked with no setting to set them
+// aside, as secrets is.
+type markerController struct{ jobPerRepo }
+
+func (markerController) MarksNonShipping() {}
+
 // fixtureScanner reports one finding in shipped code and one under tests/ for every repository.
 type fixtureScanner struct{ name string }
 
@@ -61,16 +67,16 @@ func (s fixtureScanner) Scan(_ context.Context, target plugin.Target, _ plugin.C
 
 // Over two components in two repositories, a run marks each opted-in control's findings under a
 // test directory, sets aside only those of the component whose setting suppresses them, and leaves a
-// control without the policy unmarked and counted.
+// control with neither the policy nor the mark unmarked and counted.
 func TestARunMarksAndSetsAsideNonShippingFindingsPerComponent(t *testing.T) {
 	reg := NewRegistry()
 	reg.RegisterScanner(fixtureScanner{name: "s"})
 	reg.RegisterController(nonShippingController{jobPerRepo{name: "iac", scanner: "s"}, map[string]bool{"api": true}})
-	reg.RegisterController(jobPerRepo{name: "secrets", scanner: "s"})
+	reg.RegisterController(jobPerRepo{name: "licenses", scanner: "s"})
 	m := saga.Model{
 		Release: saga.Release{Version: "1"},
 		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
-			"iac": {"enabled": true}, "secrets": {"enabled": true},
+			"iac": {"enabled": true}, "licenses": {"enabled": true},
 		}},
 		Components: []saga.Component{
 			{Name: "api", Repositories: []saga.Repository{{URL: "https://example.test/api.git"}}},
@@ -106,11 +112,94 @@ func TestARunMarksAndSetsAsideNonShippingFindingsPerComponent(t *testing.T) {
 			t.Errorf("iac web suppression %+v, want the setting's", r.Suppression)
 		}
 	}
-	for _, r := range res.Controls["secrets"].Report.Results {
+	licenses := res.Controls["licenses"].Report.Results
+	if len(licenses) != 4 {
+		t.Fatalf("licenses holds %d findings, want 4", len(licenses))
+	}
+	for _, r := range licenses {
 		if r.NonShipping != "" || r.Suppressed() {
-			t.Errorf("secrets %s %s: mark %q, suppressed %v; a control without the policy is neither marked nor set aside",
+			t.Errorf("licenses %s %s: mark %q, suppressed %v; a control with neither the policy nor the mark is neither marked nor set aside",
 				r.Component, r.Location.URI, r.NonShipping, r.Suppressed())
 		}
+	}
+}
+
+// testFileScanner reports a finding in shipped code, one under tests/ and one in a Go test file
+// outside any test directory.
+type testFileScanner struct{ name string }
+
+func (s testFileScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: s.name} }
+
+func (s testFileScanner) Scan(_ context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
+	return sarif.Report{Tool: s.name, Results: []sarif.Result{
+		{RuleID: "R1", Level: sarif.LevelError, Message: target.Identity(), Location: sarif.Location{URI: "internal/auth/token.go"}},
+		{RuleID: "R1", Level: sarif.LevelError, Message: target.Identity(), Location: sarif.Location{URI: "tests/fixture.env"}},
+		{RuleID: "R1", Level: sarif.LevelError, Message: target.Identity(), Location: sarif.Location{URI: "internal/auth/token_test.go"}},
+	}}, nil
+}
+
+// A marking control's findings under tests/ and in a Go test file are labeled test and still
+// counted, with nothing set aside, and a policy control's finding in a Go test file is labeled too.
+// Over two components, so neither component's findings take the other's mark.
+func TestARunMarksSecretsInTestFilesAndCountsThem(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterScanner(testFileScanner{name: "s"})
+	reg.RegisterController(markerController{jobPerRepo{name: "secrets", scanner: "s"}})
+	reg.RegisterController(nonShippingController{jobPerRepo{name: "sast", scanner: "s"}, map[string]bool{"api": true, "web": true}})
+	m := saga.Model{
+		Release: saga.Release{Version: "1"},
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+			"secrets": {"enabled": true}, "sast": {"enabled": true},
+		}},
+		Components: []saga.Component{
+			{Name: "api", Repositories: []saga.Repository{{URL: "https://example.test/api.git"}}},
+			{Name: "web", Repositories: []saga.Repository{{URL: "https://example.test/web.git"}}},
+		},
+	}
+	res, err := New(reg).Run(context.Background(), m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NonShipping != 0 {
+		t.Errorf("NonShipping = %d, want 0: nothing asked for a marked finding to be set aside", res.NonShipping)
+	}
+	for _, control := range []string{"secrets", "sast"} {
+		results := res.Controls[control].Report.Results
+		if len(results) != 6 {
+			t.Fatalf("%s holds %d findings, want 6", control, len(results))
+		}
+		for _, r := range results {
+			want := "test"
+			if r.Location.URI == "internal/auth/token.go" {
+				want = ""
+			}
+			if r.NonShipping != want {
+				t.Errorf("%s %s %s: mark %q, want %q", control, r.Component, r.Location.URI, r.NonShipping, want)
+			}
+			if r.Suppressed() {
+				t.Errorf("%s %s %s: suppressed %+v; a marked finding still counts", control, r.Component, r.Location.URI, r.Suppression)
+			}
+		}
+	}
+}
+
+// A marking control has no setting to answer, so a descriptor that writes nonShippingPaths under it
+// sets nothing aside.
+func TestApplyNonShippingLeavesAMarkersFindingsCounted(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(markerController{jobPerRepo{name: "secrets"}})
+	e := New(reg)
+	m := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"secrets": {"nonShippingPaths": "suppress"},
+	}}}
+	controls := map[string]plugin.ControlResult{"secrets": {Report: sarif.Report{Results: []sarif.Result{
+		{Component: "api", NonShipping: "test", Location: sarif.Location{URI: "tests/a.env"}},
+	}}}}
+	if n := e.applyNonShipping(controls, m); n != 0 {
+		t.Errorf("set aside %d, want 0", n)
+	}
+	if controls["secrets"].Report.Results[0].Suppressed() {
+		t.Error("a marking control's finding was set aside")
 	}
 }
 

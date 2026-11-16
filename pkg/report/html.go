@@ -396,6 +396,11 @@ func fixPhrase(f finding) string {
 	case "secrets":
 		// Removing it from the code leaves it in history and leaves it valid. The credential is the
 		// thing that leaked, so it is the thing to replace.
+		if f.nonShipping != "" {
+			// Under docs, examples or tests a credential is often a placeholder, and no scanner
+			// verifies one. A real one sits in the same history as the shipped code's.
+			return "rotate the credential if it is real"
+		}
 		return "rotate the credential"
 	case "headers":
 		return headersFix(f.ruleID)
@@ -545,7 +550,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		SBOMFormat:  s.sbomFormat,
 		MinPriority: strings.ToUpper(s.minPriority),
 		Hidden:      s.hidden,
-		NonShipping: nonShippingNote(s.nonShipping),
+		NonShipping: nonShippingNote(s.nonShipping, s.nonShippingTests),
 	}
 	view.Registries, view.Unreached, view.NotReached = htmlUnreachedTargets(d)
 	for _, name := range sortedKeys(s.scanErrors) {

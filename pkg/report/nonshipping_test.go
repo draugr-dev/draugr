@@ -37,6 +37,104 @@ func nonShippingData() Data {
 	}}}
 }
 
+// secretsInTestsData is a run over two components in two repositories with a credential each in
+// shipped code at P2, and two at P1 in test files: one under tests/ and one in a Go test file.
+func secretsInTestsData() Data {
+	at := func(component, repo, uri, prio, mark string) sarif.Result {
+		return sarif.Result{Tool: "gitleaks", RuleID: "aws-access-token", Level: sarif.LevelError, Message: "AWS access token",
+			Control: "secrets", Component: component, Repository: repo, Priority: prio,
+			Location: sarif.Location{URI: uri, StartLine: 3}, NonShipping: mark}
+	}
+	return Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"secrets": {Report: sarif.Report{Results: []sarif.Result{
+			at("api", "https://example.test/api.git", "tests/fixture.env", "P1", "test"),
+			at("api", "https://example.test/api.git", "config/prod.env", "P2", ""),
+			at("web", "https://example.test/web.git", "internal/auth/x_test.go", "P1", "test"),
+			at("web", "https://example.test/web.git", "deploy/app.env", "P2", ""),
+		}}},
+	}}}
+}
+
+// A credential in a test file is labeled, listed after every shipped one whatever its band, still
+// counted in its band, and told to rotate the credential if it is real, while the shipped ones keep
+// the plain advice. The note under the bands says test files when every marked finding is a test.
+func TestSecretsInTestFilesAreListedAfterAndStillCounted(t *testing.T) {
+	s := summarize(secretsInTestsData())
+	var got []string
+	for _, f := range s.findings {
+		got = append(got, f.priority+" "+f.location+" "+fixPhrase(f))
+	}
+	want := []string{
+		"P2 config/prod.env:3 rotate the credential",
+		"P2 deploy/app.env:3 rotate the credential",
+		"P1 tests/fixture.env:3 rotate the credential if it is real",
+		"P1 internal/auth/x_test.go:3 rotate the credential if it is real",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("listing\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if s.p1 != 2 || s.p2 != 2 {
+		t.Errorf("bands P1 %d P2 %d, want 2 and 2: a credential in a test file still counts", s.p1, s.p2)
+	}
+	if s.nonShipping != 2 || s.nonShippingTests != 2 {
+		t.Errorf("nonShipping %d, of them tests %d, want 2 and 2", s.nonShipping, s.nonShippingTests)
+	}
+
+	var buf bytes.Buffer
+	if err := (consoleReporter{}).Render(&buf, secretsInTestsData()); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	t.Logf("rendered:\n%s", out)
+	for _, want := range []string{
+		"2 findings in test files\n",
+		"tests/fixture.env:3 · test",
+		"internal/auth/x_test.go:3 · test",
+		"rotate the credential if it is real",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("console output lacks %q", want)
+		}
+	}
+	if strings.Contains(out, "docs, examples or tests") {
+		t.Error("the note names docs and examples where every marked finding is a test")
+	}
+
+	buf.Reset()
+	if err := (htmlReporter{}).Render(&buf, secretsInTestsData()); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		`<p class="note">2 findings in test files, counted and listed after the rest.</p>`,
+		`data-fix="rotate the credential if it is real"`,
+		`data-fix="rotate the credential"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("HTML lacks %q", want)
+		}
+	}
+}
+
+// The note says test files only where every counted marked finding is a test, and keeps naming docs,
+// examples and tests where any is not.
+func TestNonShippingNoteNamesTestFilesOnlyWhenAllAreTests(t *testing.T) {
+	for _, c := range []struct {
+		n, tests int
+		want     string
+	}{
+		{0, 0, ""},
+		{1, 1, "1 finding in test files"},
+		{2, 2, "2 findings in test files"},
+		{2, 1, "2 findings in docs, examples or tests"},
+		{3, 0, "3 findings in docs, examples or tests"},
+	} {
+		if got := nonShippingNote(c.n, c.tests); got != c.want {
+			t.Errorf("nonShippingNote(%d, %d) = %q, want %q", c.n, c.tests, got, c.want)
+		}
+	}
+}
+
 // Every finding in shipped code is listed before any under docs, examples or tests, whatever its
 // band, and the marked ones keep their bands among themselves.
 func TestShippedCodeIsListedFirst(t *testing.T) {

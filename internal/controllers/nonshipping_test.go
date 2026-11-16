@@ -74,12 +74,17 @@ func TestNonShippingIsReadFromTheControlsOwnBlock(t *testing.T) {
 	}
 }
 
-// secrets does not take the setting and is never asked: a credential beside a test is still live.
-func TestSecretsHasNoNonShippingPolicy(t *testing.T) {
+// secrets has its findings marked but does not take the setting and is never asked: a credential
+// beside a test is listed after the shipped code's and still counts, because a real one is as live.
+func TestSecretsIsMarkedButHasNoNonShippingPolicy(t *testing.T) {
 	t.Parallel()
 	if _, ok := NewSecrets().(plugin.NonShippingPolicy); ok {
-		t.Error("secrets implements NonShippingPolicy, so its findings under tests/ would be marked and could be set aside")
+		t.Error("secrets implements NonShippingPolicy, so its findings under tests/ could be set aside")
 	}
+	if _, ok := NewSecrets().(plugin.NonShippingMarker); !ok {
+		t.Error("secrets does not implement NonShippingMarker, so a fixture's credential is listed among the shipped code's")
+	}
+	NewSecrets().(plugin.NonShippingMarker).MarksNonShipping()
 	for _, o := range plugin.Options(NewSecrets().Info().OptionSchema) {
 		if o.Name == nonShippingKey {
 			t.Error("secrets declares nonShippingPaths")

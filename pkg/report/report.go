@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/nonshipping"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/exploit"
@@ -897,6 +898,8 @@ type summary struct {
 	// finding, for the reason bySignal is: the listing names the ones it shows, and a cut listing
 	// cannot say how many of the rest there are.
 	nonShipping int
+	// nonShippingTests is how many of those are in tests, so a note over tests alone can say so.
+	nonShippingTests int
 	// aside is how many counted findings are listed after the rest for a reason of their own, such
 	// as code a generator wrote, so the heading does not call the order priority alone.
 	aside int
@@ -1017,6 +1020,9 @@ func summarize(d Data) summary {
 			}
 			if res.NonShipping != "" {
 				s.nonShipping++
+				if res.NonShipping == nonshipping.Test {
+					s.nonShippingTests++
+				}
 			} else if res.Aside != "" {
 				s.aside++
 			}
