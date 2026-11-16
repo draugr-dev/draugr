@@ -78,10 +78,9 @@ report`).
 | **Surveyors, collectively (the discovery subsystem)** | **Surveyor** (plain) | ✅ | Deliberately unnamed. "The Ravens" (Odin's Huginn & Muninn, who fly the world and report back) was a good fit for what surveyors do, but it was carried alongside the plain term rather than instead of it, every page said "Surveyors (the Ravens)", which is two names for one thing and a tax on the reader for no gain. **Doc-facing:** **Surveyor**, everywhere. |
 | **Reporting / evidence engine** | **Skald** | ✅ | A skald is the poet who records and recounts deeds. `pkg/skald` renders scan results to JSON + merged SARIF evidence (human formats live in `pkg/report`). **Code-internal only**. User docs say "report" / "reporting". |
 | **Policy / pass-fail gate** | **Norn** | ✅ | The Norns decide fate. `pkg/norn` decides a release's fate. **Code-internal only**. User docs say "the gate" / "verdict". |
-| **Plugin marketplace / registry** | **the Hoard** | 🔶 | The treasure a draugr guards. A registry of community scanners, controllers, and surveyors. |
 
 **In use today:** `draugr.saga.yaml` (descriptor), **Skald** (`pkg/skald`), and **Norn**
-(`pkg/norn`). **the Hoard** stays reserved until the plugin registry lands.
+(`pkg/norn`).
 
 **Doc-facing vs. code-internal.** `Norn` and `Skald` are **code vocabulary** (`pkg/norn`,
 `pkg/skald`) and stay out of user-facing docs. A reader shouldn't have to learn a Norse name to
