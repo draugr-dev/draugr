@@ -1,1 +1,0 @@
-- **A Go module that only pins developer tools no longer leads FIX FIRST.** When every `.go` file in a module needs the `tools` build tag, or the module has no `.go` file and its `go.mod` declares `tool` directives, its findings are labeled as a developer tool's and listed after the application's. They still count at their priority.
