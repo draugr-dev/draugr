@@ -16,6 +16,9 @@ import (
 func upgradeFinding(rule, prio, component, policy, ecosystem, name, version, fixed string) finding {
 	f := pkgFinding("sca", rule, prio, "package-lock.json:12", name, version, fixed)
 	f.component, f.upgradePolicy = component, policy
+	if policy != "" {
+		f.policyFrom = "config.fixes.upgrade"
+	}
 	f.pkg.Ecosystem = ecosystem
 	return f
 }
@@ -69,7 +72,7 @@ func TestAPolicySplitsAnUpgradeInTwo(t *testing.T) {
 	if beyond.title+" → "+beyond.target() != "Upgrade jquery 1.12.2 → 3.5.0" || beyond.count() != 1 || beyond.priority != "P1" {
 		t.Errorf("beyond = %q → %q, %d findings, %s", beyond.title, beyond.target(), beyond.count(), beyond.priority)
 	}
-	if l := beyond.step.label(); l != "major · beyond policy minor" {
+	if l := beyond.step.label(); l != "major, past config.fixes.upgrade: minor" {
 		t.Errorf("label = %q", l)
 	}
 	if within.step.label() != "" {
@@ -109,7 +112,7 @@ func TestAPolicyLeavesWhatItCannotSplit(t *testing.T) {
 	})
 	t.Run("everything beyond", func(t *testing.T) {
 		got, _ := groupActions([]finding{upgradeFinding("CVE-1", "P1", "web", "patch", "pip", "Flask", "0.12.2", "3.1.3")}, nil)
-		if len(got) != 1 || got[0].step.label() != "major · beyond policy patch" || got[0].step.after != "" {
+		if len(got) != 1 || got[0].step.label() != "major, past config.fixes.upgrade: patch" || got[0].step.after != "" {
 			t.Errorf("an upgrade only a larger step clears is one action, labeled: %+v", got[0].step)
 		}
 	})
@@ -133,7 +136,7 @@ func TestAPolicyLeavesWhatItCannotSplit(t *testing.T) {
 			upgradeFinding("CVE-1", "P1", "web", "minor", "npm", "jquery", "1.8.3", "1.9.1, 3.0.0"),
 			upgradeFinding("CVE-2", "P1", "web", "minor", "npm", "jquery", "1.8.3", "1.10.1, 3.0.0"),
 		}, nil)
-		if len(got) != 1 || got[0].target() != "3.0.0" || got[0].step.label() != "major · beyond policy minor" {
+		if len(got) != 1 || got[0].target() != "3.0.0" || got[0].step.label() != "major, past config.fixes.upgrade: minor" {
 			t.Errorf("with no single release inside the policy the action stays whole and says where it goes: %q, %+v",
 				got[0].target(), got[0].step)
 		}
@@ -148,7 +151,8 @@ func TestTheExportedActionStatesItsPolicy(t *testing.T) {
 	}
 	res := func(rule, prio, fixed string) sarif.Result {
 		return sarif.Result{RuleID: rule, Priority: prio, Component: "web", UpgradePolicy: "minor",
-			Location: sarif.Location{URI: "package-lock.json"}, Package: pkg(fixed)}
+			UpgradePolicyFrom: `components["web"].fixes.upgrade`,
+			Location:          sarif.Location{URI: "package-lock.json"}, Package: pkg(fixed)}
 	}
 	got := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{
 		res("CVE-1", "P1", "3.5.0"), res("CVE-2", "P2", "1.12.2"),
@@ -167,6 +171,10 @@ func TestTheExportedActionStatesItsPolicy(t *testing.T) {
 		beyond.Beyond != "major" || within.Beyond != "" {
 		t.Errorf("beyond = %+v", beyond)
 	}
+	// The key to change, as the finding recorded it, so a caller can name it as the console does.
+	if beyond.PolicyFrom != `components["web"].fixes.upgrade` || within.PolicyFrom != beyond.PolicyFrom || deb.PolicyFrom != "" {
+		t.Errorf("policyFrom = %q, %q and %q", within.PolicyFrom, beyond.PolicyFrom, deb.PolicyFrom)
+	}
 	// The name the note groups by, so a reader of report.json spells it as the console does.
 	if within.Versioning != "npm" || deb.Versioning != "debian" {
 		t.Errorf("versioning = %q and %q", within.Versioning, deb.Versioning)
@@ -182,25 +190,70 @@ func TestAllows(t *testing.T) {
 	}
 }
 
-// TestAStepPastThePolicySaysSoOnItsTitle: the label sits beside the instruction it qualifies, in
-// the console and the HTML report alike, and the step within the policy carries none.
+// TestAStepPastThePolicySaysSoOnItsTitle: the mark sits beside the instruction it qualifies, in the
+// console, the HTML report and the markdown alike, naming the setting as the descriptor writes it.
+// The step within the policy carries none, and on the default policy no row does.
 func TestAStepPastThePolicySaysSoOnItsTitle(t *testing.T) {
-	got, _ := groupActions([]finding{
-		upgradeFinding("CVE-1", "P1", "web", "minor", "npm", "jquery", "1.8.3", "3.5.0"),
-		upgradeFinding("CVE-2", "P2", "web", "minor", "npm", "jquery", "1.8.3", "1.12.2"),
-	}, nil)
-	var buf strings.Builder
-	renderActions(&buf, tui.Plain(), got, false)
-	lines := strings.Split(buf.String(), "\n")
-	if lines[0] != "  P2  Upgrade jquery 1.8.3 → 1.12.2" {
-		t.Errorf("the step within the policy = %q", lines[0])
+	split := func(policy, from string) []action {
+		a := upgradeFinding("CVE-1", "P1", "web", policy, "npm", "jquery", "1.8.3", "3.5.0")
+		b := upgradeFinding("CVE-2", "P2", "web", policy, "npm", "jquery", "1.8.3", "1.12.2")
+		a.policyFrom, b.policyFrom = from, from
+		got, _ := groupActions([]finding{a, b}, nil)
+		return got
 	}
-	if lines[2] != "  P1  Upgrade jquery 1.12.2 → 3.5.0  major · beyond policy minor" {
-		t.Errorf("the step past it = %q", lines[2])
+	type row struct{ console, html, markdown string }
+	rows := func(got []action) []row {
+		var buf strings.Builder
+		renderActions(&buf, tui.Plain(), got, true)
+		lines := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+		if len(lines) != len(got) {
+			t.Fatalf("one console line per action, got %q", lines)
+		}
+		out := make([]row, len(got))
+		for i, a := range got {
+			out[i] = row{lines[i], toHTMLAction(a).Policy, markdownActionLine(a, false)}
+		}
+		return out
 	}
-	if h := toHTMLAction(got[1]); h.Policy != "major · beyond policy minor" || toHTMLAction(got[0]).Policy != "" {
-		t.Errorf("html policy = %q and %q", toHTMLAction(got[0]).Policy, h.Policy)
+
+	for _, c := range []struct {
+		name, from, setting string
+	}{
+		{"the project's", "config.fixes.upgrade", "config.fixes.upgrade: minor"},
+		{"the component's own", `components["web"].fixes.upgrade`, `components["web"].fixes.upgrade: minor`},
+		// A report written before the key was recorded still names the setting.
+		{"a key not recorded", "", "fixes.upgrade: minor"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			got := rows(split("minor", c.from))
+			if len(got) != 2 {
+				t.Fatalf("want the step within the policy and the step past it, got %+v", got)
+			}
+			within, past := got[0], got[1]
+			if within.console != "  P2  Upgrade jquery 1.8.3 → 1.12.2" || within.html != "" ||
+				within.markdown != "- **P2** Upgrade jquery 1.8.3 → 1.12.2 · 1 finding · package-lock.json:12" {
+				t.Errorf("the step within the policy carries no mark: %+v", within)
+			}
+			if want := "  P1  Upgrade jquery 1.12.2 → 3.5.0  major, past " + c.setting; past.console != want {
+				t.Errorf("console = %q, want %q", past.console, want)
+			}
+			if want := "major, past " + c.setting; past.html != want {
+				t.Errorf("html = %q, want %q", past.html, want)
+			}
+			if want := "- **P1** Upgrade jquery 1.12.2 → 3.5.0 · major, past `" + c.setting + "` · 1 finding · package-lock.json:12"; past.markdown != want {
+				t.Errorf("markdown = %q, want %q", past.markdown, want)
+			}
+		})
 	}
+
+	t.Run("the default", func(t *testing.T) {
+		for _, policy := range []string{"major", ""} {
+			got := rows(split(policy, "config.fixes.upgrade"))
+			if len(got) != 1 || strings.Contains(got[0].console, "past") || got[0].html != "" || strings.Contains(got[0].markdown, "past") {
+				t.Errorf("policy %q marks no row: %+v", policy, got)
+			}
+		}
+	})
 }
 
 // TestTheHTMLReportOpensEachStepsOwnFindings: findings of one package split across two actions
@@ -217,7 +270,7 @@ func TestTheHTMLReportOpensEachStepsOwnFindings(t *testing.T) {
 			Location: sarif.Location{URI: "package-lock.json"}, Package: pkg("1.12.2")},
 	}}}
 	page := renderHTML(t, d)
-	if !strings.Contains(page, "major · beyond policy minor") {
+	if !strings.Contains(page, "major, past fixes.upgrade: minor") {
 		t.Fatal("the step past the policy is not labeled")
 	}
 	acts := section(t, page, `id="acts"`, `</section>`)

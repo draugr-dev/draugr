@@ -9,7 +9,7 @@ func TestUpgradePolicySurvivesTheFile(t *testing.T) {
 		RuleID: "CVE-2020-11023", Level: LevelError, Tool: "trivy", Control: "sca", Component: "web",
 		Location:      Location{URI: "package-lock.json", StartLine: 12},
 		Package:       &Package{Name: "jquery", Version: "1.8.3", FixedVersion: "3.5.0"},
-		UpgradePolicy: "minor",
+		UpgradePolicy: "minor", UpgradePolicyFrom: `components["web"].fixes.upgrade`,
 	}}}
 	data, err := in.MarshalSARIF()
 	if err != nil {
@@ -21,5 +21,8 @@ func TestUpgradePolicySurvivesTheFile(t *testing.T) {
 	}
 	if got := out.Results[0].UpgradePolicy; got != "minor" {
 		t.Errorf("upgradePolicy read back as %q, want minor", got)
+	}
+	if got := out.Results[0].UpgradePolicyFrom; got != `components["web"].fixes.upgrade` {
+		t.Errorf("upgradePolicyFrom read back as %q", got)
 	}
 }

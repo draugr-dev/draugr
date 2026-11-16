@@ -138,9 +138,18 @@ func TestDependencyFindingsCarryTheirComponentsUpgradePolicy(t *testing.T) {
 	api := saga.Component{Name: "api"}
 	legacy := saga.Component{Name: "legacy", Fixes: &saga.FixesConfig{Upgrade: saga.UpgradeMajor}}
 	for _, comp := range []*saga.Component{&web, &api, &legacy} {
-		planned = appendJobs(planned, "sca", comp, comp.UpgradePolicy(model.Config), []plugin.ScanJob{{}})
+		planned = appendJobs(planned, "sca", comp, model.Config, []plugin.ScanJob{{}})
 	}
 	if planned[0].UpgradePolicy != saga.UpgradePatch || planned[1].UpgradePolicy != saga.UpgradeMinor || planned[2].UpgradePolicy != "" {
 		t.Errorf("planned policies = %q, %q, %q", planned[0].UpgradePolicy, planned[1].UpgradePolicy, planned[2].UpgradePolicy)
+	}
+	// Each names the key a reader would edit to change it.
+	if planned[0].UpgradePolicyFrom != `components["web"].fixes.upgrade` || planned[1].UpgradePolicyFrom != "config.fixes.upgrade" ||
+		planned[2].UpgradePolicyFrom != "" {
+		t.Errorf("planned policy keys = %q, %q, %q", planned[0].UpgradePolicyFrom, planned[1].UpgradePolicyFrom, planned[2].UpgradePolicyFrom)
+	}
+	from := e.stampJobFields(report, planned[0])
+	if got := from.Results[0].UpgradePolicyFrom; got != `components["web"].fixes.upgrade` {
+		t.Errorf("the dependency finding carries the policy's key %q", got)
 	}
 }

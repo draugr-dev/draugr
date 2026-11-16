@@ -1518,7 +1518,7 @@ func ActionsFor(reports map[string]sarif.Report) []Action {
 			act.Versioning = ecosystemName(a)
 		}
 		if s := a.step; s != nil {
-			act.Policy = string(s.policy)
+			act.Policy, act.PolicyFrom = string(s.policy), s.from
 			if s.applies {
 				within := s.beyond == ""
 				act.WithinPolicy = &within

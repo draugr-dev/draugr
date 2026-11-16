@@ -62,10 +62,14 @@ type Action struct {
 	Target string `json:"target,omitempty"`
 	// Policy is the component's fixes.upgrade, patch or minor, for an upgrade it applies to. Absent
 	// where the component left the default of major.
-	Policy string `json:"policy,omitempty"`
+	Policy string `json:"policy,omitempty" jsonschema:"the largest upgrade step the component allows, patch or minor; absent where it allows any step"`
+	// PolicyFrom is the descriptor key that set Policy, `config.fixes.upgrade` or
+	// `components["web"].fixes.upgrade`, which a reader changes for the fix list to propose a larger
+	// step. Absent with Policy, and in a report whose findings did not record it.
+	PolicyFrom string `json:"policyFrom,omitempty" jsonschema:"the descriptor setting that set policy, e.g. config.fixes.upgrade; for a step past the policy, name it, since it is where the reader allows a larger step"`
 	// WithinPolicy says whether this step stays within Policy. A step past it carries the findings
 	// only it clears, and After names the step within the policy it follows.
-	WithinPolicy *bool `json:"withinPolicy,omitempty"`
+	WithinPolicy *bool `json:"withinPolicy,omitempty" jsonschema:"false for a step larger than policy allows, which the reader has to choose to take"`
 	// PolicyApplies is false where Policy could not be applied because the versions are not
 	// semantic, a distribution's packages among them, so the action was not split.
 	PolicyApplies *bool `json:"policyApplies,omitempty"`
@@ -73,8 +77,8 @@ type Action struct {
 	After string `json:"after,omitempty"`
 	// Beyond is the size of a step past Policy, minor or major, measured from the release the After
 	// step reaches, or from the installed version where there is none. The label
-	// `major · beyond policy minor` is Beyond and Policy.
-	Beyond string `json:"beyond,omitempty"`
+	// `major, past config.fixes.upgrade: minor` is Beyond, PolicyFrom and Policy.
+	Beyond string `json:"beyond,omitempty" jsonschema:"the size of a step past policy, minor or major"`
 	// FixedVersions are the releases the advisories name as fixing these findings, in the order
 	// first seen, each advisory's own answer.
 	FixedVersions []string `json:"fixedVersions,omitempty"`

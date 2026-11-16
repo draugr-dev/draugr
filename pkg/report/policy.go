@@ -1,6 +1,7 @@
 package report
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
 	"sort"
@@ -17,6 +18,8 @@ import (
 type policyStep struct {
 	// policy is the component's fixes.upgrade, patch or minor.
 	policy saga.UpgradeStep
+	// from is the descriptor key that set policy, `config.fixes.upgrade` or the component's own.
+	from string
 	// applies is false where the versions are not semantic, so no step could be sized.
 	applies bool
 	// beyond is the size of a step past the policy, minor or major. Empty for a step within it.
@@ -29,12 +32,28 @@ type policyStep struct {
 	target string
 }
 
-// label is what the console and the HTML report print after the title, or "" for none.
+// label is what the console and the HTML report print after the title of a step past the policy,
+// `major, past config.fixes.upgrade: minor`, or "" for any other action.
+//
+// The step within the policy is the upgrade the reader asked for and needs no mark, while the step
+// past it reads as a duplicate of it without one. The setting is written as the descriptor spells
+// it, so a reader who wants the larger step proposed whole knows which line to change.
 func (s *policyStep) label() string {
-	if s == nil || !s.applies || s.beyond == "" {
+	if !s.past() {
 		return ""
 	}
-	return fmt.Sprintf("%s · beyond policy %s", s.beyond, s.policy)
+	return fmt.Sprintf("%s, past %s", s.beyond, s.setting())
+}
+
+// past reports whether the step goes past the component's fixes.upgrade.
+func (s *policyStep) past() bool {
+	return s != nil && s.applies && s.beyond != ""
+}
+
+// setting is the policy as the descriptor writes it, `config.fixes.upgrade: minor`. A report written
+// before the key was recorded names the setting without saying which one.
+func (s *policyStep) setting() string {
+	return cmp.Or(s.from, "fixes.upgrade") + ": " + string(s.policy)
 }
 
 // splitByPolicy divides each upgrade whose component set fixes.upgrade below major into the step
@@ -59,12 +78,13 @@ func splitOne(a action) []action {
 	f := a.findings[0]
 	ecosystem := versionorder.Ecosystem(f.pkg.PURL, f.pkg.Ecosystem)
 	installed := f.pkg.Version
+	from := f.policyFrom
 
 	var within, beyond []finding
 	for _, f := range a.findings {
 		fits, sized := fitsPolicy(ecosystem, installed, fixesOf(f), policy)
 		if !sized {
-			a.step = &policyStep{policy: policy}
+			a.step = &policyStep{policy: policy, from: from}
 			return []action{a}
 		}
 		if fits {
@@ -81,7 +101,7 @@ func splitOne(a action) []action {
 		target = lowestWithin(ecosystem, installed, within, policy)
 	}
 	if target == "" {
-		a.step = &policyStep{policy: policy, applies: true}
+		a.step = &policyStep{policy: policy, from: from, applies: true}
 		if t := a.target(); t != "" {
 			if step, ok := stepOf(ecosystem, installed, t); ok && !allows(policy, step) {
 				a.step.beyond = step
@@ -93,7 +113,7 @@ func splitOne(a action) []action {
 	w := a
 	w.findings = within
 	w.priority = worstPriority(within)
-	w.step = &policyStep{policy: policy, applies: true, target: target}
+	w.step = &policyStep{policy: policy, from: from, applies: true, target: target}
 	// A copy goes with the step its own fixes put it in, as the finding it repeats does. Where there
 	// is no step past the policy, or its fixes cannot be sized, it goes with the step within it.
 	var withinCopies, beyondCopies []finding
@@ -115,7 +135,7 @@ func splitOne(a action) []action {
 	b.copies = beyondCopies
 	b.priority = worstPriority(beyond)
 	b.title = fmt.Sprintf("Upgrade %s %s", a.dependency().Name, target)
-	b.step = &policyStep{policy: policy, applies: true, after: w.id()}
+	b.step = &policyStep{policy: policy, from: from, applies: true, after: w.id()}
 	if t := upgradeTarget(beyond); t != "" {
 		b.step.target = t
 		if step, ok := stepOf(ecosystem, target, t); ok {

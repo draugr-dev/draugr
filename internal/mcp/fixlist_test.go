@@ -41,8 +41,12 @@ func fixListRun() engine.Result {
 			Message: rule}
 	}
 	jquery := func(component, policy, rule, fixed, priority string, line int) sarif.Result {
+		var from string
+		if policy != "" {
+			from = "config.fixes.upgrade"
+		}
 		return sarif.Result{RuleID: rule, Tool: "trivy", Priority: priority, Level: sarif.LevelError,
-			Component: component, UpgradePolicy: policy, Message: rule + " in jquery",
+			Component: component, UpgradePolicy: policy, UpgradePolicyFrom: from, Message: rule + " in jquery",
 			Location: sarif.Location{URI: "web/package-lock.json", StartLine: line},
 			Package: &sarif.Package{Name: "jquery", Version: "1.8.3", FixedVersion: fixed, Ecosystem: "npm",
 				PURL: "pkg:npm/jquery@1.8.3"}}
@@ -331,6 +335,45 @@ func TestFixListCountsEachFindingOnce(t *testing.T) {
 	if len(steps) != 2 || steps[0].Clears+steps[1].Clears != 4 || steps[1].After != steps[0].ID {
 		t.Errorf("storefront's jquery should be a step within its minor policy and one past it, "+
 			"clearing its 4 findings between them: %+v", steps)
+	}
+}
+
+// TestFixListMarksOnlyTheStepPastThePolicy: an assistant reading fix_list tells the two jquery
+// steps apart by fields rather than by a title, which stays the instruction alone. The step past the
+// policy says how large it is and names the setting it goes past; the step within it and the
+// component on the default carry no mark.
+func TestFixListMarksOnlyTheStepPastThePolicy(t *testing.T) {
+	_, out, err := FixListTool(context.Background(), nil, FixListInput{Path: writeRunSARIF(t, fixListRun()), Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var within, past, api *report.Action
+	for _, a := range allActions(out) {
+		switch {
+		case a.Package != "jquery":
+		case a.Component == "api":
+			api = &a
+		case a.After == "":
+			within = &a
+		default:
+			past = &a
+		}
+	}
+	if within == nil || past == nil || api == nil {
+		t.Fatalf("want storefront's two jquery steps and api's one: %+v", allActions(out))
+	}
+	if past.Beyond != "major" || past.WithinPolicy == nil || *past.WithinPolicy ||
+		past.Policy != "minor" || past.PolicyFrom != "config.fixes.upgrade" {
+		t.Errorf("the step past the policy = %+v", *past)
+	}
+	if within.Beyond != "" || within.WithinPolicy == nil || !*within.WithinPolicy {
+		t.Errorf("the step within the policy carries no mark: %+v", *within)
+	}
+	if api.Policy != "" || api.PolicyFrom != "" || api.Beyond != "" || api.WithinPolicy != nil {
+		t.Errorf("a component on the default policy carries none: %+v", *api)
+	}
+	if past.Title != "Upgrade jquery 1.12.2" {
+		t.Errorf("the title stays the instruction: %q", past.Title)
 	}
 }
 
