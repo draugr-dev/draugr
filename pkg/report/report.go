@@ -743,6 +743,9 @@ func (f finding) scannerName() string {
 // --- shared summary used by the human reporters ---
 
 type finding struct {
+	// repeats is how many further findings a row of the findings view stands for (foldFindings), and
+	// repeatFiles how many files they and the row's own finding are in. Zero on a finding not folded.
+	repeats, repeatFiles int
 	// priorityCap is why the band was held below what severity and context gave
 	// (sarif.Result.PriorityCap), empty where nothing held it down.
 	priorityCap string
@@ -861,6 +864,8 @@ func (c *sevCounts) add(s sarif.Severity) {
 }
 
 type summary struct {
+	// folded says the findings view put several findings on one row (foldFindings).
+	folded bool
 	// minPriority is the band the listing was filtered to, and hidden how many findings that removed,
 	// reported so a short list next to large counts isn't mystifying.
 	minPriority    string

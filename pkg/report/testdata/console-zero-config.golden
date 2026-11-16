@@ -27,7 +27,7 @@ SIGNALS
   KEV   not read · --kev auto reads it
   EPSS  not read · --epss auto reads it
 
-FIX FIRST  all 2, by priority
+FIX FIRST  2 findings, by priority
   P1  critical  CVE-2019-20477
       PyYAML: command execution through python/object/apply constructor in FullLoader
       scanner trivy · PyYAML 5.1 → 5.2

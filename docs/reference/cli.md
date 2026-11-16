@@ -326,8 +326,8 @@ them in place:
 
 | Row | Shown when |
 |---|---|
-| `--top 0` | The ranked table or a list under `--view actions` stopped short |
-| `--report json,sarif,html -o .draugr/out` | A block stopped short, at `… and 4 more` or `… and 4 findings not listed`, or `--top 0` listed every finding, and the run writes no HTML report. In every view, `--view compact` included. The run it suggests writes the HTML report beside the files `draugr explain`, `--base` and `draugr diff` read, where `explain` looks for them. With `-o` set, the row is `--report` with the formats the run writes and `html`, because `--report` replaces its default |
+| `--top 0` | The ranked table stopped short or put several findings on a row, or a list under `--view actions` stopped short |
+| `--report json,sarif,html -o .draugr/out` | A block stopped short, at `… and 4 more` or `… and 4 more findings, not listed.`, or `--top 0` listed every finding, and the run writes no HTML report. In every view, `--view compact` included. The run it suggests writes the HTML report beside the files `draugr explain`, `--base` and `draugr diff` read, where `explain` looks for them. With `-o` set, the row is `--report` with the formats the run writes and `html`, because `--report` replaces its default |
 | `--evidence` | A caveat row stands for several files, such as `Cargo.lock ×2`, and `--evidence` is off |
 
 Under a run that listed findings, in the findings and actions views, `TRY` also names
@@ -579,7 +579,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 | `--view` | `findings` | What the report shows: `findings`, `actions` or `compact` |
 | `--group` | - | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
 | `--evidence` | `false` | Console: also print what stands behind the verdict: tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |
-| `--top` | `10`, or `3` under `--view actions` | Console: findings listed in the ranked table. Under `--view actions`, actions listed in each list. `0` = all |
+| `--top` | `10`, or `3` under `--view actions` | Console: how many rows to list in the ranked table. Findings of one rule at one priority in one component and repository share a row. Under `--view actions`, actions listed in each list. `0` = every finding, one row each. A shared row reads `G115 · 250 findings in 18 files` |
 | `--min-priority` | - | List findings at or above this priority band (`P1`–`P4`). Narrows what is printed; `results.sarif` and publishers keep the full set. See [below](#what---min-priority-narrows) |
 | `--artifact-min-priority` | - | Also narrow the `-o` artifacts to this band, and record the band inside them. See [below](#what---min-priority-narrows) |
 | `--compact` | `false` | Deprecated. Use `--view compact` |
@@ -589,7 +589,9 @@ The flag tables below follow the groups in `draugr scan --help`.
 
 `--view` takes:
 
-- `findings`: a block per finding, saying what it is, what is known about it, and where.
+- `findings`: a block per finding, saying what it is, what is known about it, and where. The
+  findings of one rule at one priority in one component and repository share the block of the
+  first of them, which counts them, and `--top 0` gives each its own.
 - `actions`: a row per thing to do, saying how many findings it clears. See
   [what to fix first](../concepts/what-to-fix-first.md).
 - `compact`: one line per finding; in `json` and `sarif` output, no indentation and no rule

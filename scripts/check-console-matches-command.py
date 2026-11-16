@@ -20,7 +20,7 @@ Four claims are checkable, all of them rendered by the scan report from what it 
 
   Scoped to N of M components.    a component was narrowed  → --components/--labels/--exposure/--criticality
   Scoped to … the sca control.    a control was narrowed    → --controls
-  FIX FIRST  top N of M        the table was capped      → --top N, unless N is the default
+  FIX FIRST  N of M findings   the table was capped      → --top <its rows>, unless that is the default
   EVIDENCE                     the evidence block ran    → --evidence
 
 `--top` has a **different default per subcommand**, 10 for `scan` and 0 for `diff`, so a capped
@@ -48,6 +48,11 @@ CONSOLE_SHAPES = ("DRAUGR ", "FIX FIRST", "WHAT TO DO", "CONTROLS\n", "COMPONENT
 # control." Either half may stand alone.
 SCOPE = re.compile(r"^ Scoped to (.+)\.$", re.M)
 TOP = re.compile(r"^(FIX FIRST|CHANGED)\s+top (\d+) of \d+", re.M)
+# The FIX FIRST heading counts findings, and a row may stand for several, so where the table was
+# capped the cap is the number of rows under it rather than the number in the heading.
+FIX_FIRST_CUT = re.compile(r"^FIX FIRST\s+\d+ of \d+ findings", re.M)
+# A row's first line: the band, flush with the table's indent.
+FIX_FIRST_ROW = re.compile(r"^  (P[1-4]|-)\s")
 # What each subcommand caps at when nobody asks. The heading names which one rendered the block,
 # which is a surer signal than the command, since the pairing takes whichever command came last.
 DEFAULT_TOP = {"FIX FIRST": 10, "CHANGED": 0}
@@ -96,18 +101,35 @@ def problems(cmd: str, block: str) -> list[str]:
         out.append("the command narrows the run and the block claims no scope")
 
     top = TOP.search(block)
+    cut = FIX_FIRST_CUT.search(block)
+    shown, table = None, None
     if top:
-        shown = int(top.group(2))
-        default = DEFAULT_TOP[top.group(1)]
+        shown, table = int(top.group(2)), top.group(1)
+    elif cut:
+        shown, table = fix_first_rows(block[cut.end():]), "FIX FIRST"
+    if shown is not None:
+        default = DEFAULT_TOP[table]
         if shown != default and f"--top {shown}" not in cmd:
             out.append(
                 f"the block shows a table capped at {shown} and the command does not ask for it "
-                f"({top.group(1)} caps at {default} on its own)"
+                f"({table} caps at {default} on its own)"
             )
 
     if re.search(r"^EVIDENCE\s*$", block, re.M) and "--evidence" not in cmd:
         out.append("the block carries the evidence section and the command does not ask for it")
     return out
+
+
+def fix_first_rows(rest: str) -> int:
+    """Count the rows of the FIX FIRST table that rest opens with, up to the line under it or the
+    next heading."""
+    rows = 0
+    for line in rest.splitlines()[1:]:
+        if line.startswith("…") or (line and not line[0].isspace()):
+            break
+        if FIX_FIRST_ROW.match(line):
+            rows += 1
+    return rows
 
 
 def markdown_under(roots: list[str]) -> list[Path]:

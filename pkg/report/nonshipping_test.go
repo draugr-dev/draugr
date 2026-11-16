@@ -168,7 +168,7 @@ func TestTheConsoleCountsAndLabelsNonShippingFindings(t *testing.T) {
 	t.Logf("rendered:\n%s", out)
 	for _, want := range []string{
 		" 2 P1 0 P2 2 P3 0 P4  2 findings in docs, examples or tests\n",
-		"all 4, shipped code first, by priority",
+		"4 findings, shipped code first, by priority",
 		"      tests/Dockerfile:1 · test\n",
 		"      examples/app.js:1 · example\n",
 		"      Dockerfile:1\n",
@@ -217,7 +217,7 @@ func TestTheHeadingKeepsPriorityWhereEveryFindingIsMarked(t *testing.T) {
 		t.Errorf("heading %q claims an order nothing in the list follows", got)
 	}
 	s.nonShipping = 1
-	if got := fixFirstHeading(tui.Plain(), s, 1, 2); !strings.Contains(got, "top 1 of 2, shipped code first, by priority") {
+	if got := fixFirstHeading(tui.Plain(), s, 1, 2); !strings.Contains(got, "1 of 2 findings, shipped code first, by priority") {
 		t.Errorf("heading %q", got)
 	}
 	if got := fixFirstHeading(tui.Plain(), summary{nonShipping: 1, findings: make([]finding, 1), hidden: 1}, 1, 1); !strings.Contains(got, "shipped code first") {

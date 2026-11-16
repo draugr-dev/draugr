@@ -96,8 +96,8 @@ each is its own row. The row lists the manifests, lockfiles and copies its findi
 named with its repository when there is more than one. A copy of the library committed to the tree
 is marked `vendored`, because bumping the lockfile leaves that file as it was.
 
-**Grouping is opt-in for now.** `draugr scan --view actions` turns it on; the default lists one
-finding per row.
+**Grouping by action is opt-in for now.** `draugr scan --view actions` turns it on; the default lists
+findings, with one rule's findings at one band in one component and repository on one row.
 
 Not because the list is the better view, but because grouping is only right once a descriptor says
 which images the team builds and which infrastructure it operates. Without that, an action row
@@ -111,9 +111,14 @@ show them.
 
 ## In the findings list, what you can act on comes first
 
-This is the order of `--view findings`, one finding per row. Priority decides it. Where two
+This is the order of `--view findings`. Priority decides it. Where two
 findings share a band, the one somebody can act on is listed first, a package with a fix, then a release that can be moved, then one with no published fix, and
 last the ones that belong to a provider.
+
+A rule that fires many times is one decision, so its findings share one row, counted beside the
+rule as `G115 · 250 findings in 18 files`. The row shows the first finding's location. A row never
+mixes bands, components, repositories or packages, and findings under docs, examples or tests never
+share a row with those in shipped code. `--top 0` gives every finding its own row.
 
 **This does not change the priority itself.** Priority feeds the gate, so demoting a finding because
 nobody here can fix it would weaken a build gate as a side effect of annotating a descriptor, and

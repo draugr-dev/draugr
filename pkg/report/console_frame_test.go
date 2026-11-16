@@ -21,17 +21,17 @@ func TestFixFirstHeading(t *testing.T) {
 		shown, total int
 		want         string
 	}{
-		{"a shortlist says so", summary{}, 10, 437, "FIX FIRST  top 10 of 437, by priority"},
-		{"the whole set is not a shortlist", summary{}, 437, 437, "FIX FIRST  all 437, by priority"},
+		{"a shortlist says so", summary{}, 10, 437, "FIX FIRST  10 of 437 findings, by priority"},
+		{"the whole set is not a shortlist", summary{}, 437, 437, "FIX FIRST  437 findings, by priority"},
 		{"one finding is not a list", summary{}, 1, 1, "THE FINDING  by priority"},
 		{"filtered and capped", summary{minPriority: "p2"}, 10, 50,
-			"FIX FIRST  top 10 of 50, by priority, P2 and above"},
+			"FIX FIRST  10 of 50 findings, by priority, P2 and above"},
 		{"filtered, hiding some", summary{minPriority: "p1", hidden: 12}, 3, 3,
-			"FIX FIRST  all 3, by priority, P1 and above; 12 lower-priority findings hidden"},
+			"FIX FIRST  3 findings, by priority, P1 and above; 12 lower-priority findings hidden"},
 		// The case the count is for. A line that reads correctly at twelve and says "finding(s)"
 		// at one is a line nobody checked at one, and one is the commonest number here.
 		{"filtered, hiding exactly one", summary{minPriority: "p1", hidden: 1}, 3, 3,
-			"FIX FIRST  all 3, by priority, P1 and above; 1 lower-priority finding hidden"},
+			"FIX FIRST  3 findings, by priority, P1 and above; 1 lower-priority finding hidden"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

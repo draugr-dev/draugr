@@ -282,10 +282,11 @@ func TestSarifReporter(t *testing.T) {
 }
 
 func TestConsoleTruncatesUnprioritized(t *testing.T) {
-	// 15 unprioritized findings → no priority line, and the "…and N more" tail.
+	// 15 unprioritized findings → no priority line, and the "…and N more" tail. A rule each, so no
+	// two share a row.
 	results := make([]sarif.Result, 0, 15)
 	for i := 0; i < 15; i++ {
-		results = append(results, sarif.Result{RuleID: "R", Level: sarif.LevelWarning, Tool: "t"})
+		results = append(results, sarif.Result{RuleID: fmt.Sprintf("R%d", i), Level: sarif.LevelWarning, Tool: "t"})
 	}
 	d := Data{
 		Release: saga.Release{},
@@ -300,15 +301,16 @@ func TestConsoleTruncatesUnprioritized(t *testing.T) {
 	if strings.Contains(s, "Priorities:") {
 		t.Error("unprioritized run should not print a priorities line")
 	}
-	if !strings.Contains(s, "and 5 findings not listed") {
+	if !strings.Contains(s, "… and 5 more findings, not listed.") {
 		t.Errorf("expected truncation of 15 → 10 shown + 5 more:\n%s", s)
 	}
 }
 
 func TestConsoleTopN(t *testing.T) {
+	// A rule each, so no two share a row and --top counts findings.
 	results := make([]sarif.Result, 0, 15)
 	for i := 0; i < 15; i++ {
-		results = append(results, sarif.Result{RuleID: "R", Level: sarif.LevelWarning, Tool: "t"})
+		results = append(results, sarif.Result{RuleID: fmt.Sprintf("R%d", i), Level: sarif.LevelWarning, Tool: "t"})
 	}
 	base := Data{
 		Release: saga.Release{},
@@ -326,7 +328,7 @@ func TestConsoleTopN(t *testing.T) {
 	}
 
 	// TopN 5 → 5 shown, "and 10 more".
-	if s := render(5); !strings.Contains(s, "and 10 findings not listed") {
+	if s := render(5); !strings.Contains(s, "… and 10 more findings, not listed.") {
 		t.Errorf("--top 5 of 15 should show 10 more:\n%s", s)
 	}
 	// TopN -1 (all) → no truncation tail.

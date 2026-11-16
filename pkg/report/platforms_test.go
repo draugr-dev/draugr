@@ -23,6 +23,8 @@ func TestAFindingInAnotherPlatformsCodeNamesItsBuild(t *testing.T) {
 		at("internal/fsutil/open_other.go", "windows/amd64", "darwin/arm64"),
 		at("main.go"),
 	}}}}}}
+	// One rule, so each finding takes a row of its own only under --top 0.
+	d.TopN = -1
 	var buf bytes.Buffer
 	if err := (consoleReporter{}).Render(&buf, d); err != nil {
 		t.Fatal(err)
