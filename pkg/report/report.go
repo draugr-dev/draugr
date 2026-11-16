@@ -1098,14 +1098,20 @@ func atOrAbove(got, want string) bool {
 	return g >= order[strings.ToUpper(want)]
 }
 
+// maxLaterRank is laterRank's last place, a finding under docs, examples or tests.
+const maxLaterRank = 2
+
 // laterRank places a finding in the order before its band does: 0 for the rest, 1 for a finding set
 // aside (generated code, a tool's dependency, a pinned action), 2 for one under docs, examples or
 // tests. The aside findings come before docs and tests because generated code and the tools that
 // run in CI are still part of what runs; a test fixture is not.
+//
+// groupActions ranks an action by the least of its findings' ranks, so the fix lists and the findings
+// agree on what comes last.
 func laterRank(f finding) int {
 	switch {
 	case f.nonShipping != "":
-		return 2
+		return maxLaterRank
 	case f.aside != "":
 		return 1
 	}

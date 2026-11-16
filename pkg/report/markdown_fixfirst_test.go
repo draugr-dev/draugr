@@ -88,6 +88,78 @@ func TestMarkdownFixFirstSingularPlaceAndFilteredHeading(t *testing.T) {
 	}
 }
 
+// shippedFirstData is a run over one component in two repositories with four actions, each found by
+// its place: a P1 credential whose every finding is in a test (cmd/enablement_test.go), a P2 TLS
+// bypass in shipped code (internal/tls.go), a P1 line in generated code (zz_generated.go), and a
+// credential at P3 in shipped code (internal/notify.go) that a P1 in a test shares.
+func shippedFirstData() Data {
+	const repoA, repoB = "https://github.com/acme/a.git", "https://github.com/acme/b.git"
+	at := func(control, tool, rule, priority, repo, uri string, line int) sarif.Result {
+		return sarif.Result{RuleID: rule, Tool: tool, Control: control, Level: sarif.LevelError, Priority: priority,
+			Component: "api", Repository: repo, Message: rule + " at " + uri,
+			Location: sarif.Location{URI: uri, StartLine: line}}
+	}
+	inTest := func(r sarif.Result) sarif.Result { r.NonShipping = "test"; return r }
+	generated := at("sast", "semgrep", "go.lang.security.audit.sqli", "P1", repoA, "internal/api/zz_generated.go", 40)
+	generated.Aside = sarif.AsideGenerated
+	secrets := []sarif.Result{
+		inTest(at("secrets", "gitleaks", "generic-api-key", "P1", repoA, "cmd/enablement_test.go", 87)),
+		inTest(at("secrets", "gitleaks", "generic-api-key", "P1", repoA, "tests/fixtures/config.env", 3)),
+		at("secrets", "gitleaks", "slack-webhook-url", "P3", repoB, "internal/notify.go", 5),
+		inTest(at("secrets", "gitleaks", "slack-webhook-url", "P1", repoB, "internal/notify_test.go", 9)),
+	}
+	sast := []sarif.Result{
+		at("sast", "semgrep", "go.lang.security.audit.crypto.tls-insecure-skip-verify", "P2", repoB, "internal/tls.go", 12),
+		generated,
+	}
+	return Data{Verdict: norn.Result{Verdict: norn.Fail}, Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"secrets": {Control: "secrets", Report: sarif.Report{Tool: "gitleaks", Results: secrets}},
+		"sast":    {Control: "sast", Report: sarif.Report{Tool: "semgrep", Results: sast}},
+	}}}
+}
+
+// inOrder reports whether every place appears in out, each after the one before it.
+func inOrder(t *testing.T, out string, places ...string) {
+	t.Helper()
+	last, prev := -1, ""
+	for _, p := range places {
+		i := strings.Index(out, p)
+		if i < 0 {
+			t.Fatalf("%q is not listed:\n%s", p, out)
+		}
+		if i < last {
+			t.Errorf("%q is listed before %q, want %v in that order:\n%s", p, prev, places, out)
+		}
+		last, prev = i, p
+	}
+}
+
+// Fix first in markdown lists an action in shipped code before one whose every finding is set aside,
+// and that before one whose every finding is under docs, examples or tests, whatever their bands, as
+// the console's FIX FIRST lists the findings. An action with one finding in shipped code stays with
+// the shipped ones.
+func TestMarkdownFixFirstListsShippedCodeFirst(t *testing.T) {
+	md := renderWith(t, markdownReporter{}, shippedFirstData())
+	fixFirst := strings.Index(md, "### Fix first")
+	if fixFirst < 0 {
+		t.Fatalf("no Fix first:\n%s", md)
+	}
+	inOrder(t, md[fixFirst:], "internal/tls.go", "internal/notify.go", "zz_generated.go", "cmd/enablement_test.go")
+	if !strings.Contains(md[fixFirst:], "- **P2** ") {
+		t.Errorf("the shipped P2 lost its band:\n%s", md[fixFirst:])
+	}
+}
+
+// The order is groupActions', so the console's --view actions keeps it in each list: the shipped
+// credential before the one only tests hold, and the shipped TLS bypass before the generated line.
+func TestTheActionsViewListsShippedCodeFirst(t *testing.T) {
+	d := shippedFirstData()
+	d.View = ViewActions
+	out := renderWith(t, consoleReporter{}, d)
+	inOrder(t, out, "internal/notify.go", "cmd/enablement_test.go")
+	inOrder(t, out, "internal/tls.go", "zz_generated.go")
+}
+
 // A finding on infrastructure somebody else operates is no action, and Fix first says how many such
 // findings there are rather than leaving them out of a list that counts the rest; where every finding
 // is of that kind, it says that alone.

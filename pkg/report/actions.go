@@ -481,9 +481,12 @@ func groupActions(findings []finding, unpinned []string, copies ...finding) (act
 	return actions, external
 }
 
-// rankKeys are what an action is ranked by: its own band, exploitation signal, severity and count,
-// or for one step of an upgrade the policy split, the package's.
+// rankKeys are what an action is ranked by: where its findings sit, its own band, exploitation
+// signal, severity and count, or for one step of an upgrade the policy split, the package's.
 type rankKeys struct {
+	// later is the least laterRank among what it clears: 0 where any finding is in shipped code, 1
+	// where the nearest is set aside, 2 where every one is under docs, examples or tests.
+	later    int
 	priority string
 	// severity is the worst severity it clears, as the band was computed from it.
 	severity sarif.Severity
@@ -515,13 +518,16 @@ func rankByPackage(actions []action) {
 		g := a.group()
 		k, ok := keys[g]
 		if !ok {
-			k = &rankKeys{priority: a.priority}
+			k = &rankKeys{priority: a.priority, later: maxLaterRank}
 			keys[g] = k
 		}
 		if moreUrgentBand(a.priority, k.priority) {
 			k.priority = a.priority
 		}
 		for _, f := range a.findings {
+			if l := laterRank(f); l < k.later {
+				k.later = l
+			}
 			if s := rankedSeverity(f); s.Rank() > k.severity.Rank() {
 				k.severity = s
 			}
@@ -603,10 +609,18 @@ func commonComponent(fs []finding) string {
 	return c
 }
 
-// moreUrgent orders actions by the worst priority they clear, then by the evidence that what they
-// clear is exploited, then by its worst severity, then by how many findings that is.
+// moreUrgent orders actions by where what they clear sits, then by the worst priority they clear,
+// then by the evidence that what they clear is exploited, then by its worst severity, then by how
+// many findings that is.
 //
-// Priority first, always. An action clearing one P1 outranks one clearing forty P4s, because a P1
+// Shipped code first, as sortFindings orders the findings: an action clearing anything in shipped
+// code before one whose findings are all set aside, and that before one whose findings are all under
+// docs, examples or tests, whatever their bands. A band reads the component's exposure and
+// criticality, which describe what it ships, so a P1 in a test fixture is ranked for a place it does
+// not run. An action clearing one shipped finding among its test findings stays with the shipped
+// ones, because the change it asks for reaches what ships.
+//
+// Then priority, always. An action clearing one P1 outranks one clearing forty P4s, because a P1
 // is not something to trade away for volume. Inside a band, exploitation evidence comes next: a
 // flaw on KEV has been used against somebody, and EPSS estimates that it will be, which no rating
 // of how bad a flaw would be can say. Then severity, the rating the band was computed from. Count
@@ -614,6 +628,9 @@ func commonComponent(fs []finding) string {
 // package per advisory makes volume a measure of how it splits its output more than of urgency.
 func moreUrgent(a, b action) bool {
 	ra, rb := a.rank, b.rank
+	if ra.later != rb.later {
+		return ra.later < rb.later
+	}
 	if ra.priority != rb.priority {
 		return moreUrgentBand(ra.priority, rb.priority)
 	}
