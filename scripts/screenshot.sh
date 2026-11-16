@@ -61,9 +61,13 @@ cmd="draugr $args"
 # a terminal uses to say it can show the project's own colors rather than the sixteen it has.
 # The scan exits non-zero because the sandbox fails its own gate, which is the point of it, so the
 # exit code is not this script's answer to anything.
+#
+# Stdin comes from /dev/null rather than the pty. A scan offers to install a missing scanner only
+# when stdin, stdout and stderr are all terminals, and on a pty that offer would wait for an answer
+# nobody gives and would be drawn into the picture. Output stays on the pty, so the colors do too.
 ( cd "$workdir/draugr-demo" &&
   env -u GITHUB_ACTIONS -u GITHUB_TOKEN -u GH_TOKEN -u GITHUB_REPOSITORY \
-    COLORTERM=truecolor script -qec "$DRAUGR $args" /dev/null || true
+    COLORTERM=truecolor script -qec "$DRAUGR $args </dev/null" /dev/null || true
 ) 2>/dev/null | "$ROOT/scripts/screenshot.py" "$cmd" "$RELEASE" > "$OUT"
 
 echo "wrote $OUT" >&2
