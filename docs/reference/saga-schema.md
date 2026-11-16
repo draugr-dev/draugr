@@ -853,6 +853,11 @@ not matched, and none will be added on the same grounds: nothing in those langua
 so a file wearing one can still be imported by shipped code. Only the directory such a file sits in
 can mark it.
 
+A Go module whose every `.go` file ends in `_test.go`, such as an end-to-end suite with a `go.mod` of
+its own, builds no program either, so a dependency finding in its `go.mod` or `go.sum` is labeled
+`test` too. It is read from the module's files during the scan, never from its path, and nothing is
+labeled where a file can't be read or the repository's `paths` or `ignore` could leave one out.
+
 The path is read below the repository's [`paths`](#scoping-a-repository), so a component scoped to
 `examples/demo` is shipped code, and only a directory beneath it is matched. For `sca` the location
 is the dependency file, so a `tests/go.mod` for a module only the tests build is marked. A flaw

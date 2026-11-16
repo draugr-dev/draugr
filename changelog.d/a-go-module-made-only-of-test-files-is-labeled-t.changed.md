@@ -1,0 +1,1 @@
+- **A Go module made only of test files is labeled `test`.** A dependency finding in the `go.mod` of a module whose every `.go` file ends in `_test.go`, such as an end-to-end suite, is listed after shipped code and still counts. Where a component sets `nonShippingPaths` under `sca`, these findings are now set aside too.

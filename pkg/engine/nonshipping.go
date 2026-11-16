@@ -56,7 +56,13 @@ func (e *Engine) markNonShipping(controls map[string]plugin.ControlResult, model
 		}
 		for i := range cr.Report.Results {
 			res := &cr.Report.Results[i]
-			res.NonShipping = nonshipping.KindOf(belowDeclaredRoot(model, res.Component, res.Location.URI))
+			kind := nonshipping.KindOf(belowDeclaredRoot(model, res.Component, res.Location.URI))
+			// A scanner that read the files may have found what the path cannot say, a Go module of
+			// test files only. Its label stands where the path names no kind.
+			if kind == "" && res.NonShipping == nonshipping.Test {
+				continue
+			}
+			res.NonShipping = kind
 		}
 		controls[name] = cr
 	}
