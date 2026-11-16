@@ -734,8 +734,9 @@ either, the console says so. See [prioritization](../concepts/prioritization.md)
 **Exploitability (`--kev`/`--epss`)** raises a finding's severity by real-world signals. A CVE on
 CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) (confirmed
 exploited) becomes critical; a CVE at or above the [EPSS](https://www.first.org/epss/) threshold
-(predicted likely) is bumped one level. Both are optional and only affect findings whose rule id is
-a CVE. [Using the cache in a scan](#using-the-cache-in-a-scan) says where the data comes from.
+(predicted likely) is bumped one level. Both are optional and only affect findings that name a CVE,
+in the rule id or, where the rule id holds none, among the identifiers the scanner relates to it.
+[Using the cache in a scan](#using-the-cache-in-a-scan) says where the data comes from.
 
 ### Scanners that do more than read
 

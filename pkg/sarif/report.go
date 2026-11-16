@@ -484,6 +484,12 @@ type Escalation struct {
 	// counting how often a dataset reached a finding reads EPSS as having done less than it did, by
 	// an amount nothing in the record reveals.
 	AlsoMatched []Match `json:"alsoMatched,omitempty"`
+	// CVE is the CVE the dataset matched, where the finding's rule id names none and the CVE came
+	// from its aliases. Empty where the rule id names it, which is then the CVE matched.
+	//
+	// A finding named by its advisory, `GHSA-4rgh-jx4f-qfcq-http`, raised on KEV says nothing a
+	// reader can look up in the catalog, which lists CVEs.
+	CVE string `json:"cve,omitempty"`
 }
 
 // Rating is a scanner's own rating of a finding, finer than the SARIF level it also wrote, and the
@@ -524,6 +530,8 @@ type Match struct {
 	Detail string `json:"detail"`
 	// AsOf is the day the data was fetched, as YYYY-MM-DD.
 	AsOf string `json:"asOf,omitempty"`
+	// CVE is the CVE the dataset matched, where the finding's rule id names none, as on Escalation.
+	CVE string `json:"cve,omitempty"`
 }
 
 // ReachabilityState says whether this project's own code can reach a dependency's vulnerable

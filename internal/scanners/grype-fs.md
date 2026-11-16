@@ -62,6 +62,8 @@ language-ecosystem finding under the advisory that described it, `GHSA-8q59-q68h
 reports the CVE for the same flaw. Since this scanner is meant to run *beside* Trivy, leaving that
 alone would make one vulnerability arrive under two identities, count twice, and slip past an
 exclusion someone wrote against the CVE. Set `byCve: false` to see the identifier Grype matched on.
+KEV and EPSS still read the CVE Grype relates to that identifier, and the row names it beside its
+mark.
 
 **No filtering flags.** `--fail-on`, `--only-fixed`, `--ignore-states` and `--exclude` all drop
 findings inside the tool, where Draugr cannot mark them suppressed or record who accepted them.

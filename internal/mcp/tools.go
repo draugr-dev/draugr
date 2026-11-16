@@ -290,6 +290,7 @@ type Escalation struct {
 	Signal string `json:"signal" jsonschema:"kev (observed exploitation) or epss (predicted probability of exploitation)"`
 	Detail string `json:"detail"`
 	AsOf   string `json:"asOf,omitempty" jsonschema:"the day the dataset was obtained, YYYY-MM-DD"`
+	CVE    string `json:"cve,omitempty" jsonschema:"the CVE the dataset matched, present where the finding's rule id names none"`
 }
 
 // Accepted is a finding a recorded decision took out of the ranking, with the decision.
@@ -652,7 +653,7 @@ func findingFrom(rep sarif.Report, res sarif.Result) Finding {
 	}
 	if e := res.Escalation; e != nil {
 		f.Escalation = &Escalation{
-			From: string(e.From), To: string(e.To), Signal: e.Signal, Detail: e.Detail, AsOf: e.AsOf,
+			From: string(e.From), To: string(e.To), Signal: e.Signal, Detail: e.Detail, AsOf: e.AsOf, CVE: e.CVE,
 		}
 	}
 	if c := res.Correlation; c != nil {

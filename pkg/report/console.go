@@ -799,7 +799,7 @@ func notesFor(col tui.Painter, f finding) []string {
 	// with is readable without reading a row. The same placement, and the same reason, as the
 	// dashboard's.
 	if m := movedBy(f); m != nil {
-		text := strings.TrimSpace(m.glyph + " " + m.label)
+		text := m.text()
 		fixed = append(fixed, notePart{plain: text, painted: col.Paint(m.style, text)})
 	}
 	fixed = append(fixed, reasoning(col, f)...)
@@ -1006,6 +1006,24 @@ type movement struct {
 	glyph string
 	label string
 	style tui.Style
+	// cve is the CVE KEV or EPSS matched where the row's rule id names none, the one among the
+	// finding's aliases. Empty otherwise, where the rule id beside the mark already names it.
+	cve string
+}
+
+// named is the label as a row prints it: the CVE beside it where the row does not otherwise name
+// the one the catalog lists. Apart from label because the Movement menu's value is the signal,
+// shared by every row it counts.
+func (m movement) named() string {
+	if m.cve == "" {
+		return m.label
+	}
+	return m.label + " (" + m.cve + ")"
+}
+
+// text is the mark as one piece of a line: the glyph, then the label as the row prints it.
+func (m movement) text() string {
+	return strings.TrimSpace(m.glyph + " " + m.named())
 }
 
 // rankedSeverity is the rating the band was computed from, which is the scanner's own only where
@@ -1080,13 +1098,13 @@ func marks(f finding) []movement {
 	var out []movement
 	lowered := loweredAsUnreachable(f)
 	if e := f.escalation; e != nil && !lowered {
-		out = append(out, movement{key: moveEscalation, glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal)})
+		out = append(out, movement{key: moveEscalation, glyph: "↑", label: signalLabel(e), style: signalColor(e.Signal), cve: e.CVE})
 	}
 	// On the catalog and not raised by it, being critical already. Not a movement, the band is where
 	// the severity put it, and marked because the catalog is still the reason to fix it first. In the
 	// catalog's own words, beside the `↑ KEV` of a finding it did raise.
 	if f.escalation == nil && f.exploited != nil && f.exploited.Signal == exploit.SignalKEV && !lowered {
-		out = append(out, movement{key: moveListed, label: "KEV listed", style: signalColor(exploit.SignalKEV)})
+		out = append(out, movement{key: moveListed, label: "KEV listed", style: signalColor(exploit.SignalKEV), cve: f.exploited.CVE})
 	}
 	// A control that declares its findings are not bounded by where the component sits.
 	if f.priorityFloor != "" {

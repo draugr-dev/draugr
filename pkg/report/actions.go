@@ -550,9 +550,11 @@ func (k rankKeys) export() (severity, from sarif.Severity, exploited *skald.Acti
 	if f := k.exploited; f != nil {
 		m := f.exploited
 		if m == nil {
-			m = &sarif.Match{Signal: f.escalation.Signal, Detail: f.escalation.Detail, AsOf: f.escalation.AsOf}
+			m = &sarif.Match{Signal: f.escalation.Signal, Detail: f.escalation.Detail, AsOf: f.escalation.AsOf,
+				CVE: f.escalation.CVE}
 		}
-		exploited = &skald.ActionExploitation{Signal: m.Signal, RuleID: f.ruleID, Detail: m.Detail, AsOf: m.AsOf}
+		exploited = &skald.ActionExploitation{Signal: m.Signal, RuleID: f.ruleID, Detail: m.Detail, AsOf: m.AsOf,
+			CVE: m.CVE}
 	}
 	return severity, from, exploited
 }
@@ -584,7 +586,7 @@ func exploitedOf(res sarif.Result) *sarif.Match {
 		return res.Exploited
 	}
 	if e := res.Escalation; e != nil && e.Signal == exploit.SignalKEV {
-		return &sarif.Match{Signal: e.Signal, Detail: e.Detail, AsOf: e.AsOf}
+		return &sarif.Match{Signal: e.Signal, Detail: e.Detail, AsOf: e.AsOf, CVE: e.CVE}
 	}
 	return nil
 }

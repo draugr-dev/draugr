@@ -49,11 +49,23 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 			held = floor
 		}
 		// nil-safe on both: a no-op when no source is loaded, and the escalation is nil unless
-		// something actually moved.
-		sev, esc := expl.Explain(sev, res.RuleID)
+		// something actually moved. Asked about the finding's CVE rather than its rule id, which for
+		// a finding named by its advisory carries the CVE only among the aliases.
+		cve := exploit.CVE(res)
+		sev, esc := expl.Explain(sev, cve)
 		// Read apart from the escalation, because a finding the scanner already rated critical is on
 		// KEV, raises nothing, and is still the one to fix first in its band.
-		exploited := expl.Exploited(res.RuleID)
+		exploited := expl.Exploited(cve)
+		// The CVE is named on the record where the row does not name it, so a reader of a
+		// `GHSA-…` row raised on KEV can find the entry in the catalog.
+		if !exploit.Matchable(res.RuleID) {
+			if esc != nil {
+				esc.CVE = cve
+			}
+			if exploited != nil {
+				exploited.CVE = cve
+			}
+		}
 		// Whether anything so far stands against an unreachable verdict, read from the table that
 		// every signal has to declare itself in. Recorded as we go, because a later signal can
 		// replace the escalation that carries the answer. A listing stands whether or not it raised
