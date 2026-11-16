@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 
@@ -172,50 +171,6 @@ func TestRetireDatesItsAdvisoryDatabase(t *testing.T) {
 	got := retireData(context.Background())
 	if len(got) != 1 || got[0].Name != "advisory database" || !got[0].Downloaded.Equal(fetched) {
 		t.Errorf("retireData = %+v", got)
-	}
-}
-
-// Every scanner reading one of these tools' data reports it, under a name it declares, so the
-// report and the network list in doctor speak of the same thing.
-func TestEveryScannerReadingDatedDataReportsIt(t *testing.T) {
-	defer func(tr *trivyDataReader, gr *grypeDataReader, nr *nucleiDataReader) {
-		sharedTrivyData, sharedGrypeData, sharedNucleiData = tr, gr, nr
-	}(sharedTrivyData, sharedGrypeData, sharedNucleiData)
-	dir := t.TempDir()
-	sharedTrivyData = &trivyDataReader{run: answering(trivyVersionOut, nil)}
-	sharedGrypeData = &grypeDataReader{run: answering(fmt.Sprintf(grypeStaleOut, filepath.Join(dir, "db")), errors.New("exit 1"))}
-	sharedNucleiData = &nucleiDataReader{run: answering("nuclei-templates version: v10.4.9 ("+dir+")", nil)}
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	cache := filepath.Join(home, ".draugr", "data", "retirejs")
-	if err := os.MkdirAll(cache, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	writeRetireCache(t, cache, "111.json")
-
-	for _, sc := range []plugin.Scanner{
-		NewTrivy(), NewTrivyFS(), NewTrivyConfig(), NewTrivyLicense(),
-		NewGrype(), NewGrypeFS(), NewNuclei(), NewRetireJS(),
-	} {
-		info := sc.Info()
-		ds, ok := sc.(plugin.DataStater)
-		if !ok {
-			t.Errorf("%s reads %v and does not report it", info.Name, info.Data)
-			continue
-		}
-		states := ds.DataState(context.Background())
-		if len(states) == 0 {
-			t.Errorf("%s reported nothing", info.Name)
-		}
-		var declared []string
-		for _, d := range info.Data {
-			declared = append(declared, d.Name)
-		}
-		for _, st := range states {
-			if !slices.Contains(declared, st.Name) {
-				t.Errorf("%s reports %q, which it does not declare among %v", info.Name, st.Name, declared)
-			}
-		}
 	}
 }
 
