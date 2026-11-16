@@ -116,7 +116,9 @@ findings share a band, the one somebody can act on is listed first, a package wi
 last the ones that belong to a provider.
 
 A rule that fires many times is one decision, so its findings share one row, counted beside the
-rule as `G115 · 250 findings in 18 files`. The row shows the first finding's location. A row never
+rule as `G115 · 250 findings in 18 files`. The row shows the first finding's location, except that a
+row of mutable GitHub Actions tags shows an action published outside GitHub's `actions` and `github`
+organizations where it holds one, because only GitHub moves the tags on its own actions. A row never
 mixes bands, components, repositories or packages, and findings under docs, examples or tests never
 share a row with those in shipped code. `--top 0` gives every finding its own row.
 

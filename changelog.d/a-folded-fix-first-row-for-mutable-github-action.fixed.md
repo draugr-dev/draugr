@@ -1,0 +1,1 @@
+- **A folded FIX FIRST row for mutable GitHub Actions tags now shows a third-party action.** Where one row stands for several `uses:` references, its location names one published outside the `actions` and `github` organizations, such as `codecov/codecov-action@v5`, rather than `actions/checkout`. The band, count and row order are unchanged.

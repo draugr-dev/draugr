@@ -79,13 +79,16 @@ func lineRows(as []action) []int {
 	return rows
 }
 
-// foldFindings puts the findings that share a findingFoldKey on the row of the first of them, in the
-// order the ranking gave, and returns the rows. A row's repeats is how many more findings it stands
-// for, and repeatFiles how many files they are in, its own included.
+// foldFindings puts the findings that share a findingFoldKey on one row, at the place of the first of
+// them in the order the ranking gave, and returns the rows. A row's repeats is how many more findings
+// it stands for, and repeatFiles how many files they are in, its own included.
 //
 // One rule firing across a codebase is one decision for a reader, and a row per firing fills the
 // list with copies of one sentence and pushes every other rule below the cut. The row keeps the
 // place of the first, so the list keeps its order.
+//
+// The row shows the first finding, unless a later one ranking alike leads where it does not
+// (foldLead): its location is the reader's first clue where to look.
 func foldFindings(fs []finding) []finding {
 	out := make([]finding, 0, len(fs))
 	at := map[string]int{}
@@ -97,6 +100,10 @@ func foldFindings(fs []finding) []finding {
 		}
 		files[k][lineSuffix.ReplaceAllString(f.location, "")] = true
 		if i, ok := at[k]; ok {
+			if foldLead(f) && !foldLead(out[i]) && rankOrder(out[i], f) == 0 {
+				f.repeats = out[i].repeats
+				out[i] = f
+			}
 			out[i].repeats++
 			continue
 		}
@@ -107,6 +114,22 @@ func foldFindings(fs []finding) []finding {
 		out[i].repeatFiles = len(files[k])
 	}
 	return out
+}
+
+// foldLead reports whether a finding is the one a folded row should show over the others ranking
+// alike: a mutable tag on an action somebody outside GitHub publishes.
+//
+// GitHub publishes its own actions under the actions and github organizations, and a tag there moves
+// only when GitHub moves it. A tag on any other action moves when its owner, or whoever holds the
+// owner's account, moves it, and the job then runs what it points at with the job's token: that
+// reference is what makes the row worth fixing. A row showing `actions/checkout` beside it sends the
+// reader to the line that is not the risk.
+func foldLead(f finding) bool {
+	if f.uses == "" {
+		return false
+	}
+	owner, _, _ := strings.Cut(f.uses, "/")
+	return !strings.EqualFold(owner, "actions") && !strings.EqualFold(owner, "github")
 }
 
 // findingFoldKey is what two findings share when foldFindings puts them on one row: the rule, the

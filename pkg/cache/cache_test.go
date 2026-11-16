@@ -352,6 +352,35 @@ func TestLocalKeepsWhichResultsCarryAScore(t *testing.T) {
 	}
 }
 
+// A finding's `uses:` reference survives the disk, so a cached run shows the same folded row as the
+// run that stored it. A result with none stays without one.
+func TestLocalKeepsEachResultsUsesReference(t *testing.T) {
+	c := NewLocal(t.TempDir(), 0)
+	report := sarif.Report{Tool: "Semgrep OSS", Results: []sarif.Result{
+		{RuleID: "mutable-action-tag", Uses: "actions/checkout@v4"},
+		{RuleID: "other"},
+		{RuleID: "mutable-action-tag", Uses: "codecov/codecov-action@v5"},
+	}}
+	if err := c.Put("k", report); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := c.Get("k")
+	if !ok {
+		t.Fatal("miss")
+	}
+	for i, want := range []string{"actions/checkout@v4", "", "codecov/codecov-action@v5"} {
+		if got.Results[i].Uses != want {
+			t.Errorf("result %d: Uses = %q, want %q", i, got.Results[i].Uses, want)
+		}
+	}
+	// An index past the results is ignored rather than trusted.
+	bad := entry{Report: sarif.Report{Results: []sarif.Result{{RuleID: "a"}}}, Uses: map[int]string{5: "x/y@v1", -1: "x/y@v1"}}
+	bad.restoreUses()
+	if bad.Report.Results[0].Uses != "" {
+		t.Error("an index past the results marked a result")
+	}
+}
+
 // An entry written before scores were recorded takes a non-zero score as present.
 func TestLocalReadsAnEntryWrittenBeforeScoresWereRecorded(t *testing.T) {
 	e := entry{Report: sarif.Report{Results: []sarif.Result{

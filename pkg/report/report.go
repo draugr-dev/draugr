@@ -809,6 +809,9 @@ type finding struct {
 	// or tests (sarif.Result.Aside): generated, tooling or pinned. Shown beside the location in the
 	// words asideNote gives it.
 	aside string
+	// uses is the `uses:` reference a GitHub Actions mutable-tag finding is on (sarif.Result.Uses),
+	// which decides the finding a folded row shows (foldLead). Never printed.
+	uses string
 	// platforms are the platforms whose build alone holds the code the finding lies in, as
 	// GOOS/GOARCH, where a Go analyzer read that code in a run for a platform beside the machine's
 	// own (sarif.Result.Platforms). Shown beside the location, because the reader's own build may
@@ -1082,6 +1085,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		historical:    res.Historical,
 		nonShipping:   res.NonShipping,
 		aside:         res.Aside,
+		uses:          res.Uses,
 		platforms:     res.Platforms,
 		component:     res.Component,
 		repository:    res.Repository,
@@ -1138,50 +1142,8 @@ func laterRank(f finding) int {
 func sortFindings(fs []finding) {
 	sort.SliceStable(fs, func(i, j int) bool {
 		a, b := fs[i], fs[j]
-		// Every finding in shipped code before any under docs, examples or tests, whatever their bands.
-		//
-		// Not within each band. A band reads the component's exposure and criticality, which describe
-		// what the component ships, so a P1 in a test fixture is ranked for a place it does not run.
-		// Ordered within bands, the fixtures of a chart repository fill every row of the list ten
-		// thousand to one, and the shipped chart's findings are on a page nobody reaches. The band is
-		// unchanged and so is the gate, which counts both.
-		if ma, mb := laterRank(a), laterRank(b); ma != mb {
-			return ma < mb
-		}
-		if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
-			return ra > rb
-		}
-		// Within a band, what somebody can act on comes first.
-		//
-		// Not by changing the band. Priority feeds the gate, and demoting a finding because nobody here
-		// can fix it would weaken a build gate as a side effect of annotating a descriptor, a policy
-		// change arriving as metadata, where the mechanism for "we accept this" already exists and
-		// records who decided. The risk is also unchanged: a vulnerable control plane is exactly as
-		// dangerous whether or not the fix is yours to apply.
-		//
-		// Ordering is the honest half of it. Two findings that matter equally, and one of them
-		// has somewhere for the reader to start.
-		if ao, bo := actionableRank(a), actionableRank(b); ao != bo {
-			return ao > bo
-		}
-		// Then what is being exploited, as the fix list ranks its actions: a finding on KEV before one
-		// EPSS scored, before neither. A critical on KEV is not raised, so its severity does not set it
-		// apart from the critical beside it, and the catalog listing it is the reason to fix it first.
-		if xa, xb := exploitationSignal(a), exploitationSignal(b); xa != xb {
-			return xa > xb
-		}
-		// Severity before the number behind it. Not every scanner publishes a score, and ordering
-		// on the number alone sinks a critical nothing scored below every high that was, which on
-		// a list headed "fix first" is the one place that cannot be wrong. The rating the band was
-		// computed from is the comparable thing; the score refines it where both have one.
-		if sa, sb := severityRank(rankedSeverity(a)), severityRank(rankedSeverity(b)); sa != sb {
-			return sa > sb
-		}
-		if a.score != b.score {
-			return a.score > b.score
-		}
-		if la, lb := levelRank(a.level), levelRank(b.level); la != lb {
-			return la > lb
+		if c := rankOrder(a, b); c != 0 {
+			return c < 0
 		}
 		// Then by where, so two findings that rank alike keep one order whichever order the scanner
 		// wrote them in. A tool that reports concurrently writes them differently on every run, and
@@ -1197,6 +1159,67 @@ func sortFindings(fs []finding) {
 		}
 		return a.ruleID < b.ruleID
 	})
+}
+
+// rankOrder compares two findings on everything sortFindings ranks by before where they are:
+// negative where a comes first, positive where b does, and zero where only their places would
+// order them.
+func rankOrder(a, b finding) int {
+	// Every finding in shipped code before any under docs, examples or tests, whatever their bands.
+	//
+	// Not within each band. A band reads the component's exposure and criticality, which describe
+	// what the component ships, so a P1 in a test fixture is ranked for a place it does not run.
+	// Ordered within bands, the fixtures of a chart repository fill every row of the list ten
+	// thousand to one, and the shipped chart's findings are on a page nobody reaches. The band is
+	// unchanged and so is the gate, which counts both.
+	if ma, mb := laterRank(a), laterRank(b); ma != mb {
+		return firstIf(ma < mb)
+	}
+	if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
+		return firstIf(ra > rb)
+	}
+	// Within a band, what somebody can act on comes first.
+	//
+	// Not by changing the band. Priority feeds the gate, and demoting a finding because nobody here
+	// can fix it would weaken a build gate as a side effect of annotating a descriptor, a policy
+	// change arriving as metadata, where the mechanism for "we accept this" already exists and
+	// records who decided. The risk is also unchanged: a vulnerable control plane is exactly as
+	// dangerous whether or not the fix is yours to apply.
+	//
+	// Ordering is the honest half of it. Two findings that matter equally, and one of them
+	// has somewhere for the reader to start.
+	if ao, bo := actionableRank(a), actionableRank(b); ao != bo {
+		return firstIf(ao > bo)
+	}
+	// Then what is being exploited, as the fix list ranks its actions: a finding on KEV before one
+	// EPSS scored, before neither. A critical on KEV is not raised, so its severity does not set it
+	// apart from the critical beside it, and the catalog listing it is the reason to fix it first.
+	if xa, xb := exploitationSignal(a), exploitationSignal(b); xa != xb {
+		return firstIf(xa > xb)
+	}
+	// Severity before the number behind it. Not every scanner publishes a score, and ordering
+	// on the number alone sinks a critical nothing scored below every high that was, which on
+	// a list headed "fix first" is the one place that cannot be wrong. The rating the band was
+	// computed from is the comparable thing; the score refines it where both have one.
+	if sa, sb := severityRank(rankedSeverity(a)), severityRank(rankedSeverity(b)); sa != sb {
+		return firstIf(sa > sb)
+	}
+	if a.score != b.score {
+		return firstIf(a.score > b.score)
+	}
+	if la, lb := levelRank(a.level), levelRank(b.level); la != lb {
+		return firstIf(la > lb)
+	}
+	return 0
+}
+
+// firstIf is rankOrder's answer for a comparison that has decided: -1 where a comes first, 1 where
+// b does.
+func firstIf(aFirst bool) int {
+	if aFirst {
+		return -1
+	}
+	return 1
 }
 
 // severityRank orders the four ratings, with an unrated finding below all of them: a scanner that

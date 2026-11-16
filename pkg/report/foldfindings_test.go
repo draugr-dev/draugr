@@ -210,6 +210,110 @@ func TestAFoldKeepsTheRankingsOrder(t *testing.T) {
 	}
 }
 
+// mutableTag is a Semgrep mutable-tag finding at P1 on the `uses:` reference uses, at uri and line.
+func mutableTag(uses, uri string, line int) sarif.Result {
+	return sarif.Result{Tool: "Semgrep OSS", Level: sarif.LevelWarning, Control: "sast", Priority: "P1",
+		RuleID:  "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag",
+		Message: "GitHub Actions step uses a mutable tag or branch reference.",
+		Uses:    uses, Location: sarif.Location{URI: uri, StartLine: line}}
+}
+
+// withoutUses is rs with no reference recorded on any of them, as a run that read none would have it.
+func withoutUses(rs []sarif.Result) []sarif.Result {
+	out := make([]sarif.Result, len(rs))
+	for i, r := range rs {
+		r.Uses = ""
+		out[i] = r
+	}
+	return out
+}
+
+// A folded mutable-tag row shows a reference to an action somebody outside GitHub publishes, where
+// the ranking put a GitHub-owned one first. Only the location moves: the band, the severity, the
+// rule, the count and the heading are what the same findings give with no reference read.
+func TestAFoldedMutableTagRowShowsAThirdPartyAction(t *testing.T) {
+	rs := []sarif.Result{
+		mutableTag("actions/checkout@v4", ".github/workflows/ci.yml", 10),
+		mutableTag("actions/setup-go@v5", ".github/workflows/ci.yml", 14),
+		mutableTag("codecov/codecov-action@v5", ".github/workflows/test.yml", 20),
+		mutableTag("golangci/golangci-lint-action@v8", ".github/workflows/test.yml", 30),
+	}
+	got := renderWith(t, consoleReporter{}, sastData(rs...))
+	before := renderWith(t, consoleReporter{}, sastData(withoutUses(rs)...))
+	t.Logf("rendered:\n%s", got)
+	if !strings.Contains(got, "      .github/workflows/test.yml:20\n") {
+		t.Error("the row does not show the first third-party reference")
+	}
+	if !strings.Contains(before, "      .github/workflows/ci.yml:10\n") {
+		t.Fatalf("with no reference read, the row does not show the first finding:\n%s", before)
+	}
+	if want := strings.Replace(before, ".github/workflows/ci.yml:10\n", ".github/workflows/test.yml:20\n", 1); got != want {
+		t.Errorf("more than the location moved:\n%s\nwant:\n%s", got, want)
+	}
+	for _, want := range []string{"FIX FIRST  4 findings, by priority\n", "  P1  medium    4 findings in 2 files\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the console does not hold %q", want)
+		}
+	}
+}
+
+// A fold of references to GitHub's own actions alone shows the first of them, as it did.
+func TestAFoldOfGitHubOwnedActionsShowsTheFirst(t *testing.T) {
+	rs := []sarif.Result{
+		mutableTag("actions/checkout@v4", ".github/workflows/ci.yml", 10),
+		mutableTag("github/codeql-action/init@v3", ".github/workflows/ci.yml", 14),
+		mutableTag("Actions/setup-go@v5", ".github/workflows/test.yml", 20),
+	}
+	got := renderWith(t, consoleReporter{}, sastData(rs...))
+	if want := renderWith(t, consoleReporter{}, sastData(withoutUses(rs)...)); got != want {
+		t.Errorf("a fold of GitHub-owned references changed:\n%s\nwant:\n%s", got, want)
+	}
+	if !strings.Contains(got, "      .github/workflows/ci.yml:10\n") {
+		t.Errorf("the row does not show the first finding:\n%s", got)
+	}
+}
+
+// Of several third-party references, the row shows the first; one that ranks below the first finding
+// on anything but its place does not take the row; the row keeps its place and its count.
+func TestAFoldLeadTakesTheRowOnlyWhereItRanksAlike(t *testing.T) {
+	at := func(uses, location string, score float64) finding {
+		return finding{ruleID: "mutable-action-tag", priority: "P1", uses: uses, location: location, score: score}
+	}
+	rows := foldFindings([]finding{
+		{ruleID: "other", priority: "P1", location: "main.go:1"},
+		at("actions/checkout@v4", "a.yml:1", 0),
+		at("codecov/codecov-action@v5", "b.yml:1", 0),
+		at("goreleaser/goreleaser-action@v6", "c.yml:1", 0),
+	})
+	if len(rows) != 2 || rows[0].ruleID != "other" || rows[1].location != "b.yml:1" || rows[1].repeats != 2 || rows[1].repeatFiles != 3 {
+		t.Errorf("rows = %+v", rows)
+	}
+
+	rows = foldFindings([]finding{at("actions/checkout@v4", "a.yml:1", 7), at("codecov/codecov-action@v5", "b.yml:1", 5)})
+	if len(rows) != 1 || rows[0].location != "a.yml:1" || rows[0].repeats != 1 {
+		t.Errorf("a third-party reference ranked lower took the row: %+v", rows)
+	}
+}
+
+// Which references lead a fold: any outside the actions and github organizations, matched without
+// case, and none where no reference was read.
+func TestWhichReferencesLeadAFold(t *testing.T) {
+	for uses, want := range map[string]bool{
+		"":                              false,
+		"actions/checkout@v4":           false,
+		"Actions/checkout@v4":           false,
+		"github/codeql-action/init@v3":  false,
+		"codecov/codecov-action@v5":     true,
+		"actions-rs/toolchain@v1":       true,
+		"docker://alpine:3":             true,
+		"golangci/golangci-lint-action": true,
+	} {
+		if got := foldLead(finding{uses: uses}); got != want {
+			t.Errorf("foldLead(%q) = %v, want %v", uses, got, want)
+		}
+	}
+}
+
 // Under --view actions, a run whose findings would fold offers --top 0 with --view findings, since
 // the findings view alone no longer lists one each.
 func TestTheActionsViewOffersEveryFindingWhenTheyFold(t *testing.T) {
