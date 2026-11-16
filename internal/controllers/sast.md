@@ -51,9 +51,19 @@ setting changes either; `config.exclude` sets one aside.
   the same workflow with a commit. It is held at P3, marked `↓ pinned`, so it does not fail the
   default gate: GitHub runs the locked commit for a workflow the lockfile covers, so the tag moving
   no longer changes what runs. Its fix reads `keep actions.lock verified in CI`, which
-  `gh actions-lock --verify` does. A reference the lockfile does not list, one in a composite
-  action under `.github/actions/`, and a reusable workflow's call, which the lockfile does not pin,
-  are reported as before.
+  `gh actions-lock --verify` does.
+
+  A step in a composite action in the same repository, such as
+  `.github/actions/setup/action.yml`, runs as part of each workflow that calls it with
+  `uses: ./.github/actions/setup` or `uses: $/.github/actions/setup`, and the lockfile records its
+  references under that workflow. The step is pinned when every workflow that calls the action
+  lists the reference with a commit, because a workflow the lockfile does not cover runs the tag.
+  A reference the lockfile does not list, a composite action no workflow calls, and a reusable
+  workflow's call, which the lockfile does not pin, are reported as before.
+
+The mutable-tag rule reports nothing on a `uses:` path to an action in the same repository, such as
+`./.github/actions/setup` or `$/.github/actions/setup`. A path names no tag or branch, so there is
+nothing to pin; the action's own steps are checked in its `action.yml`.
 
 ## Unread
 

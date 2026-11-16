@@ -3,6 +3,7 @@ package scanners
 import (
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -90,6 +91,159 @@ func TestMarkPinnedMatchesTheLockfileExactly(t *testing.T) {
 		"", "", "actions/setup-go@v7.0.0", "actions/checkout@v7.0.1", ""} {
 		if results[i].Uses != want {
 			t.Errorf("result %d (%s:%d): uses %q, want %q", i, results[i].Location.URI, results[i].Location.StartLine, results[i].Uses, want)
+		}
+	}
+}
+
+// localActionsTree mirrors a repository whose workflows call composite actions in the same
+// repository, in both the `$/` form `gh actions-lock --migrate-local-actions` writes and the `./`
+// form, with a lockfile that lists each composite action's steps under the workflow that calls it.
+func localActionsTree(t *testing.T) string {
+	t.Helper()
+	return writeTree(t, map[string]string{
+		".github/workflows/build.yml": "jobs:\n  app:\n    steps:\n" +
+			"      - uses: actions/checkout@v7\n" + // 4
+			"      - uses: $/.github/actions/common-setup\n" + // 5
+			"      - uses: \"./.github/actions/slashed/\" # quoted\n" + // 6
+			"      - uses: ./.github/actions/shared\n" + // 7
+			"      - uses: docker://alpine:3.20\n" + // 8
+			"      - uses: $/.github/actions/common-setup\n", // 9
+		".github/workflows/lint.yml": "jobs:\n  l:\n    steps:\n" +
+			"      - uses: ./.github/actions/shared\n", // 4
+		".github/workflows/notes.md": "- uses: ./.github/actions/orphan\n",
+		".github/actions/common-setup/action.yml": "runs:\n  using: composite\n  steps:\n" +
+			"    - uses: jdx/mise-action@v5\n" + // 4
+			"    - uses: iloveitaly/github-action-direnv-load-and-mask@master\n" + // 5
+			"    - uses: actions/cache@v6\n" + // 6
+			"    - uses: other/unlisted@v1\n", // 7
+		".github/actions/slashed/action.yaml": "    - uses: jdx/mise-action@v5\n",
+		".github/actions/shared/action.yml":   "    - uses: jdx/mise-action@v5\n",
+		".github/actions/orphan/action.yml":   "    - uses: jdx/mise-action@v5\n",
+		".github/actions/orphan/other.yml":    "    - uses: jdx/mise-action@v5\n",
+		".github/workflows/actions.lock": "workflows:\n" +
+			"    '.github/workflows/build.yml':\n" +
+			"        - 'actions/cache@v6'\n" +
+			"        - 'actions/checkout@v7'\n" +
+			"        - 'iloveitaly/github-action-direnv-load-and-mask@master'\n" +
+			"        - 'jdx/mise-action@v5'\n" +
+			"    '.github/workflows/lint.yml': []\n" +
+			"dependencies:\n" +
+			"    'actions/cache@v6':\n        ref: 'v6'\n        commit: 'sha1-55cc8345863c7cc4c66a329aec7e433d2d1c52a9'\n" +
+			"    'actions/checkout@v7':\n        ref: 'v7'\n        commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'\n" +
+			"    'iloveitaly/github-action-direnv-load-and-mask@master':\n        ref: 'master'\n        commit: 'sha1-9f4661e90b5d5fefb96463379587f82b4ca0520a'\n" +
+			"    'jdx/mise-action@v5':\n        ref: 'v5'\n        commit: 'sha1-b44d12e7d0d8ee7461bb893e1b1993500433185b'\n",
+	})
+}
+
+// A step in a composite action is pinned where the lockfile lists its reference with a commit under
+// every workflow that calls the action, whichever form the call takes, and only there.
+func TestMarkPinnedFollowsTheWorkflowsThatCallAnAction(t *testing.T) {
+	dir := localActionsTree(t)
+	const rule = "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
+	at := func(uri string, line int) sarif.Result {
+		return sarif.Result{RuleID: rule, Location: sarif.Location{URI: uri, StartLine: line}}
+	}
+	results := []sarif.Result{
+		at(".github/actions/common-setup/action.yml", 4),                               // listed under the `$/` caller
+		at(".github/actions/common-setup/action.yml", 5),                               // a branch, listed
+		at("file://"+filepath.Join(dir, ".github/actions/common-setup/action.yml"), 6), // reported absolute
+		at(".github/actions/common-setup/action.yml", 7),                               // not listed
+		at(".github/actions/common-setup/action.yml", 1),                               // not a uses: line
+		at(".github/actions/slashed/action.yaml", 1),                                   // a `./` caller with a trailing slash
+		at(".github/actions/shared/action.yml", 1),                                     // a second caller lists nothing
+		at(".github/actions/orphan/action.yml", 1),                                     // no workflow calls it
+		at(".github/actions/orphan/other.yml", 1),                                      // not an action's metadata
+		at(".github/workflows/build.yml", 4),                                           // the workflow's own step
+	}
+	markActions(dir, results)
+	for i, want := range []string{"pinned", "pinned", "pinned", "", "", "pinned", "", "", "", "pinned"} {
+		if results[i].Aside != want {
+			t.Errorf("result %d (%s:%d): aside %q, want %q", i, results[i].Location.URI, results[i].Location.StartLine, results[i].Aside, want)
+		}
+	}
+}
+
+// A reference to an action by its path in the same repository names no version, so the mutable-tag
+// rule's result on one is not a finding; every other result stays, a Docker image's tag included.
+func TestALocalActionIsNotAMutableTag(t *testing.T) {
+	dir := localActionsTree(t)
+	const rule = "yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag"
+	at := func(name, rule, uri string, line int) sarif.Result {
+		return sarif.Result{RuleID: rule, Message: name, Location: sarif.Location{URI: uri, StartLine: line}}
+	}
+	results := []sarif.Result{
+		at("version", rule, ".github/workflows/build.yml", 4),
+		at("dollar path", rule, ".github/workflows/build.yml", 5),
+		at("dot path, quoted", rule, ".github/workflows/build.yml", 6),
+		at("dot path, absolute", rule, "file://"+filepath.Join(dir, ".github/workflows/lint.yml"), 4),
+		at("docker tag", rule, ".github/workflows/build.yml", 8),
+		at("past the end", rule, ".github/workflows/build.yml", 99),
+		at("unreadable", rule, ".github/workflows/gone.yml", 1),
+		at("outside", rule, "../outside.yml", 1),
+		at("another rule", "yaml.github-actions.security.run-shell-injection", ".github/workflows/build.yml", 5),
+	}
+	var kept []string
+	for _, r := range dropLocalActions(dir, results) {
+		kept = append(kept, r.Message)
+	}
+	want := "version, docker tag, past the end, unreadable, outside, another rule"
+	if strings.Join(kept, ", ") != want {
+		t.Errorf("kept %q, want %q", strings.Join(kept, ", "), want)
+	}
+	if none := dropLocalActions("", results[:2]); len(none) != 2 {
+		t.Errorf("with no checkout to read, kept %d of 2", len(none))
+	}
+
+	// Semgrep's parser drops them before it marks what the lockfile pins.
+	doc := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Semgrep OSS","rules":[{"id":"` + rule + `"}]}},"results":[`
+	for i, l := range []int{4, 5, 9} {
+		if i > 0 {
+			doc += ","
+		}
+		doc += `{"ruleId":"` + rule + `","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":".github/workflows/build.yml"},"region":{"startLine":` + strconv.Itoa(l) + `}}}]}`
+	}
+	rep, err := parseSemgrep(semgrepReportsOf(t, []byte(doc+`]}]}`), []byte(`{"results":[]}`)), dir, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 || rep.Results[0].Location.StartLine != 4 || rep.Results[0].Aside != sarif.AsidePinned {
+		t.Errorf("semgrep kept %+v", rep.Results)
+	}
+}
+
+// Only a path into the same repository names no version; an image tag and any other reference keep
+// their finding.
+func TestOnlyALocalPathIsNotAVersion(t *testing.T) {
+	for ref, want := range map[string]bool{
+		"./.github/actions/x":                               true,
+		"$/.github/actions/x":                               true,
+		"docker://alpine:3.18":                              false,
+		"docker://alpine@sha256:" + strings.Repeat("a", 64): false,
+		"actions/checkout":                                  false,
+		"actions/checkout@v4":                               false,
+		"":                                                  false,
+	} {
+		if got := notAVersion(ref); got != want {
+			t.Errorf("notAVersion(%q) = %v, want %v", ref, got, want)
+		}
+	}
+}
+
+// Only a path into the same repository is a local action.
+func TestLocalAction(t *testing.T) {
+	for ref, want := range map[string]string{
+		"./.github/actions/setup":   ".github/actions/setup",
+		"$/.github/actions/setup/":  ".github/actions/setup",
+		"./tools/../ci/act":         "ci/act",
+		"./":                        "",
+		"$/../elsewhere":            "",
+		"actions/checkout@v7":       "",
+		"docker://alpine:3.20":      "",
+		".github/actions/setup":     "",
+		"octo/repo/path/to/act@abc": "",
+	} {
+		if got := localAction(ref); got != want {
+			t.Errorf("localAction(%q) = %q, want %q", ref, got, want)
 		}
 	}
 }

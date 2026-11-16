@@ -819,7 +819,8 @@ const (
 	// of the application, one under `.config/mise/`. The tool still runs on their machines and in CI.
 	AsideTooling = "tooling"
 	// AsidePinned marks a GitHub Actions mutable-tag finding on a `uses:` reference that the
-	// repository's `.github/workflows/actions.lock` pins to a commit for that workflow.
+	// repository's `.github/workflows/actions.lock` pins to a commit for that workflow, or, in a
+	// composite action in the same repository, for every workflow that calls the action.
 	AsidePinned = "pinned"
 )
 
