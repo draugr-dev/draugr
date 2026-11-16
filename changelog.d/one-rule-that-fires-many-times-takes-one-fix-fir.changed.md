@@ -1,1 +1,0 @@
-- **One rule that fires many times takes one FIX FIRST row.** Its findings at one priority, in one component and repository, share a row counted beside the rule, such as `G115 · 194 findings in 17 files`, so other rules stay in view, and the heading counts findings. `--top` caps rows; `--top 0` lists every finding on its own row.

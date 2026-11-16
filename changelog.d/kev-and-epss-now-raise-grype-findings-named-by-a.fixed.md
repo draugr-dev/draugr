@@ -1,1 +1,0 @@
-- **KEV and EPSS now raise Grype findings named by an advisory.** With `byCve: false`, a `GHSA-…` or `GO-…` finding whose related CVE is on KEV, or above the EPSS threshold, is now raised, and its row names the CVE: `↑ KEV (CVE-2020-35669)`.

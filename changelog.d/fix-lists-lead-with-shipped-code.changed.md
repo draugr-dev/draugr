@@ -1,1 +1,0 @@
-- **Fix lists lead with shipped code.** The markdown Fix first, the HTML report's What to do, `--view actions` and `fix_list` list an action whose findings are all under docs, examples or tests after the rest, and one in generated code or tooling before those. An action that touches shipped code stays with the shipped ones.

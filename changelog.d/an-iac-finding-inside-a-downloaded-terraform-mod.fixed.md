@@ -1,1 +1,0 @@
-- **An `iac` finding inside a downloaded Terraform module now points at the `module` block that calls it.** It pointed at the module's own path, a file your repository does not hold, and two blocks calling one module read as one finding. The console location line names the module and its version, and `report.json` and the SARIF carry it as `module`.

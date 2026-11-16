@@ -1,1 +1,0 @@
-- **Terraform findings no longer depend on what other Trivy runs left on the machine.** Trivy reads registry modules from a cache under the shared temporary directory before fetching them, so a module another program downloaded was checked even offline, and the same commit could give different findings on two machines. Each `iac` scan now uses its own temporary directory.
