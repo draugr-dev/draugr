@@ -49,6 +49,34 @@ func TestKindOfMatchesWholeDirectorySegments(t *testing.T) {
 	}
 }
 
+// TestKindOfPlacesAGoTestFileByItsName labels a Go test file a test wherever it sits, because the Go
+// toolchain never builds one into the program, and reads no other language's naming convention,
+// because nothing in those languages stops shipped code importing a file that wears one.
+func TestKindOfPlacesAGoTestFileByItsName(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"x_test.go":                     Test,
+		"internal/auth/token_test.go":   Test,
+		"./pkg/a_test.go":               Test,
+		"examples/app/main_test.go":     Example, // the outermost directory still names it
+		"internal/auth/token.go":        "",
+		"internal/auth/test.go":         "",
+		"internal/auth/x_test.go.orig":  "",
+		"internal/auth/x_test.golden":   "",
+		"internal/auth/test_token.py":   "",
+		"web/src/app.test.js":           "",
+		"web/src/app.spec.ts":           "",
+		"lib/user_spec.rb":              "",
+		"src/main/java/UserTest.java":   "",
+		"internal/auth_test.go/main.go": "",
+	}
+	for rel, want := range cases {
+		if got := KindOf(rel); got != want {
+			t.Errorf("KindOf(%q) = %q, want %q", rel, got, want)
+		}
+	}
+}
+
 // TestKindOfNamesTheOutermostDirectory gives a path under two listed directories the kind of the
 // one nearer the root, so one finding has one label.
 func TestKindOfNamesTheOutermostDirectory(t *testing.T) {

@@ -27,7 +27,8 @@ and likelihood, by the table in [`semgrep.md`](../scanners/semgrep.md#severity).
 ## Non-shipping paths
 
 `nonShippingPaths` decides whether a finding counts when its file sits under a directory of
-documentation, examples or tests, such as `examples/` or `__tests__/`. `report`, the default,
+documentation, examples or tests, such as `examples/` or `__tests__/`, or is a Go test file, such
+as `handler_test.go`, which the Go toolchain never builds into the program. `report`, the default,
 counts each, labeled `docs`, `example` or `test` beside its location and listed after the shipped
 code's findings; `suppress` keeps each in the report suppressed with the reason `in docs, examples
 or tests`. A component's setting replaces the project's.

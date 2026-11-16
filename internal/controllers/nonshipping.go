@@ -9,8 +9,8 @@ import (
 
 // nonShippingKey decides whether the findings in files under documentation, examples or tests count.
 // sast, iac and sca each take it, under the control, because each reports a location in the
-// repository's own files. secrets does not: a credential committed beside a test is as live as one
-// committed beside the code.
+// repository's own files. secrets does not: its findings there are marked and always counted,
+// because a real credential committed beside a test is as live as one committed beside the code.
 //
 // One key per control rather than one for the project, as every setting that sets a kind of finding
 // aside is: devDependencies, providedDependencies and ownPackages sit under sca, and cpeMatches under
@@ -24,10 +24,10 @@ const nonShippingProperty = `"nonShippingPaths": {
       "type": "string",
       "default": "report",
       "anyOf": [
-        { "const": "report", "description": "Each finding in a file under a docs, examples or tests directory is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default." },
-        { "const": "suppress", "description": "Each finding in a file under a docs, examples or tests directory stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate." }
+        { "const": "report", "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default." },
+        { "const": "suppress", "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate." }
       ],
-      "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth. A component's setting replaces the project's."
+      "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth, and in Go test files, named *_test.go. A component's setting replaces the project's."
     }`
 
 // nonShippingOptionSchema is the schema of a control whose only setting is nonShippingPaths.

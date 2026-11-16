@@ -1,5 +1,6 @@
 // Package nonshipping names the directories a repository keeps beside its code without shipping
-// them: documentation, examples and tests.
+// them: documentation, examples and tests. It also places Go test files, the one kind of file whose
+// name alone a language promises keeps it out of the program.
 //
 // One list, read by the scan that marks a finding under one of them and by `draugr init`, which
 // proposes an ignore line for each. Two copies would disagree the first time somebody added a name
@@ -51,12 +52,16 @@ func Names() []string { return slices.Sorted(maps.Keys(dirs)) }
 func DirKind(name string) string { return dirs[name] }
 
 // KindOf is the kind of the outermost listed directory holding the file at rel, a slash-separated
-// path relative to the repository's root, or "" where none holds it.
+// path relative to the repository's root, or Test for a Go test file, or "" where neither holds.
 //
-// Directories only. A file named `test` or `spec` is a file, and its own name says nothing about
-// whether it ships. Each directory is a whole segment, so `contest/` and `docsite/` are not matched.
-// A path that is absolute, climbs out of the root, or carries a scheme is not one this package can
-// place, and is not marked.
+// Directories, and one file name. A Go file whose name ends in `_test.go` is never built into the
+// program: the Go toolchain leaves it out by language rule, not by convention, so the name alone
+// says it does not ship. No other language's name is read. `test_*.py`, `*.test.js` and `*Spec.rb`
+// are conventions nothing in their languages enforces, and a file wearing one can be imported by
+// shipped code. A file named `test` or `spec` is a file, and its own name says nothing about whether
+// it ships. Each directory is a whole segment, so `contest/` and `docsite/` are not matched. A path
+// that is absolute, climbs out of the root, or carries a scheme is not one this package can place,
+// and is not marked.
 func KindOf(rel string) string {
 	if rel == "" || strings.Contains(rel, "://") || strings.HasPrefix(rel, "/") {
 		return ""
@@ -71,8 +76,14 @@ func KindOf(rel string) string {
 			return k
 		}
 	}
+	if strings.HasSuffix(segs[len(segs)-1], goTestSuffix) {
+		return Test
+	}
 	return ""
 }
+
+// goTestSuffix ends the name of every Go test file, which `go build` never compiles into a program.
+const goTestSuffix = "_test.go"
 
 // ToolDependency reports whether the file at rel, a slash-separated path relative to the
 // repository's root, is a dependency file of a tool the developers install rather than of the

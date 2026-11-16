@@ -92,7 +92,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// How many of the counts are findings under docs, examples or tests, beside the counts they
 		// are part of. The listing labels the ones it shows and cannot say how many it left out.
 		chips := bandChips(col, s)
-		if note := nonShippingNote(s.nonShipping); note != "" {
+		if note := nonShippingNote(s.nonShipping, s.nonShippingTests); note != "" {
 			chips += "  " + col.Paint(cDim, note)
 		}
 		_, _ = fmt.Fprintln(w, chips)
@@ -734,10 +734,14 @@ func asideNote(aside string) string {
 }
 
 // nonShippingNote counts the counted findings under docs, examples or tests, in the words their
-// suppression gives as its reason where a setting sets them aside, or "" for none.
-func nonShippingNote(n int) string {
+// suppression gives as its reason where a setting sets them aside, or "" for none. Where every one of
+// them is in a test, of n, it says test files, which a Go test file outside a test directory is too.
+func nonShippingNote(n, tests int) string {
 	if n == 0 {
 		return ""
+	}
+	if tests == n {
+		return english.Count(n, "finding") + " in test files"
 	}
 	return english.Count(n, "finding") + " " + sarif.JustificationNonShipping
 }

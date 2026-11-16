@@ -15,9 +15,9 @@ import (
 // a chart repository the fixtures outnumber the chart by thousands to one.
 //
 // So each finding of a control that opts in is marked with the kind of directory its file sits
-// under, and the control's nonShippingPaths decides whether those count. The mark is a fact about
-// the path, the same whichever scanner reported it, and the report lists marked findings after the
-// rest whether they count or not.
+// under, and the control's nonShippingPaths, where it has one, decides whether those count. The mark
+// is a fact about the path, the same whichever scanner reported it, and the report lists marked
+// findings after the rest whether they count or not.
 
 // nonShippingSetting is a control's nonShippingPaths.
 var nonShippingSetting = settingPolicy{
@@ -32,12 +32,13 @@ var nonShippingSetting = settingPolicy{
 	justification: sarif.JustificationNonShipping,
 }
 
-// markNonShipping marks each finding of a control implementing NonShippingPolicy whose file sits
-// under a directory of documentation, examples or tests.
+// markNonShipping marks each finding of a control implementing NonShippingPolicy or
+// NonShippingMarker whose file sits under a directory of documentation, examples or tests, or is a
+// Go test file.
 //
-// Only those controls. A control that does not implement it is one whose findings stay live
-// wherever they are, and secrets is the case: a credential committed in a test fixture still opens
-// whatever it opens.
+// Only those controls. A marker's findings are marked and never set aside, because applyNonShipping
+// asks only the policy, and secrets is the case: a credential committed in a test fixture is listed
+// after the shipped code's and still counts, because if it is real it opens whatever it opens.
 //
 // The path is read below the repository path the component declares, so a component a descriptor
 // roots at `examples/demo` on purpose is scanned as the shipped code it says it is. Only what lies
@@ -48,7 +49,9 @@ func (e *Engine) markNonShipping(controls map[string]plugin.ControlResult, model
 		if !ok {
 			continue
 		}
-		if _, ok := ctrl.(plugin.NonShippingPolicy); !ok {
+		_, policy := ctrl.(plugin.NonShippingPolicy)
+		_, marker := ctrl.(plugin.NonShippingMarker)
+		if !policy && !marker {
 			continue
 		}
 		for i := range cr.Report.Results {

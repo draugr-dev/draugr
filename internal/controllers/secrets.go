@@ -60,6 +60,12 @@ func (Secrets) ReportsDetectSecretsBaselines(model saga.Model, component string)
 	return controlSetting(model, component, "secrets", detectSecretsBaselinesKey, false)
 }
 
+// MarksNonShipping has a credential in a file under docs, examples or tests labeled and listed after
+// the shipped code's, still counted. There is no setting to set them aside: a test fixture's key is
+// more often a placeholder than not, but none of the scanners verifies one, and a real key committed
+// beside a test sits in the history as any other does.
+func (Secrets) MarksNonShipping() {}
+
 // Plan produces one scan job per repository declared on the component.
 func (Secrets) Plan(model saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
 	if comp == nil {

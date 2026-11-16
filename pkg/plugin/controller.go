@@ -146,12 +146,24 @@ type DetectSecretsBaselinePolicy interface {
 // where their file sits under documentation, examples or tests, and to decide per component whether
 // those findings count.
 //
-// Implementing it is what opts a control in to the mark. A control whose findings stay live wherever
-// they are, such as a credential committed beside a test, does not implement it, and its findings
-// are neither marked nor set aside. Asked as DevDependencyPolicy is, for the findings carrying the
-// mark. Source names the setting that decided, which the suppression records.
+// Implementing it opts a control in to the mark and to a setting that can set the marked findings
+// aside. A control whose findings must count wherever they are, such as a credential committed
+// beside a test, implements NonShippingMarker instead, or neither. Asked as DevDependencyPolicy is,
+// for the findings carrying the mark. Source names the setting that decided, which the suppression
+// records.
 type NonShippingPolicy interface {
 	ReportsNonShipping(model saga.Model, component string) (report bool, source string)
+}
+
+// NonShippingMarker is an optional interface a Controller may implement to have its findings marked
+// where their file sits under documentation, examples or tests, with no setting to set them aside.
+//
+// A marked finding is labeled with the kind of directory and listed after the findings in shipped
+// code, and it still counts at its priority and in the gate. It is for a control whose findings
+// matter wherever they sit but read differently there: a credential in a test fixture is more often
+// a placeholder than a key, and when it is a key it sits in the history like any other.
+type NonShippingMarker interface {
+	MarksNonShipping()
 }
 
 // ScanJob is a unit of scan work produced by a controller's Plan.

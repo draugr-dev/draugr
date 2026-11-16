@@ -806,9 +806,10 @@ that decided, `config.controls.secrets.detectSecretsBaselines` or a component's 
 ### Non-shipping paths
 
 `nonShippingPaths` decides whether a finding in a file under a directory of documentation, examples
-or tests counts. `sast`, `iac` and `sca` each take it under the control, and each reads its own.
-`secrets` does not take it, because a credential committed in a test fixture is as live as one
-committed beside the code, so a secrets finding is never marked and never set aside.
+or tests, or in a Go test file, counts. `sast`, `iac` and `sca` each take it under the control, and
+each reads its own. `secrets` does not take it. Its findings are labeled and listed after the
+shipped code's, but always counted, because a credential committed in a test fixture is as live as
+one committed beside the code if it is real. Their fix reads `rotate the credential if it is real`.
 
 | Value | Each finding in a file under one of these directories |
 |---|---|
@@ -828,7 +829,8 @@ components:
 ```
 
 A directory is matched by its whole name at any depth, so `charts/app/tests/` matches and
-`contest/` and `docsite/` do not. A file's own name is not matched. The kind is the label:
+`contest/` and `docsite/` do not. A file's own name is not matched, except a Go test file's. The kind
+is the label:
 
 | Directory | Label |
 |---|---|
@@ -837,16 +839,23 @@ A directory is matched by its whole name at any depth, so `charts/app/tests/` ma
 | `test`, `tests`, `testdata`, `__tests__`, `spec`, `fixtures` | `test` |
 
 Names that also hold shipped code in some projects, such as `demo`, `samples`, `testing` and `e2e`,
-are not on the list. Test files beside the code, such as `handler_test.go` or `app.spec.ts`, are not
-matched either.
+are not on the list.
+
+A Go file whose name ends in `_test.go`, such as `handler_test.go`, is labeled `test` wherever it
+sits. The Go toolchain never builds one into the program, by the language's rule rather than by
+convention. Other languages' test names, such as `test_app.py`, `app.test.js` or `app.spec.ts`, are
+not matched, and none will be added on the same grounds: nothing in those languages enforces them,
+so a file wearing one can still be imported by shipped code. Only the directory such a file sits in
+can mark it.
 
 The path is read below the repository's [`paths`](#scoping-a-repository), so a component scoped to
 `examples/demo` is shipped code, and only a directory beneath it is matched. For `sca` the location
 is the dependency file, so a `tests/go.mod` for a module only the tests build is marked. A flaw
 another manifest that ships also holds is counted under that manifest's copy.
 
-In the console, the marked total is printed with the band counts, and the Fix first heading says
-`shipped code first`. `report.json` carries the label on each finding as `nonShipping`.
+In the console, the marked total is printed with the band counts, as `N findings in test files`
+where every one is a test and `N findings in docs, examples or tests` otherwise, and the Fix first
+heading says `shipped code first`. `report.json` carries the label on each finding as `nonShipping`.
 
 The suppression's `origin` is `setting` and its `source` is the key that decided, as for
 development dependencies. [`draugr init`](cli.md#draugr-init-dir) proposes an `ignore` line for each of

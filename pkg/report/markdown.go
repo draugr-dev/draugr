@@ -45,7 +45,7 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 			_, _ = fmt.Fprintf(w, "**%s** %s\n\n", unclassifiedRead, unclassifiedBands)
 		}
 		// Beside the counts they are part of, as the console has it.
-		if note := nonShippingNote(s.nonShipping); note != "" {
+		if note := nonShippingNote(s.nonShipping, s.nonShippingTests); note != "" {
 			_, _ = fmt.Fprintf(w, "%s, counted above.\n\n", note)
 		}
 	}

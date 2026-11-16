@@ -85,12 +85,14 @@ type Result struct {
 	// can clone and still needs rotating, whatever the tree looks like now.
 	Historical bool `json:"historical,omitempty"`
 	// NonShipping is the kind of directory the finding's file sits under where that directory holds
-	// documentation, examples or tests rather than shipped code: "docs", "example" or "test". Empty
-	// for a finding in shipped code, and for every control that does not mark one.
+	// documentation, examples or tests rather than shipped code: "docs", "example" or "test", and
+	// "test" for a Go test file wherever it sits. Empty for a finding in shipped code, and for every
+	// control that does not mark one.
 	//
 	// Stamped by the engine on the controls that report a location in a repository's own files, so
 	// a reader can tell a flaw in what ships from the same flaw in a test fixture. Whether a marked
-	// finding counts is the control's nonShippingPaths setting; the mark is there either way.
+	// finding counts is the control's nonShippingPaths setting, where it has one; the mark is there
+	// either way, and secrets, which has none, counts every one.
 	NonShipping string `json:"nonShipping,omitempty"`
 	// Aside is what makes a finding in shipped code, or in a repository's own dependency files, one
 	// to fix after the rest while it still counts at its priority: AsideGenerated, AsideTooling or

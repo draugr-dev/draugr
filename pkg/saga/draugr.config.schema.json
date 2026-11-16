@@ -138,15 +138,15 @@
           "anyOf": [
             {
               "const": "report",
-              "description": "Each finding in a file under a docs, examples or tests directory is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default."
+              "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default."
             },
             {
               "const": "suppress",
-              "description": "Each finding in a file under a docs, examples or tests directory stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate."
+              "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate."
             }
           ],
           "default": "report",
-          "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth. A component's setting replaces the project's.",
+          "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth, and in Go test files, named *_test.go. A component's setting replaces the project's.",
           "type": "string"
         },
         "trivyConfig": {
@@ -621,15 +621,15 @@
           "anyOf": [
             {
               "const": "report",
-              "description": "Each finding in a file under a docs, examples or tests directory is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default."
+              "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default."
             },
             {
               "const": "suppress",
-              "description": "Each finding in a file under a docs, examples or tests directory stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate."
+              "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate."
             }
           ],
           "default": "report",
-          "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth. A component's setting replaces the project's.",
+          "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth, and in Go test files, named *_test.go. A component's setting replaces the project's.",
           "type": "string"
         },
         "semgrep": {
@@ -738,15 +738,15 @@
           "anyOf": [
             {
               "const": "report",
-              "description": "Each finding in a file under a docs, examples or tests directory is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default."
+              "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, is counted, labeled with the kind of directory, and listed after the findings in shipped code. The default."
             },
             {
               "const": "suppress",
-              "description": "Each finding in a file under a docs, examples or tests directory stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate."
+              "description": "Each finding in a file under a docs, examples or tests directory, or in a Go test file, stays in the report, suppressed with the reason in docs, examples or tests, and out of the counts and the gate."
             }
           ],
           "default": "report",
-          "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth. A component's setting replaces the project's.",
+          "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth, and in Go test files, named *_test.go. A component's setting replaces the project's.",
           "type": "string"
         },
         "ownPackages": {

@@ -301,8 +301,8 @@ type findingReport struct {
 	// records it, rather than a dependency. Absent on every package fetched from somewhere else.
 	Own bool `json:"own,omitempty"`
 	// NonShipping is the kind of directory the finding's file sits under where it holds
-	// documentation, examples or tests: docs, example or test. Absent for a finding in shipped code
-	// and for a control that does not mark one, such as secrets.
+	// documentation, examples or tests, or test for a Go test file: docs, example or test. Absent for
+	// a finding in shipped code and for a control that does not mark one, such as licenses.
 	NonShipping string `json:"nonShipping,omitempty"`
 	// Aside is why a counted finding is listed after the rest: generated, tooling or pinned. Absent
 	// for every other finding.

@@ -122,10 +122,14 @@ Gitleaks finding reports `severity: medium`, `severityFloor: high` and a ranked 
 `high`, and its `draugr/rating` holds that `warning`. A finding a scanner scored keeps its score as
 its severity.
 
-A finding under `docs/`, `examples/` or `tests/` is counted like any other. A credential committed
-in a test fixture opens whatever it opens, so `secrets` takes no
-[`nonShippingPaths`](../../docs/reference/saga-schema.md#non-shipping-paths) setting and its
-findings carry no label.
+A finding under `docs/`, `examples/` or `tests/`, or in a Go test file such as `token_test.go`, is
+labeled `docs`, `example` or `test` beside its location and listed after the credentials in shipped
+code, and its fix reads `rotate the credential if it is real`, because a test fixture's key is often
+a placeholder and no scanner here checks whether a key works. It is still counted at its priority
+and in the gate. A real credential committed in a test fixture sits in the history and opens
+whatever it opens, so `secrets` takes no
+[`nonShippingPaths`](../../docs/reference/saga-schema.md#non-shipping-paths) setting to set these
+aside.
 
 ## Links
 
