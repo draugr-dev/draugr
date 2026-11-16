@@ -2092,6 +2092,15 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		}
 		report.UnsettledChecks = unsettled
 	}
+	// A verdict about a package is matched to findings by component, as a finding's own verdict is.
+	if len(report.PackageVerdicts) > 0 {
+		verdicts := make([]sarif.PackageVerdict, len(report.PackageVerdicts))
+		copy(verdicts, report.PackageVerdicts)
+		for i := range verdicts {
+			verdicts[i].Component = pj.Component
+		}
+		report.PackageVerdicts = verdicts
+	}
 	if len(report.Results) == 0 {
 		return report
 	}
@@ -2658,6 +2667,19 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 			verdicts[key] = strongerReachability(verdicts[key], res.Reachability)
 		}
 	}
+	// Verdicts about every advisory on a package, keyed as a finding's are without the rule: a Go
+	// module the analyzer's build never compiled, on which it has no finding of its own.
+	packageVerdicts := map[reachKey]*sarif.Reachability{}
+	for _, cr := range controls {
+		for i := range cr.Report.PackageVerdicts {
+			v := &cr.Report.PackageVerdicts[i]
+			if _, ok := analyzers[v.Reachability.Analyzer]; !ok {
+				analyzers[v.Reachability.Analyzer] = &AnalyzerReachability{Analyzer: v.Reachability.Analyzer}
+			}
+			key := reachKey{component: v.Component, repository: v.Repository, manifest: v.Path, pkg: v.Package}
+			packageVerdicts[key] = strongerReachability(packageVerdicts[key], &v.Reachability)
+		}
+	}
 	// The other identifiers an analyzer reported for its finding reach a copy keyed on any of them,
 	// and record which of the analyzer's findings each one came from, so that finding folds too.
 	// Only an identifier the analyzer did not also report as a finding of its own: one it reported
@@ -2694,6 +2716,13 @@ func (e *Engine) applyReachability(controls map[string]plugin.ControlResult, mod
 		var verdict *sarif.Reachability
 		for _, src := range from {
 			verdict = strongerReachability(verdict, verdicts[src])
+		}
+		// Only where no verdict names the advisory. An analyzer has a finding of its own only on a
+		// package it analyzed, so the two do not meet for one package in one file, and where they
+		// did, the one about this advisory is the closer reading.
+		if verdict == nil {
+			own.rule = ""
+			verdict = packageVerdicts[own]
 		}
 		return verdict, from
 	}
@@ -2874,7 +2903,8 @@ func strongerReachability(existing, candidate *sarif.Reachability) *sarif.Reacha
 	return existing
 }
 
-// reachabilityRank orders verdicts by how much exposure they claim.
+// reachabilityRank orders verdicts by how much exposure they claim. Not built claims nothing about a
+// build nobody analyzed, so it ranks with unknown, below a call graph's unreachable.
 func reachabilityRank(s sarif.ReachabilityState) int {
 	switch s {
 	case sarif.ReachabilityReachable:

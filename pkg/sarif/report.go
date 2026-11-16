@@ -549,7 +549,7 @@ type Match struct {
 
 // ReachabilityState says whether this project's own code can reach a dependency's vulnerable
 // code. Three values rather than two, because the third is the one that keeps the other two
-// honest.
+// honest, and a fourth that is evidence rather than a verdict.
 type ReachabilityState string
 
 const (
@@ -570,6 +570,16 @@ const (
 	// "we did not check" into "you are fine". Which is the failure this codebase refuses everywhere
 	// else. A tool that cannot say which of the two it means may only report this.
 	ReachabilityUnknown ReachabilityState = "unknown"
+	// ReachabilityNotBuilt means the analyzer read the build it analyzed and the dependency is in
+	// none of the packages that build compiled. Build names the platforms and build tags read.
+	//
+	// A state of its own rather than unreachable with a weaker method, so that everything which
+	// counts, ranks or marks unreachable findings leaves it alone without a case of its own. It
+	// moves nothing: the platforms analyzed may not be every platform the module ships for, and a
+	// dependency compiled only for one nobody analyzed is still in that binary. Lowering on it would
+	// take the safer reading of a build nobody looked at. It is shown beside the finding, and the
+	// finding is ranked as though no analyzer had spoken.
+	ReachabilityNotBuilt ReachabilityState = "not-built"
 )
 
 // Reachability records whether this project's code can reach a dependency's vulnerable code,
@@ -615,6 +625,38 @@ type Reachability struct {
 	// `//go:build windows`, found on Linux by a run for windows/amd64. Empty for a verdict over the
 	// machine's own build.
 	Platforms []string `json:"platforms,omitempty"`
+	// Build is the build a ReachabilityNotBuilt state was read from, and nil for any other state. A
+	// module missing from a build is missing from that build only: one built only under a tag nobody
+	// set, or only for a platform nobody analyzed, is still in somebody's binary, so the evidence
+	// names what it looked at.
+	Build *AnalyzedBuild `json:"build,omitempty"`
+}
+
+// AnalyzedBuild is the build an analyzer compiled: the platforms it built for and the build tags set
+// beyond the go command's defaults.
+type AnalyzedBuild struct {
+	// Platforms are the platforms, as GOOS/GOARCH, the machine's own first.
+	Platforms []string `json:"platforms"`
+	// Tags are the build tags set, from `-tags` in GOFLAGS. Empty means none beyond the defaults.
+	Tags []string `json:"tags,omitempty"`
+}
+
+// PackageVerdict is a reachability verdict about every finding on one package declared in one
+// dependency file, rather than about one advisory.
+//
+// An analyzer reports advisories only for what it analyzed, so a package it never compiled has no
+// finding of its own for a verdict to travel on. The verdict about that package travels here, and
+// the engine moves it onto the findings other scanners reported for the package in that file.
+type PackageVerdict struct {
+	// Repository and Component say whose file it is, stamped after the scan as an Input's are.
+	Repository string `json:"repository,omitempty"`
+	Component  string `json:"component,omitempty"`
+	// Path is the dependency file that declares the package, relative to the repository root.
+	Path string `json:"path"`
+	// Package is the package's name as the file declares it: a Go module path.
+	Package string `json:"package"`
+	// Reachability is the verdict.
+	Reachability Reachability `json:"reachability"`
 }
 
 // CallPath is one route from this project's code to a vulnerable symbol, ordered caller first
@@ -950,6 +992,11 @@ type Report struct {
 	// the findings alone would never ask about it. Kept with a cached result so a cache hit carries
 	// it too. Empty for a scanner that does not list what it read.
 	Inventory []InventoryPackage `json:"inventory,omitempty"`
+	// PackageVerdicts are reachability verdicts about a whole package in one dependency file, for a
+	// package the analyzer has no finding of its own on: a Go module govulncheck's build never
+	// compiled. Folded onto other scanners' findings with the per-advisory verdicts, and kept with a
+	// cached result as Inventory is.
+	PackageVerdicts []PackageVerdict `json:"packageVerdicts,omitempty"`
 	// Unchecked are the checks a scan could not evaluate, or could evaluate only in part, each with the reason:
 	// a read the check needs that the scan's identity was denied.
 	//
@@ -1380,6 +1427,7 @@ func Merge(reports ...Report) Report {
 		out.UnsettledChecks = append(out.UnsettledChecks, rep.UnsettledChecks...)
 		out.addInputs(rep.Inputs)
 		out.addInventory(rep.Inventory)
+		out.addPackageVerdicts(rep.PackageVerdicts)
 		out.addUnchecked(rep.Unchecked)
 		for _, res := range rep.Results {
 			if res.Tool == "" {
@@ -1487,6 +1535,22 @@ func (r *Report) addInventory(pkgs []InventoryPackage) {
 		}
 		seen[p] = true
 		r.Inventory = append(r.Inventory, p)
+	}
+}
+
+// addPackageVerdicts appends verdicts that are not already present. One analyzer's verdict about one
+// package, in one file, for one component is one statement, so merging a report with itself does not
+// double it.
+func (r *Report) addPackageVerdicts(verdicts []PackageVerdict) {
+	for _, v := range verdicts {
+		if slices.ContainsFunc(r.PackageVerdicts, func(existing PackageVerdict) bool {
+			return existing.Repository == v.Repository && existing.Component == v.Component &&
+				existing.Path == v.Path && existing.Package == v.Package &&
+				existing.Reachability.Analyzer == v.Reachability.Analyzer
+		}) {
+			continue
+		}
+		r.PackageVerdicts = append(r.PackageVerdicts, v)
 	}
 }
 
@@ -1714,6 +1778,12 @@ const (
 	// MethodImportCheck saw whether the vulnerable package is referenced anywhere in the tree,
 	// which is presence with extra steps.
 	MethodImportCheck = "import-check"
+	// MethodNotBuilt read the build itself, and goes with ReachabilityNotBuilt: the package is
+	// declared in the dependency file and is in none of the packages the analyzer compiled. Bounded by
+	// which build was read, which Build names: code compiled only for another platform, or only under
+	// another build tag, is outside it. Not a proof of absence, because the builds read may not be
+	// every build that ships.
+	MethodNotBuilt = "not-built"
 )
 
 // ProvesAbsence reports whether a method's unreachable verdict is strong enough to lower a band.

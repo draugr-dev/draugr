@@ -1682,6 +1682,42 @@ func unreachableCredit(r *sarif.Reachability) string {
 	return strings.TrimSuffix(strings.TrimPrefix(attribution(r), " ("), ")")
 }
 
+// notBuiltWord is the facts line's word for a finding on a module the analyzed build does not
+// compile, or "" for any other. It says what was read and carries no arrow: the band did not move,
+// because the platforms analyzed may not be all that ship.
+func notBuiltWord(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityNotBuilt {
+		return ""
+	}
+	return "not built"
+}
+
+// notBuiltEvidence names the build a module is missing from, and who read it, for the line under the
+// row: "not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)". Only
+// the build that was read, because a module compiled only for another platform or under a tag nobody
+// set is still in somebody's binary. "" for any other state.
+func notBuiltEvidence(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityNotBuilt {
+		return ""
+	}
+	return notBuiltNote(r.Build) + attribution(r)
+}
+
+// notBuiltNote names the build a module is missing from: its platforms and the build tags set.
+func notBuiltNote(b *sarif.AnalyzedBuild) string {
+	if b == nil || len(b.Platforms) == 0 {
+		return "not in the build analyzed"
+	}
+	out := "not in the " + platformNote(b.Platforms) + " analyzed"
+	if len(b.Platforms) > 1 {
+		out = "in none of the " + platformNote(b.Platforms) + " analyzed"
+	}
+	if len(b.Tags) == 0 {
+		return out + ", no extra build tags"
+	}
+	return out + ", " + english.Choose(len(b.Tags), "build tag ", "build tags ") + english.And(b.Tags)
+}
+
 // unreachableStanding reports an unreachable verdict that left the band where it was.
 //
 // The row carries no mark in that case, so without this line the finding reads as one nothing was

@@ -141,15 +141,28 @@ func (o *moduleOwner) owns(file string) bool {
 //
 // The report may be shared with other jobs through the cache or the in-run dedupe, so nothing in
 // it is modified.
+//
+// A verdict about a whole package goes where a finding at its file would: to the job that owns the
+// manifest declaring the package.
 func (o *moduleOwner) attribute(report sarif.Report) sarif.Report {
-	if o == nil || len(report.Results) == 0 {
+	if o == nil || len(report.Results)+len(report.PackageVerdicts) == 0 {
 		return report
 	}
 	out := report
-	out.Results = make([]sarif.Result, 0, len(report.Results))
-	for _, r := range report.Results {
-		if kept, ok := o.keep(r); ok {
-			out.Results = append(out.Results, kept)
+	if len(report.Results) > 0 {
+		out.Results = make([]sarif.Result, 0, len(report.Results))
+		for _, r := range report.Results {
+			if kept, ok := o.keep(r); ok {
+				out.Results = append(out.Results, kept)
+			}
+		}
+	}
+	if len(report.PackageVerdicts) > 0 {
+		out.PackageVerdicts = make([]sarif.PackageVerdict, 0, len(report.PackageVerdicts))
+		for _, v := range report.PackageVerdicts {
+			if o.owns(v.Path) {
+				out.PackageVerdicts = append(out.PackageVerdicts, v)
+			}
 		}
 	}
 	return out

@@ -275,7 +275,7 @@ type Finding struct {
 
 // Reachability is a reachability analyzer's verdict on one dependency finding.
 type Reachability struct {
-	State    string   `json:"state" jsonschema:"reachable, unreachable, or unknown (the analyzer ran and could not tell)"`
+	State    string   `json:"state" jsonschema:"reachable, unreachable, or unknown (the analyzer ran and could not tell); not-built means the module is in none of the packages the analyzed build compiled, evidence that does not change the ranking"`
 	Analyzer string   `json:"analyzer" jsonschema:"the tool that decided"`
 	Method   string   `json:"method,omitempty" jsonschema:"how it decided, for example symbol-level call graph"`
 	RankedAs string   `json:"rankedAs,omitempty" jsonschema:"the severity the finding was ranked at after reachability was applied, when it moved"`

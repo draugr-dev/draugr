@@ -117,11 +117,41 @@ with a call path from its files.
 | `unreachable` | the module was analyzed and no path was found |
 | `unknown` | no analysis covered it, or the only call path found starts in another component's code |
 
-The third is the one that keeps the other two honest. A dependency used **only from `_test.go`
-files** produces no `govulncheck` output at all, not a module-level record, nothing, at every scan
-level, while a manifest scanner reports it normally. So the absence of a record is not evidence of
-unreachability, and `unreachable` is only claimed when the run reported `scan_level: symbol`
-**and** the module appears in the run's `SBOM` message. Anything else is `unknown`.
+The third is the one that keeps the other two honest. A call graph's silence about a module means
+something only where the module was in the graph, so `unreachable` from a call graph is only claimed
+when the run reported `scan_level: symbol` **and** the module appears in the run's `SBOM` message.
+Anything else govulncheck reports on is `unknown`.
+
+**A requirement the build does not compile is shown as `not-built`, and nothing moves.**
+govulncheck's `SBOM` lists the module of every package the run loaded, the dependencies those
+packages import included, and govulncheck reports advisories only for those modules. After a run
+that loaded its module cleanly at `scan_level: symbol`, a `go.mod` requirement missing from the
+`SBOM` is compiled into none of the packages analyzed: a dependency used only from `_test.go` files,
+which govulncheck does not analyze, or one that only a file behind a build tag nobody set imports.
+The findings a manifest scanner reports on it carry `state: not-built`, and the console says so
+where a mark would stand and names the build that was read on the line under it:
+
+```console
+      not built · component desktop · scanner trivy · …
+      go.mod:9 · not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)
+```
+
+It is evidence shown beside the finding, not a verdict. The build analyzed is the machine's own
+platform and each platform a run was made for beside it, under the `-tags` your `GOFLAGS` sets. That
+may not be every platform the module ships for, and a module compiled only for a platform not
+analyzed, or only under a tag not set, is in that binary. So the finding keeps the band and severity
+it would have without the mark, the gate judges it the same way, and it counts as neither
+`unreachable` nor `unknown` in the reachability summary. Lowering on it waits until every platform
+the module graph builds for is analyzed (https://github.com/draugr-dev/draugr/issues/2236).
+
+A requirement is not marked where the build analyzed cannot be read with certainty:
+
+- a run over the module, for any platform, did not load it, or ran below `scan_level: symbol`: the
+  module keeps its `unread-files` caveat and its findings carry no mark;
+- the requirement is in the `SBOM` of any run over the module, for any platform;
+- a `replace` directive in the `go.mod`, or in the `go.work` whose workspace uses the module, names
+  it, because the `SBOM` lists a replaced module under its replacement;
+- the `go.mod` or that `go.work` cannot be read or parsed.
 
 This scanner is not a superset of a manifest scanner. It sees the build graph; a manifest scanner
 sees the manifest.

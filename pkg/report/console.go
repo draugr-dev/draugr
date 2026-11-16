@@ -830,6 +830,9 @@ func notesFor(col tui.Painter, f finding) []string {
 		text := m.text()
 		fixed = append(fixed, notePart{plain: text, painted: col.Paint(m.style, text)})
 	}
+	if w := notBuiltWord(f.reachability); w != "" {
+		fixed = append(fixed, notePart{plain: w, painted: w})
+	}
 	fixed = append(fixed, reasoning(col, f)...)
 
 	room := messageWidth
@@ -910,6 +913,7 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		moreFilesNote(f),
 		ratingNote(f.rating),
 		reachabilityPath(f.reachability),
+		notBuiltEvidence(f.reachability),
 		unreachableCredit(f.reachability),
 		unreachableStanding(f.reachability),
 		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.tool),

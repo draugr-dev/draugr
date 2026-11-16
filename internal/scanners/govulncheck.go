@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/mod/modfile"
+
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -441,8 +443,11 @@ type govulncheckConfig struct {
 // govulncheckSBOM lists what the analysis actually covered.
 //
 // The field that makes an unreachable verdict safe to state. A module missing from this list was
-// never analyzed, whatever the reason. And "we did not look" must not be reported as "nothing
-// reaches it".
+// never analyzed for a call path, so a call graph's silence about it is not "nothing reaches it". Why
+// it is missing decides the rest. A run that did not load its module wrote no SBOM and looked at
+// nothing. A run that loaded cleanly at symbol level lists every module its packages compile, so a
+// requirement missing from it is not in the build analyzed, which is shown as evidence and moves
+// nothing (notBuiltVerdicts).
 type govulncheckSBOM struct {
 	// Roots are the packages the run's patterns matched. The module holding them is how a run is
 	// matched to the go.mod it came from.
@@ -597,10 +602,164 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 	}
 	results := withPlatformVerdicts(host, other)
 	inputs = append(inputs, stdlibOnlyInputs(dir, stdlibOnly)...)
-	return sarif.Report{Tool: govulncheckScanner, Results: results, Inputs: inputs, Provenance: []sarif.Provenance{{
-		Tool:   govulncheckScanner,
-		Fields: []sarif.Field{{Key: "database", Value: resolveGovulnDB().describe()}},
-	}}}, nil
+	var notBuilt []sarif.PackageVerdict
+	if len(plan) > 0 {
+		notBuilt = notBuiltVerdicts(dir, plan, runs, asOf)
+	}
+	return sarif.Report{Tool: govulncheckScanner, Results: results, Inputs: inputs, PackageVerdicts: notBuilt,
+		Provenance: []sarif.Provenance{{
+			Tool:   govulncheckScanner,
+			Fields: []sarif.Field{{Key: "database", Value: resolveGovulnDB().describe()}},
+		}}}, nil
+}
+
+// moduleBuild is what govulncheck's runs over one module read of its build, gathered across the
+// runs for the machine's own platform and for the others beside it.
+type moduleBuild struct {
+	// clean says every run over the module loaded it and analyzed it at symbol level, and wrote the
+	// SBOM that lists what it compiled.
+	clean bool
+	// platforms are the platforms the runs built for, the machine's own first.
+	platforms []string
+	// built are the module paths in any run's SBOM.
+	built map[string]bool
+}
+
+// notBuiltVerdicts gives each requirement of a module's go.mod that no run over the module compiled
+// the state sarif.ReachabilityNotBuilt, located at that go.mod. runs are the runs plan planned, in
+// the same order.
+//
+// govulncheck's SBOM lists the module of every package the run loaded, the dependencies those
+// packages import included, so after a run that loaded cleanly it is the build analyzed. A
+// requirement missing from it is compiled into none of the packages analyzed. govulncheck reports
+// advisories only for the modules in its SBOM, so a finding on such a requirement comes from a
+// manifest scanner, and the evidence travels beside the results for the engine to move onto it.
+//
+// It is evidence shown beside the finding and moves no band. The platforms analyzed may not be all
+// the platforms the module ships for, and a requirement compiled only for one of the others is in
+// that binary. Even so, a requirement is marked only where the reading of the build analyzed is
+// certain, because a mark that misstates the build is wrong evidence:
+//
+//   - Every run over the module, for every platform, loaded it at symbol level and wrote an SBOM. A
+//     run that failed to load analyzed nothing, and its module keeps the unread-files caveat and no
+//     verdict.
+//   - The requirement is in no run's SBOM, for any platform, so a module only another platform's
+//     code compiles is not marked.
+//   - Nothing replaces it. The SBOM names a replaced module by its replacement, so a replaced
+//     requirement would read as missing while it is built. The go.mod's replace directives are read,
+//     and those of the go.work governing the module where the workspace uses it.
+//   - The go.mod, and that go.work, can be read and parsed.
+func notBuiltVerdicts(dir string, plan []govulncheckPlanned, runs [][]govulncheckMessage, asOf string) []sarif.PackageVerdict {
+	var order []string
+	builds := map[string]*moduleBuild{}
+	for i, run := range runs {
+		if i >= len(plan) {
+			break
+		}
+		mod := plan[i].mod
+		b, ok := builds[mod]
+		if !ok {
+			b = &moduleBuild{clean: true, built: map[string]bool{}}
+			builds[mod] = b
+			order = append(order, mod)
+		}
+		platform := hostGoPlatform.String()
+		if plan[i].build != nil {
+			platform = plan[i].build.Platform.String()
+		}
+		if !slices.Contains(b.platforms, platform) {
+			b.platforms = append(b.platforms, platform)
+		}
+		scanLevel, sbom := "", false
+		for _, m := range run {
+			switch {
+			case m.Unloaded != nil:
+				b.clean = false
+			case m.Config != nil:
+				scanLevel = m.Config.ScanLevel
+			case m.SBOM != nil:
+				sbom = true
+				for _, built := range m.SBOM.Modules {
+					b.built[built.Path] = true
+				}
+			}
+		}
+		if scanLevel != "symbol" || !sbom {
+			b.clean = false
+		}
+	}
+	tags := goflagsTags(os.Getenv("GOFLAGS"))
+	var out []sarif.PackageVerdict
+	for _, mod := range order {
+		b := builds[mod]
+		if !b.clean {
+			continue
+		}
+		gomod, ok := relSlash(dir, filepath.Join(mod, "go.mod"))
+		if !ok {
+			continue
+		}
+		required, ok := unreplacedRequirements(dir, mod)
+		if !ok {
+			continue
+		}
+		for _, path := range required {
+			if b.built[path] {
+				continue
+			}
+			out = append(out, sarif.PackageVerdict{Path: gomod, Package: path, Reachability: sarif.Reachability{
+				State:    sarif.ReachabilityNotBuilt,
+				Analyzer: govulncheckScanner,
+				Method:   sarif.MethodNotBuilt,
+				AsOf:     asOf,
+				Build:    &sarif.AnalyzedBuild{Platforms: slices.Clone(b.platforms), Tags: slices.Clone(tags)},
+			}})
+		}
+	}
+	return out
+}
+
+// unreplacedRequirements are the module paths the go.mod of the module at mod requires, in the
+// checkout at root, less any a replace directive names: the go.mod's own, and those of the go.work
+// governing the module where the workspace uses it. False where either file cannot be read or
+// parsed, which marks nothing.
+func unreplacedRequirements(root, mod string) ([]string, bool) {
+	path := filepath.Join(mod, "go.mod")
+	raw, err := os.ReadFile(path) // #nosec G304 -- a go.mod inside the checkout
+	if err != nil {
+		return nil, false
+	}
+	// Parse rather than ParseLax, which drops replace directives as a dependency's go.mod would.
+	mf, err := modfile.Parse(path, raw, nil)
+	if err != nil {
+		return nil, false
+	}
+	replaced := map[string]bool{}
+	for _, r := range mf.Replace {
+		replaced[r.Old.Path] = true
+	}
+	if work := governingGoWork(root, mod); work != "" {
+		raw, err := os.ReadFile(work) // #nosec G304 -- the go.work governing a module in the checkout, or the one GOWORK names
+		if err != nil {
+			return nil, false
+		}
+		wf, err := modfile.ParseWork(work, raw, nil)
+		if err != nil {
+			return nil, false
+		}
+		if usesModule(wf, filepath.Dir(work), mod) {
+			for _, r := range wf.Replace {
+				replaced[r.Old.Path] = true
+			}
+		}
+	}
+	var out []string
+	for _, r := range mf.Require {
+		if !replaced[r.Mod.Path] && !slices.Contains(out, r.Mod.Path) {
+			out = append(out, r.Mod.Path)
+		}
+	}
+	return out, true
 }
 
 // plannedGovulncheckRuns says what govulncheckPlan planned, for the error of a count of runs that

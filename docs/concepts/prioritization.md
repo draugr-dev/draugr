@@ -458,6 +458,12 @@ moved nothing. A SARIF import carries one only in Draugr's own `reachability` re
 unreachable · framework-heuristic · band unchanged (dep-scan, 2026-08-21)
 ```
 
+A `go.mod` requirement missing from a build govulncheck loaded cleanly is marked `not built`, with
+the platforms and build tags it read, and lowers nothing. It is evidence shown beside the finding,
+not a verdict: the platforms analyzed may not be all the module ships for, and a module compiled only
+for another is in that binary. Lowering on it waits until every platform the module graph builds for
+is analyzed (https://github.com/draugr-dev/draugr/issues/2236).
+
 An analyzer that does not state its method is read the same way. A lowered finding is judged at its
 lowered ranked severity by a severity gate, so an unreachable critical passes `--fail-on critical`.
 A Go module govulncheck could not load has no verdict: its findings keep their band, and its

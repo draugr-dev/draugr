@@ -340,6 +340,30 @@ func TestModuleOwnerNarrowsReachability(t *testing.T) {
 	}
 }
 
+// Evidence about a module the build does not compile goes to the component whose paths name the
+// go.mod declaring it, as a finding located there does, and to no other.
+func TestModuleOwnerAttributesAPackageVerdictByItsManifest(t *testing.T) {
+	owner := func(paths ...string) *moduleOwner {
+		return &moduleOwner{
+			manifest: "go.mod",
+			modules:  []string{"services"},
+			own:      git.Scope{Paths: paths},
+			claims:   []git.Scope{{Paths: []string{"services/cmd/api", "services/go.mod"}}, {Paths: []string{"services/cmd/admin"}}},
+		}
+	}
+	report := sarif.Report{PackageVerdicts: []sarif.PackageVerdict{{Path: "services/go.mod", Package: "github.com/labstack/echo/v4",
+		Reachability: sarif.Reachability{State: sarif.ReachabilityNotBuilt, Method: sarif.MethodNotBuilt}}}}
+	if got := owner("services/cmd/api", "services/go.mod").attribute(report); len(got.PackageVerdicts) != 1 || got.Results != nil {
+		t.Errorf("the go.mod's owner = %+v, want the verdict and no results", got)
+	}
+	if got := owner("services/cmd/admin").attribute(report).PackageVerdicts; len(got) != 0 {
+		t.Errorf("another component = %+v, want no verdict", got)
+	}
+	if len(report.PackageVerdicts) != 1 {
+		t.Error("the shared report was modified")
+	}
+}
+
 func TestModuleOwnerNilAndEmpty(t *testing.T) {
 	var o *moduleOwner
 	r := sarif.Report{Results: []sarif.Result{{RuleID: "x"}}}
