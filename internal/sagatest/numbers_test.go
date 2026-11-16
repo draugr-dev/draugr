@@ -8,9 +8,10 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// TestAnUnquotedScalarIsKeptAsWritten holds both readers to a free-form value YAML reads as a
-// number or a boolean. The editor sees 1.10, 2024 and true; draugr keeps the text, so the version
-// is "1.10" rather than "1.1", and neither reader refuses the file.
+// TestAnUnquotedScalarIsKeptAsWritten holds both readers to a value YAML reads as a number or a
+// boolean. In a field that takes text the editor refuses 1.10, 2024 and true, and draugr keeps the
+// text, so the version is "1.10" rather than "1.1", and warns once per value. Quoted, both readers
+// accept it without a word. A label keeps any value in both.
 func TestAnUnquotedScalarIsKeptAsWritten(t *testing.T) {
 	descriptor := []byte(`project: 2024
 release:
@@ -27,7 +28,13 @@ components:
     repositories:
       - url: .
 `)
-	BothAccept(t, descriptor, false)
+	var doc any
+	if err := yaml.Unmarshal(descriptor, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if SchemaError(t, doc, false) == nil {
+		t.Error("the schema accepts an unquoted number and boolean where a field takes text")
+	}
 	s, err := saga.Load(descriptor)
 	if err != nil {
 		t.Fatal(err)
@@ -48,9 +55,34 @@ components:
 	if got := s.Components[0].Repositories[0].Revision; got != "20240101" {
 		t.Errorf("revision = %q, want 20240101", got)
 	}
+	// One warning per value in a text field, and none for the labels.
+	if got := s.TextWarnings(); len(got) != 5 {
+		t.Errorf("warnings %q, want project, release.version, both names and the revision", got)
+	}
+
+	quoted := []byte(`project: "2024"
+release:
+  version: "1.10"
+components:
+  - name: "2024"
+    labels:
+      tier: 01
+      pci: true
+    repositories:
+      - url: .
+        revision: "20240101"
+`)
+	BothAccept(t, quoted, false)
+	q, err := saga.Load(quoted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := q.TextWarnings(); len(got) > 0 {
+		t.Errorf("quoted text drew warnings %q", got)
+	}
 
 	fragment := []byte(`components:
-  - name: 2026
+  - name: "2026"
     labels:
       tier: 2
     repositories:

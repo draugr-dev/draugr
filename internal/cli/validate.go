@@ -230,7 +230,8 @@ func loadAndWarn(path string) ([]string, error) {
 		if err != nil {
 			return nil, nil
 		}
-		return (&saga.Model{Config: saga.Config{Exclude: frag.Config.Exclude}}).ExcludeWarnings(filepath.Dir(path)), nil
+		return append(frag.TextWarnings(),
+			(&saga.Model{Config: saga.Config{Exclude: frag.Config.Exclude}}).ExcludeWarnings(filepath.Dir(path))...), nil
 	}
 	fetcher := sagafetch.New(context.Background())
 	defer fetcher.Close()
@@ -240,16 +241,17 @@ func loadAndWarn(path string) ([]string, error) {
 	}
 	warnings := append(res.Model.ExcludeWarnings(filepath.Dir(path)), res.Model.ClusterWarnings()...)
 	warnings = append(warnings, res.Model.AccountWarnings()...)
-	return append(warnings, controlWarnings(builtins.Registry(), res.Model)...), nil
+	return append(warnings, descriptorWarnings(builtins.Registry(), res.Model)...), nil
 }
 
-// controlWarnings collects what each control says about a valid descriptor that still works and
-// should be written differently: a deprecated setting, and the key that replaces it.
-func controlWarnings(reg *engine.Registry, model *saga.Model) []string {
+// descriptorWarnings collects what a valid descriptor should write differently: a value YAML reads
+// as a number or a boolean in a field that takes text, and what each control says about a
+// deprecated setting and the key that replaces it.
+func descriptorWarnings(reg *engine.Registry, model *saga.Model) []string {
 	if model == nil {
 		return nil
 	}
-	var out []string
+	out := append([]string{}, model.TextWarnings()...)
 	for _, c := range reg.Controllers() {
 		if w, ok := c.(plugin.Warner); ok {
 			out = append(out, w.Warnings(*model)...)
@@ -258,10 +260,10 @@ func controlWarnings(reg *engine.Registry, model *saga.Model) []string {
 	return out
 }
 
-// writeControlWarnings writes them to w a line each, before a scan, where w is stderr so a machine
-// format on stdout stays one document.
-func writeControlWarnings(w io.Writer, reg *engine.Registry, model *saga.Model) {
-	for _, warning := range controlWarnings(reg, model) {
+// writeDescriptorWarnings writes them to w a line each, before a scan, where w is stderr so a
+// machine format on stdout stays one document.
+func writeDescriptorWarnings(w io.Writer, reg *engine.Registry, model *saga.Model) {
+	for _, warning := range descriptorWarnings(reg, model) {
 		_, _ = fmt.Fprintln(w, warning)
 	}
 }

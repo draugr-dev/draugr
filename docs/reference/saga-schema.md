@@ -58,10 +58,15 @@ export DRAUGR_SAGA_ENVS=STAGING_HOST,DEPLOY_REGION
 Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
 a list are refused. The word null as a value is quoted, `"null"`.
 
-A free-form value that YAML reads as a number or a boolean is kept as its literal text, so
-`version: 1.10` stays `1.10` instead of becoming `1.1`, and the label `pci: true` has the value
-`true`. A value from Draugr's own vocabulary, such as `exposure`, is refused as a number or a
-boolean.
+A field that takes text, such as a version, a path or a name, takes it quoted when YAML would read
+it as a number or a boolean, `version: "1.10"` or `dir: "true"`. Unquoted, the value still loads as
+its literal text, so `version: 1.10` stays `1.10` instead of becoming `1.1`, and `draugr validate`
+and every scan print a warning naming the field, its line and the quoted value to write. A later
+release refuses the unquoted form, and an editor using the JSON Schema marks it already.
+
+A label's value and an `item.fields` value keep any scalar, so the label `pci: true` has the value
+`true` with no warning. Values from Draugr's fixed lists, such as `exposure`, are different: an
+unquoted number or boolean is refused.
 
 ## `project`
 
@@ -173,8 +178,8 @@ components:
 | `account` | The AWS account's 12-digit ID, as `aws sts get-caller-identity` prints it. `aws` only |
 | `subscription` | The Azure subscription's ID, a GUID, as `az account list` prints it. `azure` only |
 
-Quote an AWS account ID. Unquoted, a YAML reader takes it as a number, and one that follows YAML 1.2,
-as most editors do, drops a leading zero.
+Quote an AWS account ID. Unquoted, it is read as a number and warned about, and a YAML 1.2 reader,
+as in most editors, drops a leading zero.
 
 A component's `cloud:` entry names an account with `account:` and may narrow it to the regions its
 resources are in. Findings that belong to no region, such as the project's IAM policy, go to the
@@ -1215,7 +1220,7 @@ before anything is sent. For Azure DevOps Server outside Azure Pipelines, set
 The **`gitlab-mr-comment`** publisher is the GitLab counterpart, with the same sticky behavior. The
 project and the merge-request IID default from the GitLab CI environment, so `kind:
 gitlab-mr-comment` on its own is usually the whole configuration; `repo` accepts a numeric project
-id or a full path, groups included. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`) and must
+id, quoted as `repo: "12345"`, or a full path, groups included. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`) and must
 carry **`api`** scope. `CI_JOB_TOKEN` is read-only on the notes API and cannot post, which is worth
 knowing before reaching for the variable GitLab already provides. See [reports &
 publishers](../guides/reports-and-publishers.md#gitlab).
@@ -1314,7 +1319,7 @@ repository, upload findings to code scanning with the `github` publisher instead
 
 The **`gitlab-issue`** publisher keeps a GitLab issue open on the same terms and reads the same
 fields. The project and the API root come from the GitLab CI environment, and `repo` accepts a
-numeric project id or a full path. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`): a
+numeric project id, quoted as `repo: "12345"`, or a full path. The token comes from `$GITLAB_TOKEN` (or `tokenEnv`): a
 fine-grained token with *Work Item: Create, Read and Update*, *Label: Read* and *Member: Read*, or
 one with the `api` scope, of a user with the Planner role or higher. `CI_JOB_TOKEN` cannot write
 issues. A new issue is confidential unless `item.confidential` is `false`. GitLab records no close

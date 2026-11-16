@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -42,6 +43,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 			return nil, err
 		}
 		stampExcludeLines(&root, m.Config.Exclude)
+		m.textWarnings = textWarnings(&root, reflect.TypeOf(Model{}), "")
 	}
 	foldOlderSpellings(&m)
 	if validate {

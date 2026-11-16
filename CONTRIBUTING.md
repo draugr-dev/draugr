@@ -254,11 +254,13 @@ so no test here can catch them; the golden's failure message names them so they 
 
 The JSON schema is what an editor answers with before Draugr does, so any place it is looser than
 the loader is a place somebody is told a descriptor is fine and finds out from CI that it is not.
-It is **generated** from the registry (`internal/schemagen`), so the authority is always the Go
-side rather than a list maintained by hand in the JSON:
+It is **generated** from `pkg/saga`'s types and the registry (`internal/schemagen`), so the
+authority is always the Go side rather than a list maintained by hand in the JSON. A new field
+needs its description in `internal/schemagen/sagafields.go`, and generation fails until it has one
+([docs/contributing/schema.md](docs/contributing/schema.md)):
 
 ```bash
-go generate ./pkg/saga/...     # after registering a plugin or changing a vocabulary
+go generate ./pkg/saga/...     # after adding a field, registering a plugin or changing a vocabulary
 go test ./internal/schemagen/
 ```
 
@@ -276,8 +278,9 @@ The same holds for objects and `additionalProperties: false`, which is what make
 misspelled key where it is typed rather than leaving a block Draugr never reads.
 
 A scalar is closed with an `anyOf` of `const`, each carrying its own `description`, because that is
-what makes an editor show help beside every completion; an array uses `items.enum`. Copy `exposure`
-or `criticality` for the first and `allowEffects` for the second.
+what makes an editor show help beside every completion; an array uses `items.enum`. In
+`sagafields.go` the first is a `vocab` call over the Go list the loader checks, as `exposure` and
+`criticality` are written.
 
 The reason is not a formality. *"It is a name"* and *"we have not got round to it"* look identical
 in a list of paths, and only one of them should survive review.

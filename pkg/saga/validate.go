@@ -411,13 +411,13 @@ func validateHostAuth(a *HostAuth, where string) []error {
 	}
 	var errs []error
 	switch a.Type {
-	case "bearer":
+	case HostAuthBearer:
 		if a.Header != "" {
 			errs = append(errs, fmt.Errorf(
 				"%s.header is not used with type \"bearer\", which always sets Authorization; "+
 					"use type \"header\" to name your own", where))
 		}
-	case "header":
+	case HostAuthHeader:
 		if strings.TrimSpace(a.Header) == "" {
 			errs = append(errs, fmt.Errorf("%s.header is required with type \"header\" "+
 				"(e.g. X-API-Key)", where))
@@ -460,19 +460,19 @@ func validateHostSpec(spec *HostSpec, where string) []error {
 		default:
 			errs = append(errs, fmt.Errorf(
 				"%s.methods[%d] %q is not an HTTP method Draugr will exercise: %s",
-				where, i, m, strings.Join(specMethodNames, ", ")))
+				where, i, m, strings.Join(SpecMethods, ", ")))
 		}
 	}
 	return errs
 }
 
-// specMethodNames are the methods a spec-driven scan may be told to exercise.
-var specMethodNames = []string{"get", "head", "options", "post", "put", "patch", "delete"}
+// SpecMethods are the methods a spec-driven scan may be told to exercise.
+var SpecMethods = []string{"get", "head", "options", "post", "put", "patch", "delete"}
 
 // validSpecMethod accepts the lowercase spelling only, the one the JSON Schema offers. Accepting
 // `GET` here while an editor rejected it would leave two readers of one file disagreeing.
 func validSpecMethod(m string) bool {
-	return slices.Contains(specMethodNames, m)
+	return slices.Contains(SpecMethods, m)
 }
 
 // lowercaseOnly refuses a vocabulary value written in the wrong case, and says which spelling to
@@ -481,6 +481,17 @@ func validSpecMethod(m string) bool {
 func lowercaseOnly(where, got string) error {
 	return fmt.Errorf("%s %q must be lowercase: %s", where, got, strings.ToLower(got))
 }
+
+// The ways a host's `auth` sends its credential.
+const (
+	// HostAuthBearer sends `Authorization: Bearer <token>`.
+	HostAuthBearer = "bearer"
+	// HostAuthHeader sends the credential in a header the descriptor names.
+	HostAuthHeader = "header"
+)
+
+// HostAuthTypes are the values a host's `auth.type` accepts.
+var HostAuthTypes = []string{HostAuthBearer, HostAuthHeader}
 
 // HostTypes are the values a host's `type` accepts.
 //

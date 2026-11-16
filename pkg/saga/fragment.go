@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -281,6 +282,7 @@ func merge(model *Model, frag Fragment) map[string][]string {
 	}
 	model.Config.Exclude = append(model.Config.Exclude, frag.Config.Exclude...)
 	mergeFragmentControls(&model.Config, frag.Config.Controls, frag.Source)
+	model.textWarnings = append(model.textWarnings, frag.textWarnings...)
 	return supplied
 }
 
@@ -352,6 +354,7 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 			return Fragment{}, fmt.Errorf("parse fragment %q: %w", path, fragmentFieldHint(err))
 		}
 		stampExcludeLines(&root, f.Config.Exclude)
+		f.textWarnings = textWarnings(&root, reflect.TypeOf(Fragment{}), fmt.Sprintf("fragment %q: ", path))
 	}
 	if err := f.Validate(); err != nil {
 		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)

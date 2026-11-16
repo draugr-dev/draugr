@@ -45,7 +45,9 @@ config:
       pr: 12
       marker: "<!-- draugr report -->"
     - kind: gitlab-mr-comment
-      repo: 4242
+      # A numeric GitLab project id is text to both readers when quoted. Unquoted, YAML reads it as
+      # a number, which the schema refuses and draugr validate warns about.
+      repo: "4242"
     - kind: draugr-api
       url: https://draugr.acme.example
     - kind: github-issue

@@ -37,19 +37,22 @@ func generated(t *testing.T) map[string]any {
 // schemaPath is the checked-in file the binary embeds.
 func schemaPath() string { return filepath.Join("..", "..", "pkg", "saga", "draugr.saga.schema.json") }
 
+// TestCheckedInSchemaIsUpToDate holds the whole file to what pkg/saga's types, the tables beside
+// them and the registry generate. A hand edit anywhere in it, or a field added to a descriptor
+// struct without regenerating, fails here.
 func TestCheckedInSchemaIsUpToDate(t *testing.T) {
 	current, err := os.ReadFile(schemaPath())
 	if err != nil {
 		t.Fatal(err)
 	}
-	regenerated, err := Apply(current, builtins.Registry())
+	regenerated, err := SagaSchema(builtins.Registry())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(current) != string(regenerated) {
-		t.Error("the checked-in schema is not what the registry would generate. Run `go generate ./pkg/saga/...`\n" +
-			"This is the drift that let the schema fall two controls behind the registry: an editor " +
-			"rejected descriptors Draugr accepted, including Draugr's own self-scan.")
+		t.Error("pkg/saga/draugr.saga.schema.json is not what pkg/saga and the registry generate. " +
+			"Run `go generate ./pkg/saga/...` and commit the result; to change what the schema says, " +
+			"edit the Go type or its entry in internal/schemagen/sagafields.go, never the JSON.")
 	}
 }
 
@@ -385,16 +388,14 @@ func enumAt(t *testing.T, path ...string) []string {
 	return nil
 }
 
-// TestHandWrittenEnumsMatchTheirSource crosses every enum the generator does not produce against
-// the Go value that decides what Draugr accepts.
+// TestDescriptorEnumsMatchTheirSource crosses the descriptor's closed vocabularies in the checked-in
+// file against the Go value that decides what Draugr accepts.
 //
-// These are the parts of the schema somebody edits by hand, and the failure they produce is
-// quiet: an editor marks a descriptor red that Draugr loads without complaint, or accepts one it
-// rejects. Nothing else notices, because the schema is a data file that no Go code reads.
-//
-// The generated parts already have this guarantee. See the fragment and registry tests above. This
-// is the same guarantee for the parts a person maintains, which are the ones that drift.
-func TestHandWrittenEnumsMatchTheirSource(t *testing.T) {
+// vocab already refuses to generate a vocabulary that differs from its Go list. This reads the
+// file an editor reads, so a schema written by something other than the generator fails too: an
+// editor marking a descriptor red that Draugr loads, or accepting one it rejects, is quiet, and
+// nothing else notices.
+func TestDescriptorEnumsMatchTheirSource(t *testing.T) {
 	t.Parallel()
 
 	for _, c := range []struct {

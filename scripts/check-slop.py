@@ -39,8 +39,9 @@ EM_DASH_SUFFIXES = {".md", ".mdx", ".astro", ".go", ".js", ".css", ".py", ".sh",
 # to edit one. Rewriting the punctuation in notes a tag was cut from would also make every published
 # release disagree with the file it came out of.
 #
-# The generated schemas are not a source: their text comes from the Go doc comments this already
-# reads, so an em dash there is reported where it can be fixed.
+# The generated schemas are not a source: their text comes from the Go this already reads,
+# internal/schemagen's tables and the plugins' own option schemas, so an em dash there is reported
+# where it can be fixed.
 #
 # testdata is a fixture. It is what a tool produced or what a reader pasted, and correcting it would
 # make the fixture describe something no tool emits.

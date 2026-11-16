@@ -1,0 +1,1 @@
+- **A text field in a Saga takes quoted text.** An unquoted `dir: true` or `version: 1.0` still loads as written, and `draugr validate` and every scan warn with the field, its line and the quoted value to write. Editors using the published schema mark it now, and a later release refuses it.
