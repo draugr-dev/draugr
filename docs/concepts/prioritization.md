@@ -462,7 +462,7 @@ A `go.mod` requirement missing from a build govulncheck loaded cleanly is marked
 the platforms and build tags it read, and lowers nothing. It is evidence shown beside the finding,
 not a verdict: the platforms analyzed may not be all the module ships for, and a module compiled only
 for another is in that binary. Lowering on it waits until every platform the module graph builds for
-is analyzed.
+is analyzed (https://github.com/draugr-dev/draugr/issues/2236).
 
 An analyzer that does not state its method is read the same way. A lowered finding is judged at its
 lowered ranked severity by a severity gate, so an unreachable critical passes `--fail-on critical`.

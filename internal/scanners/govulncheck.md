@@ -142,7 +142,7 @@ may not be every platform the module ships for, and a module compiled only for a
 analyzed, or only under a tag not set, is in that binary. So the finding keeps the band and severity
 it would have without the mark, the gate judges it the same way, and it counts as neither
 `unreachable` nor `unknown` in the reachability summary. Lowering on it waits until every platform
-the module graph builds for is analyzed.
+the module graph builds for is analyzed (https://github.com/draugr-dev/draugr/issues/2236).
 
 A requirement is not marked where the build analyzed cannot be read with certainty:
 
