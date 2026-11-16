@@ -1,1 +1,0 @@
-- **Composite action steps the lockfile pins are marked pinned.** A mutable-tag finding on a step in a composite action under `.github/actions/` is held at P3 when `actions.lock` lists it for every workflow that calls the action, and a `uses:` path to a local action, `./…` or `$/…`, is no longer reported as a mutable tag.

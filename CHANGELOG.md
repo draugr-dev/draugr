@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.180.0] - 2026-11-16
+
+### Changed
+
+- **An unquoted text value in a Saga now warns.** An unquoted `dir: true` or `version: 1.0` still loads as written, and `draugr validate` and every scan warn with the field, its line and the quoted value to write. Editors using the published schema flag it too, and a later release will refuse it.
+
+### Fixed
+
+- **A grouped FIX FIRST row for mutable GitHub Actions tags now points at a third-party action.** When one row covers several `uses:` references, its location shows one from outside the `actions` and `github` organizations, such as `codecov/codecov-action@v5`, instead of `actions/checkout`. The band, count and row order are unchanged.
+
+- **A Go module that only pins developer tools no longer leads FIX FIRST.** This covers a module where every `.go` file needs the `tools` build tag, and a module with no `.go` file whose `go.mod` has `tool` directives. Its findings are labeled as developer-tool findings and listed after the application's. They still count at their priority.
+
+- **Another tool's SARIF file is read in full.** A numeric `security-severity` no longer makes it unreadable. Rules named by `ruleIndex`, locations by artifact index or `originalUriBaseIds` base, and absolute paths inside a local checkout are now read, and Draugr's own fields, such as `priority` and `aside`, are ignored. `draugr doctor` fails on a file the scan would refuse.
+
+- **Composite action steps that the lockfile pins are now marked pinned.** A mutable-tag finding on a step in a composite action under `.github/actions/` is held at P3 when `actions.lock` lists its reference for every workflow that calls the action. A `uses:` path to a local action (`./…` or `$/…`) is no longer reported as a mutable tag.
+
 ## [0.179.0] - 2026-11-16
 
 ### Added
@@ -7271,7 +7287,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.179.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.180.0...HEAD
+[0.180.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.180.0
 [0.179.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.179.0
 [0.178.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.178.0
 [0.177.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.177.0
