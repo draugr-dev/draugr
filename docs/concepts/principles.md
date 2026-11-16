@@ -79,6 +79,10 @@ ran, nothing moves. Where Draugr cannot tell, it assumes the worse case or leave
 - **A code check that cannot tell whether a value comes from outside the program does not clear
   it.** Its findings keep their rank, even where that leaves a longer list.
 
+One exception remains. An advisory that its database has not scored yet, which Trivy reports as
+`UNKNOWN` and Grype as `Unknown`, ranks as low today, the same as a low one.
+https://github.com/draugr-dev/draugr/issues/2222 tracks it.
+
 ## What this means in practice
 
 These aren't only user-facing promises; they constrain how Draugr is built. A new control or flag
