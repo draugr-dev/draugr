@@ -301,6 +301,7 @@ func parseSemgrep(out []byte, dir string, cfg plugin.Config) (sarif.Report, erro
 		renameSemgrepRules(&report, prefix)
 	}
 	markGenerated(dir, report.Results)
+	report.Results = dropLocalActions(dir, report.Results)
 	markActions(dir, report.Results)
 	return report, nil
 }

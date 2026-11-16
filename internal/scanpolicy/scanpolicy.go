@@ -133,8 +133,8 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 			tier, floorReason = floor, reason
 		}
 		band := matrices.PriorityOf(tier, sev)
-		// A mutable action tag the repository's actions.lock pins to a commit for that workflow is
-		// held at P3: GitHub runs the locked commit for a workflow the lockfile covers, so the tag
+		// A mutable action tag the repository's actions.lock pins to a commit, for that workflow or
+		// for every workflow that calls the composite action it is in, is held at P3: GitHub runs the locked commit for a workflow the lockfile covers, so the tag
 		// moving no longer changes what runs. Still counted and listed, below the gate's default.
 		var capped string
 		if res.Aside == sarif.AsidePinned && band.Rank() > prioritization.P3.Rank() {
