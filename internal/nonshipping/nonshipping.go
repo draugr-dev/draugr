@@ -8,7 +8,7 @@
 //
 // The list is short on purpose. A name is on it only where projects across ecosystems use it for
 // nothing else: `testdata` is Go's convention, `__tests__` Jest's, `spec` RSpec's, `fixtures` every
-// test runner's. Names that also hold shipped code somewhere, such as `demo`, `sample`, `testing`
+// test runner's, and `__fixtures__` and `test_fixtures` are named after the last two. Names that also hold shipped code somewhere, such as `demo`, `sample`, `testing`
 // or `e2e`, are left off, because a finding in shipped code wearing a test label is worse than a
 // finding in test code wearing none.
 package nonshipping
@@ -33,16 +33,18 @@ const (
 // dirs maps each directory name to its kind. Matched exactly, case and all: `Docs/` and `Test/` are
 // rare, and where they occur they are as often a product's own package as a convention.
 var dirs = map[string]string{
-	"docs":      Docs,
-	"doc":       Docs,
-	"examples":  Example,
-	"example":   Example,
-	"test":      Test,
-	"tests":     Test,
-	"testdata":  Test,
-	"__tests__": Test,
-	"spec":      Test,
-	"fixtures":  Test,
+	"docs":          Docs,
+	"doc":           Docs,
+	"examples":      Example,
+	"example":       Example,
+	"test":          Test,
+	"tests":         Test,
+	"testdata":      Test,
+	"__tests__":     Test,
+	"__fixtures__":  Test,
+	"spec":          Test,
+	"fixtures":      Test,
+	"test_fixtures": Test,
 }
 
 // Names are the directory names on the list, sorted.

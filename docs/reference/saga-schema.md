@@ -841,7 +841,7 @@ is the label:
 |---|---|
 | `docs`, `doc` | `docs` |
 | `examples`, `example` | `example` |
-| `test`, `tests`, `testdata`, `__tests__`, `spec`, `fixtures` | `test` |
+| `test`, `tests`, `testdata`, `__tests__`, `__fixtures__`, `spec`, `fixtures`, `test_fixtures` | `test` |
 
 Names that also hold shipped code in some projects, such as `demo`, `samples`, `testing` and `e2e`,
 are not on the list.
