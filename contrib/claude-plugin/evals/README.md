@@ -21,28 +21,27 @@ Each case directory holds:
 
 It needs `claude` (Claude Code), `gitleaks` and `semgrep` on `PATH`.
 
-Each case runs as a Claude Code session on whatever `claude` is signed in with. With a claude.ai
-login and no `ANTHROPIC_API_KEY` set, the sessions use that login's plan; with a key, they are
-billed to it. Run it from a plain shell rather than from inside a Claude Code session, or unset
-`CLAUDECODE` and the `CLAUDE_CODE_*` variables first.
+The cases run locally, each as a Claude Code session under the login `claude` is signed in with.
+Sign `claude` in to a claude.ai plan and leave `ANTHROPIC_API_KEY` unset. Run it from a plain shell
+rather than from inside a Claude Code session, or unset `CLAUDECODE` and the `CLAUDE_CODE_*`
+variables first.
+
+Run one case at a time, named by its directory under `evals/`, with one run:
 
 ```bash
 make build
 cd contrib/claude-plugin
 KUBECONFIG=/nonexistent/kubeconfig \
 PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugin eval . \
+  --case <name> --runs 1 \
   --trust-plugin --scaffold --mocks off \
   --allow-tools "mcp__plugin_draugr_draugr__*" Write \
   --ablation none --model claude-sonnet-5-5 --judge-model claude-haiku-5-5 \
-  --threshold 0.8 --runs 1 --max-cost-usd 3 --no-publish
+  --threshold 0.8 --max-cost-usd 3 --no-publish
 ```
 
-`--case <name>` runs one case, which is the usual way to check a change. On an API key, one run per
-case costs about US$2.31 for the suite and `--runs 3`, the default, about US$6.92. The `Evals`
-workflow runs the same suite on GitHub with the repository's key, dispatched by hand:
-`gh workflow run Evals --ref <branch> -f ref=<commit>`. `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds
-no cluster whatever this machine is configured for. Results go to `evals/results/`, which is
-ignored.
+`KUBECONFIG` names a file that does not exist, so survey-no-cluster finds no cluster whatever this
+machine is configured for. Results go to `evals/results/`, which is ignored.
 
 An `llm` grader is read by a smaller model than the one being graded. State what a PASS contains as
 conditions it can check one by one; a criterion written as a double negative is the one that judge
