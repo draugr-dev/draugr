@@ -101,14 +101,15 @@ type actionsLock struct {
 // usesLine is a step's or job's `uses:` value, quoted or not, with any trailing comment.
 var usesLine = regexp.MustCompile(`^\s*(?:-\s*)?uses:\s*["']?([^"'\s#]+)`)
 
-// markPinned marks each GitHub Actions mutable-tag finding on a `uses:` reference that the
-// repository's actions lockfile lists for that same workflow with a commit, so the report names it
-// as pinned and lists it after the references nothing pins. It still counts at its priority.
+// markActions records on each GitHub Actions mutable-tag finding the `uses:` reference it is on
+// (sarif.Result.Uses), and marks one the repository's actions lockfile lists for that same workflow
+// with a commit, so the report names it as pinned and lists it after the references nothing pins. It
+// still counts at its priority.
 //
 // The match is exact: the workflow file, and the reference as written. A reference the lockfile
 // does not list, one in a composite action under `.github/actions/`, and a reusable workflow's
-// call, which the lockfile does not pin, are left as they are.
-func markPinned(dir string, results []sarif.Result) {
+// call, which the lockfile does not pin, are not marked; each still has its reference recorded.
+func markActions(dir string, results []sarif.Result) {
 	if dir == "" {
 		return
 	}
@@ -118,14 +119,7 @@ func markPinned(dir string, results []sarif.Result) {
 		r := &results[i]
 		uri := repoRelPath(dir, r.Location.URI)
 		if !strings.HasSuffix(r.RuleID, "github-actions-mutable-action-tag") ||
-			!strings.HasPrefix(uri, ".github/workflows/") || !insideCheckout(uri) || r.Location.StartLine < 1 {
-			continue
-		}
-		if lock == nil {
-			lock = readActionsLock(filepath.Join(dir, filepath.FromSlash(actionsLockPath)))
-		}
-		refs := lock.Workflows[uri]
-		if len(refs) == 0 {
+			!insideCheckout(uri) || r.Location.StartLine < 1 {
 			continue
 		}
 		file, ok := lines[uri]
@@ -140,7 +134,14 @@ func markPinned(dir string, results []sarif.Result) {
 		if m == nil {
 			continue
 		}
-		for _, ref := range refs {
+		r.Uses = m[1]
+		if !strings.HasPrefix(uri, ".github/workflows/") {
+			continue
+		}
+		if lock == nil {
+			lock = readActionsLock(filepath.Join(dir, filepath.FromSlash(actionsLockPath)))
+		}
+		for _, ref := range lock.Workflows[uri] {
 			if ref == m[1] && lock.Dependencies[ref].Commit != "" {
 				r.Aside = sarif.AsidePinned
 				break

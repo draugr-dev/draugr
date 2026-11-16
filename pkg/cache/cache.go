@@ -66,17 +66,36 @@ type entry struct {
 	// back to its SARIF level, and a critical scored 9.5 ranked as a high one. Kept here rather than
 	// on Result, whose JSON other outputs print.
 	Scored []int `json:"scored,omitempty"`
+	// Uses is each result's Result.Uses, by index, for the results that carry one. Kept here for the
+	// reason Scored is: it is not part of a result's JSON, and a cached run would otherwise lose the
+	// reference a folded row is chosen by.
+	Uses map[int]string `json:"uses,omitempty"`
 }
 
-// newEntry records which of a report's results carry a score.
+// newEntry records which of a report's results carry a score, and each `uses:` reference.
 func newEntry(report sarif.Report, at time.Time) entry {
 	e := entry{Report: report, StoredAt: at}
 	for i, r := range report.Results {
 		if r.HasScore {
 			e.Scored = append(e.Scored, i)
 		}
+		if r.Uses != "" {
+			if e.Uses == nil {
+				e.Uses = map[int]string{}
+			}
+			e.Uses[i] = r.Uses
+		}
 	}
 	return e
+}
+
+// restoreUses puts back each result's `uses:` reference. An index past the results is ignored.
+func (e *entry) restoreUses() {
+	for i, uses := range e.Uses {
+		if i >= 0 && i < len(e.Report.Results) {
+			e.Report.Results[i].Uses = uses
+		}
+	}
 }
 
 // restoreScores marks the results that carried a score when stored. An entry written before
@@ -270,6 +289,7 @@ func (l *Local) entryFor(key string) (entry, bool) {
 		return entry{}, false
 	}
 	e.restoreScores()
+	e.restoreUses()
 	if l.ttl > 0 && l.now().Sub(e.StoredAt) > l.ttl {
 		return entry{}, false
 	}

@@ -74,7 +74,7 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 
 	rule := col.Link(f.helpURI, f.ruleID)
 	// A row standing for several findings says how many beside the rule they share, and in how many
-	// files where that is more than one: the location below is the first of them.
+	// files where that is more than one: the location below is the one foldFindings chose to show.
 	count := ""
 	if f.repeats > 0 {
 		count = english.Count(f.repeats+1, "finding")

@@ -102,6 +102,13 @@ type Result struct {
 	// nonShippingPaths setting reaches it. A report lists these findings after the rest and names
 	// the reason beside each.
 	Aside string `json:"aside,omitempty"`
+	// Uses is the `uses:` reference a GitHub Actions mutable-tag finding is on, as the workflow wrote
+	// it, such as `codecov/codecov-action@v5`. Empty for every other finding, and where the line could
+	// not be read.
+	//
+	// Held for the run and never written: a row standing for several such findings shows one whose
+	// action somebody outside GitHub publishes, and nothing else reads it.
+	Uses string `json:"-"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty

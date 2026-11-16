@@ -78,10 +78,18 @@ func TestMarkPinnedMatchesTheLockfileExactly(t *testing.T) {
 		at(rule, ".github/actions/setup/action.yml", 1),                                       // a composite action
 		at("yaml.github-actions.security.run-shell-injection", ".github/workflows/ci.yml", 4), // another rule
 	}
-	markPinned(dir, results)
+	markActions(dir, results)
 	for i, want := range []string{"pinned", "pinned", "", "", "", "", "", "", ""} {
 		if results[i].Aside != want {
 			t.Errorf("result %d (%s:%d): aside %q, want %q", i, results[i].Location.URI, results[i].Location.StartLine, results[i].Aside, want)
+		}
+	}
+	// The reference is recorded on every mutable-tag finding on a uses: line, pinned or not, in a
+	// workflow or a composite action.
+	for i, want := range []string{"actions/checkout@v7.0.1", "actions/setup-go@v7.0.0", "actions/cache@v5", "other/action@v1",
+		"", "", "actions/setup-go@v7.0.0", "actions/checkout@v7.0.1", ""} {
+		if results[i].Uses != want {
+			t.Errorf("result %d (%s:%d): uses %q, want %q", i, results[i].Location.URI, results[i].Location.StartLine, results[i].Uses, want)
 		}
 	}
 }
@@ -95,13 +103,16 @@ func TestMarkPinnedWithoutAReadableLockfile(t *testing.T) {
 	} {
 		dir := writeTree(t, files)
 		results := []sarif.Result{{RuleID: rule, Location: sarif.Location{URI: ".github/workflows/ci.yml", StartLine: 1}}}
-		markPinned(dir, results)
+		markActions(dir, results)
 		if results[0].Aside != "" {
 			t.Errorf("%s lockfile: marked %q", name, results[0].Aside)
 		}
+		if results[0].Uses != "a/b@v1" {
+			t.Errorf("%s lockfile: uses %q, want the reference read without one", name, results[0].Uses)
+		}
 	}
 	results := []sarif.Result{{RuleID: rule, Location: sarif.Location{URI: ".github/workflows/ci.yml", StartLine: 1}}}
-	markPinned("", results)
+	markActions("", results)
 	if results[0].Aside != "" {
 		t.Error("a result with no checkout to read was marked")
 	}
