@@ -91,6 +91,62 @@ func TestEveryAppTokenNamesItsPermissions(t *testing.T) {
 	}
 }
 
+// releaseEnvironment is the deployment environment that holds the release App's ID and private key.
+// It admits only main and v* tags.
+const releaseEnvironment = "release"
+
+// TestTheReleaseAppKeyIsReadOnlyInTheReleaseEnvironment holds every job that reads the release
+// App's secrets to the environment that holds them.
+//
+// A repository secret is readable by a workflow run on any branch, so anybody able to push a branch
+// could edit a workflow there and mint a token that pushes tags and opens pull requests as the App.
+// An environment secret is readable only by a job that declares the environment, and the `release`
+// environment admits only main and v* tags, both of which change only through review. A job that
+// reads the secrets without declaring it finds them empty, and its token step fails.
+//
+// A job calling another workflow passes the secrets on by name and cannot declare an environment
+// itself, so the called workflow's jobs are read in their own file.
+func TestTheReleaseAppKeyIsReadOnlyInTheReleaseEnvironment(t *testing.T) {
+	t.Parallel()
+	workflows := readAllWorkflows(t)
+	checked := 0
+	for name, w := range workflows {
+		code := jobCode(t, name)
+		for job, spec := range w.Jobs {
+			if spec.Uses != "" || !strings.Contains(code[job], "secrets.RELEASE_APP_") {
+				continue
+			}
+			checked++
+			if env := environmentName(spec.Environment); env != releaseEnvironment {
+				t.Errorf("%s: %s reads the release App's secrets and declares environment %q, want %q. "+
+					"The secrets live only in that environment, which admits main and v* tags and "+
+					"nothing else", name, job, env, releaseEnvironment)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no job reads the release App's secrets, so this guard is reading the wrong files")
+	}
+	// The reader has to recognize an environment that is declared, or every answer above is "none".
+	if env := environmentName(workflows[postPublish].Jobs["publish-mcp"].Environment); env != "mcp-registry" {
+		t.Errorf("%s's publish-mcp job reads as environment %q, want mcp-registry, so either it moved or "+
+			"this guard cannot read an environment", postPublish, env)
+	}
+}
+
+// environmentName returns the environment a job declares, written either as a name or as a map
+// with a name and a URL.
+func environmentName(env any) string {
+	switch v := env.(type) {
+	case string:
+		return v
+	case map[string]any:
+		name, _ := v["name"].(string)
+		return name
+	}
+	return ""
+}
+
 // namedPermissions returns the permission-* inputs a create-github-app-token step sets to read or
 // write. The action skips an input left empty, so a step whose every input is empty still mints a
 // token holding everything.

@@ -34,6 +34,10 @@ jobs:
   prepare:
     name: Open the release pull request
     runs-on: ubuntu-latest
+    # The release App's key is a secret of the `release` environment, which admits only main and
+    # v* tags, so no other branch's copy of a workflow can mint a token with it. Dispatch this from
+    # main; from any other branch the environment refuses the job before it starts.
+    environment: release
     permissions:
       contents: write # push the release branch
       pull-requests: write # open the pull request
@@ -144,6 +148,8 @@ jobs:
               "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/$branch?expand=1" \
               "-- on a permissions error, check that the release App is still installed on this" \
               "repository with Contents and Pull requests write, and that RELEASE_APP_ID and" \
-              "RELEASE_APP_PRIVATE_KEY still match it."
+              "RELEASE_APP_PRIVATE_KEY still match it. Both are secrets of the release" \
+              "environment, which admits only main and v* tags, so a run from any other ref" \
+              "cannot read them."
             exit 1
           fi

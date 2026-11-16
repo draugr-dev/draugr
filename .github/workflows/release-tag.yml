@@ -48,6 +48,9 @@ jobs:
   tag:
     name: Tag a promoted release
     runs-on: ubuntu-latest
+    # The release App's key is a secret of the `release` environment, which admits only main and
+    # v* tags, so no other branch's copy of a workflow can mint a token with it.
+    environment: release
     permissions:
       contents: write # create and push the tag
     steps:

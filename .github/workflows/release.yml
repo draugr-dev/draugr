@@ -223,9 +223,9 @@ jobs:
     with:
       tag: ${{ inputs.tag || github.ref_name }}
     # By name, so the called workflow receives these and no other secret. MCP_PUBLISHER_DNS_KEY
-    # exists only in the `mcp-registry` environment, which this job cannot declare. GitHub still
-    # requires the caller to name it, and the called job that declares the environment receives
-    # the environment's value.
+    # exists only in the `mcp-registry` environment and the release App's two secrets only in the
+    # `release` environment, neither of which this job can declare. GitHub still requires the
+    # caller to name them, and the called job that declares the environment receives its value.
     secrets:
       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
       RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

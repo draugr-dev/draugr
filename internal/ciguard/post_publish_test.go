@@ -76,10 +76,11 @@ func upstream(w nightlyWorkflow, name string) []string {
 type workflowShape struct {
 	On   any `yaml:"on"`
 	Jobs map[string]struct {
-		Uses    string         `yaml:"uses"`
-		RunsOn  any            `yaml:"runs-on"`
-		Secrets any            `yaml:"secrets"`
-		Steps   []workflowStep `yaml:"steps"`
+		Uses        string         `yaml:"uses"`
+		RunsOn      any            `yaml:"runs-on"`
+		Environment any            `yaml:"environment"`
+		Secrets     any            `yaml:"secrets"`
+		Steps       []workflowStep `yaml:"steps"`
 	} `yaml:"jobs"`
 }
 
@@ -281,7 +282,7 @@ func TestTheReleaseAppKeyStaysOnHostedRunners(t *testing.T) {
 		for job, spec := range w.Jobs {
 			// A job calling another workflow holds no runner; the called workflow's jobs are read
 			// in their own file.
-			if spec.Uses != "" || !strings.Contains(code[job], "secrets.RELEASE_APP_PRIVATE_KEY") {
+			if spec.Uses != "" || !strings.Contains(code[job], appKey) {
 				continue
 			}
 			checked++

@@ -28,7 +28,8 @@ on:
         required: true
         type: string
     # Passed by name rather than inherited, so this workflow receives the secrets it uses and no
-    # others.
+    # others. The two RELEASE_APP_* secrets live in the `release` environment, read by the one job
+    # here that declares it.
     secrets:
       RELEASE_APP_ID:
         required: false
@@ -104,10 +105,16 @@ jobs:
   #
   # On a GitHub-hosted runner, as every job holding the App key is. A self-hosted runner also runs
   # pull requests' code, and a key on it is reachable from one.
+  #
+  # In the `release` environment, which holds the App's key and admits only main and v* tags, so
+  # no other branch's copy of this workflow can mint a token with it. A called workflow reads an
+  # environment secret only when its own job declares the environment and the caller passes the
+  # secret by name, which release.yml does.
   major-tag:
     name: Move the major tag
     needs: release
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: read
     steps:
