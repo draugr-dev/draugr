@@ -418,9 +418,17 @@ func TestDoctorChecksAnImportedFile(t *testing.T) {
 		status Status
 		detail string
 	}{
-		{write("ok.sarif", `{"version":"2.1.0","runs":[{},{}]}`), Passed, "SARIF 2.1.0, 2 runs"},
+		{write("ok.sarif", `{"version":"2.1.0","runs":[{"results":[{"ruleId":"a"}]},{"results":[{"ruleId":"b"}]}]}`), Passed, "SARIF 2.1.0, 2 results"},
+		// Valid SARIF that a reader of Draugr's own file refused: a numeric security-severity and
+		// property names Draugr uses for something else.
+		{write("numeric.sarif", `{"version":"2.1.0","runs":[{"results":[{"ruleId":"a",`+
+			`"properties":{"security-severity":7.5,"priority":3,"labels":["x"],"package":"lib"}}]}]}`), Passed, "SARIF 2.1.0, 1 result"},
 		{write("old.sarif", `{"version":"2.0.0","runs":[]}`), Failed, `states SARIF version "2.0.0"`},
-		{write("junk.sarif", `junk`), Failed, "not a SARIF file"},
+		{write("empty.sarif", `{"version":"2.1.0","runs":[]}`), Failed, "holds no runs"},
+		{write("junk.sarif", `junk`), Failed, "not a SARIF log"},
+		// A file the scan refuses fails here with the scan's words.
+		{write("badrule.sarif", `{"version":"2.1.0","runs":[{"tool":{"driver":{"rules":[{"id":"r"}]}},`+
+			`"results":[{"ruleIndex":4}]}]}`), Failed, "run 1, result 1: ruleIndex 4 is not an entry of tool.driver.rules, which has 1 rule (index 0)"},
 		{filepath.Join(dir, "absent.sarif"), Failed, "no such file"},
 	} {
 		got := Run(context.Background(), []plugin.Target{plugin.FileTarget{Path: c.path}, plugin.FileTarget{Path: c.path}}, Options{Offline: true})

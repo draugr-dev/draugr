@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ func (sarifImport) Info() plugin.ScannerInfo {
 	}
 }
 
-// importLog is the part of a SARIF log the import reads for itself: what FromSARIF does not keep.
+// importLog is the part of a SARIF log the import reads for itself: what FromForeignSARIF does not keep.
 type importLog struct {
 	Version string `json:"version"`
 	Runs    []struct {
@@ -86,21 +87,13 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if len(bytes.TrimSpace(data)) == 0 {
 		return sarif.Report{}, fmt.Errorf("%s: %s is empty", plugin.ImportScanner, ft.Path)
 	}
-	rep, err := sarif.FromSARIF(data)
+	rep, outside, err := sarif.FromForeignSARIF(data, checkoutRoots(ft.Repositories))
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
 	}
 	var meta importLog
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
-	}
-	if meta.Version != "2.1.0" {
-		return sarif.Report{}, fmt.Errorf("%s: %s states SARIF version %q, and Draugr reads 2.1.0",
-			plugin.ImportScanner, ft.Path, meta.Version)
-	}
-	if len(meta.Runs) == 0 {
-		return sarif.Report{}, fmt.Errorf("%s: %s holds no runs, so it says nothing about what was scanned",
-			plugin.ImportScanner, ft.Path)
 	}
 	if err := rateBandit(&rep, data); err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
@@ -125,7 +118,33 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	}
 	fields = append(fields, sarif.Field{Key: "sha256", Value: hex.EncodeToString(sum[:])})
 	rep.Provenance = append(rep.Provenance, sarif.Provenance{Tool: plugin.ImportScanner, Fields: fields})
+	for _, p := range outside {
+		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: outsideCheckout})
+	}
 	return rep, nil
+}
+
+// outsideCheckout is why a finding's path in an imported file could not be placed in the component.
+// The finding still counts; what no longer applies to it is anything keyed on a path in the
+// repository, an exclusion or a link to the line.
+const outsideCheckout = "not in a local checkout of the component, so config.exclude paths skip it"
+
+// checkoutRoots are the local directories of the repositories an imported file describes, which the
+// file's absolute paths are made relative to. A repository named by a remote address has no local
+// directory here, and the file's relative paths are read as relative to it.
+func checkoutRoots(repos []plugin.RepositoryTarget) []string {
+	var roots []string
+	for _, r := range repos {
+		if !git.IsLocalPath(r.URL) {
+			continue
+		}
+		abs, err := filepath.Abs(r.URL)
+		if err != nil {
+			continue
+		}
+		roots = append(roots, abs)
+	}
+	return roots
 }
 
 // bind holds a file to the revision this run reads, where the file states the revision it scanned.
