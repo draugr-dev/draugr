@@ -1137,6 +1137,22 @@ func laterRank(f finding) int {
 	return 0
 }
 
+// reachabilityOrder ranks what reachability analysis said of a finding, for ordering inside a band:
+// 2 where a call path reaches the vulnerable code, 1 where no analysis gave an answer, and 0 where a
+// verdict says nothing reaches it. A not-built mark is evidence that moves nothing, so it ranks as
+// no answer.
+func reachabilityOrder(f finding) int {
+	switch {
+	case f.reachability == nil:
+		return 1
+	case f.reachability.State == sarif.ReachabilityReachable:
+		return 2
+	case f.reachability.State == sarif.ReachabilityUnreachable:
+		return 0
+	}
+	return 1
+}
+
 // sortFindings orders most-urgent first: shipped code before docs, examples and tests, then by
 // priority, then numeric score, then SARIF level.
 func sortFindings(fs []finding) {
@@ -1196,6 +1212,13 @@ func rankOrder(a, b finding) int {
 	// apart from the critical beside it, and the catalog listing it is the reason to fix it first.
 	if xa, xb := exploitationSignal(a), exploitationSignal(b); xa != xb {
 		return firstIf(xa > xb)
+	}
+	// Then what reachability analysis found: a call path to the vulnerable code before no answer,
+	// and no answer before a verdict that nothing reaches it. Before severity, because an unreachable
+	// finding was lowered a level and can still share a band and a severity with a reachable one,
+	// and then its higher score from before the verdict would put it first. The bands are unchanged.
+	if ra, rb := reachabilityOrder(a), reachabilityOrder(b); ra != rb {
+		return firstIf(ra > rb)
 	}
 	// Severity before the number behind it. Not every scanner publishes a score, and ordering
 	// on the number alone sinks a critical nothing scored below every high that was, which on

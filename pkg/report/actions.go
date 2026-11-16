@@ -495,6 +495,9 @@ type rankKeys struct {
 	reported sarif.Severity
 	// signal is the strongest exploitation evidence among what it clears: 2 for KEV, 1 for EPSS.
 	signal int
+	// reach is the strongest reachability among what it clears, as reachabilityOrder ranks it: an
+	// action clearing one finding something reaches ranks with that finding.
+	reach int
 	// exploited is the finding that carries signal, the first in the action's order to carry it.
 	// Nil where signal is 0.
 	exploited *finding
@@ -536,6 +539,9 @@ func rankByPackage(actions []action) {
 			}
 			if s := exploitationSignal(f); s > k.signal {
 				k.signal, k.exploited = s, &f
+			}
+			if r := reachabilityOrder(f); r > k.reach {
+				k.reach = r
 			}
 		}
 		k.count += a.count()
@@ -612,8 +618,8 @@ func commonComponent(fs []finding) string {
 }
 
 // moreUrgent orders actions by where what they clear sits, then by the worst priority they clear,
-// then by the evidence that what they clear is exploited, then by its worst severity, then by how
-// many findings that is.
+// then by the evidence that what they clear is exploited, then by whether anything reaches it, then
+// by its worst severity, then by how many findings that is.
 //
 // Shipped code first, as sortFindings orders the findings: an action clearing anything in shipped
 // code before one whose findings are all set aside, and that before one whose findings are all under
@@ -638,6 +644,9 @@ func moreUrgent(a, b action) bool {
 	}
 	if ra.signal != rb.signal {
 		return ra.signal > rb.signal
+	}
+	if ra.reach != rb.reach {
+		return ra.reach > rb.reach
 	}
 	if sa, sb := ra.severity.Rank(), rb.severity.Rank(); sa != sb {
 		return sa > sb

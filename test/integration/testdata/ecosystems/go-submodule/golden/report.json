@@ -1,32 +1,6 @@
 {
   "actions": [
     {
-      "clears": 2,
-      "component": "go-submodule",
-      "control": "sast",
-      "findings": "<cleared>",
-      "id": "c821463fc43efe7d",
-      "kind": "code",
-      "locations": [
-        {
-          "kind": "file",
-          "line": 20,
-          "path": "service/main.go",
-          "repository": "./go-submodule"
-        }
-      ],
-      "priority": "P1",
-      "ruleIds": [
-        "G702",
-        "G204"
-      ],
-      "severity": "high",
-      "title": "Check who can set the command's arguments",
-      "where": [
-        "service/main.go:20"
-      ]
-    },
-    {
       "clears": 1,
       "component": "go-submodule",
       "control": "sca",
@@ -57,6 +31,32 @@
       "versioning": "go",
       "where": [
         "service/go.mod:5"
+      ]
+    },
+    {
+      "clears": 2,
+      "component": "go-submodule",
+      "control": "sast",
+      "findings": "<cleared>",
+      "id": "c821463fc43efe7d",
+      "kind": "code",
+      "locations": [
+        {
+          "kind": "file",
+          "line": 20,
+          "path": "service/main.go",
+          "repository": "./go-submodule"
+        }
+      ],
+      "priority": "P1",
+      "ruleIds": [
+        "G702",
+        "G204"
+      ],
+      "severity": "high",
+      "title": "Check who can set the command's arguments",
+      "where": [
+        "service/main.go:20"
       ]
     }
   ],

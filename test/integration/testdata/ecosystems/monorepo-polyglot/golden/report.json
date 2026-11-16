@@ -2,6 +2,39 @@
   "actions": [
     {
       "clears": 1,
+      "component": "worker",
+      "control": "sca",
+      "ecosystem": "gomod",
+      "findings": "<cleared>",
+      "fixedVersions": [
+        "v1.6.6"
+      ],
+      "from": "v1.6.5",
+      "id": "f640645902f4c3e5",
+      "kind": "bump",
+      "locations": [
+        {
+          "kind": "manifest",
+          "line": 5,
+          "path": "services/worker/go.mod",
+          "repository": "./monorepo-polyglot"
+        }
+      ],
+      "package": "github.com/tidwall/gjson",
+      "priority": "P1",
+      "ruleIds": [
+        "CVE-2020-36067"
+      ],
+      "severity": "high",
+      "target": "v1.6.6",
+      "title": "Upgrade github.com/tidwall/gjson v1.6.5",
+      "versioning": "go",
+      "where": [
+        "services/worker/go.mod:5"
+      ]
+    },
+    {
+      "clears": 1,
       "component": "api",
       "control": "sca",
       "ecosystem": "pip",
@@ -64,39 +97,6 @@
       "versioning": "npm",
       "where": [
         "services/web/package-lock.json:15"
-      ]
-    },
-    {
-      "clears": 1,
-      "component": "worker",
-      "control": "sca",
-      "ecosystem": "gomod",
-      "findings": "<cleared>",
-      "fixedVersions": [
-        "v1.6.6"
-      ],
-      "from": "v1.6.5",
-      "id": "f640645902f4c3e5",
-      "kind": "bump",
-      "locations": [
-        {
-          "kind": "manifest",
-          "line": 5,
-          "path": "services/worker/go.mod",
-          "repository": "./monorepo-polyglot"
-        }
-      ],
-      "package": "github.com/tidwall/gjson",
-      "priority": "P1",
-      "ruleIds": [
-        "CVE-2020-36067"
-      ],
-      "severity": "high",
-      "target": "v1.6.6",
-      "title": "Upgrade github.com/tidwall/gjson v1.6.5",
-      "versioning": "go",
-      "where": [
-        "services/worker/go.mod:5"
       ]
     },
     {
