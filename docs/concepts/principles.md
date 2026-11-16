@@ -9,7 +9,7 @@ order: 5
 
 Draugr is a security orchestration engine, but the hard part of security at most teams isn't running
 scanners, it's making their output *usable* by the people who have to act on it. Draugr is built
-around two values, and when a design choice is in tension, these are how it's resolved.
+around the principles below, and when a design choice is in tension, these are how it's resolved.
 
 ## 1. Great UX
 
@@ -67,6 +67,17 @@ lowers the barrier for a newcomer, without dumbing things down for a professiona
 - **Actionable evidence.** Each finding carries where it is, how serious it is, and which
   scanner reported it, so "what do I do about this" has an answer without deep tooling
   knowledge.
+
+## 4. Uncertainty never lowers a finding
+
+A finding moves down the list only on evidence. For Go, when `govulncheck` finds no call path from
+your code to a vulnerable function, the row drops a level and says `↓ unreachable`. Where no analysis
+ran, nothing moves. Where Draugr cannot tell, it assumes the worse case or leaves the rank alone:
+
+- **A component nobody classified ranks as public and critical**, so its findings surface rather
+  than hide until you [declare](prioritization.md) what it is.
+- **A code check that cannot tell whether a value comes from outside the program does not clear
+  it.** Its findings keep their rank, even where that leaves a longer list.
 
 ## What this means in practice
 
