@@ -556,6 +556,46 @@ func TestADisabledAPIIsNamedAndLeavesItsOrganizationCheckUnread(t *testing.T) {
 	}
 }
 
+// A denied per-bucket read stops Prowler's whole bucket listing, so the buckets it did list are a
+// partial answer: every bucket check is unread, not only the one that needs the permission. The log
+// line is Prowler 5.48.0's from cloudstorage_service.py, with its identifiers replaced.
+func TestProwlerLeavesEveryBucketCheckUnreadWhenOneBucketPolicyIsDenied(t *testing.T) {
+	bucketChecks := []string{"cloudstorage_bucket_log_retention_policy_lock", "cloudstorage_bucket_public_access",
+		"cloudstorage_bucket_uniform_bucket_level_access"}
+	f := &fakeProwler{
+		checks: append(slices.Clone(bucketChecks), "compute_instance_public_ip"),
+		findings: []map[string]any{
+			ocsf("cloudstorage_bucket_log_retention_policy_lock", "FAIL", "medium", "us", "shop-prod-assets"),
+			ocsf("cloudstorage_bucket_public_access", "FAIL", "high", "us", "shop-prod-assets"),
+			ocsf("cloudstorage_bucket_uniform_bucket_level_access", "PASS", "medium", "us", "shop-prod-assets"),
+			ocsf("compute_instance_public_ip", "FAIL", "medium", "us-central1-a", "vm/web-1"),
+		},
+		log: `{"timestamp": "t", "filename": "cloudstorage_service.py:106", "level": "ERROR", "module": "cloudstorage_service", "message": "HttpError[29]: <HttpError 403 when requesting https://storage.googleapis.com/storage/v1/b/shop-prod-orders/iam?alt=json returned "draugr-scan@shop-prod-4821.iam.gserviceaccount.com does not have storage.buckets.getIamPolicy access to the Google Cloud Storage bucket. Permission 'storage.buckets.getIamPolicy' denied on resource '//storage.googleapis.com/projects/_/buckets/shop-prod-orders' (or it may not exist).". Details: "[{'message': "draugr-scan@shop-prod-4821.iam.gserviceaccount.com does not have storage.buckets.getIamPolicy access to the Google Cloud Storage bucket. Permission 'storage.buckets.getIamPolicy' denied on resource '//storage.googleapis.com/projects/_/buckets/shop-prod-orders' (or it may not exist).", 'domain': 'global', 'reason': 'forbidden'}]">"}
+`,
+	}
+	report, err := newTestProwler(f, &grantAll{}).Scan(context.Background(), shopProd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var unread []string
+	for _, u := range report.Unchecked {
+		if u.Group != "cloudstorage" || u.Reason != "denied storage.buckets.getIamPolicy" || u.Kind != sarif.UncheckedDenied || u.PartlyRead {
+			t.Errorf("unchecked = %+v, want cloudstorage unread, denied storage.buckets.getIamPolicy", u)
+		}
+		unread = append(unread, u.Check)
+	}
+	slices.Sort(unread)
+	if !slices.Equal(unread, bucketChecks) {
+		t.Errorf("unread = %v, want %v", unread, bucketChecks)
+	}
+	if len(report.Results) != 1 || report.Results[0].RuleID != "prowler/compute_instance_public_ip" {
+		t.Errorf("results = %+v, want the instance alone", report.Results)
+	}
+	if len(report.Decided) != 1 || report.Decided[0].ID != "compute_instance_public_ip" {
+		t.Errorf("decided = %+v, want the instance check alone", report.Decided)
+	}
+}
+
 func TestDeniedIn(t *testing.T) {
 	for line, want := range map[string][]string{
 		`... https://sqladmin.googleapis.com/v1/projects/p/instances ...`:                       {"cloudsql"},
