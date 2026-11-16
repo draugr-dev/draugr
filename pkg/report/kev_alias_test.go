@@ -16,7 +16,7 @@ func advisoryRow() sarif.Result {
 }
 
 // A row named by its advisory and raised or listed by KEV names the CVE the catalog lists, in the
-// console and the fix list. A row named by its CVE carries no second copy of it.
+// console, the markdown and the fix list. A row named by its CVE carries no second copy of it.
 func TestARowNamedByItsAdvisoryNamesTheCVEKEVListed(t *testing.T) {
 	t.Setenv("COLUMNS", "")
 	raised := advisoryRow()
@@ -36,6 +36,19 @@ func TestARowNamedByItsAdvisoryNamesTheCVEKEVListed(t *testing.T) {
 	}
 	if strings.Contains(out, "(CVE-2026-111497)") {
 		t.Errorf("a row named by its CVE should not repeat it:\n%s", out)
+	}
+
+	// The markdown lists actions, and an action whose findings KEV raised carries the mark that ranked
+	// it, so a pull-request comment says which fix clears a flaw known to be exploited.
+	b.Reset()
+	if err := (markdownReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "↑ KEV (CVE-2026-0009)") {
+		t.Errorf("the markdown row should name the CVE KEV listed:\n%s", b.String())
+	}
+	if !strings.Contains(b.String(), "brotli-libs 1.2.0-r1 → 1.2.1-r0 · KEV listed ·") {
+		t.Errorf("a fix for a flaw on KEV that KEV did not raise should still say it is listed:\n%s", b.String())
 	}
 
 	actions := ActionsFor(map[string]sarif.Report{"sca": {Results: []sarif.Result{raised}}})

@@ -183,12 +183,20 @@ func markdownActionLine(a action, nameComponents bool) string {
 			clears += fmt.Sprintf(", %d at %s", atBand, a.priority)
 		}
 	}
-	line := fmt.Sprintf("- **%s** %s · %s", ha.Priority, ha.Title, clears)
+	head := fmt.Sprintf("- **%s** %s", ha.Priority, ha.Title)
 	// A step past the component's fixes.upgrade says so after the instruction, as the console's row
 	// does, with the setting as code so it reads as the key to copy.
 	if s := a.step; s.past() {
-		line = fmt.Sprintf("- **%s** %s · %s, past `%s` · %s", ha.Priority, ha.Title, s.beyond, s.setting(), clears)
+		head += fmt.Sprintf(" · %s, past `%s`", s.beyond, s.setting())
 	}
+	// Evidence that a flaw this clears is exploited, KEV above all, ranks the action inside its band,
+	// so the row carries the mark that ranked it, as the finding's own row does in the console.
+	if f := a.rank.exploited; f != nil {
+		if m := movedBy(*f); m != nil {
+			head += " · " + m.text()
+		}
+	}
+	line := head + " · " + clears
 	if nameComponents && ha.Component != "" {
 		line += " · " + ha.Component
 	}
