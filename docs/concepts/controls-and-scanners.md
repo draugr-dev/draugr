@@ -27,9 +27,9 @@ applies to and aggregates the results. Controllers are either **project-scoped**
 
 ## Scanners
 
-A **scanner** wraps a single security tool and normalizes its output to **SARIF**. Most are
-integrated declaratively through a *tool adapter*: the adapter describes how to invoke the tool,
-and Draugr runs it and parses the SARIF it returns.
+A **scanner** wraps a single security tool and normalizes its output to **SARIF**. A tool Draugr
+has no scanner for can still contribute findings: a component [imports](../guides/importing-sarif.md)
+the SARIF file the tool wrote.
 
 Several scanners need no external tool at all, because they read an API or a response directly:
 `headers`, `tls` and the default `kubernetes` scanner are Draugr's own code, so there is

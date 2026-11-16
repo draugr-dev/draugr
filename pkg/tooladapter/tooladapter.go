@@ -1,7 +1,8 @@
-// Package tooladapter turns an external command-line security tool into a Draugr
-// Scanner declaratively: describe how to build the command for a target, and the adapter
-// runs it and parses its SARIF output. This covers the majority of scanners (many emit
-// SARIF natively) with no bespoke code.
+// Package tooladapter turns an external command-line security tool into a Draugr Scanner. A
+// Config gives the tool's ScannerInfo fields and a Go function that builds the command for a
+// target, and the Adapter runs that command and decodes its stdout as SARIF, or through the
+// Config's own parser for a tool that reports in another format. The result is an ordinary
+// plugin.Scanner, registered in-tree like any other; nothing reads a Config from a file.
 package tooladapter
 
 import (

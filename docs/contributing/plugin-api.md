@@ -4,8 +4,7 @@ Reference for the plugin interfaces as implemented in [`pkg/plugin`](../../pkg/p
 `Reporter` in [`pkg/report`](../../pkg/report)). See [`architecture.md`](architecture.md) for context.
 
 The plugin kinds, **Scanner**, **Controller**, **Surveyor**, **Reporter**, **Publisher**, share a
-small set of value types. Scanners are transported in-process (built-ins) or declaratively (tool
-adapters that satisfy the Scanner contract at runtime); an out-of-process gRPC transport is planned.
+small set of value types. [Adding a plugin](#adding-a-plugin) covers how a new one is added.
 
 ## Shared types
 
@@ -177,19 +176,36 @@ type Publisher interface {
 }
 ```
 
-## Transport
+## Adding a plugin
 
-- **Built-in:** implement the interface directly, compiled into the core.
-- **gRPC (go-plugin):** the same interfaces exposed over a versioned gRPC contract;
-  the plugin runs as a subprocess. Language-agnostic, isolated, crash-contained.
-- **Tool adapter (declarative):** a manifest (invoke this CLI/container with these args;
-  its stdout is SARIF, or map fields X→SARIF) that the runtime presents as a `Scanner`.
-  No code; covers the majority of existing tools and BYO-tool.
+The `draugr` binary runs the scanners, controllers and surveyors that
+[`internal/builtins`](../../internal/builtins/builtins.go) registers, and no others. It loads
+nothing at runtime, so there is no out-of-process or gRPC plugin, no plugin manifest and no plugin
+directory to drop one into. Another tool's findings reach a scan in one of two ways.
+
+- **A pull request adding it in-tree.** Implement the interface under `internal/scanners`,
+  `internal/controllers` or `internal/surveyors` and register it in `builtins.go`.
+  [Extending Draugr](extending/README.md) has a guide for each kind, starting with a table for
+  picking the right one.
+- **A SARIF file, with no code.** A component's
+  [`imports`](../reference/saga-schema.md#componentsimports) reads a SARIF 2.1.0 file that another
+  tool wrote into one of Draugr's controls, where its findings are prioritized and gated with the
+  rest. [Import another scanner's SARIF](../guides/importing-sarif.md) walks through it.
+
+### Tool adapter
+
+[`pkg/tooladapter`](../../pkg/tooladapter/tooladapter.go) shortens the in-tree route for a scanner
+that runs a command-line tool. `tooladapter.Config` takes the tool's `ScannerInfo` fields and a Go
+function that builds the command line for a target, and `tooladapter.New` returns a `Scanner` that
+runs the command and decodes its stdout as SARIF. A tool that reports in its own format supplies a
+`Parse` function instead. Optional hooks (`Run`, `CacheVersion`, `Prewarm`, `DataState`, `Refine`)
+are documented on `Config`. `trivy` and `grype` are built this way, as is the image half of
+`trivy-license`.
 
 ## Design rules
 
-- **SARIF is the only result currency.** Adapters/plugins that don't emit SARIF natively
-  must map to it at the boundary.
+- **SARIF is the only result currency.** A scanner whose tool doesn't emit SARIF maps its output
+  to SARIF at the boundary.
 - **Config is schema-validated** up front; the JSON Schema also powers the config wizard.
 - **Determinism & cacheability:** given the same target identity + version + config, a
   scanner should produce equivalent findings so cache keys are meaningful.

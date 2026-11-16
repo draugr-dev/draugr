@@ -97,30 +97,9 @@ component and an authored one are folded in the same way.
 
 ## 4. Plugin model
 
-Three plugin kinds, **Scanner**, **Controller**, **Surveyor**, delivered through a layered
-extension mechanism so the common case is trivial and the hard case is possible.
-
-### Tier 1, Declarative tool adapters (zero code)
-Most scanners are already CLIs or containers, and many already emit SARIF (Trivy, Grype,
-Semgrep, ZAP…). A **tool adapter** is a small manifest describing how to invoke a tool
-and map its output to SARIF. Covers the majority of integrations and the "bring the tool
-you already pay for" case with no compilation.
-
-### Tier 2, gRPC plugins (real logic)
-For scanners/controllers/surveyors that need genuine logic, API clients (Snyk, Mend), cloud/k8s
-surveyors, custom aggregation, use out-of-process **gRPC plugins** on the [HashiCorp
-go-plugin](https://github.com/hashicorp/go-plugin) pattern (proven by Terraform/Vault/Nomad).
-Benefits: language-agnostic, process isolation, a versioned contract, crash containment.
-
-### Built-ins
-A curated set compiles into the core so `draugr` is useful out of the box: scanners
-`trivy`/`trivy-fs`/`trivy-config`, `gitleaks`, `semgrep`, `gosec`, and a native
-`draugr-headers`; surveyors `k8s-images` and `github-org-repos`.
-
-### Distribution, "the Hoard"
-Plugins are packaged as **OCI artifacts** and pulled from a registry (the Hoard),
-**signed with Sigstore/cosign** for provenance. OCI distribution + signing is standard,
-registry-native, and dovetails with the supply-chain-security positioning.
+Scanner, Controller and Surveyor are Go interfaces in [`pkg/plugin`](../../pkg/plugin), compiled
+into the binary and registered in [`internal/builtins`](../../internal/builtins/builtins.go). How to
+add one, and the no-code SARIF route, is in [`plugin-api.md`](plugin-api.md#adding-a-plugin).
 
 ---
 
@@ -164,7 +143,7 @@ draugr/
   pkg/saga/              # descriptor: schema, parse, validate, meta-sources, env subst
   pkg/engine/            # plan, schedule, bounded-concurrency scan, cache, prioritize
   pkg/plugin/            # plugin SDK: interfaces + value types + cache keys
-  pkg/tooladapter/       # declarative exec-a-CLI-and-parse-SARIF Scanner runtime
+  pkg/tooladapter/       # Scanner that execs a CLI and decodes its SARIF (or custom) output
   pkg/sarif/             # SARIF model + superset + merge/dedup
   pkg/norn/              # policy evaluation (thresholds + priority gate)
   pkg/skald/             # JSON + merged-SARIF evidence rendering
@@ -232,7 +211,6 @@ with provenance. Draugr should meet the bar it holds others to.
 
 ## 10. Open questions
 
-- gRPC plugin contract versioning + compatibility policy.
 - Cache backend abstraction (local dir → shared/remote for CI and the control plane).
 - How much SARIF superset is needed for compliance evidence vs. a separate schema.
 - Consuming VEX to suppress non-exploitable CVEs (false-positive reduction).
