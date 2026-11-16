@@ -140,8 +140,8 @@ in two cases:
 
 A Go module is never read as a tool's by its path, `tools/` and `_tools/` included, because it may
 hold programs the project builds and ships. A module with packages of its own is not marked when its
-`go.mod` also declares `tool` directives, which is where Go 1.24 records a project's tools by
-default. A module stays unmarked when Draugr cannot read all of it: a file it cannot read, a
+`go.mod` also declares `tool` directives, because `go get -tool` writes them into the module's own
+`go.mod`, beside its requirements. A module stays unmarked when Draugr cannot read all of it: a file it cannot read, a
 constraint or `go.mod` it cannot parse, a symbolic link inside it, or a component's `paths` or
 `ignore` that could leave one of its files out of the checkout.
 

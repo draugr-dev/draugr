@@ -27,7 +27,7 @@ const maxConstraintTags = 12
 
 // markGoToolModules marks each dependency finding in a Go module's go.mod or go.sum where the module
 // builds nothing but developer tools, so the report lists it after the application's own and names
-// it as a tool's. It still counts at its priority: the tools run on developers' machines and in CI.
+// it as a tool's. It still counts at its priority: a tool runs with the access of whoever runs it.
 //
 // A module builds nothing but tools when it has Go files and every one of them carries a build
 // constraint that needs the `tools` tag, the `tools.go` convention, or when it has no Go file and
@@ -35,8 +35,8 @@ const maxConstraintTags = 12
 // `//go:build tools` is in no program built without that tag, and a module with no package builds
 // nothing but the tools it names. A module's name and path decide nothing, because a module in a
 // `tools` directory may build programs the project ships. A go.mod that declares `tool` directives
-// beside packages of its own is not marked: since Go 1.24 the main module declares its tools that
-// way, so the directives say nothing about its other requirements.
+// beside packages of its own is not marked: `go get -tool` writes them into the current module's own
+// go.mod (`go help tool`), so the directives say nothing about its other requirements.
 //
 // Where the answer is uncertain, the module is not marked: a file that cannot be read, a go.mod or
 // constraint that does not parse, a symbolic link inside the module, or a scope that may have left
