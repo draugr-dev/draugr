@@ -1,7 +1,9 @@
 package report
 
 import (
+	"bytes"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -147,13 +149,13 @@ func TestUnreachableCreditNamesWhoLoweredIt(t *testing.T) {
 	}
 }
 
-// A module the build does not compile is credited with the build that was read, not with a claim that
-// the code is safe: a module built only for another platform or under another tag is still shipped by
-// somebody.
-func TestUnreachableCreditNamesTheBuildAModuleIsNotIn(t *testing.T) {
+// A module the build does not compile is shown with the build that was read, not with a claim that the
+// code is safe: a module built only for another platform or under another tag is still shipped by
+// somebody. None of the lines an unreachable verdict writes appear for it.
+func TestNotBuiltEvidenceNamesTheBuildAModuleIsNotIn(t *testing.T) {
 	notBuilt := func(b *sarif.AnalyzedBuild) *sarif.Reachability {
-		return &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
-			Method: sarif.MethodNotBuilt, RankedAs: sarif.SeverityMedium, AsOf: "2026-11-16", Build: b}
+		return &sarif.Reachability{State: sarif.ReachabilityNotBuilt, Analyzer: "govulncheck",
+			Method: sarif.MethodNotBuilt, AsOf: "2026-11-16", Build: b}
 	}
 	for _, c := range []struct {
 		build *sarif.AnalyzedBuild
@@ -167,15 +169,53 @@ func TestUnreachableCreditNamesTheBuildAModuleIsNotIn(t *testing.T) {
 			"not in the darwin/arm64 build analyzed, build tags dev and noassets (govulncheck, 2026-11-16)"},
 		{nil, "not in the build analyzed (govulncheck, 2026-11-16)"},
 	} {
-		if got := unreachableCredit(notBuilt(c.build)); got != c.want {
-			t.Errorf("credit = %q, want %q", got, c.want)
+		if got := notBuiltEvidence(notBuilt(c.build)); got != c.want {
+			t.Errorf("evidence = %q, want %q", got, c.want)
 		}
 	}
-	// A verdict that moved nothing, already at the lowest band, says nothing, as a call graph's does.
 	r := notBuilt(&sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}})
-	r.RankedAs = ""
-	if got := unreachableCredit(r) + unreachableStanding(r); got != "" {
-		t.Errorf("unmoved verdict = %q, want nothing", got)
+	if got := notBuiltWord(r); got != "not built" {
+		t.Errorf("word = %q, want not built", got)
+	}
+	if got := unreachableCredit(r) + unreachableStanding(r) + reachabilityPath(r); got != "" {
+		t.Errorf("unreachable lines = %q, want none", got)
+	}
+	if loweredAsUnreachable(finding{reachability: r}) || movedBy(finding{reachability: r}) != nil {
+		t.Error("a not-built finding carries a mark, want none")
+	}
+	// Another state carries neither line.
+	call := &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+		Method: sarif.MethodCallGraph, RankedAs: sarif.SeverityLow}
+	if got := notBuiltWord(call) + notBuiltEvidence(call) + notBuiltWord(nil); got != "" {
+		t.Errorf("call graph = %q, want no not-built line", got)
+	}
+}
+
+// The console's block keeps a not-built finding at its band and severity, says "not built" where a
+// mark would stand, with no arrow, and names the build on the line under it.
+func TestTheConsoleShowsNotBuiltBesideAnUnmovedFinding(t *testing.T) {
+	var out bytes.Buffer
+	if err := (consoleReporter{}).Render(&out, marksData()); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(out.String(), "\n")
+	at := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "CVE-2099-0004") })
+	if at < 0 || at+3 >= len(lines) {
+		t.Fatalf("no block for the not-built finding:\n%s", out.String())
+	}
+	if f := strings.Fields(lines[at]); len(f) < 2 || f[0] != "P1" || f[1] != "high" {
+		t.Errorf("row = %q, want P1 high, unmoved", lines[at])
+	}
+	block := strings.Join(lines[at:at+4], "\n")
+	facts, where := strings.TrimSpace(lines[at+2]), strings.TrimSpace(lines[at+3])
+	if !strings.HasPrefix(facts, "not built · ") {
+		t.Errorf("facts line = %q, want it to open with not built", facts)
+	}
+	if want := "not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)"; !strings.Contains(where, want) {
+		t.Errorf("line under = %q, want %q", where, want)
+	}
+	if strings.Contains(block, "↓") || strings.Contains(block, "unreachable") {
+		t.Errorf("block presents the finding as lowered:\n%s", block)
 	}
 }
 

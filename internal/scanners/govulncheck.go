@@ -446,7 +446,8 @@ type govulncheckConfig struct {
 // never analyzed for a call path, so a call graph's silence about it is not "nothing reaches it". Why
 // it is missing decides the rest. A run that did not load its module wrote no SBOM and looked at
 // nothing. A run that loaded cleanly at symbol level lists every module its packages compile, so a
-// requirement missing from it is not in the build, which is a verdict of its own (notBuiltVerdicts).
+// requirement missing from it is not in the build analyzed, which is shown as evidence and moves
+// nothing (notBuiltVerdicts).
 type govulncheckSBOM struct {
 	// Roots are the packages the run's patterns matched. The module holding them is how a run is
 	// matched to the go.mod it came from.
@@ -625,17 +626,19 @@ type moduleBuild struct {
 }
 
 // notBuiltVerdicts gives each requirement of a module's go.mod that no run over the module compiled
-// a verdict of unreachable by MethodNotBuilt, located at that go.mod. runs are the runs plan
-// planned, in the same order.
+// the state sarif.ReachabilityNotBuilt, located at that go.mod. runs are the runs plan planned, in
+// the same order.
 //
 // govulncheck's SBOM lists the module of every package the run loaded, the dependencies those
-// packages import included, so after a run that loaded cleanly it is the build. A requirement
-// missing from it is compiled into none of the packages analyzed, and no call path can start in code
-// that is not there. govulncheck reports advisories only for the modules in its SBOM, so a finding on
-// such a requirement comes from a manifest scanner, and the verdict travels beside the results for
-// the engine to move onto it.
+// packages import included, so after a run that loaded cleanly it is the build analyzed. A
+// requirement missing from it is compiled into none of the packages analyzed. govulncheck reports
+// advisories only for the modules in its SBOM, so a finding on such a requirement comes from a
+// manifest scanner, and the evidence travels beside the results for the engine to move onto it.
 //
-// A requirement is marked only where the reading is certain, because a verdict lowers a band:
+// It is evidence shown beside the finding and moves no band. The platforms analyzed may not be all
+// the platforms the module ships for, and a requirement compiled only for one of the others is in
+// that binary. Even so, a requirement is marked only where the reading of the build analyzed is
+// certain, because a mark that misstates the build is wrong evidence:
 //
 //   - Every run over the module, for every platform, loaded it at symbol level and wrote an SBOM. A
 //     run that failed to load analyzed nothing, and its module keeps the unread-files caveat and no
@@ -705,7 +708,7 @@ func notBuiltVerdicts(dir string, plan []govulncheckPlanned, runs [][]govulnchec
 				continue
 			}
 			out = append(out, sarif.PackageVerdict{Path: gomod, Package: path, Reachability: sarif.Reachability{
-				State:    sarif.ReachabilityUnreachable,
+				State:    sarif.ReachabilityNotBuilt,
 				Analyzer: govulncheckScanner,
 				Method:   sarif.MethodNotBuilt,
 				AsOf:     asOf,

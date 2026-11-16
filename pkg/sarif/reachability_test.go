@@ -45,7 +45,7 @@ func TestOnlyAStrongMethodLowersABand(t *testing.T) {
 		method string
 		want   Severity
 	}{
-		{MethodNotBuilt, SeverityMedium},
+		{MethodNotBuilt, SeverityHigh},
 		{MethodCallGraph, SeverityMedium},
 		{MethodDataFlow, SeverityMedium},
 		{MethodFrameworkHeuristic, SeverityHigh},
@@ -60,11 +60,25 @@ func TestOnlyAStrongMethodLowersABand(t *testing.T) {
 	}
 }
 
+// A module the analyzed build does not compile moves nothing: the platforms analyzed may not be all
+// that ship, so the finding is ranked, and judged, at the severity its scanner gave.
+func TestNotBuiltMovesNothing(t *testing.T) {
+	r := &Reachability{State: ReachabilityNotBuilt, Analyzer: "govulncheck", Method: MethodNotBuilt,
+		Build: &AnalyzedBuild{Platforms: []string{"linux/amd64"}}}
+	if got := r.RankAt(SeverityHigh); got != SeverityHigh {
+		t.Errorf("RankAt(high) = %q, want high", got)
+	}
+	res := Result{Level: LevelError, Reachability: r}
+	if got := res.RankedSeverity(); got != SeverityHigh {
+		t.Errorf("ranked severity = %q, want the scanner's high", got)
+	}
+}
+
 func TestEveryNamedMethodIsClassified(t *testing.T) {
 	// A method constant added without a line in ProvesAbsence reads as unknown and silently stops
 	// de-escalating, which looks like the analysis not running rather than like a missing case.
 	strong := map[string]bool{
-		MethodNotBuilt:           true,
+		MethodNotBuilt:           false,
 		MethodCallGraph:          true,
 		MethodDataFlow:           true,
 		MethodFrameworkHeuristic: false,

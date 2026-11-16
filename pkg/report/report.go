@@ -1675,18 +1675,32 @@ func reachabilityPath(r *sarif.Reachability) string {
 // naming it here separates two analyzers a reader would act on identically, at the cost of the
 // line the finding's own sentence shares. Where the method decided something the reader cannot
 // otherwise see, it is named: see unreachableStanding.
-//
-// A verdict that the module is not in the build names the build, because that is all it read: "not
-// in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)". A module compiled
-// only for another platform or under a tag nobody set is still in somebody's binary.
 func unreachableCredit(r *sarif.Reachability) string {
 	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" {
 		return ""
 	}
-	if r.Method == sarif.MethodNotBuilt {
-		return notBuiltNote(r.Build) + attribution(r)
-	}
 	return strings.TrimSuffix(strings.TrimPrefix(attribution(r), " ("), ")")
+}
+
+// notBuiltWord is the facts line's word for a finding on a module the analyzed build does not
+// compile, or "" for any other. It says what was read and carries no arrow: the band did not move,
+// because the platforms analyzed may not be all that ship.
+func notBuiltWord(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityNotBuilt {
+		return ""
+	}
+	return "not built"
+}
+
+// notBuiltEvidence names the build a module is missing from, and who read it, for the line under the
+// row: "not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)". Only
+// the build that was read, because a module compiled only for another platform or under a tag nobody
+// set is still in somebody's binary. "" for any other state.
+func notBuiltEvidence(r *sarif.Reachability) string {
+	if r == nil || r.State != sarif.ReachabilityNotBuilt {
+		return ""
+	}
+	return notBuiltNote(r.Build) + attribution(r)
 }
 
 // notBuiltNote names the build a module is missing from: its platforms and the build tags set.

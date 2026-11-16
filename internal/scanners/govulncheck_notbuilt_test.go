@@ -40,7 +40,7 @@ func notBuiltOf(report sarif.Report) []string {
 	var out []string
 	for _, v := range report.PackageVerdicts {
 		r := v.Reachability
-		if r.State != sarif.ReachabilityUnreachable || r.Method != sarif.MethodNotBuilt || r.Analyzer != govulncheckScanner ||
+		if r.State != sarif.ReachabilityNotBuilt || r.Method != sarif.MethodNotBuilt || r.Analyzer != govulncheckScanner ||
 			r.AsOf != "2026-11-16" || r.Build == nil {
 			out = append(out, "malformed "+v.Package)
 			continue
@@ -57,8 +57,6 @@ var analyzedOn = time.Date(2026, 11, 16, 9, 0, 0, 0, time.UTC)
 // not: the SBOM names a replaced module by its replacement.
 func TestParseGovulncheckMarksARequirementTheBuildDoesNotCompile(t *testing.T) {
 	onLinux(t)
-	t.Setenv("GOFLAGS", "")
-	t.Setenv("GOWORK", "")
 	dir := writeTree(t, map[string]string{"go.mod": requiringGoMod("example.com/app"), "main.go": goMain})
 
 	report, err := parseGovulncheckAt([]byte(govulncheckRun("example.com/app")), dir, analyzedOn)
@@ -88,8 +86,6 @@ func TestParseGovulncheckMarksARequirementTheBuildDoesNotCompile(t *testing.T) {
 // not load, a go.mod that does not parse, and a go.work replacing the requirement.
 func TestParseGovulncheckMarksNothingItCannotRead(t *testing.T) {
 	onLinux(t)
-	t.Setenv("GOFLAGS", "")
-	t.Setenv("GOWORK", "")
 	dir := writeTree(t, map[string]string{"go.mod": requiringGoMod("example.com/app"), "main.go": goMain})
 	run := govulncheckRun("example.com/app")
 	sbomLess := strings.Join(slices.DeleteFunc(strings.Split(run, "\n"), func(l string) bool {
@@ -137,8 +133,6 @@ func TestParseGovulncheckMarksNothingItCannotRead(t *testing.T) {
 // Where the Windows run did not load, the module's build was not read whole, and nothing is marked.
 func TestParseGovulncheckReadsTheBuildOfEveryPlatform(t *testing.T) {
 	onLinux(t)
-	t.Setenv("GOFLAGS", "")
-	t.Setenv("GOWORK", "")
 	dir := writeTree(t, map[string]string{
 		"go.mod": "module example.com/app\n\ngo 1.22\n\nrequire (\n" +
 			"\tgolang.org/x/sys v0.20.0\n\tgithub.com/labstack/echo/v4 v4.9.0\n)\n",
@@ -203,16 +197,15 @@ func (m requirementScanner) Scan(_ context.Context, target plugin.Target, _ plug
 }
 
 // Two components in two repositories, through the engine. In the first, the root module loads
-// cleanly and its build does not compile echo, so echo's finding is marked not built and ranked as an
-// unreachable one is; a nested module requiring echo fails to load, and its echo finding keeps its
-// band, no verdict and the unread-files caveat. In the second, the build compiles echo, so its echo
-// finding is not marked. A verdict reached in one repository does not reach the other.
+// cleanly and its build does not compile echo, so echo's finding is marked not built and keeps its
+// band, P1 as without the mark, in no reachability count; a nested module requiring echo fails to
+// load, and its echo finding keeps its band, no mark and the unread-files caveat. In the second, the
+// build compiles echo, so its echo finding is not marked. A mark reached in one repository does not
+// reach the other.
 func TestGovulncheckMarksWhatACleanBuildDoesNotCompile(t *testing.T) {
 	useGoVulnDB(t, noCopy)
 	builtWith(t, "")
 	onLinux(t)
-	t.Setenv("GOFLAGS", "")
-	t.Setenv("GOWORK", "")
 	orig := lookRuntime
 	t.Cleanup(func() { lookRuntime = orig })
 	lookRuntime = func(name string) (string, error) { return "/usr/bin/" + name, nil }
@@ -295,7 +288,7 @@ func TestGovulncheckMarksWhatACleanBuildDoesNotCompile(t *testing.T) {
 	}
 	want := map[string]string{
 		"api go.mod github.com/tidwall/gjson":             "reachable call-graph",
-		"api go.mod github.com/labstack/echo/v4":          "unreachable not-built ranked medium",
+		"api go.mod github.com/labstack/echo/v4":          "not-built not-built ranked ",
 		"api fixtures/go.mod github.com/labstack/echo/v4": "none",
 		"worker go.mod github.com/tidwall/gjson":          "reachable call-graph",
 		"worker go.mod github.com/labstack/echo/v4":       "none",
@@ -311,9 +304,13 @@ func TestGovulncheckMarksWhatACleanBuildDoesNotCompile(t *testing.T) {
 	if build == nil || !slices.Equal(build.Platforms, []string{"linux/amd64"}) || len(build.Tags) != 0 {
 		t.Errorf("build = %+v, want linux/amd64 and no tags", build)
 	}
-	if lowered, kept := bands["api go.mod github.com/labstack/echo/v4"], bands["worker go.mod github.com/labstack/echo/v4"]; lowered == kept ||
-		kept != bands["api fixtures/go.mod github.com/labstack/echo/v4"] {
-		t.Errorf("bands = %v, want the not-built finding below the same finding unmarked", bands)
+	for _, k := range []string{"api go.mod", "api fixtures/go.mod", "worker go.mod"} {
+		if band := bands[k+" github.com/labstack/echo/v4"]; band != "P1" {
+			t.Errorf("%s echo: band = %q, want P1, the band without the mark (bands %v)", k, band, bands)
+		}
+	}
+	if r := res.Reachability; r.Unreachable != 0 || r.Unknown != 0 || r.Reachable != 2 {
+		t.Errorf("reachability = %+v, want the two gjson calls and nothing for not built", r)
 	}
 
 	var unread []string

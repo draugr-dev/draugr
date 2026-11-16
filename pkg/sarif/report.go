@@ -548,7 +548,7 @@ type Match struct {
 
 // ReachabilityState says whether this project's own code can reach a dependency's vulnerable
 // code. Three values rather than two, because the third is the one that keeps the other two
-// honest.
+// honest, and a fourth that is evidence rather than a verdict.
 type ReachabilityState string
 
 const (
@@ -569,6 +569,16 @@ const (
 	// "we did not check" into "you are fine". Which is the failure this codebase refuses everywhere
 	// else. A tool that cannot say which of the two it means may only report this.
 	ReachabilityUnknown ReachabilityState = "unknown"
+	// ReachabilityNotBuilt means the analyzer read the build it analyzed and the dependency is in
+	// none of the packages that build compiled. Build names the platforms and build tags read.
+	//
+	// A state of its own rather than unreachable with a weaker method, so that everything which
+	// counts, ranks or marks unreachable findings leaves it alone without a case of its own. It
+	// moves nothing: the platforms analyzed may not be every platform the module ships for, and a
+	// dependency compiled only for one nobody analyzed is still in that binary. Lowering on it would
+	// take the safer reading of a build nobody looked at. It is shown beside the finding, and the
+	// finding is ranked as though no analyzer had spoken.
+	ReachabilityNotBuilt ReachabilityState = "not-built"
 )
 
 // Reachability records whether this project's code can reach a dependency's vulnerable code,
@@ -614,10 +624,10 @@ type Reachability struct {
 	// `//go:build windows`, found on Linux by a run for windows/amd64. Empty for a verdict over the
 	// machine's own build.
 	Platforms []string `json:"platforms,omitempty"`
-	// Build is the build a MethodNotBuilt verdict was read from, and nil for any other method. A
+	// Build is the build a ReachabilityNotBuilt state was read from, and nil for any other state. A
 	// module missing from a build is missing from that build only: one built only under a tag nobody
-	// set, or only for a platform nobody analyzed, is still in somebody's binary, so the verdict names
-	// what it looked at.
+	// set, or only for a platform nobody analyzed, is still in somebody's binary, so the evidence
+	// names what it looked at.
 	Build *AnalyzedBuild `json:"build,omitempty"`
 }
 
@@ -1750,16 +1760,10 @@ func RepositoriesIn(reports []Report) []RepositoryRef {
 
 // Methods an analyzer may report, strongest evidence first.
 //
-// Four things are sold as reachability, a fifth reads whether the code is built at all, and they are
-// not the same claim. The difference is entirely
+// Four things are sold as reachability and they are not the same claim. The difference is entirely
 // about the negative: saying a flaw is reachable is a positive claim somebody can go and check,
 // and saying it is unreachable is an absence claim worth exactly what the analysis cannot see.
 const (
-	// MethodNotBuilt read the build itself: the package is declared in the dependency file and is in
-	// none of the packages the analyzer compiled. Nothing in that build can call code it does not
-	// contain, so no call graph is needed. Bounded by which build was read, which the verdict names in
-	// Build: code compiled only for another platform, or only under another build tag, is outside it.
-	MethodNotBuilt = "not-built"
 	// MethodCallGraph followed calls from an entry point to the vulnerable symbol. Bounded by what
 	// the language lets a static analysis see, which every such tool publishes and none of which
 	// is nothing.
@@ -1773,22 +1777,27 @@ const (
 	// MethodImportCheck saw whether the vulnerable package is referenced anywhere in the tree,
 	// which is presence with extra steps.
 	MethodImportCheck = "import-check"
+	// MethodNotBuilt read the build itself, and goes with ReachabilityNotBuilt: the package is
+	// declared in the dependency file and is in none of the packages the analyzer compiled. Bounded by
+	// which build was read, which Build names: code compiled only for another platform, or only under
+	// another build tag, is outside it. Not a proof of absence, because the builds read may not be
+	// every build that ships.
+	MethodNotBuilt = "not-built"
 )
 
 // ProvesAbsence reports whether a method's unreachable verdict is strong enough to lower a band.
 //
-// The one place this is decided. A call graph that finds no path has looked for one, and a build that
-// does not contain the package has nothing to call it with; a framework heuristic that finds no route
-// has read a configuration file. Only the first two are evidence that the vulnerable code does not
-// run, and a band lowered by the third is a finding somebody stops looking at on the strength of a
-// guess.
+// The one place this is decided. A call graph that finds no path has looked for one; a framework
+// heuristic that finds no route has read a configuration file. Only the first is evidence that the
+// vulnerable code does not run, and a band lowered by the second is a finding somebody stops
+// looking at on the strength of a guess.
 //
 // An unrecognized or absent method is not strong. That is the conservative direction and the right
 // default for a field an analyzer wrote: a tool that will not say how it decided has not earned a
 // de-escalation, and one added later gets the strict reading until somebody classifies it here.
 func ProvesAbsence(method string) bool {
 	switch method {
-	case MethodNotBuilt, MethodCallGraph, MethodDataFlow:
+	case MethodCallGraph, MethodDataFlow:
 		return true
 	default:
 		return false

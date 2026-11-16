@@ -529,7 +529,7 @@ func TestMergeDeduplicatesInventory(t *testing.T) {
 func TestMergeDeduplicatesPackageVerdicts(t *testing.T) {
 	v := func(repo, component, path string) PackageVerdict {
 		return PackageVerdict{Repository: repo, Component: component, Path: path, Package: "github.com/labstack/echo/v4",
-			Reachability: Reachability{State: ReachabilityUnreachable, Analyzer: "govulncheck", Method: MethodNotBuilt}}
+			Reachability: Reachability{State: ReachabilityNotBuilt, Analyzer: "govulncheck", Method: MethodNotBuilt}}
 	}
 	a := Report{PackageVerdicts: []PackageVerdict{
 		v("one", "api", "go.mod"), v("two", "api", "go.mod"), v("one", "api", "tools/go.mod"), v("one", "web", "go.mod"),

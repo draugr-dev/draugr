@@ -2903,7 +2903,8 @@ func strongerReachability(existing, candidate *sarif.Reachability) *sarif.Reacha
 	return existing
 }
 
-// reachabilityRank orders verdicts by how much exposure they claim.
+// reachabilityRank orders verdicts by how much exposure they claim. Not built claims nothing about a
+// build nobody analyzed, so it ranks with unknown, below a call graph's unreachable.
 func reachabilityRank(s sarif.ReachabilityState) int {
 	switch s {
 	case sarif.ReachabilityReachable:

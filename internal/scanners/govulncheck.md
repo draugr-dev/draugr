@@ -114,7 +114,7 @@ with a call path from its files.
 | verdict | means |
 |---|---|
 | `reachable` | a call path was found, and is attached as evidence |
-| `unreachable` | the module was analyzed and no path was found, or the module is not in the build |
+| `unreachable` | the module was analyzed and no path was found |
 | `unknown` | no analysis covered it, or the only call path found starts in another component's code |
 
 The third is the one that keeps the other two honest. A call graph's silence about a module means
@@ -122,27 +122,32 @@ something only where the module was in the graph, so `unreachable` from a call g
 when the run reported `scan_level: symbol` **and** the module appears in the run's `SBOM` message.
 Anything else govulncheck reports on is `unknown`.
 
-**A requirement the build does not compile is `unreachable`, by `method: not-built`.** govulncheck's
-`SBOM` lists the module of every package the run loaded, the dependencies those packages import
-included, and govulncheck reports advisories only for those modules. After a run that loaded its
-module cleanly at `scan_level: symbol`, a `go.mod` requirement missing from the `SBOM` is compiled
-into none of the packages analyzed: a dependency used only from `_test.go` files, which govulncheck
-does not analyze, or one only a file behind a build tag nobody set imports. The findings a manifest
-scanner reports on it get the verdict. The row is marked `↓ not built`, and the line under it names
-the build that was read:
+**A requirement the build does not compile is shown as `not-built`, and nothing moves.**
+govulncheck's `SBOM` lists the module of every package the run loaded, the dependencies those
+packages import included, and govulncheck reports advisories only for those modules. After a run
+that loaded its module cleanly at `scan_level: symbol`, a `go.mod` requirement missing from the
+`SBOM` is compiled into none of the packages analyzed: a dependency used only from `_test.go` files,
+which govulncheck does not analyze, or one that only a file behind a build tag nobody set imports.
+The findings a manifest scanner reports on it carry `state: not-built`, and the console says so
+where a mark would stand and names the build that was read on the line under it:
 
 ```console
-      ↓ not built · component desktop · scanner trivy · …
+      not built · component desktop · scanner trivy · …
       go.mod:9 · not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)
 ```
 
-The build is the machine's own platform and each platform a run was made for beside it, and the
-`-tags` your `GOFLAGS` sets. A module compiled only for a platform not analyzed, or only under a tag
-not set, is still in that build, which is why the verdict names the one it read. A requirement is not
-marked where the reading is not certain:
+It is evidence shown beside the finding, not a verdict. The build analyzed is the machine's own
+platform and each platform a run was made for beside it, under the `-tags` your `GOFLAGS` sets. That
+may not be every platform the module ships for, and a module compiled only for a platform not
+analyzed, or only under a tag not set, is in that binary. So the finding keeps the band and severity
+it would have without the mark, the gate judges it the same way, and it counts as neither
+`unreachable` nor `unknown` in the reachability summary. Lowering on it waits until every platform
+the module graph builds for is analyzed.
+
+A requirement is not marked where the build analyzed cannot be read with certainty:
 
 - a run over the module, for any platform, did not load it, or ran below `scan_level: symbol`: the
-  module keeps its `unread-files` caveat and its findings carry no verdict;
+  module keeps its `unread-files` caveat and its findings carry no mark;
 - the requirement is in the `SBOM` of any run over the module, for any platform;
 - a `replace` directive in the `go.mod`, or in the `go.work` whose workspace uses the module, names
   it, because the `SBOM` lists a replaced module under its replacement;
@@ -158,8 +163,7 @@ exploitability enrichment does in the other direction. An `unreachable` finding 
 level down; a `reachable` one is unchanged, because severity already assumes the code runs.
 
 The band moves because of **how** this scanner decided, not because it decided. It records
-`method: call-graph`, or `method: not-built` for a module the build does not compile, both of which
-Draugr treats as evidence that the vulnerable code does not run; an
+`method: call-graph`, which Draugr treats as evidence that the vulnerable code does not run; an
 analyzer whose negative rests on a framework's own account of its routing is reported and lowers
 nothing. [Prioritization](../../docs/concepts/prioritization.md) has the table.
 

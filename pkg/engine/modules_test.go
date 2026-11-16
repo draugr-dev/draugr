@@ -340,7 +340,7 @@ func TestModuleOwnerNarrowsReachability(t *testing.T) {
 	}
 }
 
-// A verdict about a module the build does not compile goes to the component whose paths name the
+// Evidence about a module the build does not compile goes to the component whose paths name the
 // go.mod declaring it, as a finding located there does, and to no other.
 func TestModuleOwnerAttributesAPackageVerdictByItsManifest(t *testing.T) {
 	owner := func(paths ...string) *moduleOwner {
@@ -352,7 +352,7 @@ func TestModuleOwnerAttributesAPackageVerdictByItsManifest(t *testing.T) {
 		}
 	}
 	report := sarif.Report{PackageVerdicts: []sarif.PackageVerdict{{Path: "services/go.mod", Package: "github.com/labstack/echo/v4",
-		Reachability: sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodNotBuilt}}}}
+		Reachability: sarif.Reachability{State: sarif.ReachabilityNotBuilt, Method: sarif.MethodNotBuilt}}}}
 	if got := owner("services/cmd/api", "services/go.mod").attribute(report); len(got.PackageVerdicts) != 1 || got.Results != nil {
 		t.Errorf("the go.mod's owner = %+v, want the verdict and no results", got)
 	}

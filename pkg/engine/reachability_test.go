@@ -155,16 +155,17 @@ func TestApplyReachabilityGivesEachFindingItsOwnVerdict(t *testing.T) {
 	}
 }
 
-// notBuilt is an analyzer's verdict that a module is in none of the packages its build compiled.
+// notBuilt is an analyzer's evidence that a module is in none of the packages its build compiled.
 func notBuilt(repo, path, pkg string) sarif.PackageVerdict {
 	return sarif.PackageVerdict{Repository: repo, Component: "api", Path: path, Package: pkg,
-		Reachability: sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+		Reachability: sarif.Reachability{State: sarif.ReachabilityNotBuilt, Analyzer: "govulncheck",
 			Method: sarif.MethodNotBuilt, Build: &sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}}}}
 }
 
-// A verdict about a whole module reaches every advisory a manifest scanner reported on it in that
+// Evidence about a whole module reaches every advisory a manifest scanner reported on it in that
 // go.mod, and only there: the same module in another repository, in another go.mod, or with a verdict
-// about the advisory itself keeps what it had. Each copy is banded on its own.
+// about the advisory itself keeps what it had. It moves no band and is in no count: the summary counts
+// verdicts, and not built is not one.
 func TestApplyReachabilityMovesAPackageVerdictOntoItsFindings(t *testing.T) {
 	inRepo := func(res sarif.Result, uri string) sarif.Result {
 		res.Location.URI = uri
@@ -179,6 +180,9 @@ func TestApplyReachabilityMovesAPackageVerdictOntoItsFindings(t *testing.T) {
 		inRepo(analyzed("repo-a", "CVE-2022-32149", "golang.org/x/text", sarif.ReachabilityReachable), "go.mod"),
 	)
 	sca := ctrls["sca"]
+	for i := range sca.Report.Results {
+		sca.Report.Results[i].Priority = "P1"
+	}
 	sca.Report.PackageVerdicts = []sarif.PackageVerdict{
 		notBuilt("repo-a", "go.mod", "github.com/labstack/echo/v4"),
 		notBuilt("repo-a", "go.mod", "golang.org/x/text"),
@@ -202,8 +206,8 @@ func TestApplyReachabilityMovesAPackageVerdictOntoItsFindings(t *testing.T) {
 		}
 	}
 	want := map[string]string{
-		"repo-a go.mod CVE-2022-40083":       "unreachable not-built P2",
-		"repo-a go.mod CVE-2023-0001":        "unreachable not-built P2",
+		"repo-a go.mod CVE-2022-40083":       "not-built not-built P1",
+		"repo-a go.mod CVE-2023-0001":        "not-built not-built P1",
 		"repo-a tools/go.mod CVE-2022-40083": "none",
 		"repo-b go.mod CVE-2022-40083":       "none",
 		"repo-a go.mod CVE-2022-32149":       "reachable call-graph P1",
@@ -216,18 +220,21 @@ func TestApplyReachabilityMovesAPackageVerdictOntoItsFindings(t *testing.T) {
 			t.Errorf("%s: %q, want %q", k, verdicts[k], v)
 		}
 	}
-	if got.Unreachable != 2 || got.Reachable != 1 {
-		t.Errorf("summary = %+v, want 2 unreachable and 1 reachable", got)
+	if got.Unreachable != 0 || got.Unknown != 0 || got.Reachable != 1 {
+		t.Errorf("summary = %+v, want 1 reachable and nothing else", got)
 	}
-	// RankedAs is per finding, so the two findings carrying one module's verdict do not share it.
+	if again := recountReachability(ctrls, got); again.Unreachable != 0 || again.Unknown != 0 || again.Reachable != 1 {
+		t.Errorf("recount = %+v, want 1 reachable and nothing else", again)
+	}
+	// Each finding holds its own copy, with no rankedAs: nothing moved.
 	var marked []*sarif.Reachability
 	for _, r := range ctrls["sca"].Report.Results {
-		if r.Reachability != nil && r.Reachability.Method == sarif.MethodNotBuilt {
+		if r.Reachability != nil && r.Reachability.State == sarif.ReachabilityNotBuilt {
 			marked = append(marked, r.Reachability)
 		}
 	}
-	if len(marked) != 2 || marked[0] == marked[1] {
-		t.Errorf("not-built verdicts = %v, want one copy per finding", marked)
+	if len(marked) != 2 || marked[0] == marked[1] || marked[0].RankedAs != "" || marked[1].RankedAs != "" {
+		t.Errorf("not-built evidence = %+v, want one copy per finding and no rankedAs", marked)
 	}
 }
 

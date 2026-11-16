@@ -830,6 +830,9 @@ func notesFor(col tui.Painter, f finding) []string {
 		text := m.text()
 		fixed = append(fixed, notePart{plain: text, painted: col.Paint(m.style, text)})
 	}
+	if w := notBuiltWord(f.reachability); w != "" {
+		fixed = append(fixed, notePart{plain: w, painted: w})
+	}
 	fixed = append(fixed, reasoning(col, f)...)
 
 	room := messageWidth
@@ -910,6 +913,7 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		moreFilesNote(f),
 		ratingNote(f.rating),
 		reachabilityPath(f.reachability),
+		notBuiltEvidence(f.reachability),
 		unreachableCredit(f.reachability),
 		unreachableStanding(f.reachability),
 		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.tool),
@@ -1139,13 +1143,7 @@ func marks(f finding) []movement {
 		out = append(out, movement{key: moveFloor, glyph: "↑", label: "floor", style: cHigh})
 	}
 	if lowered {
-		// Named for what was read. A module the build does not compile was never looked at for a call,
-		// and "unreachable" would claim a call graph said so.
-		label := "unreachable"
-		if f.reachability.Method == sarif.MethodNotBuilt {
-			label = "not built"
-		}
-		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: label, style: cInfo})
+		out = append(out, movement{key: moveUnreachable, glyph: "↓", label: "unreachable", style: cInfo})
 	}
 	// Held at P3 because the repository's lockfile pins the reference the finding is about.
 	if f.priorityCap != "" {
