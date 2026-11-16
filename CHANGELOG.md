@@ -16,29 +16,27 @@ _Nothing yet._
 
 ### Added
 
-- **gosec and govulncheck read Go code built only for other platforms.** A file behind `//go:build windows` on Linux is analyzed in a run for windows/amd64, and its findings name that build. The run adds gosec time in proportion to the packages holding such code. Files no analyzed platform builds, and platform code govulncheck skipped, are `unread-files` caveats.
+- **gosec and govulncheck read Go code built only for other platforms.** A file behind `//go:build windows` on Linux is analyzed in a run for windows/amd64, and its findings name that build. The run adds gosec time in proportion to the packages holding such code. Files no analyzed platform builds, and platform code govulncheck skipped, are reported as unread under CAVEATS.
 
 ### Changed
 
-- **A fix list split by `fixes.upgrade` says why the second step is there.** The step past the policy reads `major, past config.fixes.upgrade: minor`, naming the component's own key where it set one, in the console, HTML report, markdown, report.json (`policyFrom`) and `fix_list`.
+- **The markdown report you post on a pull request opens with Fix first.** Right under the priority counts it lists up to ten actions, each with the findings it clears and where, and `↑ KEV` when the fix removes a flaw known to be exploited. It replaces the table with a row per finding; the HTML report has the rest.
+
+- **A rule that fires many times takes one row in the console's FIX FIRST list.** Findings of one rule at one priority, in one component and repository, share a row such as `G115 · 194 findings in 17 files`, so other rules stay in view, and the list's heading counts findings rather than rows. `--top` caps rows; `--top 0` gives every finding its own row.
+
+- **More of what does not ship is listed after the code that does.** Findings in generated Go code, in developer tools' lockfiles under `.config/mise/`, on actions `actions.lock` pins, and credentials under `tests/`, `docs/` or `examples/` still count at their priority and show why beside their location: `generated` (the fix points at the generator), `developer tool`, `pinned by actions.lock` or `test`. A Go `_test.go` file is a test wherever it sits, and a credential there keeps the fix `rotate the credential if it is real`. report.json and SARIF carry the first three as `aside`.
+
+- **Fix lists follow the same order.** The markdown Fix first, the HTML report's What to do, `--view actions` and `fix_list` list an action that touches shipped code first, then one in generated code or tooling, then one whose findings are all under docs, examples or tests.
 
 - **An action that `.github/workflows/actions.lock` pins to a commit no longer fails the default gate.** Its mutable-tag finding is held at P3 and marked `↓ pinned`, still counted and listed, because GitHub runs the locked commit. A reference the lockfile does not pin keeps its band.
 
-- **Credentials in test files no longer crowd the top of the list.** A `secrets` finding under `tests/`, `docs/` or `examples/`, or in a Go `_test.go` file, is labeled, listed after shipped code and still counted, with the fix `rotate the credential if it is real`. Go `_test.go` files are labeled `test` for every control.
-
-- **Findings in generated Go code, in developer tools' lockfiles and on actions `actions.lock` pins are listed after the rest.** Each still counts at its priority and shows its reason beside its location: `generated`, with the fix pointed at the generator; `developer tool`, for lockfiles under `.config/mise/`; `pinned by actions.lock`. report.json and SARIF name it `aside`.
-
-- **Fix lists lead with shipped code.** The markdown Fix first, the HTML report's What to do, `--view actions` and `fix_list` list an action whose findings are all under docs, examples or tests after the rest, and one in generated code or tooling before those. An action that touches shipped code stays with the shipped ones.
-
-- **One rule that fires many times takes one FIX FIRST row.** Its findings at one priority, in one component and repository, share a row counted beside the rule, such as `G115 · 194 findings in 17 files`, so other rules stay in view, and the heading counts findings. `--top` caps rows; `--top 0` lists every finding on its own row.
-
-- **The markdown report you post on a pull request now says what to do first, right under the priority counts.** Fix first lists up to ten actions, each with how many findings it clears and where, in place of a wide table with a row per finding; the rest are in the HTML report.
+- **A fix list split by `fixes.upgrade` says why the second step is there.** The step past the limit reads `major, past config.fixes.upgrade: minor`; where a component sets its own `fixes.upgrade`, the note names that key. It appears in every report format and in `fix_list`, as `policyFrom` in report.json.
 
 ### Fixed
 
-- **A detect-secrets baseline no longer fails the `secrets` control.** Gitleaks matched every `hashed_secret` line in a `.secrets.baseline`, so each recorded hash was reported as a credential to rotate. Those findings are now suppressed by default, with the reason "a hash in a detect-secrets baseline", and stay in the report. Set `config.controls.secrets.detectSecretsBaselines: report` to count them again.
-
 - **A license deny or warn list naming `GPL-3.0-only` now applies to a file Trivy names `GPL-3.0`.** Trivy names license files and headers by the bare GNU id, and the policy matched only exact ids, so a denied license came out as a warning and the run could pass. A bare id now matches either its `-only` or `-or-later` entry.
+
+- **A detect-secrets baseline no longer fails the `secrets` control.** Gitleaks matched every `hashed_secret` line in a `.secrets.baseline`, so each recorded hash was reported as a credential to rotate. Those findings are now suppressed by default, with the reason "a hash in a detect-secrets baseline", and stay in the report. Set `config.controls.secrets.detectSecretsBaselines: report` to count them again.
 
 - **A markdown report row no longer prints its Upgrade text twice.** A package advisory with no title of its own filled both the Upgrade and the Finding cell with the same words, such as `dpkg 1.21.22, no fix available`; the Finding cell now shows a dash.
 
@@ -50,7 +48,7 @@ _Nothing yet._
 
 - **An upgrade names each dependency file once.** When Trivy and Grype counted different advisories in one `go.mod`, the action listed the file once per scanner, as `go.mod:5 · go.mod:1`. It now names the file once, at the line that requires the dependency.
 
-- **KEV and EPSS now raise Grype findings named by an advisory.** With `byCve: false`, a `GHSA-…` or `GO-…` finding whose related CVE is on KEV, or above the EPSS threshold, is now raised, and its row names the CVE: `↑ KEV (CVE-2020-35669)`.
+- **Grype findings named by a `GHSA-…` or `GO-…` advisory are now raised by KEV and EPSS.** With Grype's `byCve: false` setting, such a finding whose related CVE is on KEV, or above the EPSS threshold, now moves up a band like any other, and its row names the CVE: `↑ KEV (CVE-2020-35669)`.
 
 - **The HTML report's Scanner filter tells `trivy-config` and `trivy-fs` apart.** Both run Trivy, and the filter listed them as `Trivy` and `trivy`, one tool apparently split by case. It now names each finding's scanner as `draugr controls` does; an imported finding keeps its tool's name. report.json and the SARIF add `scanner` beside `tool`.
 
