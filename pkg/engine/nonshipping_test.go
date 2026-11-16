@@ -326,3 +326,26 @@ func TestARunNamesEachFindingsScanner(t *testing.T) {
 		}
 	}
 }
+
+// A scanner that read a Go module of test files only labels its findings as a test's; the path
+// names no kind there, so the label stands. Where the path does name one, the path's kind wins, and
+// a finding no scanner labeled and no path places stays unlabeled.
+func TestMarkNonShippingKeepsAScannersTestLabelWhereThePathSaysNothing(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(nonShippingController{jobPerRepo: jobPerRepo{name: "sca"}})
+	e := New(reg)
+	m := saga.Model{Components: []saga.Component{{Name: "api", Repositories: []saga.Repository{{URL: "one"}}}}}
+	results := []sarif.Result{
+		{Component: "api", NonShipping: "test", Location: sarif.Location{URI: "e2e/go.mod"}},
+		{Component: "api", NonShipping: "test", Location: sarif.Location{URI: "docs/go.mod"}},
+		{Component: "api", Location: sarif.Location{URI: "go.mod"}},
+	}
+	controls := map[string]plugin.ControlResult{"sca": {Report: sarif.Report{Results: results}}}
+	e.markNonShipping(controls, m)
+	got := controls["sca"].Report.Results
+	for i, want := range []string{"test", "docs", ""} {
+		if got[i].NonShipping != want {
+			t.Errorf("%s: label %q, want %q", got[i].Location.URI, got[i].NonShipping, want)
+		}
+	}
+}
