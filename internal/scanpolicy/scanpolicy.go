@@ -52,6 +52,15 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		// something actually moved. Asked about the finding's CVE rather than its rule id, which for
 		// a finding named by its advisory carries the CVE only among the aliases.
 		cve := exploit.CVE(res)
+		// A finding that names no CVE anywhere is looked up in the advisory database the run read, by
+		// its Go or GitHub advisory id. Kept where an earlier ranking already found it, so ranking the
+		// finding again after reachability arrives keys it on the same CVE.
+		lookup := res.CVELookup
+		if cve == "" {
+			if lookup = expl.Lookup(res); lookup != nil {
+				cve = lookup.CVEs[0]
+			}
+		}
 		sev, esc := expl.Explain(sev, cve)
 		// Read apart from the escalation, because a finding the scanner already rated critical is on
 		// KEV, raises nothing, and is still the one to fix first in its band.
@@ -145,6 +154,7 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 			Band:          string(band),
 			Escalation:    esc,
 			Exploited:     exploited,
+			CVELookup:     lookup,
 			Floor:         floorReason,
 			RankedAs:      rankedAs,
 			SeverityFloor: held,

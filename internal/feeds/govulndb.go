@@ -123,6 +123,38 @@ func CheckGoVulnDB(path string) error {
 	return nil
 }
 
+// GoVulnAliases reads the record index of the Go vulnerability database at path, index/vulns.json,
+// as each record's id mapped to the aliases it lists.
+//
+// The database documents the index as one entry per vulnerability, each with its `id`, `modified`
+// time and `aliases`, "IDs of the same vulnerability in other databases": the CVE and GitHub
+// advisory ids beside the `GO-…` one. An index that is missing, unreadable or empty is an error
+// rather than an empty map, because a lookup against no records finds no CVE for every finding and
+// would read as though none had one.
+func GoVulnAliases(path string) (map[string][]string, error) {
+	raw, err := os.ReadFile(filepath.Join(path, "index", "vulns.json")) // #nosec G304 -- a path under the feed cache
+	if err != nil {
+		return nil, errors.New("no index/vulns.json")
+	}
+	var entries []struct {
+		ID      string   `json:"id"`
+		Aliases []string `json:"aliases"`
+	}
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return nil, errors.New("index/vulns.json cannot be read")
+	}
+	out := make(map[string][]string, len(entries))
+	for _, e := range entries {
+		if e.ID != "" {
+			out[e.ID] = e.Aliases
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("index/vulns.json lists no records")
+	}
+	return out, nil
+}
+
 // ErrNoLocalGoVulnDB means no local copy of the Go vulnerability database has been fetched.
 var ErrNoLocalGoVulnDB = errors.New("no local Go vulnerability database")
 

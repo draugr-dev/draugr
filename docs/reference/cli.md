@@ -738,6 +738,9 @@ CISA's [KEV catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalo
 exploited) becomes critical; a CVE at or above the [EPSS](https://www.first.org/epss/) threshold
 (predicted likely) is bumped one level. Both are optional and only affect findings that name a CVE,
 in the rule id or, where the rule id holds none, among the identifiers the scanner relates to it.
+A finding named only by a `GO-…` or `GHSA-…` id is matched on the CVE the cached Go vulnerability
+database lists for it, when `--kev` or `--epss` reads the cache and `draugr feeds update govulndb`
+has fetched a copy within `maxAge`.
 [Using the cache in a scan](#using-the-cache-in-a-scan) says where the data comes from.
 
 ### Scanners that do more than read
@@ -2144,7 +2147,7 @@ fetches a feed only when `--kev` or `--epss` (or `config.exploitability`) says `
 |------|---------|---------|
 | `kev` | CISA's Known Exploited Vulnerabilities catalog | [exploitability](saga-schema.md#configexploitability) |
 | `epss` | FIRST's EPSS scores | [exploitability](saga-schema.md#configexploitability) |
-| `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md) |
+| `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md), and [exploitability](saga-schema.md#configexploitability) to find the CVE of a finding named by a `GO-…` or `GHSA-…` id |
 
 ### `draugr feeds update [kev|epss|govulndb]`
 
@@ -2231,6 +2234,12 @@ error.
 
 `DRAUGR_OFFLINE=1` or `--offline` stops `auto` fetching: it reads the cache, or reports that there
 is nothing to read.
+
+With `cache` or `auto`, the scan also reads the cached `govulndb` copy, never fetching it, to find
+the CVE of a finding whose scanner named it only by a `GO-…` or `GHSA-…` id. A copy that is
+missing, or older than `maxAge`, is not read: those findings are matched on nothing, and the
+Signals section counts them and names `draugr feeds update govulndb`. A path reads no cache, so
+nothing is looked up.
 
 **A flag overrides the descriptor only when you type it.** `--epss-threshold 0.5` beats a
 descriptor saying `0.1`, although 0.5 is also the flag's default; leaving it off keeps the

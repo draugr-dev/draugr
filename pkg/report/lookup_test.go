@@ -1,0 +1,54 @@
+package report
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
+)
+
+// goOnlyRun is two components in two repositories, each with a finding named only by its Go
+// advisory id, and one finding named by its CVE.
+func goOnlyRun() []sarif.Result {
+	return []sarif.Result{
+		xnet("GO-2026-0001-golang.org/x/net", "api", "repo-api"),
+		xnet("GHSA-4rgh-jx4f-qfcq-golang.org/x/net", "worker", "repo-worker"),
+		xnet("CVE-2026-0003", "worker", "repo-worker"),
+	}
+}
+
+// A run that read KEV and EPSS and no Go vulnerability database says how many findings neither
+// could check for want of their CVE, and what fetches the database. A run that read it, or read
+// neither feed, says nothing more than its rows do.
+func TestARunSaysWhichFindingsItCouldNotLookUp(t *testing.T) {
+	const want = "KEV and EPSS did not check 2 findings named only by a Go or GitHub advisory id"
+	d := kevData(goOnlyRun())
+	var b bytes.Buffer
+	if err := (consoleReporter{}).Render(&b, d); err != nil {
+		t.Fatal(err)
+	}
+	if out := b.String(); !strings.Contains(out, want) || !strings.Contains(out, "draugr feeds update govulndb") {
+		t.Errorf("the console should count the findings it could not look up:\n%s", out)
+	}
+
+	read := kevData(goOnlyRun())
+	read.Exploitability = append(read.Exploitability, FeedProvenance{Name: "govulndb"})
+	if _, notes := signals(read, summarize(read)); strings.Contains(strings.Join(notes, "\n"), want[:20]) {
+		t.Errorf("notes = %q, want nothing more where the database was read", notes)
+	}
+
+	unread := kevData(goOnlyRun())
+	unread.Exploitability = nil
+	if _, notes := signals(unread, summarize(unread)); len(notes) != 0 {
+		t.Errorf("notes = %q, want none where neither KEV nor EPSS was read", notes)
+	}
+
+	// A finding the lookup gave a CVE is one KEV and EPSS checked, and is not counted.
+	looked := goOnlyRun()
+	looked[0].CVELookup = &sarif.CVELookup{CVEs: []string{"CVE-2026-0001"}, ID: "GO-2026-0001", Record: "GO-2026-0001"}
+	d = kevData(looked)
+	if _, notes := signals(d, summarize(d)); !strings.Contains(strings.Join(notes, "\n"), "did not check 1 finding named") {
+		t.Errorf("notes = %q, want the one finding left counted", notes)
+	}
+}

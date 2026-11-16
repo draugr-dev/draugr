@@ -258,6 +258,14 @@ type Result struct {
 	// correlates as a fresh one does, and not written to results.sarif, which carries the
 	// correlation they decided.
 	Aliases []string `json:"aliases,omitempty"`
+	// CVELookup is the CVEs Draugr found for this finding in an advisory database, where neither its
+	// rule id nor its Aliases name one, and the record that lists them. KEV and EPSS are keyed on a
+	// CVE, so a finding named only by its Go advisory id is otherwise one neither can raise.
+	//
+	// Apart from Aliases, which are only what the scanner stated: a reader, and correlation, can tell
+	// an identifier the scanner asserted from one looked up afterwards. Set only where exactly one
+	// record answers, and never from a record other than the one the finding names.
+	CVELookup *CVELookup `json:"cveLookup,omitempty"`
 	// Objects are the things at fault, each named as the message names it, for a finding that
 	// stands for every object failing one check: a Kubernetes check reported once per cluster with
 	// its offending pods listed in the message.
@@ -545,6 +553,24 @@ type Match struct {
 	AsOf string `json:"asOf,omitempty"`
 	// CVE is the CVE the dataset matched, where the finding's rule id names none, as on Escalation.
 	CVE string `json:"cve,omitempty"`
+}
+
+// CVELookup is a finding's CVEs as an advisory database lists them, and where that came from.
+//
+// Recorded whole, so a reader of a `GO-…` row raised on KEV can open the record that named the CVE
+// and check it, as they can check the KEV listing by its date.
+type CVELookup struct {
+	// CVEs are the CVEs the record lists as its aliases, in the record's order.
+	CVEs []string `json:"cves"`
+	// ID is the identifier the finding named and the lookup was keyed on: a Go advisory id, or a
+	// GitHub advisory id the database lists as an alias.
+	ID string `json:"id"`
+	// Record is the database record that lists the CVEs, `GO-2020-0001`.
+	Record string `json:"record"`
+	// Dataset names the database, as the run's `consulted` names it: "govulndb".
+	Dataset string `json:"dataset"`
+	// AsOf is the day the copy was fetched, as YYYY-MM-DD.
+	AsOf string `json:"asOf,omitempty"`
 }
 
 // ReachabilityState says whether this project's own code can reach a dependency's vulnerable
@@ -1122,7 +1148,8 @@ type Input struct {
 // to the human-facing report, which has room for them. What a consumer of the evidence needs to
 // explain a band is narrower. Which signals could have fired, and as of when.
 type Consulted struct {
-	// Signal names the dataset: "kev", "epss" or "dependency-health".
+	// Signal names the dataset: "kev", "epss", "dependency-health", or "govulndb", the Go
+	// vulnerability database a finding named only by a Go or GitHub advisory id is looked up in.
 	Signal string `json:"signal"`
 	// AsOf is the day the copy was obtained, as YYYY-MM-DD. Empty when the caller supplied a
 	// file with no fetch to record, which is itself worth seeing.

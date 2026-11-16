@@ -265,6 +265,9 @@ type findingReport struct {
 	// Exploited names the catalog of observed exploitation that lists this finding, whether or not
 	// the listing raised its severity. The action that clears it ranks first in its band on it.
 	Exploited *sarif.Match `json:"exploited,omitempty"`
+	// CVELookup is the CVE an advisory database lists for a finding that named none, and the record
+	// that lists it, so a consumer can tell a CVE the scanner stated from one Draugr looked up.
+	CVELookup *sarif.CVELookup `json:"cveLookup,omitempty"`
 	// Reachability says whether this project's code can reach the vulnerable code, and carries
 	// the call path when it can. Same reason as Escalation, in the other direction: a consumer
 	// acting on a band that reachability lowered can say what lowered it.
@@ -1306,6 +1309,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Fingerprint:   res.Fingerprint(),
 		Escalation:    res.Escalation,
 		Exploited:     res.Exploited,
+		CVELookup:     res.CVELookup,
 		Reachability:  res.Reachability,
 		Rating:        res.Rating,
 		SeverityFloor: res.SeverityFloor,

@@ -182,7 +182,27 @@ func signals(d Data, s summary) (rows []signalRow, notes []string) {
 		}
 		notes = append(notes, n...)
 	}
+	if note := lookupNote(d, s); note != "" {
+		notes = append(notes, note)
+	}
 	return rows, notes
+}
+
+// lookupNote says how many findings KEV and EPSS could not check because they name only a Go or
+// GitHub advisory id and no copy of the Go vulnerability database was read to find their CVE.
+//
+// Empty where neither dataset was read, which their own rows already say, and where the database was
+// read: a finding it gave no CVE has none it lists, which is not something a fetch would change.
+// Without the note, a run that could not look a finding up reads like one that looked and found it
+// on neither list.
+func lookupNote(d Data, s summary) string {
+	if s.needsLookup == 0 || consulted(d, exploit.DatasetGoVulnDB) ||
+		(!consulted(d, exploit.SignalKEV) && !consulted(d, exploit.SignalEPSS)) {
+		return ""
+	}
+	return fmt.Sprintf("KEV and EPSS did not check %s named only by a Go or GitHub advisory id: finding the CVE "+
+		"takes a current Go vulnerability database, which draugr feeds update govulndb fetches.",
+		english.Count(s.needsLookup, "finding"))
 }
 
 // feedDid is what an exploitability dataset did: listed whenever the run consulted it, and as not
