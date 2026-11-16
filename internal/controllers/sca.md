@@ -130,8 +130,20 @@ A finding in a dependency file of a tool the developers install, rather than of 
 is labeled `developer tool, runs in CI` beside its location and listed after the application's
 dependencies. It still counts at its priority: the tool runs on developers' machines and in CI, so a
 flaw in it is a risk to those even where the program does not ship it. A file is read as a tool's
-when it sits under `.config/mise/`, where mise keeps the lockfiles of the tools it installs. A Go
-module in a `tools` directory is not, because it may hold programs the project builds and ships.
+in two cases:
+
+- It sits under `.config/mise/`, where mise keeps the lockfiles of the tools it installs.
+- It is the `go.mod` or `go.sum` of a Go module that builds nothing but tools. Either every `.go`
+  file in the module has a build constraint that needs the `tools` tag, such as `//go:build tools`,
+  or the module has no `.go` file and its `go.mod` declares `tool` directives. Files in `vendor/`,
+  in `testdata/` and in a directory with its own `go.mod` are not counted.
+
+A Go module is never read as a tool's by its path, `tools/` and `_tools/` included, because it may
+hold programs the project builds and ships. A module with packages of its own is not marked when its
+`go.mod` also declares `tool` directives, which is where Go 1.24 records a project's tools by
+default. A module stays unmarked when Draugr cannot read all of it: a file it cannot read, a
+constraint or `go.mod` it cannot parse, a symbolic link inside it, or a component's `paths` or
+`ignore` that could leave one of its files out of the checkout.
 
 No setting changes it; `config.exclude` sets one aside.
 

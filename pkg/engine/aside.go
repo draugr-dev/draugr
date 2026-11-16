@@ -15,6 +15,9 @@ import (
 // Only sca, which reads a repository's dependency files. The path is read below the repository
 // path the component declares, as the non-shipping mark's is, and a finding already marked as
 // under docs, examples or tests keeps that mark alone.
+//
+// A Go module that builds nothing but tools takes the same mark from the repository scanner instead,
+// because only its files say so and the checkout holding them is gone by the time this runs.
 func markToolDependencies(controls map[string]plugin.ControlResult, model saga.Model) {
 	cr, ok := controls["sca"]
 	if !ok {

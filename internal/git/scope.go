@@ -97,6 +97,47 @@ func (s Scope) Contains(rel string) bool {
 	return !matchesAny(s.Ignore, rel, false)
 }
 
+// Whole reports whether a checkout under this scope holds every file beneath dir, a
+// repository-relative directory, "." for the root: Paths selects dir or a directory above it, and
+// no Ignore pattern could remove anything inside it.
+//
+// A reader that judges a directory by every file in it, rather than by one file, asks this first.
+// A file the scope left out is absent from the checkout, and its absence reads exactly like a
+// directory that never had it. So where an Ignore pattern could reach inside dir, whether or not it
+// removed anything, the answer is false. A pattern's fixed text before its first wildcard says where
+// it can match, because every pattern is matched against the whole repository-relative path.
+func (s Scope) Whole(dir string) bool {
+	dir = strings.Trim(path.Clean(filepath.ToSlash(dir)), "/")
+	if dir == "." {
+		dir = ""
+	}
+	if dir == ".." || strings.HasPrefix(dir, "../") {
+		return false
+	}
+	if keep := selected(s.Paths); keep != nil {
+		// A scoped checkout keeps only the root files an entry names, so it never holds the root whole.
+		if dir == "" || !slices.ContainsFunc(keep, func(k string) bool {
+			return dir == k || strings.HasPrefix(dir, k+"/")
+		}) {
+			return false
+		}
+	}
+	for _, p := range s.Ignore {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		fixed := p
+		if i := strings.IndexAny(p, `*?[\`); i >= 0 {
+			fixed = p[:i]
+		}
+		if dir == "" || strings.HasPrefix(dir+"/", fixed) || strings.HasPrefix(fixed, dir+"/") {
+			return false
+		}
+	}
+	return true
+}
+
 // rootConfig is the scanners' own configuration: the root files every scoped checkout keeps,
 // whatever Paths names.
 //

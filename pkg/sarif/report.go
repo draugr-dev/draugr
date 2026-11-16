@@ -816,7 +816,8 @@ const (
 	// `// Code generated ... DO NOT EDIT.` line the go command defines. The fix is in the generator.
 	AsideGenerated = "generated"
 	// AsideTooling marks a finding in a dependency file of a tool the developers install rather than
-	// of the application, one under `.config/mise/`. The tool still runs on their machines and in CI.
+	// of the application: one under `.config/mise/`, or the go.mod or go.sum of a Go module that
+	// builds nothing but tools. The tool still runs on their machines and in CI.
 	AsideTooling = "tooling"
 	// AsidePinned marks a GitHub Actions mutable-tag finding on a `uses:` reference that the
 	// repository's `.github/workflows/actions.lock` pins to a commit for that workflow, or, in a
