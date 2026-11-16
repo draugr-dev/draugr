@@ -24,7 +24,7 @@ func goOnlyRun() []sarif.Result {
 // neither feed, says nothing more than its rows do.
 func TestARunSaysWhichFindingsItCouldNotLookUp(t *testing.T) {
 	const want = "KEV and EPSS did not check 2 findings named only by a Go or GitHub advisory id"
-	d := kevData(goOnlyRun())
+	d := cachedKEV(goOnlyRun())
 	var b bytes.Buffer
 	if err := (consoleReporter{}).Render(&b, d); err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestARunSaysWhichFindingsItCouldNotLookUp(t *testing.T) {
 	// A finding the lookup gave a CVE is one KEV and EPSS checked, and is not counted.
 	looked := goOnlyRun()
 	looked[0].CVELookup = &sarif.CVELookup{CVEs: []string{"CVE-2026-0001"}, ID: "GO-2026-0001", Record: "GO-2026-0001"}
-	d = kevData(looked)
+	d = cachedKEV(looked)
 	if _, notes := signals(d, summarize(d)); !strings.Contains(strings.Join(notes, "\n"), "did not check 1 finding named") {
 		t.Errorf("notes = %q, want the one finding left counted", notes)
 	}
@@ -58,7 +58,7 @@ func TestARunSaysWhichFindingsItCouldNotLookUp(t *testing.T) {
 // appears: findings KEV and EPSS could not check. It keeps that one even where no signal row is
 // unread, so the section prints for it alone.
 func TestTheCompactViewKeepsTheLookupNote(t *testing.T) {
-	d := kevData(goOnlyRun())
+	d := cachedKEV(goOnlyRun())
 	s := summarize(d)
 	var b bytes.Buffer
 	writeSignals(&b, tui.Plain(), d, s, true)
@@ -72,5 +72,32 @@ func TestTheCompactViewKeepsTheLookupNote(t *testing.T) {
 	writeSignals(&b, tui.Plain(), read, summarize(read), true)
 	if strings.Contains(b.String(), "did not check") {
 		t.Errorf("compact signals = %q, want no lookup note where the database was read", b.String())
+	}
+}
+
+// cachedKEV is kevData with KEV and EPSS read from the feed cache, which records where each came from.
+func cachedKEV(results []sarif.Result) Data {
+	d := kevData(results)
+	for i := range d.Exploitability {
+		d.Exploitability[i].URL = "https://example.com/" + d.Exploitability[i].Name
+	}
+	return d
+}
+
+// A run whose KEV and EPSS came from files given as paths read no cache, so it could not have read
+// the Go vulnerability database either: the note says the lookup needs the cache rather than telling
+// the reader to fetch a database the run would still not read.
+func TestTheLookupNoteSaysAFilePathReadsNoCache(t *testing.T) {
+	d := kevData(goOnlyRun())
+	_, notes := signals(d, summarize(d))
+	got := strings.Join(notes, "\n")
+	if !strings.Contains(got, "did not check 2 findings") || !strings.Contains(got, "use --kev auto or --epss auto") ||
+		strings.Contains(got, "draugr feeds update govulndb") {
+		t.Errorf("notes = %q, want the cache named and no fetch suggested", notes)
+	}
+	cached := cachedKEV(goOnlyRun())
+	_, notes = signals(cached, summarize(cached))
+	if got := strings.Join(notes, "\n"); !strings.Contains(got, "Run draugr feeds update govulndb, then scan again") {
+		t.Errorf("notes = %q, want the fetch and a rescan suggested", notes)
 	}
 }

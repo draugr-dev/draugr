@@ -148,10 +148,13 @@ A finding that names no CVE at all, only a Go advisory id (`GO-…`) or a GitHub
 (`GHSA-…`), is looked up in the Go vulnerability database, which lists each record's CVEs beside
 its other ids. The lookup reads the copy `draugr feeds update govulndb` keeps in the feed cache,
 and only when KEV or EPSS is read from the cache too. It gives the finding the CVEs of the one
-record that names it, and nothing where an id leads to more than one record or to none. The
+record that names it. A finding whose ids lead to more than one record, to none, or to a record that
+lists no CVE gets nothing. The
 finding's `cveLookup` in `report.json` names the record, so a CVE Draugr looked up can be told from
 one the scanner reported. With no current copy, nothing is looked up, and the Signals section
-counts the findings KEV and EPSS could not check. Dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
+counts the findings KEV and EPSS could not check and names the command that fetches it.
+
+Dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
 low EPSS score and a package nobody has flagged rank as they would with no signal at all. Only
 reachability lowers, and only from an analyzer that shows its method, as
 [Reachability](#reachability) describes. Turning each signal on is the second lever in

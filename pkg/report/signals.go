@@ -200,8 +200,25 @@ func lookupNote(d Data, s summary) string {
 		(!consulted(d, exploit.SignalKEV) && !consulted(d, exploit.SignalEPSS)) {
 		return ""
 	}
-	return fmt.Sprintf("KEV and EPSS did not check %s named only by a Go or GitHub advisory id; "+
-		"run draugr feeds update govulndb to look up their CVEs.", english.Count(s.needsLookup, "finding"))
+	head := fmt.Sprintf("KEV and EPSS did not check %s named only by a Go or GitHub advisory id.",
+		english.Count(s.needsLookup, "finding"))
+	if !fromFeedCache(d) {
+		// A file given as a path reads no cache, so fetching the database would change nothing here.
+		return head + " The lookup reads the feed cache, which a file path does not: use --kev auto or --epss auto."
+	}
+	return head + " Run draugr feeds update govulndb, then scan again, to look up their CVEs."
+}
+
+// fromFeedCache reports whether KEV or EPSS came from the feed cache rather than a file the operator
+// gave as a path, which records no URL. Only a run that reads the cache can read the Go
+// vulnerability database beside it.
+func fromFeedCache(d Data) bool {
+	for _, f := range d.Exploitability {
+		if (f.Name == exploit.SignalKEV || f.Name == exploit.SignalEPSS) && f.URL != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // feedDid is what an exploitability dataset did: listed whenever the run consulted it, and as not

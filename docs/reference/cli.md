@@ -2147,7 +2147,7 @@ fetches a feed only when `--kev` or `--epss` (or `config.exploitability`) says `
 |------|---------|---------|
 | `kev` | CISA's Known Exploited Vulnerabilities catalog | [exploitability](saga-schema.md#configexploitability) |
 | `epss` | FIRST's EPSS scores | [exploitability](saga-schema.md#configexploitability) |
-| `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md), and [exploitability](saga-schema.md#configexploitability) to find the CVE of a finding named by a `GO-…` or `GHSA-…` id |
+| `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md); also the CVE lookup for `GO-…` and `GHSA-…` findings ([exploitability](saga-schema.md#configexploitability)) |
 
 ### `draugr feeds update [kev|epss|govulndb]`
 
@@ -2239,7 +2239,8 @@ With `cache` or `auto`, the scan also reads the cached `govulndb` copy, never fe
 the CVE of a finding whose scanner named it only by a `GO-…` or `GHSA-…` id. A copy that is
 missing, or older than `maxAge`, is not read: those findings are matched on nothing, and the
 Signals section counts them and names `draugr feeds update govulndb`. A path reads no cache, so
-nothing is looked up.
+nothing is looked up, and the Signals section counts those findings and says the lookup needs the
+cache.
 
 **A flag overrides the descriptor only when you type it.** `--epss-threshold 0.5` beats a
 descriptor saying `0.1`, although 0.5 is also the flag's default; leaving it off keeps the

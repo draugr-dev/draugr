@@ -2352,10 +2352,11 @@ ranked everything as though nothing were exploited.
 
 **A finding named only by an advisory id.** KEV and EPSS list CVEs, and some scanners name a finding
 only by its Go advisory id (`GO-…`) or a GitHub advisory id (`GHSA-…`). When `kev` or `epss` reads
-the cache, the scan also reads the cached Go vulnerability database, `draugr feeds update govulndb`,
-and matches such a finding on the CVEs of the one record that names it. A copy that is missing or
-older than `maxAge` is not read and is never fetched by the scan, and an id more than one record
-lists resolves nothing. `SIGNALS` then counts the findings neither dataset could check.
+the cache, the scan also reads the Go vulnerability database that `draugr feeds update govulndb`
+keeps in the cache, and matches such a finding on the CVEs of the one record that names it. A copy
+that is missing or older than `maxAge` is not read, and `auto` does not fetch it. An id that leads to
+more than one record, or to a record with no CVE, resolves nothing. `SIGNALS` then counts the
+findings KEV and EPSS could not check.
 
 A scan started by an assistant through [`draugr mcp`](../guides/ai-agents-mcp.md) reads `auto` as
 `cache`. It never fetches, and a feed the cache does not hold fails the call with an error naming
