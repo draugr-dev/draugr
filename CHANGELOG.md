@@ -16,17 +16,17 @@ _Nothing yet._
 
 ### Changed
 
-- **A text field in a Saga takes quoted text.** An unquoted `dir: true` or `version: 1.0` still loads as written, and `draugr validate` and every scan warn with the field, its line and the quoted value to write. Editors using the published schema mark it now, and a later release refuses it.
+- **An unquoted text value in a Saga now warns.** An unquoted `dir: true` or `version: 1.0` still loads as written, and `draugr validate` and every scan warn with the field, its line and the quoted value to write. Editors using the published schema flag it too, and a later release will refuse it.
 
 ### Fixed
 
-- **A folded FIX FIRST row for mutable GitHub Actions tags now shows a third-party action.** Where one row stands for several `uses:` references, its location names one published outside the `actions` and `github` organizations, such as `codecov/codecov-action@v5`, rather than `actions/checkout`. The band, count and row order are unchanged.
+- **A grouped FIX FIRST row for mutable GitHub Actions tags now points at a third-party action.** When one row covers several `uses:` references, its location shows one from outside the `actions` and `github` organizations, such as `codecov/codecov-action@v5`, instead of `actions/checkout`. The band, count and row order are unchanged.
 
-- **A Go module that only pins developer tools no longer leads FIX FIRST.** When every `.go` file in a module needs the `tools` build tag, or the module has no `.go` file and its `go.mod` declares `tool` directives, its findings are labeled as a developer tool's and listed after the application's. They still count at their priority.
+- **A Go module that only pins developer tools no longer leads FIX FIRST.** This covers a module where every `.go` file needs the `tools` build tag, and a module with no `.go` file whose `go.mod` has `tool` directives. Its findings are labeled as developer-tool findings and listed after the application's. They still count at their priority.
 
-- **A SARIF file from another tool no longer fails on a numeric `security-severity`.** A rule named by `ruleIndex`, a location by artifact index or `originalUriBaseIds` base, and an absolute path inside a local checkout are now read. Draugr's own `priority` and `aside` are ignored there. `draugr doctor` fails on a file the scan would refuse.
+- **Another tool's SARIF file is read in full.** A numeric `security-severity` no longer makes it unreadable. Rules named by `ruleIndex`, locations by artifact index or `originalUriBaseIds` base, and absolute paths inside a local checkout are now read, and Draugr's own fields, such as `priority` and `aside`, are ignored. `draugr doctor` fails on a file the scan would refuse.
 
-- **Composite action steps the lockfile pins are marked pinned.** A mutable-tag finding on a step in a composite action under `.github/actions/` is held at P3 when `actions.lock` lists it for every workflow that calls the action, and a `uses:` path to a local action, `./…` or `$/…`, is no longer reported as a mutable tag.
+- **Composite action steps that the lockfile pins are now marked pinned.** A mutable-tag finding on a step in a composite action under `.github/actions/` is held at P3 when `actions.lock` lists its reference for every workflow that calls the action. A `uses:` path to a local action (`./…` or `$/…`) is no longer reported as a mutable tag.
 
 ## [0.179.0] - 2026-11-16
 
