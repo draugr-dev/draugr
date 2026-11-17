@@ -222,6 +222,9 @@ func loadAndWarn(path string) ([]string, error) {
 		return nil, err
 	}
 	if IsFragmentFile(filepath.Base(path)) {
+		// A fragment names no repository, so nothing says which tree its exclusion paths match. They
+		// are checked for a line, as every exclusion is, when a descriptor that includes the fragment
+		// is validated or scanned.
 		data, err := os.ReadFile(path) // #nosec G304 -- operator-provided path, by design
 		if err != nil {
 			return nil, nil
@@ -238,6 +241,11 @@ func loadAndWarn(path string) ([]string, error) {
 	res, err := saga.ResolveFile(path, fetcher)
 	if err != nil {
 		return nil, nil
+	}
+	// Against the repositories as a scan from here would read them. A descriptor whose repositories
+	// are remote, or not checked out where validate runs, has no tree to check, and passes as before.
+	if err := checkExclusionLines(context.Background(), res.Model); err != nil {
+		return nil, err
 	}
 	warnings := append(res.Model.ExcludeWarnings(filepath.Dir(path)), res.Model.ClusterWarnings()...)
 	warnings = append(warnings, res.Model.AccountWarnings()...)
