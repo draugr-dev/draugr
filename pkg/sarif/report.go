@@ -109,6 +109,15 @@ type Result struct {
 	// Held for the run and never written: a row standing for several such findings shows one whose
 	// action somebody outside GitHub publishes, and nothing else reads it.
 	Uses string `json:"-"`
+	// ImportedRepository is, on a finding read from another tool's SARIF file, the repository of its
+	// component that the file is about, in the form Repository takes on a native finding: the one
+	// repository the component declares, or the one of several that the file's
+	// versionControlProvenance names. Empty where neither says, and on every native finding.
+	//
+	// Held for the run and never written. Repository stays empty on an imported finding, because the
+	// file names none, and its fingerprint and every report read it that way; correlation reads this
+	// to join the finding to the native copy in the same repository.
+	ImportedRepository string `json:"-"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty

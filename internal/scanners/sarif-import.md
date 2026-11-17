@@ -125,7 +125,14 @@ the flaw.
   the same tool's rule at the same file and line. Semgrep puts the directory of a local rules file
   on each rule's id, as `rules.no-os-popen`, and Draugr's Semgrep run leaves out the part that comes
   from the path it was configured with, reporting `no-os-popen`. An imported Semgrep id that ends in
-  the native one after a dot is the same rule; the same id is preferred where both are on the line.
+  the native one after a dot is the same rule where the two findings' messages are also the same,
+  since a registry rule and a local rule can share a name. The same id is preferred where both are
+  on the line, and needs no matching message.
+
+An imported finding is in the repository the import establishes for it: the component's repository
+where it declares one, or where it declares several, the one the file's
+`runs[].versionControlProvenance` names by `repositoryUri`, matched as for
+[Commit](#commit). Nothing else places it.
 
 These stay counted apart:
 
@@ -134,10 +141,10 @@ These stay counted apart:
 - **The same rule on another line, or the same advisory in another package.**
 - **A rule reported more than once on one line.** Two copies on one line, at two columns, cannot be
   paired copy to copy.
-- **An imported finding in a component whose other findings name two repositories.** The file's
-  paths do not say which repository they are in, so its findings stay counted apart rather than
-  being merged into whichever repository came first. Where the component's findings name one
-  repository, the imported findings are placed in it.
+- **An imported finding whose repository the import cannot establish.** In a component that
+  declares several repositories, a file whose provenance names none of them, or more than one, could
+  be about any of them, so its findings stay counted apart rather than merging with a copy in a
+  repository they may not be about.
 
 ## What the report says about the file
 

@@ -20,7 +20,8 @@ first import meets:
 - **A finding the control's own scanner also reports is counted once.** Semgrep's file imported
   into `sast` beside Draugr's Semgrep run, or Trivy's into `sca` beside `trivy-fs`, lists each
   finding once and names both scanners. A dependency finding merges on its advisory and package, a
-  code finding on its rule, file and line.
+  code finding on its rule, file and line. In a component with several repositories, a file merges
+  only where its `versionControlProvenance` names the repository it scanned.
   [Merging with the control's scanners](../../internal/scanners/sarif-import.md#merging-with-the-controls-scanners)
   lists what stays apart, such as Bandit's rule beside Semgrep's on the same line.
 - **Severity comes from `security-severity`, written as a string or a number, or from the level.**

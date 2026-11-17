@@ -445,5 +445,13 @@ func (FileTarget) Kind() TargetKind { return TargetFile }
 func (t FileTarget) Identity() string { return t.Path }
 
 // CacheDetail is the file's content, so the same path holding different findings is a different
-// scan.
-func (t FileTarget) CacheDetail() string { return "sha256=" + t.Digest }
+// scan, and the repositories it is read against. What the import makes of a file depends on them,
+// the revision it is held to and the repository its findings are placed in, so two components that
+// import one file into different repositories are two scans rather than one shared answer.
+func (t FileTarget) CacheDetail() string {
+	detail := "sha256=" + t.Digest
+	for _, r := range t.Repositories {
+		detail += " repo=" + r.Identity()
+	}
+	return detail
+}

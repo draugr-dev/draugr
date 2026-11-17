@@ -81,6 +81,38 @@ func TestImportsArePlannedUnderTheNamedControl(t *testing.T) {
 	}
 }
 
+// An import's repositories are named as the scanned repositories are, by the remote a local checkout
+// resolves to, so a finding placed in one meets the native copy in it.
+func TestAnImportsRepositoriesAreNamedByTheirRemote(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(repoController{scanner: "unused"})
+	reg.RegisterScanner(&importStub{})
+	model := saga.Model{Components: []saga.Component{{
+		Name: "api", Repositories: []saga.Repository{{URL: "."}, {URL: "/srv/local-only"}},
+		Imports: []saga.Import{{Control: "sast", File: "x.sarif"}},
+	}}}
+	e := New(reg, WithRemoteResolver(func(path string) string {
+		if path == "." {
+			return "https://github.com/acme/api.git"
+		}
+		return ""
+	}))
+	jobs, err := e.Plan(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ft plugin.FileTarget
+	for _, j := range jobs {
+		if f, ok := j.Job.Target.(plugin.FileTarget); ok {
+			ft = f
+		}
+	}
+	if len(ft.Repositories) != 2 || ft.Repositories[0].Source() != "https://github.com/acme/api" ||
+		ft.Repositories[1].Source() != "/srv/local-only" {
+		t.Errorf("repositories = %+v, want the remote for the checkout and the path for the local-only one", ft.Repositories)
+	}
+}
+
 // A control this build does not have refuses the plan, and a component outside the run's scope
 // imports nothing.
 func TestImportsRespectTheRegistryAndTheScope(t *testing.T) {
