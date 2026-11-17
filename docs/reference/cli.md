@@ -230,8 +230,8 @@ commented out, because an import changes what a scan reads and what can fail it.
 - a step using an `upload-sarif` action, such as `github/codeql-action/upload-sarif`, which names
   the file in `sarif_file`
 - CodeQL's `analyze` action
-- a command with `--sarif`, or with `--format`, `-f`, `-o`, `--output` or `--output-format` set to
-  `sarif`
+- a command with `--sarif`, or with a format flag such as `--format`, `-f`, `-o` or `--output` set
+  to `sarif`
 - an action input whose name holds `format` set to `sarif`, or that holds such a command
 
 The file is the `.sarif` path the step names. Each entry names the control the tool's findings go in:
