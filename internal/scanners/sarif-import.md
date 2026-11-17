@@ -135,18 +135,16 @@ run makes of the same file.
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
   for it, else by Trivy's own severity, `CRITICAL` and `HIGH` as high, `MEDIUM` as medium, `LOW` as
-  low. A Grype finding is rated by the score Grype's SARIF gives it: the highest CVSS score of the
-  advisory and the ones Grype relates to it, a vendor's before the NVD's, else the lowest score of
-  the band Grype's severity names. `Negligible` and `Unknown` score 0.0, which ranks as low, as a
-  native run's finding does (https://github.com/draugr-dev/draugr/issues/2222). The Go vulnerability
+  low. A Grype finding is rated by its CVSS score (a vendor's before the NVD's), else by the bottom of
+  the band its severity names. `Negligible` and `Unknown` score 0.0, so such a finding is ranked
+  low, not hidden, as a native run's is ([how an unrated finding is ranked is under
+  review](https://github.com/draugr-dev/draugr/issues/2222)). The Go vulnerability
   database publishes no severity, so a govulncheck finding is medium, as a native one is. The tables
   in [Each tool's own rating](#each-tools-own-rating) read SARIF and do not apply, and the
   descriptor refuses an import's `severity` beside a tool's JSON.
-- **Grype's JSON is read with the SARIF Grype writes from it.** grype-fs reads both reports of one
-  Grype run, and a run asked for JSON alone writes no SARIF, so Draugr writes it from the JSON's
-  matches as Grype does: the same message, level, score, location and fingerprint. Only a scan of a
-  directory is read. A scan of an image is about the image rather than the component's
-  repositories, and Grype's SARIF locates it by the image's name, which its JSON does not state.
+- **Only a Grype scan of a directory is read.** An image scan is about the image, not the
+  component's repositories, so it is refused. Draugr reads the JSON as grype-fs reads a run, with the
+  SARIF Grype would have written from it.
 - **The checkout is read only to place a finding.** Where the component has one repository and its
   `url` is a path, the parsers read that checkout as a native run reads its own: Trivy's for the
   line of a package's entry in its manifest, govulncheck's for the `go.mod` of each module, matched
@@ -530,7 +528,7 @@ that found nothing:
   each open with govulncheck's `config` message;
 - `not Grype JSON. Write it with grype dir:. -o json`, for a file whose `descriptor` does not name
   Grype or that lists no `matches`;
-- `source type image, not a directory. Write it with grype dir:. -o json`, for Grype's JSON of a
+- `image scan; Draugr reads only directory scans. Run grype dir:. -o json`, for Grype's JSON of a
   scan of anything but a directory.
 
 `draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor

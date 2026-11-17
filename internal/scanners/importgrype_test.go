@@ -296,7 +296,7 @@ func TestAGrypeImportRefusesAFileThatIsNotADirectoryScan(t *testing.T) {
 		{"no matches", `{"descriptor":{"name":"grype"},"source":{"type":"directory","target":"."}}`, notGrype},
 		{"mistyped matches", `{"matches":"none","descriptor":{"name":"grype"}}`, notGrype},
 		{"an image scan", `{"matches":[],"source":{"type":"image","target":{"userInput":"alpine:3.19"}},"descriptor":{"name":"grype"}}`,
-			"source type image, not a directory. Write it with grype dir:. -o json"},
+			"image scan; Draugr reads only directory scans. Run grype dir:. -o json"},
 	} {
 		_, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: writeFile(t, c.body), Format: saga.ImportFormatGrypeJSON}, nil)
 		if err == nil || !strings.HasSuffix(err.Error(), ": "+c.want) {

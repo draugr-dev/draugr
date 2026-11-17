@@ -182,7 +182,7 @@ func readGrypeImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 		return importRead{}, errNotGrypeJSON
 	}
 	if doc.Source.Type != "directory" {
-		return importRead{}, fmt.Errorf("source type %s, not a directory. Write it with grype dir:. -o json", doc.Source.Type)
+		return importRead{}, fmt.Errorf("%s scan; Draugr reads only directory scans. Run grype dir:. -o json", doc.Source.Type)
 	}
 	sarifOut, err := grypeSARIFOf(doc, head.Descriptor.Version)
 	if err != nil {
