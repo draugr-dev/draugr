@@ -76,3 +76,32 @@ func TestDraugrsOwnReaderHoldsTheSameRule(t *testing.T) {
 		t.Error("a rejected entry after a standing one set the finding aside")
 	}
 }
+
+// TestAnImportedToolsSuppressionIsToldApart: a finding the tool of an imported file set aside is
+// told apart from one a scanner Draugr ran set aside, and where and why it was recorded read the same
+// wherever they are shown, an absent reason included.
+func TestAnImportedToolsSuppressionIsToldApart(t *testing.T) {
+	own := &Suppression{Kind: "inSource", Origin: OriginTool}
+	if !(Result{Scanner: ImportScanner, Suppression: own}).SetAsideInImport() {
+		t.Error("an imported file's suppression was not told apart")
+	}
+	for _, r := range []Result{
+		{Scanner: "gosec", Suppression: own},
+		{Scanner: ImportScanner},
+		{Scanner: ImportScanner, Suppression: &Suppression{Kind: "external", Origin: OriginSaga}},
+	} {
+		if r.SetAsideInImport() {
+			t.Errorf("%+v read as set aside by an imported file's tool", r)
+		}
+	}
+	for kind, want := range map[string]string{"inSource": "in a comment in the code", "external": "in the tool's own settings", "": "in the tool's own settings"} {
+		if got := SuppressedIn(kind); got != want {
+			t.Errorf("SuppressedIn(%q) = %q, want %q", kind, got, want)
+		}
+	}
+	for why, want := range map[string]string{"": "no reason given", " ": "no reason given", "tests only": "reason: tests only"} {
+		if got := GivenReason(why); got != want {
+			t.Errorf("GivenReason(%q) = %q, want %q", why, got, want)
+		}
+	}
+}

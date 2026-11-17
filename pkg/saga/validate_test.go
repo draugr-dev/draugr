@@ -968,6 +968,7 @@ func TestValidateImports(t *testing.T) {
 		{[]Import{{File: "a.sarif"}}, "control is required"},
 		{[]Import{{Control: "sast"}}, "file is required"},
 		{[]Import{{Control: "sast", File: "a.sarif"}, {Control: "sast", File: "a.sarif"}}, "a.sarif is imported into sast twice"},
+		{[]Import{{Control: "sast", File: "a.sarif", Suppressions: "ignore"}}, `imports[0]: suppressions "ignore" is not honor or count`},
 	} {
 		if err := with(c.imps...); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("err = %v, want %q", err, c.want)
@@ -1003,6 +1004,29 @@ func TestValidateImportFormat(t *testing.T) {
 	}
 	if got := (Import{}).ReadFormat(); got != ImportFormatSARIF {
 		t.Errorf("ReadFormat of an import naming none = %q, want sarif", got)
+	}
+}
+
+// What an import does with the findings its file set aside is honor or count, and absent is honor.
+// A misspelled value is refused rather than read as either: read as honor it would set aside findings
+// somebody meant to count, and read as count it would put back findings somebody meant to accept.
+func TestValidateImportSuppressions(t *testing.T) {
+	with := func(s ImportSuppressions) error {
+		imp := Import{Control: "sast", File: "a.sarif", Suppressions: s}
+		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
+	}
+	for _, s := range []ImportSuppressions{"", ImportSuppressionsHonor, ImportSuppressionsCount} {
+		if err := with(s); err != nil {
+			t.Errorf("suppressions %q was refused: %v", s, err)
+		}
+	}
+	for _, s := range []ImportSuppressions{"Honor", "off", "true"} {
+		if err := with(s); err == nil || !strings.Contains(err.Error(), "is not honor or count") {
+			t.Errorf("suppressions %q: err = %v, want a refusal naming honor or count", s, err)
+		}
+	}
+	if !ImportSuppressions("").Honored() || !ImportSuppressionsHonor.Honored() || ImportSuppressionsCount.Honored() {
+		t.Error("absent and honor honor the file's suppressions, and count does not")
 	}
 }
 

@@ -104,9 +104,12 @@ type htmlView struct {
 	// supplier asserts, or whoever was editing the file wrote a comment the scanner honored. One
 	// total can only report the weakest of the three, and a note that names `config.exclude` over a
 	// list holding all three claims we accepted things nobody here ever saw.
-	Suppressed  int
-	Imported    int
-	Silenced    int
+	Suppressed int
+	Imported   int
+	Silenced   int
+	// ToolAside is what the tool of each imported file set aside, a row per tool, apart from
+	// Silenced, which counts only the scanners this run started.
+	ToolAside   []htmlToolAside
 	SBOMCount   int
 	SBOMFormat  string
 	MinPriority string // set when the listing was filtered, so the page can say so
@@ -323,6 +326,7 @@ var (
 		{recordedExclude, "config.exclude"},
 		{recordedVEX, "VEX"},
 		{recordedScanner, "scanner exclusions"},
+		{recordedImport, "imported tool"},
 		{recordedSetting, "setting"},
 	}
 	endsMenu = []struct{ key, label string }{
@@ -545,7 +549,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		P1:             s.p1, P2: s.p2, P3: s.p3, P4: s.p4,
 		Suppressed:  s.suppressed,
 		Imported:    d.Run.Imported,
-		Silenced:    d.Run.Silenced,
+		Silenced:    nativeSilenced(d),
+		ToolAside:   htmlToolAsides(d),
 		SBOMCount:   s.sboms,
 		SBOMFormat:  s.sbomFormat,
 		MinPriority: strings.ToUpper(s.minPriority),
@@ -840,6 +845,23 @@ func htmlAcceptances(d Data, excluded []finding) ([]htmlFinding, []htmlDecision,
 		Scanners:   theirVocabulary(tools),
 	}
 	return rows, decs, strip
+}
+
+// htmlToolAside is how many findings one imported file's tool suppressed, named as the console's
+// ACCEPTED row names it.
+type htmlToolAside struct {
+	Reporter string
+	N        int
+}
+
+// htmlToolAsides are the page's rows for toolAsides. Where and why each finding was set aside is
+// on the finding's own row in the Accepted tab.
+func htmlToolAsides(d Data) []htmlToolAside {
+	var out []htmlToolAside
+	for _, t := range toolAsides(d) {
+		out = append(out, htmlToolAside{Reporter: t.reporter, N: t.n})
+	}
+	return out
 }
 
 // endsOf names an acceptance's value in the Ends menu.
@@ -2558,14 +2580,15 @@ lists the other fields.</p>
     - rules: [&lt;full rule id&gt;]
       reason: &lt;why it does not apply&gt;</pre>{{end}}
 
-{{if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded .Findings}}
+{{if or .Suppressed .Imported .Silenced .ToolAside .Decisions .Unmatched .Excluded .Findings}}
 <details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
-{{- if or .Suppressed .Imported .Silenced .Decisions .Unmatched .Excluded}}
+{{- if or .Suppressed .Imported .Silenced .ToolAside .Decisions .Unmatched .Excluded}}
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
+{{- range .ToolAside}}{{.Reporter}}: {{plural .N "finding"}} the tool suppressed, not counted. {{end -}}
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
-{{- if not (or .Suppressed .Imported .Silenced)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
+{{- if not (or .Suppressed .Imported .Silenced .ToolAside)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
 {{- else}}
 <p class="note">Nothing in this run is set aside.</p>
@@ -2640,7 +2663,8 @@ lists the other fields.</p>
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
     <div class="sub"><span class="lbl">recorded in</span> {{.AcceptedVia}}<span class="faint"> · </span>{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}</div>
-    <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else}}<span class="none">no reason recorded</span>{{end}}</div>
+    <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else if eq .Recorded "import"}}<span class="none">no reason given</span>{{else}}<span class="none">no reason recorded</span>{{end}}
+      {{- if eq .Recorded "import"}}<span class="faint"> · </span><span class="lbl">who</span> <span class="none">not recorded by the tool</span>{{end}}</div>
   </div>
 </div>{{end}}
 {{template "paging"}}

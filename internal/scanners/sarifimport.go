@@ -171,6 +171,7 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 		undetermineAbsence(rep.Results)
 	}
 	placeImported(rep.Results, meta, ft.Repositories)
+	toolsSuppressions(rep.Results, ft)
 	keep, scoped := scopeImported(rep.Results, read.outside, ft.Repositories)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
 	ownJSON := toolJSON(ft)
@@ -203,6 +204,35 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: outsideCheckout})
 	}
 	return rep, nil
+}
+
+// toolsSuppressions settles what a finding the file's tool suppressed does here, as the import's
+// suppressions setting says.
+//
+// Honored, the default, it is set aside and names the file it was read from, so report.json says
+// where the tool recorded the suppression as well as which tool. Counted, it counts, and its detail
+// keeps what the tool recorded: the tool, where and why. Either way nothing the file said about the
+// finding is lost, and the gate judges the findings the setting leaves counting.
+func toolsSuppressions(results []sarif.Result, ft plugin.FileTarget) {
+	for i := range results {
+		r := &results[i]
+		if r.Suppression == nil {
+			continue
+		}
+		if !ft.CountSuppressed {
+			// A tool's own JSON may already name the file it read the suppression from, such as
+			// Trivy's .trivyignore, which says more than the import's file does.
+			r.Suppression.Source = cmp.Or(r.Suppression.Source, ft.Path)
+			continue
+		}
+		tool := cmp.Or(r.Tool, "the tool")
+		// The setting last, as the key a reader edits to set these aside again: the console keeps the
+		// end of a long detail and cuts the start, where the tool is named again on the line below.
+		said := fmt.Sprintf("%s suppressed it %s · %s · counted, as the import says suppressions: count",
+			tool, sarif.SuppressedIn(r.Suppression.Kind), sarif.GivenReason(r.Suppression.Justification))
+		r.Suppression = nil
+		r.Detail = strings.TrimPrefix(r.Detail+" · "+said, " · ")
+	}
 }
 
 // outsideCheckout is why a finding's path in an imported file could not be placed in the component.

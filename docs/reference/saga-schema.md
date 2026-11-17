@@ -400,6 +400,7 @@ components:
 | `format` | optional: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, or `govulncheck-json` for what `govulncheck -format json` writes. A tool's JSON is read as Draugr's run of that tool reads it, so its findings keep the package, the fixed version and, for govulncheck, the reachability verdict ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
 | `commit` | optional: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed; `count` counts them. Any other value is refused |
 
 A finding in the file keeps the path the file wrote, so write paths relative to the repository's
 root, and belongs to this component where that path is inside the repository's
@@ -469,6 +470,28 @@ the commit this run reads:
   `versionControlProvenance` names by `repositoryUri`. A file that names none of them, or more than
   one, stays unbound, and `commit` reads `not stated, the file names none or several of the
   component's repositories`.
+
+**`suppressions`** says what a finding the file's tool suppressed does here, whether the tool
+recorded that in a comment in the code (SARIF `kind` `inSource`) or in its own settings
+(`external`):
+
+```yaml
+imports:
+  - control: sast
+    file: reports/bandit.sarif     # honored: the default
+  - control: sast
+    file: reports/acme.sarif
+    suppressions: count            # every finding counts
+```
+
+- **`honor`**, the default, sets the finding aside where every suppression on it is `accepted` or
+  has no `status`. It stays in the report and out of the gate, on a row of the `ACCEPTED` block
+  named for the tool, as [Findings an imported tool suppressed](#findings-an-imported-tool-suppressed)
+  shows.
+- **`count`** counts every finding, so only [`config.exclude`](#configexclude) sets one aside. A
+  finding the tool suppressed says so in its detail:
+  `bandit suppressed it in a comment in the code · no reason given · counted, as the import says suppressions: count`.
+- **A `rejected` or `underReview` suppression** leaves its finding counting under either value.
 
 A file that states no commit is read and listed under **Caveats** as `unbound-imports`,
 which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missing, unreadable or
@@ -2227,7 +2250,10 @@ answer is right. Draugr reads one directive itself, because gosec ignores it:
 [`//nolint:gosec`](../../internal/scanners/gosec.md#what-a-nolintgosec-becomes).
 
 Neither of the scanner's own is a decision this project recorded. They are listed and counted
-under `scanner exclusions`, never under `config.exclude`.
+under `scanner exclusions`, never under `config.exclude`. A finding the tool of an
+[imported](#componentsimports) file suppressed carries the same two origins and is counted on a row
+named for that tool instead, as [Findings an imported tool
+suppressed](#findings-an-imported-tool-suppressed) shows.
 
 ### Declaring what a suppression means in VEX
 
@@ -2375,6 +2401,26 @@ finding in the project.
 
 Findings a scanner suppressed itself (a Semgrep `nosem` comment, say) keep their own reason and
 aren't re-attributed to your Saga.
+
+### Findings an imported tool suppressed
+
+A finding the tool of an [imported](#componentsimports) SARIF file suppressed is set aside and
+counted on an `ACCEPTED` row of its own, named for the tool, rather than under `scanner exclusions`:
+Draugr never ran that tool, and the tool is where a reader goes to see or undo the suppression. The
+row ends `--evidence lists why`, and with `--evidence` the reasons are under it: where the tool
+recorded each suppression, why, or `no reason given`, and that SARIF records nobody as having made
+it.
+
+```console
+ACCEPTED
+  imported bandit  2 findings the tool suppressed, not counted
+              who: not recorded by the tool
+              in a comment in the code · no reason given · 1 finding · B105
+              in the tool's own settings · reason: cache keys, not passwords · 1 finding · B324
+```
+
+Where a long tool name leaves no room on the row, `--evidence lists why` is the line under it. The
+import's [`suppressions: count`](#componentsimports) counts these findings instead.
 
 ## `config.exploitability`
 

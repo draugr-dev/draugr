@@ -247,13 +247,21 @@ entry, with `justification` as its own field and the rest in its `properties`.
 
 | Field | What it says |
 |---|---|
-| `justification` | The reason given for setting it aside |
+| `justification` | The reason given for setting it aside. Absent where none was given, which a tool's own suppression may leave out |
 | `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file, `setting` for a control's setting that sets a kind of finding aside |
 | `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
 | `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from. For a `setting` suppression, the key that decided, such as `config.controls.sca.devDependencies` |
 | `line` | For a rule in the descriptor, the line in `source` it starts at. With `source` it names the rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries), which carries git's record of who wrote it |
 | `statementId` | For a `vex` suppression, the statement's `@id` within its document, where the supplier gave one |
 | `digest` | For a `vex` suppression, the sha256 of the document as Draugr read it |
+
+A finding [imported](../guides/importing-sarif.md) from another tool's file, whose `scanner` is
+`sarif-import` and whose `tool` names that tool, reads:
+
+- `origin` `tool`: the tool suppressed it in a comment in the code.
+- `origin` `scanner`: the tool suppressed it in its own settings.
+- `source`: the imported file, or the file the tool's own JSON names, such as `.trivyignore`.
+- `author` is absent: SARIF has no field for who suppressed a finding.
 
 To tell two revisions of one VEX document apart, compare `digest`. To raise a claim with its
 supplier, quote `statementId`.

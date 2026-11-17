@@ -56,8 +56,13 @@ first import meets:
   in its `versionControlProvenance` ([several repositories](#in-a-component-with-several-repositories))
   to scope it.
   [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the rules.
-- **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed. A
-  suppression whose `status` is `rejected` or `underReview` leaves the finding counting.
+- **The file's own suppressions hold.** A result the tool suppressed stays in the report, set
+  aside, on an **Accepted** row named for the tool, and `--evidence` lists where the tool suppressed
+  each and why, as
+  [Findings an imported tool suppressed](../reference/saga-schema.md#findings-an-imported-tool-suppressed)
+  shows. A suppression whose `status` is `rejected` or `underReview` leaves the finding counting.
+  To count one file's suppressed findings, set `suppressions: count` on its import; to count a
+  single finding, remove its suppression in the tool and export the file again.
 
 ## 1. Write the SARIF file
 

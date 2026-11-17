@@ -65,7 +65,7 @@ the reason.
 | correlation | one flaw found by several scanners is one row, naming the others | always on, after every scanner finishes | one row, also `grype-fs` | [Controls & scanners](controls-and-scanners.md) |
 | `config.exclude` | accepts a finding with a reason and an expiry; the commit that adds the line records who | after every scanner finishes | marked accepted | [Saga schema](../reference/saga-schema.md#configexclude) |
 | VEX | imports a supplier's statement that a vulnerability does not affect their product | after every scanner finishes | marked VEX | [Saga schema](../reference/saga-schema.md#reading-a-suppliers-vex-componentsvex-configvexsources) |
-| scanner exclusions | a scanner set the finding aside, from a directive in the code or its own configuration | as the scanner reports | none applies | [Saga schema](../reference/saga-schema.md#configexclude) |
+| scanner exclusions | a scanner Draugr ran suppressed the finding, in a directive in the code or its own configuration | as the scanner reports | none applies | [Saga schema](../reference/saga-schema.md#configexclude) |
 | actions | findings collapse into the change that clears them | report, `--view actions` | one upgrade of its module | [What to fix first](what-to-fix-first.md) |
 | `builtBy`, `operatedBy` | a finding nobody on your team can act on is named as somebody else's | report | none applies: `ledger` is yours | [What to fix first](what-to-fix-first.md#two-descriptor-fields-change-what-is-recommended) |
 
@@ -78,6 +78,10 @@ you to different people.
 
 A scanner exclusion is counted only when the scanner keeps a record of it. A `#trivy:ignore` comment
 in an IaC file leaves none, so nothing is counted for it.
+
+A finding the tool of an [imported SARIF file](../guides/importing-sarif.md) suppressed gets its own
+ACCEPTED row, named for the tool (`imported bandit`). Like a scanner exclusion, nobody decided it in
+Draugr, so it has no author or date here. `suppressions: count` on the import counts these findings.
 
 An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked
 `↓ unreachable`, because a suppression records that a person decided.

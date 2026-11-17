@@ -3976,7 +3976,7 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 				continue
 			}
 			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity,
-				Commit: imp.Commit, Format: imp.Format}
+				Commit: imp.Commit, Format: imp.Format, CountSuppressed: !imp.Suppressions.Honored()}
 			if unset := imp.CommitUnset(); unset != "" {
 				target.Commit, target.CommitUnset = "", unset
 			}

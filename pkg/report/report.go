@@ -1566,7 +1566,7 @@ func importedLine(d Data, full bool) string {
 // comment or in the scanner's own configuration, and nobody else necessarily knows it is there.
 // Which is exactly why it is the one most worth printing.
 func silencedLine(d Data) string {
-	n := d.Run.Silenced
+	n := nativeSilenced(d)
 	if n == 0 {
 		return ""
 	}
@@ -1575,6 +1575,135 @@ func silencedLine(d Data) string {
 	// argument for printing it rather than something to print on it: the label says which row this
 	// is and the documentation says what the label means.
 	return fmt.Sprintf("scanner exclusions: %s suppressed", english.Count(n, "finding"))
+}
+
+// nativeSilenced counts what the scanners this run started set aside on their own: the engine's
+// count of every scanner's exclusion, less the ones an imported file's tool recorded, which
+// toolAsides names by that tool.
+func nativeSilenced(d Data) int {
+	n := d.Run.Silenced
+	for _, row := range toolAsides(d) {
+		n -= row.n
+	}
+	return max(n, 0)
+}
+
+// toolAside is what Draugr set aside because the tool that wrote an imported file suppressed it:
+// the tool as the report names its findings (sarif.Result.Reporter), how many, and each place and
+// reason the tool recorded.
+type toolAside struct {
+	reporter string
+	n        int
+	reasons  []toolReason
+}
+
+// toolReason is one place and reason a tool recorded for findings it suppressed: where
+// (sarif.SuppressedIn), the justification as the file wrote it, empty for none, how many, and the
+// rules.
+type toolReason struct {
+	in, why string
+	n       int
+	rules   []string
+}
+
+// reason is the justification as a cell shows it, under a heading that already says it is one.
+func (r toolReason) reason() string {
+	if strings.TrimSpace(r.why) == "" {
+		return sarif.GivenReason("")
+	}
+	return findingSummary(r.why)
+}
+
+// said is the row's statement: what the tool did, and what Draugr did with it.
+func (t toolAside) said() string {
+	return english.Count(t.n, "finding") + " the tool suppressed, not counted"
+}
+
+// evidenceHint ends the console's row where the reasons are not under it, saying where they are.
+const evidenceHint = "--evidence lists why"
+
+// whoCell is sarif.WhoNotRecorded under a column already headed Who.
+var whoCell = strings.TrimPrefix(sarif.WhoNotRecorded, "who: ")
+
+// notes are the row's reasons, one line each, as --evidence shows them under it, after a line
+// saying who suppressed them is unrecorded. Said rather than left out, because a SARIF suppression
+// has no field for a person, and a reader should not take a missing name for one the report
+// dropped. Once for the tool rather than on every line, since it holds for every finding the file
+// holds, and a reason line that carried it too would run past the edge of the screen.
+func (t toolAside) notes() []string {
+	out := make([]string, 0, len(t.reasons)+1)
+	out = append(out, sarif.WhoNotRecorded)
+	for _, r := range t.reasons {
+		parts := []string{r.in, findingSummary(sarif.GivenReason(r.why)), english.Count(r.n, "finding")}
+		if rules := decisionRules(r.rules); rules != "" {
+			parts = append(parts, rules)
+		}
+		out = append(out, strings.Join(parts, " · "))
+	}
+	return out
+}
+
+// toolAsides groups the findings an imported file's tool suppressed by that tool, most first, then
+// by name, and within a tool by where and why, most first.
+//
+// By tool, because the tool is where a reader goes to see or undo the decision, and two files the
+// same tool wrote are one place to look. Every copy counts, as the engine's count of the scanners'
+// own exclusions does, so the rows and the scanner exclusions line together sum to that count.
+func toolAsides(d Data) []toolAside {
+	type at struct{ in, why string }
+	byTool := map[string]*toolAside{}
+	reasons := map[string]map[at]*toolReason{}
+	var order []*toolAside
+	for _, cr := range d.Run.Controls {
+		for _, res := range cr.Report.Results {
+			if !res.SetAsideInImport() {
+				continue
+			}
+			who := res.Reporter()
+			row := byTool[who]
+			if row == nil {
+				row = &toolAside{reporter: who}
+				byTool[who], reasons[who] = row, map[at]*toolReason{}
+				order = append(order, row)
+			}
+			row.n++
+			k := at{sarif.SuppressedIn(res.Suppression.Kind), strings.TrimSpace(res.Suppression.Justification)}
+			r := reasons[who][k]
+			if r == nil {
+				r = &toolReason{in: k.in, why: k.why}
+				reasons[who][k] = r
+			}
+			r.n++
+			if res.RuleID != "" && !slices.Contains(r.rules, res.RuleID) {
+				r.rules = append(r.rules, res.RuleID)
+			}
+		}
+	}
+	out := make([]toolAside, 0, len(order))
+	for _, row := range order {
+		for _, r := range reasons[row.reporter] {
+			slices.Sort(r.rules)
+			row.reasons = append(row.reasons, *r)
+		}
+		sort.Slice(row.reasons, func(i, j int) bool {
+			a, b := row.reasons[i], row.reasons[j]
+			if a.n != b.n {
+				return a.n > b.n
+			}
+			if a.in != b.in {
+				return a.in < b.in
+			}
+			return a.why < b.why
+		})
+		out = append(out, *row)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].n != out[j].n {
+			return out[i].n > out[j].n
+		}
+		return out[i].reporter < out[j].reporter
+	})
+	return out
 }
 
 // settingRow is what one setting set aside: the key that decided, the reason each finding carries,
@@ -2097,6 +2226,10 @@ func acceptedVia(res sarif.Result) string {
 	switch {
 	case res.Imported():
 		return "VEX"
+	case res.SetAsideInImport():
+		// The tool that wrote the file and where it recorded the suppression, which is where a
+		// reader goes to see or undo it.
+		return res.Reporter() + ", suppressed " + sarif.SuppressedIn(res.Suppression.Kind)
 	case res.SilencedInSource():
 		return "source directive"
 	case res.SetAsideByScanner():
@@ -2198,21 +2331,25 @@ func decisionKey(res sarif.Result) string {
 	return whereWritten(sup.Source, sup.Line) + "\x00" + sup.Justification + "\x00" + sup.Expires
 }
 
-// Where a suppression is recorded, as the Accepted tab's Recorded in menu offers it. The four
+// Where a suppression is recorded, as the Accepted tab's Recorded in menu offers it. The
 // authorities the console's ACCEPTED block counts apart.
 const (
 	recordedExclude = "exclude"
 	recordedVEX     = "vex"
 	recordedScanner = "scanner"
 	recordedSetting = "setting"
+	recordedImport  = "import"
 )
 
 // recordedIn names where a suppressed finding's suppression is recorded. A directive in the source
-// and a scanner's own ignore file are both the scanner's, as the console counts them.
+// and a scanner's own ignore file are both the scanner's, as the console counts them. The tool of an
+// imported file is apart from both, as the console names it apart.
 func recordedIn(res sarif.Result) string {
 	switch {
 	case res.Imported():
 		return recordedVEX
+	case res.SetAsideInImport():
+		return recordedImport
 	case res.SetAsideByScanner():
 		return recordedScanner
 	case res.SetAsideBySetting():
