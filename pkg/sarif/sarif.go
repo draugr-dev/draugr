@@ -273,6 +273,9 @@ type sarifProperties struct {
 	// finding's identity includes it, and because the location alone names the block that called
 	// the module and not the setting inside it.
 	Module *Module `json:"module,omitempty"`
+	// PrivilegeDrop is Result.PrivilegeDrop. It survives the file because the order a report lists
+	// findings in reads it, and because it is the scanner's evidence a reader checks the order against.
+	PrivilegeDrop *PrivilegeDrop `json:"privilegeDrop,omitempty"`
 	// Image and OperatingSystem describe the container a finding was found in. They survive the file
 	// for the reason Repository does. A report is written and read back by `draugr diff` and by every
 	// platform format, and a fact that exists only in memory is one all of them have to do without.
@@ -588,7 +591,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Aside != "" || res.Scanner != "" || len(res.Platforms) > 0 || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
-			res.Module != nil {
+			res.Module != nil || res.PrivilegeDrop != nil {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
 				Title:    title,
@@ -606,6 +609,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				Repository:        res.Repository, Package: res.Package, Module: res.Module,
 				Image: res.Image, OperatingSystem: res.OperatingSystem, Layer: res.Layer,
 				Reachability:          res.Reachability,
+				PrivilegeDrop:         res.PrivilegeDrop,
 				Correlation:           res.Correlation,
 				OSEndOfLife:           res.OSEndOfLife,
 				ProviderOperated:      res.ProviderOperated,
@@ -1000,6 +1004,7 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Objects = sr.Properties.Objects
 		res.Package = sr.Properties.Package
 		res.Module = sr.Properties.Module
+		res.PrivilegeDrop = sr.Properties.PrivilegeDrop
 		res.Reachability = sr.Properties.Reachability
 		res.Correlation = sr.Properties.Correlation
 		res.Escalation = sr.Properties.Escalation

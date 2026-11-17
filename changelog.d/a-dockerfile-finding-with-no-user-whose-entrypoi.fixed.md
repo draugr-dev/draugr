@@ -1,0 +1,1 @@
+- **A Dockerfile finding with no `USER` whose entrypoint script starts the application as another user is listed after the rest of its band.** Where every root start of the script ends in `exec su-exec`, `gosu`, `setpriv`, `runuser -u`, `s6-setuidgid` or `chpst -u`, the `DS-0002` finding names that line instead of asking for `USER`. Its band and gate count are unchanged.

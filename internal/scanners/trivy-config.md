@@ -77,6 +77,53 @@ templates when the render fails:
 
 A chart's shortfall is reported against its Chart.yaml; a packaged chart against its archive.
 
+### Images whose entrypoint drops root
+
+`DS-0002`, *Image user should not be 'root'*, fires on a Dockerfile with no `USER`. Trivy reads only
+the Dockerfile, and many images start as root on purpose: the entrypoint script chowns a volume or
+creates a user, then starts the application as that user. Adding a `USER`, as the check asks, breaks
+the script. Draugr reads the script, and where it starts the application as another user, the
+finding carries that line as `privilegeDrop`, and its sentence names the line in place of Trivy's
+request for a `USER`:
+
+```
+  P1  high      DS-0002
+      Image user should not be 'root'
+      entrypoint.sh:11 starts the application as another user with su-exec, so adding USER may break it
+      scanner trivy · fix change the infrastructure
+      Dockerfile:1
+```
+
+The finding keeps its band and still counts toward the gate. If the script does what you intend,
+exclude DS-0002 for this Dockerfile with a reason; adding USER would break it. In `--view findings`
+and in the fix list it comes after the other findings of its band, as described in
+[how the list is ordered](../../docs/concepts/what-to-fix-first.md#how-the-list-is-ordered).
+
+Draugr records the line only when all of these hold:
+
+- The final stage's own `ENTRYPOINT`, or its `CMD` where it sets no `ENTRYPOINT`, names the script by
+  path: absolute, or relative to `WORKDIR`. A shell form counts only where it is plain words. A name
+  looked up on `PATH`, or an entrypoint the stage inherits from an earlier stage or its base image,
+  does not count.
+- The same stage copies the script in with `COPY` or `ADD` from the build context, read as the
+  Dockerfile's directory and as the repository root. Where both hold a script at that path, both must
+  qualify. A later copy that may write the path from another stage, a variable or a wildcard voids
+  the copy, as does a later `RUN` naming the script with any command but `chmod`, `chown` or `chgrp`.
+- The script has a `sh`, `bash`, `ash` or `dash` shebang, and every path a start as root takes ends
+  in `exec` of `su-exec`, `gosu`, `s6-setuidgid`, `setpriv --reuid`, `runuser -u` or `chpst -u`, with
+  a user that is not `root` or uid 0, or in `exit`. A test of `$(id -u)` against 0, such as
+  `if [ "$(id -u)" = "0" ]`, decides which branch is root's; the other branch already runs as another
+  user and is not read.
+- Before the drop, a start as root runs only shell builtins and setup commands that return: file
+  utilities such as `chown`, `mkdir` and `cp`, user tools such as `adduser` and `usermod`, and a drop
+  command that runs a step as the user. Any other program might stay running as root beside the
+  application, and so does anything sent to the background, sourced with `.`, or called through a
+  shell function.
+
+A script that cannot be read, a drop on only some of root's paths, or a drop to root leaves the
+finding without the line, ranked with the rest of its band. Draugr does not read supervisord.conf,
+so an image that drops root there still gets the finding as Trivy wrote it.
+
 ## Saga options
 
 ```yaml

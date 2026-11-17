@@ -136,11 +136,13 @@ func foldLead(f finding) bool {
 // band, the component and the repository, for the reasons lineFoldKey gives, and the group the
 // ranking lists before the band, so a row never joins shipped code to a test fixture whose findings
 // the order puts after it. The package and its fix as well, because one advisory in two packages is
-// two upgrades, and a row names one.
+// two upgrades, and a row names one. Whether the image's entrypoint drops root too, which the ranking
+// also orders by inside the band, so a row of Dockerfiles never shows one whose entrypoint drops root
+// in place of one whose image runs as root.
 func findingFoldKey(f finding) string {
 	pkg, fixed := packageFix(f, false)
 	return strings.Join([]string{f.priority, f.ruleID, f.component, f.repository,
-		f.nonShipping, f.aside, pkg, fixed}, "\x00")
+		f.nonShipping, f.aside, pkg, fixed, strconv.Itoa(droppedOrder(f))}, "\x00")
 }
 
 // foldedPlaces names a folded row's lines, each file once with its line numbers together, within
