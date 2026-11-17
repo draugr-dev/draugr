@@ -444,7 +444,7 @@ func signalKeys(f finding) []string {
 	if f.escalation != nil {
 		keys = append(keys, raisedKey(f.escalation.Signal))
 	}
-	if f.priorityFloor != "" {
+	if f.controlFloor() {
 		keys = append(keys, signalKeyFloor)
 	}
 	if r := f.reachability; r != nil {

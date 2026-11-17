@@ -436,14 +436,23 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatTrivyJSON:       "Trivy JSON",
 	saga.ImportFormatGovulncheckJSON: "govulncheck JSON",
 	saga.ImportFormatGrypeJSON:       "Grype JSON",
+	saga.ImportFormatConverter:       "converter file",
 }
 
 // DescribeImport reads data as an import of format would, empty being SARIF, and says what it is and
 // how much it holds: "SARIF 2.1.0, 3 results", "Trivy JSON, 4 findings". A file the scan would
 // refuse returns the scan's error. Nothing is held to a commit or placed in a repository.
 func DescribeImport(data []byte, format string) (string, error) {
-	format = cmp.Or(format, saga.ImportFormatSARIF)
-	read, err := readImport(data, plugin.FileTarget{Format: format})
+	return DescribeFile(data, plugin.FileTarget{Format: format})
+}
+
+// DescribeFile is DescribeImport for the import ft plans, which for a converter's file carries the
+// converter the descriptor declares and what it may set, both of which decide whether the file is
+// read.
+func DescribeFile(data []byte, ft plugin.FileTarget) (string, error) {
+	format := cmp.Or(ft.Format, saga.ImportFormatSARIF)
+	ft.Format = format
+	read, err := readImport(data, ft)
 	if err != nil {
 		return "", err
 	}

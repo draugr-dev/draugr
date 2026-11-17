@@ -332,6 +332,14 @@ type findingReport struct {
 	// another user, on a Dockerfile finding that says the image runs as root. Evidence that orders the
 	// finding after the rest of its band and leaves the band as it is. Absent on every other finding.
 	PrivilegeDrop *sarif.PrivilegeDrop `json:"privilegeDrop,omitempty"`
+	// CWE are the CWE ids of the flaw, where a declared converter stated them. Absent on every other
+	// finding.
+	CWE []string `json:"cwe,omitempty"`
+	// Converter is the declared converter that wrote the finding: its name, contract version, the
+	// SHA-256 of the file read, which of Draugr's properties it set, and any raise it asked for.
+	// Absent on a finding no converter wrote, so a consumer can tell the properties a converter
+	// vouches for from a scanner's own.
+	Converter *sarif.Converter `json:"converter,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
@@ -1416,6 +1424,8 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Platforms:     res.Platforms,
 		Undecided:     res.Undecided,
 		PrivilegeDrop: res.PrivilegeDrop,
+		CWE:           res.CWE,
+		Converter:     res.Converter,
 	}
 }
 

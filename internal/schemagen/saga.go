@@ -41,6 +41,7 @@ var sagaDefNames = map[reflect.Type]string{
 	reflect.TypeOf(saga.Component{}):              "component",
 	reflect.TypeOf(saga.Import{}):                 "import",
 	reflect.TypeOf(saga.ImportSeverity{}):         "importSeverity",
+	reflect.TypeOf(saga.ImportConverter{}):        "importConverter",
 	reflect.TypeOf(saga.Repository{}):             "repository",
 	reflect.TypeOf(saga.Image{}):                  "image",
 	reflect.TypeOf(saga.Host{}):                   "host",

@@ -461,6 +461,9 @@ type FileTarget struct {
 	// Repository is the repository the descriptor names for the source as owner/name, empty where the
 	// component's one repository names it.
 	Repository string
+	// Converter is the converter the descriptor declares for a draugr-converter file: the name the
+	// file has to state, and the properties it may set. Nil for every other format.
+	Converter *saga.ImportConverter
 }
 
 // Kind returns TargetFile.
@@ -481,8 +484,8 @@ func (t FileTarget) Identity() string {
 // them, the revision it is held to, the repository its findings are placed in and the scope that
 // keeps or leaves out each one; the commit the descriptor holds it to, or the variable that left it
 // unbound; the format it is read as, since one file read by two readers is two answers; whether
-// the tool's own suppressions are counted; and the descriptor's mapping of its tool's rating
-// where it gives one.
+// the tool's own suppressions are counted; the converter and what it may set; and the descriptor's
+// mapping of its tool's rating where it gives one.
 //
 // A source's alerts are never served from the cache (the engine does not cache a source), so its
 // detail keeps it apart from a file's, and two reads of one source that make different findings
@@ -514,6 +517,10 @@ func (t FileTarget) CacheDetail() string {
 	}
 	if t.CountSuppressed {
 		detail += " suppressions=count"
+	}
+	// What the converter may set decides what is read, so narrowing it reads the file again.
+	if c := t.Converter; c != nil {
+		detail += " converter=" + c.Name + "@" + strconv.Itoa(c.Contract) + ":" + strings.Join(c.Sets, ",")
 	}
 	if t.Severity == nil {
 		return detail

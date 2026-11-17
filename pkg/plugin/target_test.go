@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 func TestTargetKinds(t *testing.T) {
@@ -408,5 +410,18 @@ func TestFileTargetKeysOnItsContent(t *testing.T) {
 	}
 	if len(formats) != 3 {
 		t.Errorf("%d cache keys for SARIF, SARIF named, and two tools' JSON, want three", len(formats))
+	}
+	// What a converter may set decides what is read, so narrowing it, or naming another converter,
+	// reads the file again.
+	converters := map[CacheKey]bool{}
+	for _, c := range []*saga.ImportConverter{
+		{Name: "npm-audit", Contract: 1, Sets: []string{"package", "cwe"}},
+		{Name: "npm-audit", Contract: 1, Sets: []string{"package"}},
+		{Name: "acme-deps", Contract: 1, Sets: []string{"package"}},
+	} {
+		converters[ComputeCacheKey(ImportScanner, "1", FileTarget{Path: a.Path, Digest: a.Digest, Format: "draugr-converter", Converter: c}, nil)] = true
+	}
+	if len(converters) != 3 {
+		t.Errorf("%d cache keys for three converter declarations, want three", len(converters))
 	}
 }

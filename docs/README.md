@@ -28,6 +28,7 @@ not published. They live here for readers browsing the repo.
 - [Publish to GitHub code scanning](guides/code-scanning.md), the native `github` publisher.
 - [Publish runs to a Draugr server](guides/publish-to-a-draugr-server.md), from sign-up to the first run in the console.
 - [Import another scanner's SARIF](guides/importing-sarif.md), CodeQL, Checkmarx, Bandit or any SARIF 2.1.0 file, ranked and gated with the rest.
+- [Write a converter](guides/writing-a-converter.md), for a tool Draugr has no reader for, with the package, CWE ids or a raise it may set.
 - [Gate PRs on new findings](guides/pr-diff.md), `draugr diff` and sticky PR comments.
 - [See findings in your editor](guides/findings-in-your-editor.md), SARIF as inline diagnostics in VS Code and JetBrains.
 - [Use Draugr from an AI coding assistant](guides/ai-agents-mcp.md), the MCP server, and why it beats letting an assistant improvise.
@@ -43,6 +44,7 @@ not published. They live here for readers browsing the repo.
 - [CLI reference](reference/cli.md), every command and flag.
 - [Saga schema](reference/saga-schema.md), every field of `draugr.saga.yaml`.
 - [Integrations catalog](reference/catalog.md), controllers, scanners, and surveyors (what ships today).
+- [Converter contract](reference/converter-contract.md), every key of the file a converter writes, and what a converter may and may never set.
 - [Security glossary](reference/glossary.md), plain-language definitions (SCA, SAST, DAST, …).
 
 ## Trust & operations

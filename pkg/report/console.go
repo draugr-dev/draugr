@@ -902,8 +902,9 @@ func findingTitle(f finding) string {
 }
 
 // reasoning is what stands behind a band beyond the mark that opens the line: the scanner's own
-// rating where it set the severity, the route that keeps a finding where it is, who lowered one,
-// what a second scanner said, and the floor a control insisted on.
+// rating where it set the severity, which properties a declared converter set, the route that keeps
+// a finding where it is, who lowered one, what a second scanner said, and the floor a control, or a
+// converter's raise, insisted on.
 //
 // The rating leads because it is the first input to the band, and the only one the severity column
 // rests on directly.
@@ -912,12 +913,14 @@ func reasoning(col tui.Painter, f finding) []notePart {
 	for _, note := range []string{
 		moreFilesNote(f),
 		ratingNote(f.rating),
+		converterRaised(f),
+		converterSet(f.converter),
 		reachabilityPath(f.reachability),
 		notBuiltEvidence(f.reachability),
 		unreachableCredit(f.reachability),
 		unreachableStanding(f.reachability),
 		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.reporter),
-		f.priorityFloor,
+		controlFloorNote(f),
 		historicalNote(f.historical),
 	} {
 		if note != "" {
@@ -925,6 +928,35 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		}
 	}
 	return parts
+}
+
+// converterRaised is the reason a declared converter's raise gave for the finding's band, where the
+// raise moved it. Early on the line, beside the rating, because it is the band's whole premise and
+// carries no mark of its own.
+func converterRaised(f finding) string {
+	if f.priorityFloor == "" || f.controlFloor() {
+		return ""
+	}
+	return f.priorityFloor
+}
+
+// controlFloorNote is the reason a control's floor gave for the band, which the `↑ floor` mark
+// opens the line with.
+func controlFloorNote(f finding) string {
+	if !f.controlFloor() {
+		return ""
+	}
+	return f.priorityFloor
+}
+
+// converterSet says which of the finding's properties a declared converter set, "converter npm-audit
+// set package, cwe", or "" for a finding no converter wrote or one it set nothing of Draugr's on. The
+// row's reporter already names the converter; this says which facts rest on its word.
+func converterSet(c *sarif.Converter) string {
+	if c == nil || len(c.Set) == 0 {
+		return ""
+	}
+	return "converter " + c.Name + " set " + strings.Join(c.Set, ", ")
 }
 
 // moreFilesNote says how many files beside the row's own hold the flaw, in the words the actions view
@@ -1139,7 +1171,7 @@ func marks(f finding) []movement {
 		out = append(out, movement{key: moveListed, label: "KEV listed", style: signalColor(exploit.SignalKEV), cve: f.exploited.CVE})
 	}
 	// A control that declares its findings are not bounded by where the component sits.
-	if f.priorityFloor != "" {
+	if f.controlFloor() {
 		out = append(out, movement{key: moveFloor, glyph: "↑", label: "floor", style: cHigh})
 	}
 	if lowered {

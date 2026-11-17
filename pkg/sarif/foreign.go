@@ -23,7 +23,9 @@ import (
 // naming the property. This reader reads none of them. From a property bag it takes
 // `security-severity`, the score SARIF producers agree on, as a number or as a string; `package`,
 // where it is an object in the shape Draugr writes; `purls`; and `tags`. Each is a fact about the
-// finding rather than a decision about it.
+// finding rather than a decision about it. A file that has to set more of Draugr's properties is a
+// converter's, read by pkg/converter only where the descriptor declares the converter, and even
+// then never one that sets a finding aside or lowers it.
 //
 // A dependency finding's package, the version that fixes it and the advisory's other identifiers are
 // read from wherever the file states them, which differs by tool: see packageOf and statedAliases.

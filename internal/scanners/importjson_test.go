@@ -381,7 +381,8 @@ func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
 		{"not JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, "{not json", "not govulncheck JSON"},
 		{"Trivy JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, `{"SchemaVersion":2,"Results":[]}`, "not govulncheck JSON"},
 		{"SARIF as Grype JSON", saga.ImportFormatGrypeJSON, sarifLog, "not Grype JSON. Write it with grype dir:. -o json"},
-		{"an unknown format", "sarif-2.0", sarifLog, "format sarif-2.0 is not one of sarif, trivy-json, govulncheck-json, grype-json"},
+		{"an unknown format", "sarif-2.0", sarifLog, "format sarif-2.0 is not one Draugr reads. draugr validate lists them"},
+		{"no converter declared", saga.ImportFormatConverter, sarifLog, "declares no converter. Add converter to the import"},
 	} {
 		_, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: writeFile(t, c.body), Format: c.format}, nil)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

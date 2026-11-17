@@ -171,12 +171,17 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 			// A file read in place: present and readable is the question, and it needs no network.
 			// Once per file and format, as one file imported twice is read by each import's reader.
 			key := "file:" + t.Format + ":" + t.Path
+			if t.Converter != nil {
+				key += ":" + t.Converter.Name + ":" + strings.Join(t.Converter.Sets, ",")
+			}
 			if seen[key] {
 				continue
 			}
 			seen[key] = true
-			path, format := t.Path, t.Format
-			units = append(units, func(context.Context) []Check { return []Check{fileCheck(path, format)} })
+			// What the scan's reader is given, less the repositories: a converter's file is read only
+			// with the converter the descriptor declares for it.
+			target := plugin.FileTarget{Path: t.Path, Format: t.Format, Converter: t.Converter}
+			units = append(units, func(context.Context) []Check { return []Check{fileCheck(target)} })
 		default:
 			id := string(t.Kind()) + ":" + t.Identity()
 			if seen[id] {
@@ -505,15 +510,15 @@ func sourceCheck(t plugin.FileTarget) Check {
 
 // fileCheck is whether an imported file is there to read, and whether it is the format the import
 // names, SARIF 2.1.0 where it names none: the scan stops on either, so the preflight says so first.
-func fileCheck(path, format string) Check {
-	c := Check{Kind: string(plugin.TargetFile), Target: path}
-	data, err := os.ReadFile(path) // #nosec G304 -- a file the descriptor names for import
+func fileCheck(t plugin.FileTarget) Check {
+	c := Check{Kind: string(plugin.TargetFile), Target: t.Path}
+	data, err := os.ReadFile(t.Path) // #nosec G304 -- a file the descriptor names for import
 	if err != nil {
 		c.Status, c.Detail = Failed, err.Error()
 		return c
 	}
 	// The reader the scan uses, so a file the scan would refuse fails here with the same words.
-	detail, err := scanners.DescribeImport(data, format)
+	detail, err := scanners.DescribeFile(data, t)
 	if err != nil {
 		c.Status, c.Detail = Failed, err.Error()
 		return c

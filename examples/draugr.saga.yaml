@@ -263,6 +263,18 @@ components:
         file: reports/trivy.json      # trivy fs --format json -o reports/trivy.json .
         format: trivy-json
         commit: ${{ GITHUB_SHA }}
+      # A tool Draugr has no reader for, through a converter a CI step ran on its output. Draugr
+      # runs nothing and reads the file, refusing it unless it is this converter's.
+      - control: sca
+        file: reports/npm-audit.draugr.json   # contrib/converters/npm-audit
+        format: draugr-converter
+        commit: ${{ GITHUB_SHA }}
+        converter:
+          name: npm-audit
+          contract: 1                 # the contract version it writes
+          # Which of Draugr's properties it may set, from a fixed list that never sets a finding
+          # aside or lowers one.
+          sets: [package, cwe]
     cloud:
       - account: web-prod    # the whole account: every region, and the findings about the account
 

@@ -378,7 +378,7 @@ question asked where there is a fleet.
 
 ### `components[].imports`
 
-`imports` reads a SARIF 2.1.0 file another tool wrote, or Trivy's or govulncheck's own JSON, into one
+`imports` reads a SARIF 2.1.0 file another tool wrote, a tool's own JSON, or a converter's file, into one
 of Draugr's controls, as though one of that control's scanners had produced it. Its findings take this component's exposure and
 criticality into their priority, count toward the gate, and appear in the fix list beside everything
 Draugr found.
@@ -396,11 +396,12 @@ components:
 | field | meaning |
 |---|---|
 | `control` | the control the file's findings belong to, such as `sast` or `sca` |
-| `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON `format` names. Exactly one of `file` and `source` |
+| `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
 | `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
 | `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
 | `repository` | `source` only: the repository whose alerts to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
-| `format` | optional, `file` only: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, `govulncheck-json` for what `govulncheck -format json` writes, or `grype-json` for what `grype dir:<path> -o json` writes (directory scans only). A tool's JSON is read as Draugr's run of that tool reads it ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
+| `format` | optional, `file` only: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, `govulncheck-json` for what `govulncheck -format json` writes, `grype-json` for what `grype dir:<path> -o json` writes (directory scans only), or `draugr-converter` for a converter's file in the [converter contract](converter-contract.md). A tool's JSON is read as Draugr's run of that tool reads it ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
+| `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets` which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one no converter may set, such as `aside`, is refused ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
 | `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused |
