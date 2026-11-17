@@ -113,9 +113,11 @@ show them.
 
 This is the order of `--view findings`. Priority decides it. Where two
 findings share a band, the one somebody can act on is listed first, a package with a fix, then a release that can be moved, then one with no published fix, and
-last the ones that belong to a provider. Before that, a Dockerfile finding whose
+last the ones that belong to a provider.
+
+A Dockerfile finding whose
 [entrypoint already drops root](../../internal/scanners/trivy-config.md#images-whose-entrypoint-drops-root)
-comes after the rest of its band.
+is listed last in its band.
 
 A rule that fires many times is one decision, so its findings share one row, counted beside the
 rule as `G115 · 250 findings in 18 files`. The row shows the first finding's location, except that a
@@ -170,8 +172,11 @@ image would outrank a single flaw on KEV.
 was ranked by: `priority`, `exploitation` with the CVE on KEV or the CVE EPSS raised, `severity`
 with `severityFrom` where an adjustment moved it, and `clears`. The band, the KEV listing as
 `exploited`, the escalation naming `kev` or `epss` with the date its data was fetched, and the
-severity with what adjusted it are also on each finding in `report.json` and `results.sarif`, and so
-is the entrypoint line that drops root, as `privilegeDrop`. `fixes.upgrade` is in the descriptor.
+severity with what adjusted it are also on each finding in `report.json` and `results.sarif`.
+`fixes.upgrade` is in the descriptor.
+
+A Dockerfile finding whose entrypoint drops root carries the script's file and line, and the command
+that drops root, as `privilegeDrop` in `report.json` and `results.sarif`.
 
 ## Two descriptor fields change what is recommended
 

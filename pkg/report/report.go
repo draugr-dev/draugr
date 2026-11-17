@@ -766,7 +766,7 @@ type finding struct {
 	module *sarif.Module
 	// privilegeDrop is the line of the image's entrypoint script that starts the application as
 	// another user, on a finding saying the image runs as root. It lists the finding after the rest of
-	// its band and is shown beside the location; the band is unchanged.
+	// its band, which is unchanged; the scanner's detail sentence names the line.
 	privilegeDrop *sarif.PrivilegeDrop
 	// detail is the scanner's sentence about this occurrence, where the message is the rule's title.
 	detail                                             string
@@ -1181,16 +1181,6 @@ func droppedOrder(f finding) int {
 		return 1
 	}
 	return 0
-}
-
-// privilegeDropNote is the line under a finding naming the entrypoint line that starts the
-// application as another user, "entrypoint drops root: su-exec in entrypoint.sh:12", or "" for a
-// finding without one.
-func privilegeDropNote(d *sarif.PrivilegeDrop) string {
-	if d == nil {
-		return ""
-	}
-	return fmt.Sprintf("entrypoint drops root: %s in %s:%d", d.Command, d.File, d.Line)
 }
 
 // reachabilityOrder ranks what reachability analysis said of a finding, for ordering inside a band:

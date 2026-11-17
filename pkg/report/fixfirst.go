@@ -117,7 +117,12 @@ func writeBlockHead(w io.Writer, col tui.Painter, f finding, width int) {
 	case findingTitle(f) != "":
 		_, _ = fmt.Fprintln(w, "      "+elide(findingTitle(f), min(room, messageWidth)))
 	}
-	if d := f.addedDetail(); d != "" {
+	// Cut from the front, where Trivy names the object the location already shows, except the
+	// sentence naming the line where an image's entrypoint drops root, which opens with that line.
+	switch d := f.addedDetail(); {
+	case d != "" && f.privilegeDrop != nil:
+		_, _ = fmt.Fprintln(w, "      "+elide(d, room))
+	case d != "":
 		_, _ = fmt.Fprintln(w, "      "+elideFront(d, room))
 	}
 	if i := findingInstruction(f); i != "" {

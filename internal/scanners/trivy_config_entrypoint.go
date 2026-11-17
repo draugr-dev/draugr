@@ -20,7 +20,8 @@ import (
 // for, breaks that script.
 //
 // So the scan reads the script the final stage starts, when the same Dockerfile copies it in from
-// the repository, and records the line that hands over as the finding's privilegeDrop. Only where
+// the repository, records the line that hands over as the finding's privilegeDrop, and replaces
+// Trivy's sentence asking for a USER with one naming that line. Only where
 // every path a start as root takes through the script ends in that hand-over, or in an exit, and
 // runs nothing as root before it but the setup commands entrypointSetup lists. Anything the reading
 // cannot follow leaves the finding without the record, as Trivy reported it.
@@ -87,6 +88,9 @@ func withEntrypointDrops(sarifOut []byte, dir string) ([]byte, error) {
 				result["properties"] = props
 			}
 			props["privilegeDrop"] = drop
+			// In place of Trivy's sentence, which asks for a USER the script's own start would break.
+			// The sentence is the finding's detail, and its identity is the rule's title.
+			props["detail"] = privilegeDropSentence(drop)
 			changed = true
 		}
 	}
@@ -94,6 +98,14 @@ func withEntrypointDrops(sarifOut []byte, dir string) ([]byte, error) {
 		return sarifOut, nil
 	}
 	return json.Marshal(doc)
+}
+
+// privilegeDropSentence is what a DS-0002 finding with an entrypoint that drops root says about its
+// image: "entrypoint.sh:11 starts the application as another user with su-exec, so adding USER may
+// break it".
+func privilegeDropSentence(d *sarif.PrivilegeDrop) string {
+	return fmt.Sprintf("%s:%d starts the application as another user with %s, so adding USER may break it",
+		d.File, d.Line, d.Command)
 }
 
 // checkoutRelative is uri as a slash-separated path inside the checkout at dir, or "" for one outside

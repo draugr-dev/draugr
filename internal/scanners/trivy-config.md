@@ -83,14 +83,20 @@ A chart's shortfall is reported against its Chart.yaml; a packaged chart against
 the Dockerfile, and many images start as root on purpose: the entrypoint script chowns a volume or
 creates a user, then starts the application as that user. Adding a `USER`, as the check asks, breaks
 the script. Draugr reads the script, and where it starts the application as another user, the
-finding carries that line as `privilegeDrop` and the console prints it beside the location:
+finding carries that line as `privilegeDrop`, and its sentence names the line in place of Trivy's
+request for a `USER`:
 
 ```
-Dockerfile:1 · entrypoint drops root: su-exec in entrypoint.sh:12
+  P1  high      DS-0002
+      Image user should not be 'root'
+      entrypoint.sh:11 starts the application as another user with su-exec, so adding USER may break it
+      scanner trivy · fix change the infrastructure
+      Dockerfile:1
 ```
 
-The finding keeps its band and still counts toward the gate. In `--view findings` and in the fix
-list it comes after the other findings of its band, as described in
+The finding keeps its band and still counts toward the gate. If the script does what you intend,
+exclude DS-0002 for this Dockerfile with a reason; adding USER would break it. In `--view findings`
+and in the fix list it comes after the other findings of its band, as described in
 [how the list is ordered](../../docs/concepts/what-to-fix-first.md#how-the-list-is-ordered).
 
 Draugr records the line only when all of these hold:
@@ -115,8 +121,8 @@ Draugr records the line only when all of these hold:
   shell function.
 
 A script that cannot be read, a drop on only some of root's paths, or a drop to root leaves the
-finding as Trivy reported it. So does a process manager: a `supervisord.conf` with `user=` on its
-programs is not read.
+finding without the line, ranked with the rest of its band. Draugr does not read supervisord.conf,
+so an image that drops root there still gets the finding as Trivy wrote it.
 
 ## Saga options
 

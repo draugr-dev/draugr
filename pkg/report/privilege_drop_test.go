@@ -3,31 +3,42 @@ package report
 import (
 	"bytes"
 	"encoding/json"
+	"html"
 	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/tui"
+)
+
+// The sentences of the two DS-0002 findings dropRun holds: Trivy's, and the trivy-config scanner's in
+// its place where the entrypoint drops root.
+const (
+	askForUser    = "Specify at least 1 USER command in Dockerfile with non-root user as argument"
+	dropsRootLine = "entrypoint.sh:12 starts the application as another user with su-exec, so adding USER may break it"
 )
 
 // dropRun is an iac run over one component holding two repositories, each with a Dockerfile that sets
 // no USER. Only the api repository's entrypoint drops root. A Terraform finding shares their band
-// with a lower score, and a P2 follows.
+// with a lower score, and a P2 follows. Each finding's message is the rule's title and its detail
+// the sentence, as a Trivy finding read from SARIF has them.
 func dropRun() Data {
-	misconfig := func(repo, rule, msg, uri string, score float64, priority string, drop *sarif.PrivilegeDrop) sarif.Result {
+	misconfig := func(repo, rule, title, detail, uri string, score float64, priority string, drop *sarif.PrivilegeDrop) sarif.Result {
 		return sarif.Result{Tool: "Trivy", Scanner: "trivy-config", RuleID: rule, Level: sarif.LevelError,
-			Message: msg, Control: "iac", Priority: priority, Component: "shop", Repository: repo,
+			Message: title, Detail: detail, Control: "iac", Priority: priority, Component: "shop", Repository: repo,
 			Location: sarif.Location{URI: uri, StartLine: 1}, Score: score, HasScore: true, PrivilegeDrop: drop}
 	}
-	userMsg := "Specify at least 1 USER command in Dockerfile with non-root user as argument"
+	rootTitle := "Image user should not be 'root'"
 	results := []sarif.Result{
-		misconfig("https://example.com/shop/api", "DS-0002", userMsg, "Dockerfile", 8, "P1",
+		misconfig("https://example.com/shop/api", "DS-0002", rootTitle, dropsRootLine, "Dockerfile", 8, "P1",
 			&sarif.PrivilegeDrop{Command: "su-exec", User: "$PUID:$PGID", File: "entrypoint.sh", Line: 12}),
-		misconfig("https://example.com/shop/worker", "DS-0002", userMsg, "Dockerfile", 8, "P1", nil),
-		misconfig("https://example.com/shop/api", "AWS-0086", "No public access block so not blocking public acls",
-			"main.tf", 7.5, "P1", nil),
-		misconfig("https://example.com/shop/api", "AWS-0089", "Bucket has logging disabled", "logs.tf", 9.5, "P2", nil),
+		misconfig("https://example.com/shop/worker", "DS-0002", rootTitle, askForUser, "Dockerfile", 8, "P1", nil),
+		misconfig("https://example.com/shop/api", "AWS-0086", "S3 Access block should block public ACL",
+			"No public access block so not blocking public acls", "main.tf", 7.5, "P1", nil),
+		misconfig("https://example.com/shop/api", "AWS-0089", "S3 Bucket Logging", "Bucket has logging disabled",
+			"logs.tf", 9.5, "P2", nil),
 	}
 	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{"iac": {Report: sarif.Report{Results: results}}}}}
 	d.TopN = -1
@@ -68,12 +79,57 @@ func TestAnEntrypointThatDropsRootListsTheFindingAfterItsBand(t *testing.T) {
 	}
 	out := buf.String()
 	t.Logf("rendered:\n%s", out)
-	evidence := "Dockerfile:1 · entrypoint drops root: su-exec in entrypoint.sh:12"
-	if strings.Count(out, evidence) != 1 {
-		t.Errorf("the console does not name the line that drops root once, %q", evidence)
+	if strings.Count(out, dropsRootLine) != 1 || strings.Count(out, askForUser) != 1 {
+		t.Errorf("the console does not name the line that drops root once, and ask the worker for a USER once")
 	}
-	if lead, dropped := strings.Index(out, "AWS-0086"), strings.Index(out, evidence); lead < 0 || dropped < lead {
+	if lead, dropped := strings.Index(out, "AWS-0086"), strings.Index(out, dropsRootLine); lead < 0 || dropped < lead {
 		t.Errorf("the finding whose entrypoint drops root is not listed after AWS-0086")
+	}
+	if strings.Count(out, "      Dockerfile:1\n") != 2 {
+		t.Errorf("both Dockerfile findings' locations should be the plain location")
+	}
+}
+
+// The sentence naming the line that drops root is what the reports show for the finding, in place of
+// the request for a USER: --view actions and the HTML report. Where the line is too narrow for it,
+// it keeps its start, the script's file and line.
+func TestEveryReportNamesTheLineThatDropsRoot(t *testing.T) {
+	for name, render := range map[string]func(*bytes.Buffer, Data) error{
+		"actions": func(b *bytes.Buffer, d Data) error {
+			d.View = ViewActions
+			return (consoleReporter{}).Render(b, d)
+		},
+		"html": func(b *bytes.Buffer, d Data) error { return (htmlReporter{}).Render(b, d) },
+	} {
+		var buf bytes.Buffer
+		if err := render(&buf, dropRun()); err != nil {
+			t.Fatal(err)
+		}
+		// Each finding's sentence as often as the other's: the worker's image is asked for a USER
+		// wherever the api's names its line, and nowhere else.
+		// The HTML report's search text is lowercase.
+		out := strings.ToLower(html.UnescapeString(buf.String()))
+		named := strings.Count(out, "entrypoint.sh:12 starts the application as another user with su-exec")
+		asked := strings.Count(out, strings.ToLower(askForUser))
+		if named == 0 || asked != named {
+			t.Errorf("%s names the line %d times and asks for a USER %d times, want both alike:\n%s",
+				name, named, asked, out)
+		}
+	}
+
+	dropped := finding{ruleID: "DS-0002", message: "Image user should not be 'root'", detail: dropsRootLine,
+		privilegeDrop: &sarif.PrivilegeDrop{Command: "su-exec", File: "entrypoint.sh", Line: 12}}
+	got := elideOccurrence(action{findings: []finding{dropped, dropped}, summary: dropsRootLine + " · +1 more"}, 60)
+	if !strings.HasPrefix(got, "entrypoint.sh:12 starts") || !strings.HasSuffix(got, " · +1 more") {
+		t.Errorf("elided occurrence = %q, want the file and line kept and the count at the end", got)
+	}
+	if got := elideOccurrence(action{findings: []finding{dropped}, summary: dropsRootLine}, 120); got != dropsRootLine {
+		t.Errorf("an occurrence that fits = %q", got)
+	}
+	var buf bytes.Buffer
+	writeBlockHead(&buf, tui.Painter{}, dropped, 60)
+	if !strings.Contains(buf.String(), "      entrypoint.sh:12 starts") {
+		t.Errorf("a narrow block does not keep the file and line:\n%s", buf.String())
 	}
 }
 
@@ -152,8 +208,5 @@ func TestARowNeverJoinsADroppedImageToARootOne(t *testing.T) {
 	dropped.privilegeDrop = &sarif.PrivilegeDrop{Command: "su-exec", User: "app", File: "b/entrypoint.sh", Line: 2}
 	if rows := foldFindings([]finding{root, dropped}); len(rows) != 2 {
 		t.Errorf("rows = %d, want the two apart", len(rows))
-	}
-	if privilegeDropNote(nil) != "" {
-		t.Error("a finding without evidence has a note")
 	}
 }

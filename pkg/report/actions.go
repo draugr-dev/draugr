@@ -1178,15 +1178,24 @@ func (f finding) addedDetail() string {
 // CloudTrail trails have a data event…" reads as a pass, and cut from the end, so does "KMS CMK
 // c4b9e437-… has automatic rotation…". Its identifier gives way first, since the location names the
 // resource, and its end after that.
+//
+// The sentence on an image whose entrypoint drops root opens with the script's file and line, which
+// is what the reader checks, so it keeps its start.
 func elideOccurrence(a action, width int) string {
-	if len(a.findings) == 0 || a.findings[0].detail != a.findings[0].message {
-		return elideFront(a.summary, width)
-	}
 	sentence, count := a.summary, ""
 	if i := strings.LastIndex(sentence, " · +"); i >= 0 {
 		sentence, count = sentence[:i], sentence[i:]
 	}
 	room := max(width-utf8.RuneCountInString(count), minTitleWidth)
+	if len(a.findings) > 0 && a.findings[0].privilegeDrop != nil {
+		if utf8.RuneCountInString(sentence) <= room {
+			return sentence + count
+		}
+		return elide(sentence, room) + count
+	}
+	if len(a.findings) == 0 || a.findings[0].detail != a.findings[0].message {
+		return elideFront(a.summary, width)
+	}
 	// Counted in runes, because elide counts bytes and '…' is three bytes.
 	short := shortenIdentifier(sentence, room)
 	if utf8.RuneCountInString(short) <= room {

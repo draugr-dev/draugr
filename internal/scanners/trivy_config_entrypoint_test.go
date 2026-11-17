@@ -19,6 +19,16 @@ func rootUserSARIF(dockerfiles ...string) string {
 	return `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Trivy"}},"results":[` + strings.Join(results, ",") + `]}]}`
 }
 
+// trivyRootUserSARIF is DS-0002 on a Dockerfile as `trivy convert` 0.76.1 writes it: the rule's title
+// in the rule, and the finding's message a list of fields whose Message line asks for a USER.
+const trivyRootUserSARIF = `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Trivy","rules":[
+ {"id":"DS-0002","name":"Misconfiguration","shortDescription":{"text":"Image user should not be 'root'"},
+  "helpUri":"https://avd.aquasec.com/misconfig/ds-0002","properties":{"security-severity":"8.0"}}]}},
+ "results":[{"ruleId":"DS-0002","ruleIndex":0,"level":"error",
+  "message":{"text":"Artifact: Dockerfile\nType: dockerfile\nVulnerability DS-0002\nSeverity: HIGH\nMessage: Specify at least 1 USER command in Dockerfile with non-root user as argument\nLink: [DS-0002](https://avd.aquasec.com/misconfig/ds-0002)"},
+  "locations":[{"physicalLocation":{"artifactLocation":{"uri":"Dockerfile","uriBaseId":"ROOTPATH"},
+   "region":{"startLine":1,"startColumn":1,"endLine":1,"endColumn":1}},"message":{"text":"Dockerfile"}}]}]}]}`
+
 // dropsIn reads the privilegeDrop of each result of SARIF, keyed by rule and file.
 func dropsIn(t *testing.T, out []byte) map[string]*sarif.PrivilegeDrop {
 	t.Helper()
@@ -251,23 +261,31 @@ func TestEachRepositoryCarriesItsOwnEntrypointEvidence(t *testing.T) {
 			if argv[1] == "fs" {
 				return []byte(`{"Results": []}`), nil, nil
 			}
-			return []byte(rootUserSARIF("Dockerfile")), nil, nil
+			return []byte(trivyRootUserSARIF), nil, nil
 		})
 		rep, err := s.Scan(context.Background(), plugin.RepositoryTarget{URL: repo}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var drop *sarif.PrivilegeDrop
+		var ds sarif.Result
 		for _, r := range rep.Results {
 			if r.RuleID == "DS-0002" {
-				drop = r.PrivilegeDrop
+				ds = r
 			}
 		}
+		// The message is the finding's identity and stays the rule's title in both; the sentence
+		// under it is the evidence's where there is evidence, and Trivy's request for a USER where not.
+		if ds.Message != "Image user should not be 'root'" {
+			t.Errorf("%s: message %q, want the rule's title", repo, ds.Message)
+		}
+		drop := ds.PrivilegeDrop
 		switch {
 		case repo == "drops" && (drop == nil || drop.File != "entrypoint.sh" || drop.Line != 11):
 			t.Errorf("%s: privilegeDrop %+v, want su-exec in entrypoint.sh:11", repo, drop)
-		case repo == "root" && drop != nil:
-			t.Errorf("%s: privilegeDrop %+v, want none", repo, drop)
+		case repo == "drops" && ds.Detail != "entrypoint.sh:11 starts the application as another user with su-exec, so adding USER may break it":
+			t.Errorf("%s: detail %q, want the line that drops root", repo, ds.Detail)
+		case repo == "root" && (drop != nil || !strings.HasPrefix(ds.Detail, "Specify at least 1 USER")):
+			t.Errorf("%s: privilegeDrop %+v, detail %q, want none and Trivy's sentence", repo, drop, ds.Detail)
 		}
 	}
 
