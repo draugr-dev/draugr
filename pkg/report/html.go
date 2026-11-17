@@ -2572,10 +2572,10 @@ prints each scanner's full output.</p>
      only one that already set something aside, because a reader who has never written an exclusion
      is the one who needs the syntax. */}}
 {{define "exclude-how"}}<p class="note">To set a finding aside, add an entry under <code class="cmd">config.exclude</code>
-in the descriptor, with the rule id whole as this report prints it, or with <code class="cmd">*</code> for any run
-of characters, and the finding's file without its line. Without <code class="cmd">paths</code>, the entry sets
-aside every finding of the rule in every file. Its findings stay in this report, marked suppressed with the
-reason, and count again after the <code class="cmd">expires</code> date. The
+in the descriptor: the rule id whole as this report prints it (or <code class="cmd">*</code> for any run of
+characters) and the file without its line. Without <code class="cmd">paths</code>, it covers every finding of
+the rule in every file. Set-aside findings stay in this report, marked suppressed with the reason, and count
+again after the <code class="cmd">expires</code> date. The
 <a href="https://draugr.dev/docs/latest/reference/saga-schema/#configexclude" target="_blank" rel="noopener noreferrer">reference for config.exclude</a>
 lists the other fields.</p>
 <pre class="cmd">config:

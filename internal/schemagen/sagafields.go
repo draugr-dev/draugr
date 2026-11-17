@@ -228,8 +228,9 @@ func sagaFields() map[string]map[string]any {
 				"to see what it does should not be the same act as agreeing to that.",
 		},
 		"excludeRule.paths": {
-			"description": "Location patterns. A pattern ending in '/' matches everything beneath that directory; " +
-				"otherwise it is a glob against the whole location.",
+			"description": "File patterns, relative to the repository. A pattern ending in '/' matches everything " +
+				"beneath that directory; otherwise it is a glob against the file's path. A path names a file, never a " +
+				"line: write rbac.yaml, not rbac.yaml:18.",
 			"items": map[string]any{
 				"minLength": 1,
 			},

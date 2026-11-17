@@ -45,8 +45,8 @@ func TestValidateRefusesAnExclusionPathThatNamesALine(t *testing.T) {
 
 	var out bytes.Buffer
 	err := runValidate([]string{writeSaga(t, lineSaga(first, second, "deploy/x/f.txt:18"))}, &out)
-	const want = `config.exclude[0]: paths[0] "deploy/x/f.txt:18" names a line, and paths match files. ` +
-		`Write "deploy/x/f.txt", which covers every KSV-0041 finding in that file`
+	const want = `config.exclude[0]: paths[0] "deploy/x/f.txt:18" names a line, and paths match whole files. ` +
+		`Write "deploy/x/f.txt", which sets aside every KSV-0041 finding in the file, not only line 18`
 	if err == nil || err.Error() != want {
 		t.Errorf("err = %v, want %q", err, want)
 	}
@@ -79,7 +79,7 @@ func TestScanRefusesAnExclusionPathThatNamesALineBeforeRunning(t *testing.T) {
 
 	err := runScan(context.Background(), writeSaga(t, lineSaga(first, second, "app/f.txt:3")),
 		scanOptions{format: "json", noGate: true}, reg, &bytes.Buffer{})
-	if err == nil || !strings.Contains(err.Error(), `Write "app/f.txt", which covers every KSV-0041 finding in that file`) {
+	if err == nil || !strings.Contains(err.Error(), `Write "app/f.txt", which sets aside every KSV-0041 finding in the file, not only line 3`) {
 		t.Errorf("err = %v, want the refusal naming app/f.txt", err)
 	}
 	if len(rec.targets) != 0 {

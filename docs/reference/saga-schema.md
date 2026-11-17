@@ -2146,10 +2146,10 @@ as another single-segment wildcard, so `tests/**` would quietly match one level 
 like it matched every level. `draugr validate` rejects it and names the trailing-slash form, which
 already expresses the same thing.
 
-**A path names a file, never a line.** A location copied from a finding, `deploy/rbac.yaml:18`, is
-written `deploy/rbac.yaml`, which covers every finding of the entry's `rules` in that file.
-`draugr validate` and `draugr scan` refuse the `:18` form where the file is in a repository on this
-machine.
+**A path names a file, never a line.** Write `deploy/rbac.yaml`, not the `deploy/rbac.yaml:18` a
+finding prints. The entry then sets aside every finding of its `rules` in that file, not only line
+18. `draugr validate` and `draugr scan` refuse the line form when the repository is checked out
+locally.
 
 `draugr validate` warns when a pattern names a directory that exists and does not select what is
 in it, which is the shape that reads as written and applies to nothing:

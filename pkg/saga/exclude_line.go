@@ -45,8 +45,9 @@ func (m *Model) ExcludeLineErrors(roots []string) []error {
 		for j, p := range e.Paths {
 			if file, ok := namesALine(roots, p); ok {
 				errs = append(errs, fmt.Errorf(
-					"%s: paths[%d] %q names a line, and paths match files. Write %q, which covers %s in that file",
-					where, j, p, file, everyFinding(e.Rules)))
+					"%s: paths[%d] %q names a line, and paths match whole files. Write %q, which sets aside %s "+
+						"in the file, not only line %s",
+					where, j, p, file, everyFinding(e.Rules), strings.TrimPrefix(p, file+":")))
 			}
 		}
 	}

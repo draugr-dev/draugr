@@ -37,8 +37,8 @@ func TestAnExclusionPathWithALineIsRefusedWithTheFileToWrite(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatalf("errors = %v, want one", errs)
 	}
-	const want = `config.exclude[0]: paths[0] "deploy/x/rbac.yaml:18" names a line, and paths match files. ` +
-		`Write "deploy/x/rbac.yaml", which covers every KSV-0041 finding in that file`
+	const want = `config.exclude[0]: paths[0] "deploy/x/rbac.yaml:18" names a line, and paths match whole files. ` +
+		`Write "deploy/x/rbac.yaml", which sets aside every KSV-0041 finding in the file, not only line 18`
 	if got := errs[0].Error(); got != want {
 		t.Errorf("message:\n got %s\nwant %s", got, want)
 	}
@@ -57,9 +57,9 @@ func TestTheRefusalSaysWhatTheFileAloneWouldCover(t *testing.T) {
 		rules []string
 		want  string
 	}{
-		{nil, "covers every finding in that file"},
-		{[]string{"KSV-0041", "KSV-0046"}, "covers every KSV-0041 or KSV-0046 finding in that file"},
-		{[]string{"A", "B", "C"}, "covers every A, B or C finding in that file"},
+		{nil, "sets aside every finding in the file"},
+		{[]string{"KSV-0041", "KSV-0046"}, "sets aside every KSV-0041 or KSV-0046 finding in the file"},
+		{[]string{"A", "B", "C"}, "sets aside every A, B or C finding in the file"},
 	} {
 		errs := lineErrors([]string{root}, tc.rules, "a.yaml:3")
 		if len(errs) != 1 || !strings.Contains(errs[0].Error(), tc.want) {
