@@ -152,6 +152,62 @@ func TestInitProposesIgnoringDocsExamplesAndTests(t *testing.T) {
 	}
 }
 
+// A SARIF file in the tree and one a CI step writes each get a FOUND row naming where init saw them,
+// in init's console and in a zero-config scan's report, which reads none of them. Draugr's own
+// report is neither.
+func TestInitNamesTheSARIFItProposesImporting(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"go.mod":                    "module shop\n\nrequire golang.org/x/text v0.3.0\n",
+		"reports/semgrep.sarif":     `{"runs": [{"tool": {"driver": {"name": "Semgrep OSS"}}}]}`,
+		".draugr/out/results.sarif": `{"runs": [{"tool": {"driver": {"name": "Draugr"}}}]}`,
+		".github/workflows/scan.yml": "jobs:\n  scan:\n    steps:\n" +
+			"      - run: trivy fs --format sarif -o trivy.sarif .\n" +
+			"      - uses: github/codeql-action/upload-sarif@v3\n        with:\n          sarif_file: trivy.sarif\n",
+		".gitlab-ci.yml": "bandit:\n  script: bandit -r app -f sarif -o bandit.sarif\n",
+	}
+	got, console := runInitIn(t, files, initOptions{})
+	for _, want := range []string{
+		"    #   - control: sast   # Semgrep · in the tree\n    #     file: reports/semgrep.sarif\n",
+		"    #   - control: sca    # Trivy · .github/workflows/scan.yml\n    #     file: trivy.sarif   # not in the tree",
+		"    #   - control: sast   # Bandit · .gitlab-ci.yml\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("descriptor missing %q:\n%s", want, got)
+		}
+	}
+	for _, want := range []string{
+		"  SARIF          reports/semgrep.sarif                        imports, commented\n",
+		"  SARIF from CI  .github/workflows/scan.yml · .gitlab-ci.yml  imports, commented\n",
+	} {
+		if !strings.Contains(console, want) {
+			t.Errorf("console missing %q:\n%s", want, console)
+		}
+	}
+	if strings.Contains(got+console, "results.sarif") {
+		t.Errorf("Draugr's own report is proposed:\n%s\n%s", got, console)
+	}
+
+	dir := t.TempDir()
+	layout(t, dir, files)
+	zc, err := synthesize(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if imports := zc.model.Components[0].Imports; len(imports) != 0 {
+		t.Errorf("zero-config imports = %+v, want none: init writes them commented out", imports)
+	}
+	var did []string
+	for _, f := range zc.found() {
+		if strings.HasPrefix(f.Kind, "SARIF") {
+			did = append(did, f.Kind+": "+f.Did)
+		}
+	}
+	if want := []string{"SARIF: imports off", "SARIF from CI: imports off"}; strings.Join(did, "\n") != strings.Join(want, "\n") {
+		t.Errorf("zero-config FOUND says %q, want %q", did, want)
+	}
+}
+
 // --per-directory on a tree with no parts cannot do what it was asked, and says so rather than
 // writing one component in silence.
 func TestInitPerDirectoryWithNoPartsSaysSo(t *testing.T) {

@@ -192,6 +192,7 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 | An OpenAPI or Swagger document | a commented host with `spec: path:` pointing at it |
 | A dependency file with no lockfile, or with no exact version | a comment on the component, and a row under `UNREAD` |
 | A directory of docs, examples or tests, by the names [Non-shipping paths](saga-schema.md#non-shipping-paths) lists | an `ignore` line for it, with a comment |
+| A `*.sarif` file, or a CI step that writes or uploads SARIF | a commented [`imports`](saga-schema.md#componentsimports) entry, with the control its findings go in |
 
 The console lists what was found under `FOUND` and the dependency files no scanner can take
 packages from under `UNREAD`.
@@ -220,6 +221,49 @@ components:
 An existing descriptor is not changed. Whether or not the lines are uncommented, the scan marks a
 finding under one of these directories and lists it after the shipped code's, as
 [Non-shipping paths](saga-schema.md#non-shipping-paths) describes.
+
+A SARIF file another tool wrote is proposed as an [import](saga-schema.md#componentsimports),
+commented out, because an import changes what a scan reads and what can fail it. init reads the
+`*.sarif` files in the tree, and the steps of each workflow under `.github/workflows/` and of
+`.gitlab-ci.yml` that write or upload SARIF:
+
+- a step using an `upload-sarif` action, such as `github/codeql-action/upload-sarif`, which names
+  the file in `sarif_file`
+- CodeQL's `analyze` action
+- a command with `--sarif`, or with a format flag such as `--format`, `-f`, `-o` or `--output` set
+  to `sarif`
+- an action input whose name holds `format` set to `sarif`, or that holds such a command
+
+The file is the `.sarif` path the step names. Each entry names the control the tool's findings go in:
+
+| Tool | Control |
+|---|---|
+| CodeQL, Semgrep, gosec, Bandit, Snyk Code | `sast` |
+| Trivy, Grype, OSV-Scanner, Snyk Open Source, Snyk Container, dependency-check | `sca` |
+| Trivy `config`, Checkov, KICS, Snyk IaC | `iac` |
+
+A tool init does not know is proposed under `sast`, with a comment saying to check it. A file the tree
+holds names its tool in its own `tool.driver.name`. A file a CI step writes and the tree does not
+hold carries a comment to point `file:` at where the CI writes it, since an import reads a local
+file. A step that names no file gets `file: ""`, which Draugr refuses until somebody fills it in.
+The `FOUND` block lists the files under `SARIF` and the CI files under `SARIF from CI`.
+
+```yaml
+components:
+  - name: shop
+    repositories:
+      - url: .
+    # imports:          # SARIF another tool wrote. Uncommenting one changes what a scan reads
+    #   - control: sast   # Semgrep · in the tree
+    #     file: reports/semgrep.sarif
+    #   - control: sca    # Trivy · .github/workflows/scan.yml
+    #     file: trivy.sarif   # not in the tree · point it at where the CI writes it; an import reads a local file
+```
+
+Draugr's own output is not proposed: anything under `.draugr/`, and a file whose tool is Draugr,
+wherever `-o` wrote it. Neither is a SARIF file under a directory of docs, examples or tests, which
+holds a fixture rather than a report on this code. With `--per-directory`, an entry goes on the
+component whose directory holds the file, or the directory the step runs in.
 
 The descriptor is written to `[dir]/draugr.saga.yaml`, with `url: .`, and its `Next:` commands
 `cd [dir]` first when it is not the working directory. With `-o` outside `[dir]`, or `-o -`, the

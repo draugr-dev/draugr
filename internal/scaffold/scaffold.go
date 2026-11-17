@@ -201,6 +201,7 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
 		b.WriteString("    # `draugr init --per-directory` writes a component for each.\n")
 	}
+	writeImports(&b, t.SARIF, url)
 	writeSurfaceStubs(&b, t, name, len(t.Dockerfiles) > 0)
 	return b.String()
 }
@@ -253,6 +254,7 @@ func writePerDirectory(b *strings.Builder, t inventory.Tree, project, url string
 	fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(project), Scalar(url))
 	writeIgnore(b, topParts(t.Parts), ownedNonShipping(t.NonShipping, ".", t.Parts))
 	writeUnresolvedFor(b, t.Unresolved, ".", t.Parts)
+	writeImports(b, ownedSARIF(t.SARIF, ".", t.Parts), url)
 	// Each image stub goes on the component whose directory holds the Dockerfile. An image is
 	// ranked under the exposure and criticality of the component that declares it, so a stub for
 	// a sub-app's Dockerfile left on the root component would, once uncommented, file that
@@ -266,6 +268,7 @@ func writePerDirectory(b *strings.Builder, t inventory.Tree, project, url string
 		fmt.Fprintf(b, "  - name: %s\n    repositories:\n      - url: %s\n        paths: [%s]\n", Scalar(names[p]), Scalar(url), Scalar(p))
 		writeIgnore(b, beneath(p, t.Parts), ownedNonShipping(t.NonShipping, p, t.Parts))
 		writeUnresolvedFor(b, t.Unresolved, p, t.Parts)
+		writeImports(b, ownedSARIF(t.SARIF, p, t.Parts), url)
 		if built[p] {
 			writeImageStub(b, names[p])
 		}

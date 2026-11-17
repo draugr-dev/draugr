@@ -123,6 +123,23 @@ func foundRows(t inventory.Tree) []foundRow {
 		rows = append(rows, foundRow{kind: "OpenAPI", paths: t.OpenAPI,
 			commented: "hosts spec", off: "dast"})
 	}
+	// The scaffold proposes an import for each SARIF file, commented out, and a scan with no
+	// descriptor reads none of them.
+	var inTree, workflows []string
+	for _, s := range t.SARIF {
+		switch {
+		case s.InTree:
+			inTree = append(inTree, s.Path)
+		case !slices.Contains(workflows, s.Workflow):
+			workflows = append(workflows, s.Workflow)
+		}
+	}
+	if len(inTree) > 0 {
+		rows = append(rows, foundRow{kind: "SARIF", paths: inTree, commented: "imports", off: "imports"})
+	}
+	if len(workflows) > 0 {
+		rows = append(rows, foundRow{kind: "SARIF from CI", paths: workflows, commented: "imports", off: "imports"})
+	}
 	if len(t.NonShipping) > 0 {
 		// Last, because it takes files out of what the rows above turn scanners on for.
 		rows = append(rows, foundRow{kind: "docs, examples, tests", paths: t.NonShipping, ignored: true})

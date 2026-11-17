@@ -1,5 +1,6 @@
 // Package inventory lists what a source tree holds that a control has something to say about:
-// dependency files, vendored JavaScript, infrastructure code, Dockerfiles and API documents.
+// dependency files, vendored JavaScript, infrastructure code, Dockerfiles, API documents, and SARIF
+// files another tool wrote, in the tree or from a CI step.
 //
 // It is what `draugr init` reads to decide what a descriptor enables. Dependency files come from
 // internal/manifests, so the files init proposes a scanner for are the files a scan later accounts
@@ -59,6 +60,10 @@ type Tree struct {
 	// internal/nonshipping lists, outermost only: `test/` and not `test/integration/testdata/` beneath
 	// it. A directory under vendor/ is someone else's and is left out.
 	NonShipping []string
+	// SARIF are the SARIF files another tool wrote that a descriptor could import: the ones in the
+	// tree, then the ones a CI step writes or uploads that the tree does not hold. Draugr's own output
+	// and files under NonShipping are left out.
+	SARIF []SARIF
 }
 
 // trivyUnread names the dependency files Trivy's filesystem scan does not parse and Grype's does.
@@ -102,7 +107,7 @@ func Read(root string) Tree {
 	}
 
 	terraform, helm, goMods := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	var yamls, nonShipping []string
+	var yamls, nonShipping, sarifs []string
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // an unreadable subtree holds nothing init can propose for
@@ -142,6 +147,8 @@ func Read(root string) Tree {
 			helm[path.Dir(rel)] = true
 		case strings.HasSuffix(base, ".tf"):
 			terraform[path.Dir(rel)] = true
+		case strings.HasSuffix(base, ".sarif"):
+			sarifs = append(sarifs, rel)
 		case strings.HasSuffix(base, ".js"):
 			if isVendoredJS(rel) {
 				t.VendoredJS = append(t.VendoredJS, rel)
@@ -187,6 +194,16 @@ func Read(root string) Tree {
 	slices.Sort(t.VendoredJS)
 	slices.Sort(t.OpenAPI)
 	slices.Sort(t.Kubernetes)
+
+	var workflows []string
+	for _, rel := range yamls {
+		if isWorkflow(rel) {
+			workflows = append(workflows, rel)
+		}
+	}
+	slices.Sort(workflows)
+	inTree := sarifInTree(root, sarifs, t.NonShipping)
+	t.SARIF = append(inTree, sarifInCI(root, workflows, inTree)...)
 	return t
 }
 

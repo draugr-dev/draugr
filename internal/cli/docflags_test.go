@@ -41,6 +41,8 @@ var docFlag = regexp.MustCompile("(?:^|[\\s`(\\[])(--[a-z][a-z0-9]*(?:-[a-z0-9]+
 // #nosec G101 -- flag names and whose tool each belongs to. One of them ends in "token" because
 // that is what the flag is called; no value from a credential is in this file.
 var notOurs = map[string]string{
+	// Semgrep's, named where init explains which CI steps write SARIF.
+	"--sarif": "Semgrep's",
 	// Trivy's, quoted where a scanner's own behavior, caching or air-gapped setup is explained.
 	"--exit-code":         "Trivy's",
 	"--severity":          "Trivy's",
