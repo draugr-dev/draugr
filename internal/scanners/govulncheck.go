@@ -438,6 +438,10 @@ type govulncheckConfig struct {
 	ScanLevel string `json:"scan_level"`
 	// ScanMode is "source" or "binary".
 	ScanMode string `json:"scan_mode"`
+	// ScannerName and ScannerVersion name the govulncheck that wrote the stream, which an imported
+	// file is reported under.
+	ScannerName    string `json:"scanner_name"`
+	ScannerVersion string `json:"scanner_version"`
 }
 
 // govulncheckSBOM lists what the analysis actually covered.

@@ -21,11 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/registry"
+	"github.com/draugr-dev/draugr/internal/scanners"
 	"github.com/draugr-dev/draugr/pkg/plugin"
-	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // Status is how a check ended.
@@ -158,12 +157,14 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 			})
 		case plugin.FileTarget:
 			// A file read in place: present and readable is the question, and it needs no network.
-			if seen["file:"+t.Path] {
+			// Once per file and format, as one file imported twice is read by each import's reader.
+			key := "file:" + t.Format + ":" + t.Path
+			if seen[key] {
 				continue
 			}
-			seen["file:"+t.Path] = true
-			path := t.Path
-			units = append(units, func(context.Context) []Check { return []Check{fileCheck(path)} })
+			seen[key] = true
+			path, format := t.Path, t.Format
+			units = append(units, func(context.Context) []Check { return []Check{fileCheck(path, format)} })
 		default:
 			id := string(t.Kind()) + ":" + t.Identity()
 			if seen[id] {
@@ -477,9 +478,9 @@ func reason(err error, rawURL string) string {
 	return strings.TrimPrefix(line, "fatal: ")
 }
 
-// fileCheck is whether an imported file is there to read, and whether it is SARIF 2.1.0: the scan
-// stops on either, so the preflight says so first.
-func fileCheck(path string) Check {
+// fileCheck is whether an imported file is there to read, and whether it is the format the import
+// names, SARIF 2.1.0 where it names none: the scan stops on either, so the preflight says so first.
+func fileCheck(path, format string) Check {
 	c := Check{Kind: string(plugin.TargetFile), Target: path}
 	data, err := os.ReadFile(path) // #nosec G304 -- a file the descriptor names for import
 	if err != nil {
@@ -487,11 +488,11 @@ func fileCheck(path string) Check {
 		return c
 	}
 	// The reader the scan uses, so a file the scan would refuse fails here with the same words.
-	rep, _, err := sarif.FromForeignSARIF(data, nil)
+	detail, err := scanners.DescribeImport(data, format)
 	if err != nil {
 		c.Status, c.Detail = Failed, err.Error()
 		return c
 	}
-	c.Status, c.Detail = Passed, "SARIF 2.1.0, "+english.Count(len(rep.Results), "result")
+	c.Status, c.Detail = Passed, detail
 	return c
 }

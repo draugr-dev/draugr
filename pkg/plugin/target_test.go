@@ -380,4 +380,13 @@ func TestFileTargetKeysOnItsContent(t *testing.T) {
 	if len(keys) != 4 {
 		t.Errorf("%d cache keys for four commits, want four", len(keys))
 	}
+	// One file read by two readers is two answers, and SARIF named or not keys as it did before
+	// formats existed.
+	formats := map[CacheKey]bool{}
+	for _, format := range []string{"", "sarif", "trivy-json", "govulncheck-json"} {
+		formats[ComputeCacheKey(ImportScanner, "1", FileTarget{Path: a.Path, Digest: a.Digest, Format: format}, nil)] = true
+	}
+	if len(formats) != 3 {
+		t.Errorf("%d cache keys for SARIF, SARIF named, and two tools' JSON, want three", len(formats))
+	}
 }

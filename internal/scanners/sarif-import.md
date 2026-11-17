@@ -1,15 +1,15 @@
 ---
 title: "sarif-import"
-description: "Reads a SARIF file another tool wrote into one of Draugr's controls, so its findings are ranked and gated with the rest."
+description: "Reads a SARIF file, or Trivy's or govulncheck's own JSON, that another tool wrote into one of Draugr's controls, so its findings are ranked and gated with the rest."
 section: Scanners
 order: 90
 ---
 
-# Scanner: `sarif-import` (reads a SARIF file another tool wrote)
+# Scanner: `sarif-import` (reads a file another tool wrote)
 
 - **Control:** the control each import names in [`components[].imports`](../../docs/reference/saga-schema.md#componentsimports)
 - **Tool:** none. Draugr reads a file; the tool that wrote it ran somewhere else.
-- **Target:** file (a SARIF 2.1.0 log)
+- **Target:** file (a SARIF 2.1.0 log, or a tool's own JSON as [A tool's own JSON](#a-tools-own-json) lists)
 - **Effects:** none
 - **Status:** ✅ implemented
 
@@ -23,7 +23,8 @@ Each finding then takes the component's exposure and criticality into its priori
 the gate, and appears in the fix list and every report. [Before you import](#before-you-import) lists
 what to set up first.
 
-The file is read as SARIF 2.1.0:
+The file is read as SARIF 2.1.0 unless the import's `format` names a tool's own JSON, which
+[A tool's own JSON](#a-tools-own-json) describes:
 
 - **Severity** comes from each result's `security-severity` property, a CVSS-style score written as
   a string such as `"7.5"`, the convention GitHub code scanning reads, or as a number. A result with
@@ -113,6 +114,49 @@ CVE, reaches neither. A note under the KEV row of **Signals** counts each import
 names a package or an advisory and no CVE, as in
 `not checked against KEV or EPSS: 9 imported findings name no CVE`.
 
+## A tool's own JSON
+
+A dependency scanner's SARIF states the package and its fixed version in prose, if at all, and
+govulncheck's carries no call path. The import's
+[`format`](../../docs/reference/saga-schema.md#componentsimports) reads the tool's own JSON instead,
+with the parser Draugr's own run of that tool uses, so an imported finding is the finding a native
+run makes of the same file.
+
+| `format` | The file | Read as | Each finding carries |
+|---|---|---|---|
+| `sarif` | a SARIF 2.1.0 log, from any tool (the default) | this page describes | what the file states, as [Dependency findings](#dependency-findings) lists |
+| `trivy-json` | `trivy fs --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded |
+| `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
+
+- **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
+  for it, else by Trivy's own severity, `CRITICAL` and `HIGH` as high, `MEDIUM` as medium, `LOW` as
+  low. The Go vulnerability database publishes no severity, so a govulncheck finding is medium, as
+  a native one is. The tables in [Each tool's own rating](#each-tools-own-rating) read SARIF and do
+  not apply, and the descriptor refuses an import's `severity` beside a tool's JSON.
+- **The checkout is read only to place a finding.** Where the component has one repository and its
+  `url` is a path, the parsers read that checkout as a native run reads its own: Trivy's for the
+  line of a package's entry in its manifest, govulncheck's for the `go.mod` of each module, matched
+  from the packages each run started from. With several repositories, or a remote address, a Trivy
+  finding has the line Trivy recorded or none, and a govulncheck finding is at `go.mod`.
+- **What a native run reads of this machine is left out.** Trivy's list of every package and of the
+  dependency files it read, and govulncheck's runs per platform and its mark on a requirement no
+  run compiled, describe the build of the machine that ran them. A file written on another machine
+  says nothing about this one's.
+- **A verdict needs nothing but the file.** Reachable is a call path the run found. Unreachable
+  needs a run that analyzed symbols, as govulncheck does by default, and listed the module in what
+  it built; a run with `-scan module` or `-scan package` leaves every verdict undetermined. The
+  verdict reaches another scanner's finding of the same advisory in the same `go.mod` and
+  repository, as a native run's does, and the imported copy is then folded into it. It is dated by
+  the file's modification time, and it is not narrowed to the call paths that start in the
+  component's `paths:`.
+- **The file names no commit or repository.** Only the import's `commit` binds it, and only in a
+  component of one repository (see [Commit](#commit)). In a component of several, its findings are
+  placed in none: they merge with no native copy, `paths:` and `ignore:` do not apply, and the file
+  is unbound. Import it into a component of one repository to place it.
+- **The report names the format beside the tool**, under **Measured against** as
+  `tool: trivy 0.76.1 · format: trivy-json`, and on a merged finding as
+  `also found by imported trivy (trivy-json)`.
+
 ## Merging with the control's scanners
 
 An imported finding that the control's own scanner also reports is counted once. The copy with the
@@ -189,9 +233,10 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | Field | Value |
 |---|---|
 | `tool` | the tool's name and version, as the file states them |
+| `format` | the import's `format`, where it is a tool's own JSON. Absent for SARIF |
 | `file` | the path the descriptor gave |
-| `written` | when the file says its run ended (`invocations[].endTimeUtc`), or else the file's modification time |
-| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5` |
+| `written` | when the file says its run ended (`invocations[].endTimeUtc`, or `CreatedAt` in Trivy's JSON), or else the file's modification time |
+| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5`. For a tool's own JSON, `CVSS score` and `Trivy's severity`, or `govulncheck states none, read as medium` |
 | `commit` | the commit the file was checked against, or `not stated`. Where the import's `commit` could not bind the file, why, as `not stated, ${{ GITHUB_SHA }} is not set` or `not stated, the file does not say which repository 0123456789ab is in` |
 | `component` | the component that imports it |
 | `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |
@@ -409,6 +454,10 @@ repositories, the address has to name one of them. The import's `commit` names n
 with several it is held to the one the file's `repositoryUri` names, and a file that names none of
 them, or more than one, stays unbound.
 
+A tool's own JSON states no commit and no repository, so the import's `commit` is the only binding,
+and with several distinct repositories the file stays unbound, `commit` reading `not stated,
+trivy-json names no repository, and the component has several`.
+
 ## Errors
 
 A file that is missing, unreadable, empty, not SARIF, a SARIF version other than 2.1.0, or a log
@@ -425,8 +474,18 @@ A file is also unreadable where:
 The error names the run and the result, counted from 1, as in `run 1, result 3: ruleIndex 7 is not an
 entry of tool.driver.rules, which has 4 rules (0 to 3)`.
 
+A file read as a tool's own JSON is refused where it is not that JSON, rather than read as a scan
+that found nothing:
+
+- `not Trivy JSON. Write it with trivy fs --format json`, for a file with no `SchemaVersion`, such
+  as a SARIF log or a CycloneDX document;
+- `schema 3 of Trivy JSON, and Draugr reads schema 2`, for a report in a schema Draugr does not read;
+- `not govulncheck JSON. Write it with govulncheck -format json`, for a stream whose runs do not
+  each open with govulncheck's `config` message.
+
 `draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor
-with the same message, and a file that passes reports how many results it holds. Doctor does not
+with the same message, and a file that passes reports how many results it holds, as
+`SARIF 2.1.0, 3 results` or `Trivy JSON, 4 findings`. Doctor does not
 compare paths with the component's checkout, and does not hold the file to a commit: the scan lists
 a path it cannot place under `unread-files`, and stops on a file named for another commit.
 

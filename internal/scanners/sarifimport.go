@@ -19,12 +19,14 @@ import (
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// sarifImport reads a SARIF file another tool wrote about a component, in place of running a
-// scanner: a commercial scanner a team already pays for, whose findings should be ranked by the
-// component's exposure and criticality and judged by the same gate as everything Draugr runs.
+// sarifImport reads a SARIF file another tool wrote about a component, or a tool's own JSON where
+// Draugr has a reader for it (importReaders), in place of running a scanner: a commercial scanner a
+// team already pays for, whose findings should be ranked by the component's exposure and criticality
+// and judged by the same gate as everything Draugr runs.
 //
 // It runs nothing, so it has no tool to install and no third party's terms to read. What it owes
 // the reader instead is an account of the file: whose it is, when it was written, which revision it
@@ -48,36 +50,100 @@ func (sarifImport) Info() plugin.ScannerInfo {
 	}
 }
 
-// importLog is the part of a SARIF log the import reads for itself: what FromForeignSARIF does not keep.
+// importLog is the part of a SARIF log the import reads for itself: what FromForeignSARIF does not
+// keep. A reader of a tool's own JSON writes one for the file, from what the file states.
 type importLog struct {
+	Version string      `json:"version"`
+	Runs    []importRun `json:"runs"`
+}
+
+// importRun is one run of a tool, as importLog reads it.
+type importRun struct {
+	Tool struct {
+		Driver importDriver `json:"driver"`
+	} `json:"tool"`
+	Invocations              []importInvocation `json:"invocations"`
+	VersionControlProvenance []struct {
+		RepositoryURI string `json:"repositoryUri"`
+		RevisionID    string `json:"revisionId"`
+	} `json:"versionControlProvenance"`
+	// Results are counted, not read: FromForeignSARIF returns every run's results in order, and
+	// the count says which of them a run's provenance describes.
+	Results []json.RawMessage `json:"results"`
+}
+
+// importInvocation is one invocation of a run's tool, read for when it ended.
+type importInvocation struct {
+	EndTimeUTC string `json:"endTimeUtc"`
+}
+
+// importDriver is the tool a run names.
+type importDriver struct {
+	Name    string `json:"name"`
 	Version string `json:"version"`
-	Runs    []struct {
-		Tool struct {
-			Driver struct {
-				Name    string `json:"name"`
-				Version string `json:"version"`
-				// SemanticVersion is the other place SARIF lets a tool put its version.
-				SemanticVersion string `json:"semanticVersion"`
-			} `json:"driver"`
-		} `json:"tool"`
-		Invocations []struct {
-			EndTimeUTC string `json:"endTimeUtc"`
-		} `json:"invocations"`
-		VersionControlProvenance []struct {
-			RepositoryURI string `json:"repositoryUri"`
-			RevisionID    string `json:"revisionId"`
-		} `json:"versionControlProvenance"`
-		// Results are counted, not read: FromForeignSARIF returns every run's results in order, and
-		// the count says which of them a run's provenance describes.
-		Results []json.RawMessage `json:"results"`
-	} `json:"runs"`
+	// SemanticVersion is the other place SARIF lets a tool put its version.
+	SemanticVersion string `json:"semanticVersion"`
 }
 
 // notStated is the commit field's value for a file that names none, which the report lists as an
 // unbound import.
 const notStated = "not stated"
 
-// Scan reads the file. Anything that keeps it from being read as SARIF 2.1.0 is an error, as for a
+// importRead is what a format's reader makes of a file: the findings, and the account of the file the
+// rest of the import holds it to.
+type importRead struct {
+	rep sarif.Report
+	// outside are the findings' paths that are absolute and in no local checkout of the component.
+	outside []string
+	// meta is the file's runs, each with the tool, when it ended, the repository and commit it names,
+	// and how many of rep's results are its own.
+	meta importLog
+	// rated names, for each result, the rating its severity was read from, "" for its level.
+	rated []string
+	// scored names where a result's numeric score came from, for the severity field.
+	scored string
+}
+
+// importReader reads one format, given the file's contents and the import it is read for.
+type importReader func(data []byte, ft plugin.FileTarget) (importRead, error)
+
+// importReaders are the formats an import reads, by the name the descriptor gives them. A tool's own
+// JSON is read with the parser Draugr's run of that tool uses, so a finding carries what a native one
+// does; a new format is a reader here and a name in saga.ImportFormats.
+var importReaders = map[string]importReader{
+	saga.ImportFormatSARIF:           readSARIFImport,
+	saga.ImportFormatTrivyJSON:       readTrivyImport,
+	saga.ImportFormatGovulncheckJSON: readGovulncheckImport,
+}
+
+// readImport reads data as the format ft names.
+func readImport(data []byte, ft plugin.FileTarget) (importRead, error) {
+	format := cmp.Or(ft.Format, saga.ImportFormatSARIF)
+	read, ok := importReaders[format]
+	if !ok {
+		return importRead{}, fmt.Errorf("format %s is not one of %s", format, strings.Join(saga.ImportFormats, ", "))
+	}
+	return read(data, ft)
+}
+
+// readSARIFImport reads a SARIF 2.1.0 log.
+func readSARIFImport(data []byte, ft plugin.FileTarget) (importRead, error) {
+	rep, outside, err := sarif.FromForeignSARIF(data, checkoutRoots(ft.Repositories))
+	if err != nil {
+		return importRead{}, err
+	}
+	var meta importLog
+	if err := json.Unmarshal(data, &meta); err != nil {
+		return importRead{}, err
+	}
+	rated, err := rateImported(&rep, data, ft.Severity)
+	if err != nil {
+		return importRead{}, err
+	}
+	return importRead{rep: rep, outside: outside, meta: meta, rated: rated, scored: "security-severity"}, nil
+}
+
+// Scan reads the file. Anything that keeps it from being read as its format is an error, as for a
 // scanner that could not run: a missing file contributes no findings, which is exactly what a clean
 // one contributes, and the two must not look alike.
 func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
@@ -92,43 +158,45 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if len(bytes.TrimSpace(data)) == 0 {
 		return sarif.Report{}, fmt.Errorf("%s: %s is empty", plugin.ImportScanner, ft.Path)
 	}
-	rep, outside, err := sarif.FromForeignSARIF(data, checkoutRoots(ft.Repositories))
+	read, err := readImport(data, ft)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
 	}
-	var meta importLog
-	if err := json.Unmarshal(data, &meta); err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
-	}
-	rated, err := rateImported(&rep, data, ft.Severity)
-	if err != nil {
-		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
-	}
+	rep, meta, rated := read.rep, read.meta, read.rated
 	revision, err := s.bind(ctx, ft, meta)
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", plugin.ImportScanner, err)
 	}
 	placeImported(rep.Results, meta, ft.Repositories)
-	keep, scoped := scopeImported(rep.Results, outside, ft.Repositories)
+	keep, scoped := scopeImported(rep.Results, read.outside, ft.Repositories)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
+	ownJSON := toolJSON(ft)
+	for i := range rep.Results {
+		rep.Results[i].ImportFormat = ownJSON
+	}
 
 	sum := sha256.Sum256(data)
 	// What a reader needs first leads, and the digest, which a reader checks rather than reads,
-	// comes last: the console cuts a long line short from the end.
-	fields := []sarif.Field{
-		{Key: "tool", Value: toolsOf(meta)},
-		{Key: "file", Value: ft.Path},
-		{Key: "written", Value: writtenAt(ft.Path, meta)},
-		{Key: "severity", Value: severitySource(rep, rated)},
-		{Key: "commit", Value: revision},
+	// comes last: the console cuts a long line short from the end. The format is beside the tool,
+	// and only where it is the tool's own JSON, so a SARIF import reads as it always did.
+	fields := []sarif.Field{{Key: "tool", Value: toolsOf(meta)}}
+	if ownJSON != "" {
+		fields = append(fields, sarif.Field{Key: "format", Value: ownJSON})
 	}
+	fields = append(fields,
+		sarif.Field{Key: "file", Value: ft.Path},
+		sarif.Field{Key: "written", Value: writtenAt(ft.Path, meta)},
+		sarif.Field{Key: "severity", Value: severitySource(rep, rated, read.scored)},
+		sarif.Field{Key: "commit", Value: revision},
+	)
 	if ft.Component != "" {
 		fields = append(fields, sarif.Field{Key: "component", Value: ft.Component})
 	}
+	scoped.ownJSON = ownJSON
 	fields = append(fields, scoped.fields()...)
 	fields = append(fields, sarif.Field{Key: "sha256", Value: hex.EncodeToString(sum[:])})
 	rep.Provenance = append(rep.Provenance, sarif.Provenance{Tool: plugin.ImportScanner, Fields: fields, Detail: scoped.detail()})
-	for _, p := range outside {
+	for _, p := range read.outside {
 		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: outsideCheckout})
 	}
 	return rep, nil
@@ -250,10 +318,21 @@ func unbound(ft plugin.FileTarget) string {
 	switch {
 	case ft.CommitUnset != "":
 		return notStated + ", ${{ " + ft.CommitUnset + " }} is not set"
+	case ft.Commit != "" && toolJSON(ft) != "":
+		// A tool's own JSON names no repository, so with several nothing says which one commit is in.
+		return notStated + ", " + toolJSON(ft) + " names no repository, and the component has several"
 	case ft.Commit != "":
 		return notStated + ", the file names none or several of the component's repositories"
 	}
 	return notStated
+}
+
+// toolJSON is the format of a file that is a tool's own JSON rather than SARIF, and "" for SARIF.
+func toolJSON(ft plugin.FileTarget) string {
+	if ft.Format == saga.ImportFormatSARIF {
+		return ""
+	}
+	return ft.Format
 }
 
 // placeImported sets each finding's ImportedRepository to the repository of the component its run
@@ -296,6 +375,9 @@ type importScope struct {
 	// notScoped are the findings kept whole because no one repository was established for them, in a
 	// component whose repositories declare a scope.
 	notScoped int
+	// ownJSON is the file's format where it is a tool's own JSON, which has nowhere to name a
+	// repository, so the remedy for findings not scoped is another component rather than the file.
+	ownJSON string
 }
 
 // fields are the provenance's statements of the counts, for a reader: none where nothing was left
@@ -317,8 +399,12 @@ func (s importScope) fields() []sarif.Field {
 		out = append(out, sarif.Field{Key: "left out", Value: strings.Join(left, ", ") + ", not counted"})
 	}
 	if s.notScoped > 0 {
+		remedy := "Add versionControlProvenance to the file"
+		if s.ownJSON != "" {
+			remedy = "Import " + s.ownJSON + " in a component with one repository"
+		}
 		out = append(out, sarif.Field{Key: "not scoped", Value: english.Count(s.notScoped, "finding") +
-			", not in any one repository, so paths and ignore were not applied. Add versionControlProvenance to the file"})
+			", not in any one repository, so paths and ignore were not applied. " + remedy})
 	}
 	return out
 }
@@ -513,8 +599,9 @@ func writtenAt(file string, meta importLog) string {
 // severitySource says where the findings' severities came from: the numeric security-severity a
 // tool scores them with, the tool's own rating read by its table or the descriptor's mapping, or the
 // SARIF level, which a tool may use for something other than how bad a flaw is. A priority resting
-// on a level should say so. rated names the rating each result was read from, "" for none.
-func severitySource(rep sarif.Report, rated []string) string {
+// on a level should say so. rated names the rating each result was read from, "" for none, and
+// scored where a numeric score came from: security-severity in SARIF, a CVSS score in Trivy's JSON.
+func severitySource(rep sarif.Report, rated []string, scored string) string {
 	if len(rep.Results) == 0 {
 		return "no findings"
 	}
@@ -522,7 +609,7 @@ func severitySource(rep sarif.Report, rated []string) string {
 		name  string
 		count int
 	}
-	sources := []source{{name: "security-severity"}}
+	sources := []source{{name: scored}}
 	at := map[string]int{}
 	leveled := 0
 	for i, r := range rep.Results {

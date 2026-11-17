@@ -854,6 +854,24 @@ func validateCaveatKinds(kinds []CaveatKind, field string) []error {
 	return errs
 }
 
+// validateImportFormat refuses a format Draugr has no reader for, and a severity mapping on a format
+// it does not apply to. The mapping names a SARIF result property, and a tool's own JSON is rated as
+// Draugr's run of the tool rates it, so a mapping there would be ignored without a word.
+func validateImportFormat(imp Import, at string) []error {
+	switch {
+	case imp.Format == "" || slices.Contains(ImportFormats, imp.Format):
+	case slices.Contains(ImportFormats, strings.ToLower(imp.Format)):
+		return []error{lowercaseOnly(at+".format", imp.Format)}
+	default:
+		return []error{fmt.Errorf("%s.format %q is not one of %s", at, imp.Format, strings.Join(ImportFormats, ", "))}
+	}
+	if imp.Severity != nil && imp.ReadFormat() != ImportFormatSARIF {
+		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated as Draugr's own run "+
+			"of its tool rates it. Remove severity", at, imp.Format)}
+	}
+	return nil
+}
+
 // validateImports refuses an import without a control or a file, and one file imported twice into
 // the same control, which would count every finding in it twice. Whether the control exists is a
 // question for the registry, asked where control names are checked.
@@ -866,14 +884,15 @@ func validateImports(imports []Import, where string) []error {
 			errs = append(errs, fmt.Errorf("%s: control is required, the control its findings belong to", at))
 		}
 		if imp.File == "" {
-			errs = append(errs, fmt.Errorf("%s: file is required, the SARIF file to read", at))
+			errs = append(errs, fmt.Errorf("%s: file is required, the file to read", at))
 		}
 		key := [2]string{imp.Control, imp.File}
 		if imp.Control != "" && imp.File != "" && seen[key] {
 			errs = append(errs, fmt.Errorf("%s: %s is imported into %s twice", at, imp.File, imp.Control))
 		}
 		seen[key] = true
-		if imp.Severity != nil {
+		errs = append(errs, validateImportFormat(imp, at)...)
+		if imp.Severity != nil && imp.ReadFormat() == ImportFormatSARIF {
 			errs = append(errs, validateImportSeverity(*imp.Severity, at+".severity")...)
 		}
 		errs = append(errs, validateImportCommit(imp, at)...)

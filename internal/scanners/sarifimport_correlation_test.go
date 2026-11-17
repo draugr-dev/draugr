@@ -57,10 +57,11 @@ func importTestdata(t *testing.T, name string) []byte {
 }
 
 // importComponent is one component as runBesideImport declares it: its repositories by name, each
-// a directory of its own, those that hold semgrepApp, and the file it imports.
+// a directory of its own, those that hold semgrepApp, and the file it imports, in format where it
+// names one.
 type importComponent struct {
 	repos, withApp []string
-	file           string
+	file, format   string
 }
 
 // twoComponents is api and web, each in a repository of its own holding semgrepApp, each importing
@@ -104,7 +105,7 @@ func runBesideImport(t *testing.T, control plugin.Controller, scanner plugin.Sca
 			repos = append(repos, saga.Repository{URL: dir})
 		}
 		model.Components = append(model.Components, saga.Component{
-			Name: comp, Repositories: repos, Imports: []saga.Import{{Control: name, File: c.file}},
+			Name: comp, Repositories: repos, Imports: []saga.Import{{Control: name, File: c.file, Format: c.format}},
 		})
 	}
 	res, err := engine.New(reg).Run(context.Background(), model)

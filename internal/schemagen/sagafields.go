@@ -184,8 +184,8 @@ func sagaFields() map[string]map[string]any {
 				"findings.",
 		},
 		"component.imports": {
-			"description": "SARIF files another tool wrote about this component, each read into a control and ranked " +
-				"and gated like the rest.",
+			"description": "Files another tool wrote about this component, SARIF or the tool's own JSON, each read into " +
+				"a control and ranked and gated like the rest.",
 		},
 		"config.controls": {
 			"description": "Which controls run here, and what each is told. Named for what you meet everywhere else: " +
@@ -375,7 +375,7 @@ func sagaFields() map[string]map[string]any {
 						"not support."},
 					valueDoc{"unread-checks", "A cloud check the scan could not evaluate, or could evaluate only in part, because a read " +
 						"it needs was denied."},
-					valueDoc{"unbound-imports", "An imported SARIF file that states no revision, so nothing shows it describes the code " +
+					valueDoc{"unbound-imports", "An imported file that states no revision, so nothing shows it describes the code " +
 						"being scanned."},
 					valueDoc{"uncommitted-files", "A local repository with uncommitted changes the scan did not read, because it read the " +
 						"committed revision. --working-tree reads them."},
@@ -471,8 +471,19 @@ func sagaFields() map[string]map[string]any {
 			"description": "The control the file's findings belong to, such as sast or sca.",
 		},
 		"import.file": {
-			"description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
+			"description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names.",
 			"minLength":   1,
+		},
+		"import.format": {
+			"anyOf": vocab(saga.ImportFormats,
+				valueDoc{"sarif", "A SARIF 2.1.0 log, from any tool (default)."},
+				valueDoc{"trivy-json", "The JSON trivy fs --format json writes, read as Draugr's trivy-fs reads it, with each " +
+					"finding's package, installed and fixed version, and package URL."},
+				valueDoc{"govulncheck-json", "The stream govulncheck -format json writes, read as Draugr's govulncheck reads it, " +
+					"with each finding's module, fixed version and reachability verdict."},
+			),
+			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
+				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
@@ -482,7 +493,8 @@ func sagaFields() map[string]map[string]any {
 		},
 		"import.severity": {
 			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +
-				"Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it.",
+				"Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it. " +
+				"SARIF only.",
 		},
 		"importSeverity.property": {
 			"description": "The result property holding the tool's rating, read from the result and else from its rule.",
@@ -1026,7 +1038,7 @@ func sagaDefinitions() map[string]map[string]any {
 			"required": []any{"image"},
 		},
 		"import": {
-			"description": "A SARIF file another tool wrote about this component, read into one of Draugr's controls.",
+			"description": "A file another tool wrote about this component, read into one of Draugr's controls.",
 			"required":    []any{"control", "file"},
 		},
 		"importSeverity": {

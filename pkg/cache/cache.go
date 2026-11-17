@@ -74,6 +74,10 @@ type entry struct {
 	// carry one, kept for the reason Uses is: a cached import would otherwise lose the repository it
 	// is correlated in, and count a flaw twice that the same run uncached counts once.
 	ImportedRepositories map[int]string `json:"importedRepositories,omitempty"`
+	// ImportFormats is each result's Result.ImportFormat, by index, for the results that carry one,
+	// kept for the reason Uses is: a cached import of a tool's JSON would otherwise name its copy of
+	// a flaw as though it came from the tool's SARIF.
+	ImportFormats map[int]string `json:"importFormats,omitempty"`
 }
 
 // newEntry records which of a report's results carry a score, and each `uses:` reference.
@@ -95,12 +99,18 @@ func newEntry(report sarif.Report, at time.Time) entry {
 			}
 			e.ImportedRepositories[i] = r.ImportedRepository
 		}
+		if r.ImportFormat != "" {
+			if e.ImportFormats == nil {
+				e.ImportFormats = map[int]string{}
+			}
+			e.ImportFormats[i] = r.ImportFormat
+		}
 	}
 	return e
 }
 
-// restoreUses puts back each result's `uses:` reference and the repository an imported result is
-// about. An index past the results is ignored.
+// restoreUses puts back each result's `uses:` reference, and the repository an imported result is
+// about and the format it was read from. An index past the results is ignored.
 func (e *entry) restoreUses() {
 	for i, uses := range e.Uses {
 		if i >= 0 && i < len(e.Report.Results) {
@@ -110,6 +120,11 @@ func (e *entry) restoreUses() {
 	for i, repo := range e.ImportedRepositories {
 		if i >= 0 && i < len(e.Report.Results) {
 			e.Report.Results[i].ImportedRepository = repo
+		}
+	}
+	for i, format := range e.ImportFormats {
+		if i >= 0 && i < len(e.Report.Results) {
+			e.Report.Results[i].ImportFormat = format
 		}
 	}
 }
