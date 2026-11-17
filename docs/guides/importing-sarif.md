@@ -56,8 +56,11 @@ first import meets:
   in its `versionControlProvenance` ([several repositories](#in-a-component-with-several-repositories))
   to scope it.
   [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the rules.
-- **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed. A
-  suppression whose `status` is `rejected` or `underReview` leaves the finding counting.
+- **The file's own suppressions hold.** A result the tool set aside stays in the report, set
+  aside, and **Accepted** names the tool, as `imported bandit  2 findings set aside in the tool`;
+  `--evidence` adds where the tool recorded each and why, or `no reason given`. A suppression whose
+  `status` is `rejected` or `underReview` leaves the finding counting. To count every finding, so
+  that only `config.exclude` sets one aside, add `suppressions: count` to the import.
 
 ## 1. Write the SARIF file
 

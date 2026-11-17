@@ -247,10 +247,10 @@ entry, with `justification` as its own field and the rest in its `properties`.
 
 | Field | What it says |
 |---|---|
-| `justification` | The reason given for setting it aside |
-| `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file, `setting` for a control's setting that sets a kind of finding aside |
+| `justification` | The reason given for setting it aside. Absent where none was given, which a tool's own suppression may leave out |
+| `origin` | Whose decision it was: `saga` for a rule in this project's descriptor, `vex` for a supplier's VEX claim this project accepted, `tool` for a directive written beside the line, `scanner` for an entry in the scanner's own ignore file, `setting` for a control's setting that sets a kind of finding aside. For a finding [imported](../guides/importing-sarif.md) from another tool's SARIF file, `tool` is a comment in the code and `scanner` is that tool's own settings, and the finding's `tool` names the tool and its `scanner` is `sarif-import` |
 | `author`, `asserted` | For a `vex` suppression, who made the claim and the date they made it |
-| `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from. For a `setting` suppression, the key that decided, such as `config.controls.sca.devDependencies` |
+| `source` | The descriptor file a rule was written in, where the descriptor is split across several, or the VEX document a claim came from. For a `setting` suppression, the key that decided, such as `config.controls.sca.devDependencies`. For an imported finding, the SARIF file its tool's suppression was read from |
 | `line` | For a rule in the descriptor, the line in `source` it starts at. With `source` it names the rule's entry in [`descriptor.exclusions[]`](#what-each-exclusion-carries), which carries git's record of who wrote it |
 | `statementId` | For a `vex` suppression, the statement's `@id` within its document, where the supplier gave one |
 | `digest` | For a `vex` suppression, the sha256 of the document as Draugr read it |

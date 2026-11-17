@@ -2135,6 +2135,9 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	// A caveat row standing for several files names none of them; the evidence lists each.
 	if c, ok := foldedCaveat(d); ok && !d.Evidence {
 		row("--evidence", "each file behind a caveat row such as "+c.what)
+	} else if !d.Evidence && len(toolAsides(d)) > 0 {
+		// An imported tool's row counts what it set aside; the evidence says where and why.
+		row("--evidence", "why each imported tool set its findings aside")
 	}
 	if views && listing {
 		if d.View != ViewCompact {
@@ -2343,6 +2346,17 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 	// to count them again.
 	for _, r := range settingRows(d) {
 		rows = append(rows, acceptedRow{where: r.where(), said: []string{r.said()}})
+	}
+
+	// What the tool that wrote an imported file set aside, a row per tool, because that tool is
+	// where a reader goes to see or undo it, and Draugr never ran it. Where and why it recorded
+	// each are under the row with the other decisions' reasons, under --evidence.
+	for _, t := range toolAsides(d) {
+		var notes []string
+		if full {
+			notes = t.notes()
+		}
+		rows = append(rows, acceptedRow{where: t.reporter, said: []string{t.said()}, notes: notes})
 	}
 
 	// A comment in the code. Without this a `nosem` is the one form of acceptance that leaves no

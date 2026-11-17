@@ -896,6 +896,9 @@ func validateImports(imports []Import, where string) []error {
 			errs = append(errs, validateImportSeverity(*imp.Severity, at+".severity")...)
 		}
 		errs = append(errs, validateImportCommit(imp, at)...)
+		if !imp.Suppressions.Valid() {
+			errs = append(errs, fmt.Errorf("%s: suppressions %q is not %s", at, imp.Suppressions, orList(ImportSuppressionsValues)))
+		}
 	}
 	return errs
 }

@@ -145,6 +145,41 @@ func TestAnImportsCommitReachesItsTarget(t *testing.T) {
 	}
 }
 
+// Each import's suppressions setting reaches its own target: honored by default and when said, and
+// counted only on the import that asks, so one file's setting does not decide another's.
+func TestAnImportsSuppressionsSettingReachesItsTarget(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(repoController{scanner: "unused"})
+	reg.RegisterScanner(&importStub{})
+	model := saga.Model{Components: []saga.Component{{
+		Name: "api", Repositories: []saga.Repository{{URL: "."}, {URL: "https://github.com/acme/web"}},
+		Imports: []saga.Import{
+			{Control: "sast", File: "default.sarif"},
+			{Control: "sast", File: "honor.sarif", Suppressions: saga.ImportSuppressionsHonor},
+			{Control: "sast", File: "count.sarif", Suppressions: saga.ImportSuppressionsCount},
+		},
+	}}}
+	jobs, err := New(reg).Plan(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counted := map[string]bool{}
+	for _, j := range jobs {
+		if f, ok := j.Job.Target.(plugin.FileTarget); ok {
+			counted[f.Path] = f.CountSuppressed
+		}
+	}
+	want := map[string]bool{"default.sarif": false, "honor.sarif": false, "count.sarif": true}
+	if len(counted) != len(want) {
+		t.Fatalf("targets = %v, want %v", counted, want)
+	}
+	for file, w := range want {
+		if counted[file] != w {
+			t.Errorf("%s counts its tool's suppressions: %v, want %v", file, counted[file], w)
+		}
+	}
+}
+
 // A control this build does not have refuses the plan, and a component outside the run's scope
 // imports nothing.
 func TestImportsRespectTheRegistryAndTheScope(t *testing.T) {

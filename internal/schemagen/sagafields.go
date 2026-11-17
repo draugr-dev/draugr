@@ -491,6 +491,14 @@ func sagaFields() map[string]map[string]any {
 				"file names. An unset variable leaves the file unbound.",
 			"pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[0-9a-fA-F]{7,64})$",
 		},
+		"import.suppressions": {
+			"anyOf": vocab(saga.ImportSuppressionsValues,
+				valueDoc{"honor", "The default. A finding the tool set aside stays set aside, in the report with the tool, where it was recorded and why."},
+				valueDoc{"count", "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."},
+			),
+			"description": "What a finding the file's tool set aside does here, by a comment in the code or in the tool's own " +
+				"settings. A suppression the file marks rejected or underReview never sets a finding aside.",
+		},
 		"import.severity": {
 			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +
 				"Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it. " +

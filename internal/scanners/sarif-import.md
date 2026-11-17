@@ -71,9 +71,11 @@ The file is read as SARIF 2.1.0 unless the import's `format` names a tool's own 
   the report counts it, as [Paths and ignore](#paths-and-ignore) describes. To set aside a finding
   inside the scope, use `config.exclude`, which keeps it in the report, suppressed.
 - **Expect the file's own suppressions to hold, where they stand.** A result whose every entry in
-  `suppressions` is `accepted` or has no `status` stays in the report, suppressed. An entry that is
-  `rejected` (the team decided not to suppress it) or `underReview` (not decided yet) leaves the
-  finding counting, and its detail says `the file's suppression is rejected` or `underReview`.
+  `suppressions` is `accepted` or has no `status` stays in the report, set aside, named by the tool,
+  where it recorded that and why. An entry that is `rejected` (the team decided not to suppress it)
+  or `underReview` (not decided yet) leaves the finding counting, and its detail says `the file's
+  suppression is rejected` or `underReview`. The import's `suppressions: count` counts every
+  finding, as [The tool's own suppressions](#the-tools-own-suppressions) describes.
 - **Expect KEV and EPSS only on a CVE.** They read a CVE in the rule id or among the identifiers the
   file lists for the finding (see [Dependency findings](#dependency-findings)). A finding named by a
   GHSA id or a tool's own code, such as `B602`, gets neither unless its file lists a CVE for it.
@@ -247,6 +249,25 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |
 | `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file names none of the component's repositories, or more than one. Add `runs[].versionControlProvenance` naming the repository the tool scanned, as [In a component with several repositories](../../docs/guides/importing-sarif.md#in-a-component-with-several-repositories) shows, and they are scoped on the next run. Absent where none was, and where the component's repositories declare no scope |
 | `sha256` | the file's content, so a run can be checked against the file it read |
+
+## The tool's own suppressions
+
+A tool records that it set a finding aside in a SARIF `suppressions` entry: `kind` `inSource` for
+a comment in the code, such as Bandit's `# nosec` or Semgrep's `# nosemgrep`, and `external` for
+its own settings, such as a finding dismissed in the tool's console. `justification` is the reason,
+which SARIF leaves optional. The import's
+[`suppressions`](../../docs/reference/saga-schema.md#componentsimports) decides what such a finding
+does here:
+
+| `suppressions` | A finding whose every suppression is `accepted` or has no `status` |
+|---|---|
+| `honor`, the default | Set aside: in the report and out of the gate. The `ACCEPTED` block counts it on a row named for the tool, `imported bandit  2 findings set aside in the tool`, and `--evidence` lists under the row where the tool recorded each and why, as `a comment in the code · no reason given · 1 finding · B105`. In `report.json` its `suppressed` carries `origin` `tool` (a comment in the code) or `scanner` (the tool's own settings), the `justification` where there is one, and the file as `source` |
+| `count` | Counted, and judged by the gate. Its detail says what the tool recorded, as `bandit set it aside in a comment in the code · no reason given · suppressions: count` |
+
+A suppression the file marks `rejected` or `underReview` leaves its finding counting under either
+value. `count` is per import: one file's triage can be trusted while another's is not, and
+[`config.exclude`](../../docs/reference/saga-schema.md#configexclude) sets aside any counted finding
+with a reason in the descriptor.
 
 ## Each tool's own rating
 

@@ -79,6 +79,10 @@ you to different people.
 A scanner exclusion is counted only when the scanner keeps a record of it. A `#trivy:ignore` comment
 in an IaC file leaves none, so nothing is counted for it.
 
+A finding the tool of an [imported SARIF file](../guides/importing-sarif.md) set aside is the same
+kind of exclusion, counted on a row named for that tool, such as `imported bandit`, rather than under
+`scanner exclusions`. The import's `suppressions: count` counts those findings instead.
+
 An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked
 `↓ unreachable`, because a suppression records that a person decided.
 

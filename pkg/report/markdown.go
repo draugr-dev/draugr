@@ -335,6 +335,10 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 	for _, r := range settingRows(d) {
 		accepted = append(accepted, row{"`" + r.where() + "`", r.said()})
 	}
+	asides := toolAsides(d)
+	for _, t := range asides {
+		accepted = append(accepted, row{t.reporter, t.said()})
+	}
 	if line := silencedLine(d); line != "" {
 		accepted = append(accepted, row{"scanner exclusions", strings.TrimPrefix(line, "scanner exclusions: ")})
 	}
@@ -374,6 +378,24 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 				expires = "never"
 			}
 			_, _ = fmt.Fprintf(w, "| %d | %s | %s | %s | %s |\n", dec.n, where, history, expires, dec.reason)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
+	// Where and why each imported file's tool set its findings aside. Its own table, because these
+	// are no decision of this project's: the tool recorded them, in its own place, with a reason
+	// that SARIF leaves optional. The reason is the file's text, so it is kept to one line and its
+	// pipes cannot end the cell.
+	if len(asides) > 0 {
+		_, _ = fmt.Fprintln(w, "### Set aside by imported tools")
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "| Findings | Tool | Recorded in | Reason |")
+		_, _ = fmt.Fprintln(w, "|---:|---|---|---|")
+		for _, t := range asides {
+			for _, r := range t.reasons {
+				_, _ = fmt.Fprintf(w, "| %d | %s | %s | %s |\n", r.n, t.reporter, r.in,
+					strings.ReplaceAll(r.reason(), "|", `\|`))
+			}
 		}
 		_, _ = fmt.Fprintln(w)
 	}

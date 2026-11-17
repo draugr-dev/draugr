@@ -449,6 +449,9 @@ type FileTarget struct {
 	CommitUnset string
 	// Format is what the file is, one of saga.ImportFormats. Empty is SARIF.
 	Format string
+	// CountSuppressed counts the findings the file's tool set aside, as the descriptor's
+	// imports[].suppressions: count asks, rather than setting them aside.
+	CountSuppressed bool
 }
 
 // Kind returns TargetFile.
@@ -462,8 +465,9 @@ func (t FileTarget) Identity() string { return t.Path }
 // scan; the repositories it is read against, because what the import makes of a file depends on
 // them, the revision it is held to, the repository its findings are placed in and the scope that
 // keeps or leaves out each one; the commit the descriptor holds it to, or the variable that left it
-// unbound; the format it is read as, since one file read by two readers is two answers; and the
-// descriptor's mapping of its tool's rating where it gives one.
+// unbound; the format it is read as, since one file read by two readers is two answers; whether
+// the tool's own suppressions are counted; and the descriptor's mapping of its tool's rating
+// where it gives one.
 func (t FileTarget) CacheDetail() string {
 	detail := "sha256=" + t.Digest
 	// A SARIF file's key is as it was before formats existed, so its cached reads stay valid.
@@ -478,6 +482,9 @@ func (t FileTarget) CacheDetail() string {
 	}
 	if t.CommitUnset != "" {
 		detail += " commit-unset=" + t.CommitUnset
+	}
+	if t.CountSuppressed {
+		detail += " suppressions=count"
 	}
 	if t.Severity == nil {
 		return detail
