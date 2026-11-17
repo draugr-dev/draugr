@@ -178,6 +178,13 @@ func TestTheLiveTierHoldsNoWriteCredentialWhileItScans(t *testing.T) {
 	if !slices.Contains(propose.needs(), "live") {
 		t.Error("live-propose does not wait on live, so it proposes drift nobody has measured")
 	}
+	// The app's key is reachable only from main, and the live tier also runs on a dispatch from any
+	// branch. Without the condition that dispatch turns red on a refusal that says nothing about the
+	// drift.
+	if !strings.Contains(propose.If, "github.ref == 'refs/heads/main'") {
+		t.Errorf("live-propose's condition %q does not require main, so a dispatch from a branch fails "+
+			"at the release environment instead of skipping", propose.If)
+	}
 	minted := false
 	for _, s := range propose.Steps {
 		if strings.Contains(s.Run, "go test") || strings.Contains(s.Run, "draugr ") || strings.Contains(s.Run, "make ") {

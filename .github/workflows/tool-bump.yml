@@ -433,6 +433,9 @@ jobs:
     needs: [behind, propose, stage, integrate]
     if: always() && needs.behind.outputs.any == 'true'
     runs-on: ubuntu-latest
+    # The release App's key is a secret of the `release` environment, which admits only main and
+    # v* tags, so no other branch's copy of this workflow can mint a token with it.
+    environment: release
     permissions:
       actions: read
       contents: write

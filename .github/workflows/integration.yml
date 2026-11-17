@@ -443,11 +443,18 @@ jobs:
   # A job of its own so that the token able to push a branch is minted on a machine that never ran a
   # scanner. The live job executes third-party tools over fixture repositories, and a credential
   # minted after them in the same job shares a machine with anything they left running.
+  #
+  # In the `release` environment, which holds the release App's key and admits only main and v*
+  # tags, so no other branch's copy of this workflow can mint a token with it. The live tier runs on
+  # the schedule, which is main, and on a dispatch from any branch; from a branch this job skips
+  # rather than being refused by the environment, and the drift stays in the run's summary and its
+  # live-drift artifact.
   live-propose:
     name: Live tier drift as a pull request
     needs: live
-    if: needs.live.outputs.changed == 'true'
+    if: needs.live.outputs.changed == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: release
     timeout-minutes: 10
     permissions:
       contents: read
