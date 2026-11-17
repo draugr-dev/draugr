@@ -474,6 +474,7 @@ func TestSagaTextIsPinned(t *testing.T) {
 		{"monorepo", monorepo, false},
 		{"monorepo-per-directory", monorepo, true},
 		{"chart", chart, false},
+		{"imports", withSARIF, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

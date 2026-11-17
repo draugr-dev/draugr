@@ -33,6 +33,8 @@ func newInitCommand() *cobra.Command {
 			"init reads the tree for dependency files, copied JavaScript, Terraform, Helm, Kubernetes,\n" +
 			"Dockerfiles and OpenAPI documents and enables the scanners they call for, each with a comment\n" +
 			"naming the files behind it. It lists the dependency files no scanner can take packages from.\n" +
+			"A SARIF file another tool wrote, in the tree or from a CI step, gets an imports: entry,\n" +
+			"commented out, since an import changes what a scan reads.\n" +
 			"Edit the file, then `draugr scan`. For an instant scan with no file, use `draugr scan .`.\n\n" +
 			"--per-directory writes a component for each directory that holds its own dependency file,\n" +
 			"scoped with paths: and carved out of the root component with ignore:. A JavaScript workspace\n" +

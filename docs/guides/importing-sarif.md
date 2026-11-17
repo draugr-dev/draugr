@@ -54,6 +54,10 @@ pipx install 'bandit[sarif]'
 bandit -r app -f sarif -o bandit.sarif --exit-zero
 ```
 
+Where a CI step already writes or uploads SARIF, or the repository holds a `.sarif` file,
+[`draugr init`](../reference/cli.md#draugr-init-dir) proposes the import in step 3 for you,
+commented out, with the control the tool's findings go in.
+
 ## 2. Name the commit the file describes
 
 A SARIF file left from an earlier run reads exactly like a current one. When a file names the
