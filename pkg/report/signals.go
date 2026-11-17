@@ -242,13 +242,45 @@ func feedDid(name, title, flag string) func(Data, summary) ([]didLine, []string)
 // Listed first because a listed finding's fix comes first in its band whether or not KEV raised
 // it, and one the scanner already rated critical raises nothing. A count of raised findings alone
 // reads "nothing raised" over a run whose most urgent finding is on the catalog.
+//
+// Qualified by noCVENotes wherever it has a row, the one place the run says which findings neither
+// dataset could reach.
 func kevDid(d Data, s summary) ([]didLine, []string) {
+	lines := kevLines(d, s)
+	if len(lines) == 0 {
+		return nil, nil
+	}
+	return lines, noCVENotes(d, s)
+}
+
+// noCVENotes says how many imported findings about a vulnerability name no CVE, the key KEV and
+// EPSS are looked up by, in their rule id or among the identifiers their file lists. Grype, for one,
+// names a finding by its GitHub or Go advisory and writes no CVE into its SARIF.
+//
+// Said once for both datasets, because "nothing listed" over a run where they could not be asked
+// reads as a clean answer, and a scanner Draugr runs states the CVE where an imported file may not.
+func noCVENotes(d Data, s summary) []string {
+	n := s.importedNoCVE
+	if lookupNote(d, s) != "" {
+		// The lookup note already counts those a lookup would match, and says what to run.
+		n -= s.importedNeedsLookup
+	}
+	if n == 0 {
+		return nil
+	}
+	return []string{"not checked against KEV or EPSS: " + english.Count(n, "imported finding") + " " +
+		english.Choose(n, "names", "name") + " no CVE"}
+}
+
+// kevLines is the KEV row's line, or none where the run neither read the catalog nor holds a finding
+// it could have listed.
+func kevLines(d Data, s summary) []didLine {
 	// A finding KEV raised is one it lists, so a raise is never counted without a listing.
 	if s.onKEV == 0 {
 		if !consulted(d, exploit.SignalKEV) {
-			return notRead(s, "--kev auto"), nil
+			return notRead(s, "--kev auto")
 		}
-		return []didLine{plainDid("nothing listed")}, nil
+		return []didLine{plainDid("nothing listed")}
 	}
 	listed := english.Count(s.onKEV, "finding") + " listed"
 	line := didLine{text: listed, links: []signalLink{{Text: listed, Key: signalKeyKEVListed, Title: "on the KEV catalog"}}}
@@ -257,7 +289,7 @@ func kevDid(d Data, s summary) ([]didLine, []string) {
 		line.text += " · " + raised
 		line.links = append(line.links, signalLink{Text: raised, Key: raisedKey(exploit.SignalKEV), Title: "raised by KEV"})
 	}
-	return []didLine{line}, nil
+	return []didLine{line}
 }
 
 // notRead is the row for a dataset the run did not read, where the run has a finding the dataset

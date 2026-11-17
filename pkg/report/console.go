@@ -2244,13 +2244,16 @@ func writeFound(w io.Writer, col tui.Painter, d Data) {
 func writeSignals(w io.Writer, col tui.Painter, d Data, s summary, onlyUnread bool) {
 	rows, notes := signals(d, s)
 	if onlyUnread {
-		rows = slices.DeleteFunc(rows, func(r signalRow) bool { return !r.Unread })
-		// The compact view keeps what says the answer is less than it appears, and a finding KEV and
-		// EPSS could not check is that.
+		// The compact view keeps what says the answer is less than it appears: findings KEV and EPSS
+		// could not check, whether for want of a lookup or because an imported file names no CVE.
 		notes = nil
 		if note := lookupNote(d, s); note != "" {
 			notes = []string{note}
 		}
+		if slices.ContainsFunc(rows, func(r signalRow) bool { return r.Name == "KEV" }) {
+			notes = append(notes, noCVENotes(d, s)...)
+		}
+		rows = slices.DeleteFunc(rows, func(r signalRow) bool { return !r.Unread })
 	}
 	if len(rows) == 0 && len(notes) == 0 {
 		return

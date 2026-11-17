@@ -1,0 +1,582 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "fullName": "Trivy Vulnerability Scanner",
+          "informationUri": "https://github.com/aquasecurity/trivy",
+          "name": "Trivy",
+          "rules": [
+            {
+              "id": "CVE-2021-38561",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "golang: out-of-bounds read in golang.org/x/text/language leads to DoS"
+              },
+              "fullDescription": {
+                "text": "golang.org/x/text/language in golang.org/x/text before 0.3.7 can panic with an out-of-bounds read during BCP 47 language tag parsing. Index calculation is mishandled. If parsing untrusted user input, this can be used as a vector for a denial-of-service attack."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-38561",
+              "help": {
+                "text": "Vulnerability CVE-2021-38561\nSeverity: HIGH\nPackage: golang.org/x/text\nFixed Version: 0.3.7\nLink: [CVE-2021-38561](https://avd.aquasec.com/nvd/cve-2021-38561)\ngolang.org/x/text/language in golang.org/x/text before 0.3.7 can panic with an out-of-bounds read during BCP 47 language tag parsing. Index calculation is mishandled. If parsing untrusted user input, this can be used as a vector for a denial-of-service attack.",
+                "markdown": "**Vulnerability CVE-2021-38561**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|golang.org/x/text|0.3.7|[CVE-2021-38561](https://avd.aquasec.com/nvd/cve-2021-38561)|\n\ngolang.org/x/text/language in golang.org/x/text before 0.3.7 can panic with an out-of-bounds read during BCP 47 language tag parsing. Index calculation is mishandled. If parsing untrusted user input, this can be used as a vector for a denial-of-service attack."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2022-32149",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "golang: golang.org/x/text/language: ParseAcceptLanguage takes a long time to parse complex tags"
+              },
+              "fullDescription": {
+                "text": "An attacker may cause a denial of service by crafting an Accept-Language header which ParseAcceptLanguage will take significant time to parse."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2022-32149",
+              "help": {
+                "text": "Vulnerability CVE-2022-32149\nSeverity: HIGH\nPackage: golang.org/x/text\nFixed Version: 0.3.8\nLink: [CVE-2022-32149](https://avd.aquasec.com/nvd/cve-2022-32149)\nAn attacker may cause a denial of service by crafting an Accept-Language header which ParseAcceptLanguage will take significant time to parse.",
+                "markdown": "**Vulnerability CVE-2022-32149**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|golang.org/x/text|0.3.8|[CVE-2022-32149](https://avd.aquasec.com/nvd/cve-2022-32149)|\n\nAn attacker may cause a denial of service by crafting an Accept-Language header which ParseAcceptLanguage will take significant time to parse."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                "precision": "very-high",
+                "security-severity": "7.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-56851",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "golang.org/x/text: golang.org/x/text: Denial of Service via out-of-bounds slice error in Nickname profile"
+              },
+              "fullDescription": {
+                "text": "The Nickname profile can panic with an out-of-bounds slice error when transforming crafted input into a short destination buffer."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-56851",
+              "help": {
+                "text": "Vulnerability CVE-2026-56851\nSeverity: HIGH\nPackage: golang.org/x/text\nFixed Version: 0.41.0\nLink: [CVE-2026-56851](https://avd.aquasec.com/nvd/cve-2026-56851)\nThe Nickname profile can panic with an out-of-bounds slice error when transforming crafted input into a short destination buffer.",
+                "markdown": "**Vulnerability CVE-2026-56851**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|golang.org/x/text|0.41.0|[CVE-2026-56851](https://avd.aquasec.com/nvd/cve-2026-56851)|\n\nThe Nickname profile can panic with an out-of-bounds slice error when transforming crafted input into a short destination buffer."
+              },
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-56852",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "golang.org/x/text: golang.org/x/text: Denial of Service via invalid UTF-8 input"
+              },
+              "fullDescription": {
+                "text": "A norm.Iter can enter an infinite loop when handling input containing invalid UTF-8 bytes."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-56852",
+              "help": {
+                "text": "Vulnerability CVE-2026-56852\nSeverity: HIGH\nPackage: golang.org/x/text\nFixed Version: 0.39.0\nLink: [CVE-2026-56852](https://avd.aquasec.com/nvd/cve-2026-56852)\nA norm.Iter can enter an infinite loop when handling input containing invalid UTF-8 bytes.",
+                "markdown": "**Vulnerability CVE-2026-56852**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|golang.org/x/text|0.39.0|[CVE-2026-56852](https://avd.aquasec.com/nvd/cve-2026-56852)|\n\nA norm.Iter can enter an infinite loop when handling input containing invalid UTF-8 bytes."
+              },
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2020-8203",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "nodejs-lodash: prototype pollution in zipObjectDeep function"
+              },
+              "fullDescription": {
+                "text": "Prototype pollution attack when using _.zipObjectDeep in lodash before 4.17.20."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2020-8203",
+              "help": {
+                "text": "Vulnerability CVE-2020-8203\nSeverity: HIGH\nPackage: lodash\nFixed Version: 4.17.19\nLink: [CVE-2020-8203](https://avd.aquasec.com/nvd/cve-2020-8203)\nPrototype pollution attack when using _.zipObjectDeep in lodash before 4.17.20.",
+                "markdown": "**Vulnerability CVE-2020-8203**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|lodash|4.17.19|[CVE-2020-8203](https://avd.aquasec.com/nvd/cve-2020-8203)|\n\nPrototype pollution attack when using _.zipObjectDeep in lodash before 4.17.20."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.4,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:H",
+                "precision": "very-high",
+                "security-severity": "7.4",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2021-23337",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "nodejs-lodash: command injection via template"
+              },
+              "fullDescription": {
+                "text": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2021-23337",
+              "help": {
+                "text": "Vulnerability CVE-2021-23337\nSeverity: HIGH\nPackage: lodash\nFixed Version: 4.17.21\nLink: [CVE-2021-23337](https://avd.aquasec.com/nvd/cve-2021-23337)\nLodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+                "markdown": "**Vulnerability CVE-2021-23337**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|lodash|4.17.21|[CVE-2021-23337](https://avd.aquasec.com/nvd/cve-2021-23337)|\n\nLodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function."
+              },
+              "properties": {
+                "cvssv3_baseScore": 7.2,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H",
+                "precision": "very-high",
+                "security-severity": "7.2",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-4800",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "lodash: lodash: Arbitrary code execution via untrusted input in template imports"
+              },
+              "fullDescription": {
+                "text": "The fix for CVE-2021-23337 added validation for the variable option in _.template but did not apply the same validation to options.imports key names, and both paths flow into the same Function() constructor sink. When an application passes untrusted input as options.imports key names, an attacker can inject default-parameter expressions that execute arbitrary code at template compilation time. Additionally, _.template uses assignInWith to merge imports, which enumerates inherited properties via for..in, so if Object.prototype has been polluted by another vector the polluted keys are copied into the imports object and passed to Function(). The issue is fixed in 4.18.1 for lodash, lodash-es, lodash-amd, and lodash.template. As a workaround, do not pass untrusted input as key names in options.imports; use only developer-controlled, static key names."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2026-4800",
+              "help": {
+                "text": "Vulnerability CVE-2026-4800\nSeverity: HIGH\nPackage: lodash\nFixed Version: 4.18.0\nLink: [CVE-2026-4800](https://avd.aquasec.com/nvd/cve-2026-4800)\nThe fix for CVE-2021-23337 added validation for the variable option in _.template but did not apply the same validation to options.imports key names, and both paths flow into the same Function() constructor sink. When an application passes untrusted input as options.imports key names, an attacker can inject default-parameter expressions that execute arbitrary code at template compilation time. Additionally, _.template uses assignInWith to merge imports, which enumerates inherited properties via for..in, so if Object.prototype has been polluted by another vector the polluted keys are copied into the imports object and passed to Function(). The issue is fixed in 4.18.1 for lodash, lodash-es, lodash-amd, and lodash.template. As a workaround, do not pass untrusted input as key names in options.imports; use only developer-controlled, static key names.",
+                "markdown": "**Vulnerability CVE-2026-4800**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|lodash|4.18.0|[CVE-2026-4800](https://avd.aquasec.com/nvd/cve-2026-4800)|\n\nThe fix for CVE-2021-23337 added validation for the variable option in _.template but did not apply the same validation to options.imports key names, and both paths flow into the same Function() constructor sink. When an application passes untrusted input as options.imports key names, an attacker can inject default-parameter expressions that execute arbitrary code at template compilation time. Additionally, _.template uses assignInWith to merge imports, which enumerates inherited properties via for..in, so if Object.prototype has been polluted by another vector the polluted keys are copied into the imports object and passed to Function(). The issue is fixed in 4.18.1 for lodash, lodash-es, lodash-amd, and lodash.template. As a workaround, do not pass untrusted input as key names in options.imports; use only developer-controlled, static key names."
+              },
+              "properties": {
+                "cvssv3_baseScore": 8.1,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                "precision": "very-high",
+                "security-severity": "8.1",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "NSWG-ECO-516",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "Allocation of Resources Without Limits or Throttling"
+              },
+              "fullDescription": {
+                "text": "Prototype pollution attack (lodash)"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://www.npmjs.com/advisories/1523",
+              "help": {
+                "text": "Vulnerability NSWG-ECO-516\nSeverity: HIGH\nPackage: lodash\nFixed Version: \u003e=4.17.19\nLink: [NSWG-ECO-516](https://www.npmjs.com/advisories/1523)\nPrototype pollution attack (lodash)",
+                "markdown": "**Vulnerability NSWG-ECO-516**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|HIGH|lodash|\u003e=4.17.19|[NSWG-ECO-516](https://www.npmjs.com/advisories/1523)|\n\nPrototype pollution attack (lodash)"
+              },
+              "properties": {
+                "precision": "very-high",
+                "security-severity": "8.0",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "HIGH"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2020-28500",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "nodejs-lodash: ReDoS via the toNumber, trim and trimEnd functions"
+              },
+              "fullDescription": {
+                "text": "Lodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2020-28500",
+              "help": {
+                "text": "Vulnerability CVE-2020-28500\nSeverity: MEDIUM\nPackage: lodash\nFixed Version: 4.17.21\nLink: [CVE-2020-28500](https://avd.aquasec.com/nvd/cve-2020-28500)\nLodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions.",
+                "markdown": "**Vulnerability CVE-2020-28500**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|lodash|4.17.21|[CVE-2020-28500](https://avd.aquasec.com/nvd/cve-2020-28500)|\n\nLodash versions prior to 4.17.21 are vulnerable to Regular Expression Denial of Service (ReDoS) via the toNumber, trim and trimEnd functions."
+              },
+              "properties": {
+                "cvssv3_baseScore": 5.3,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+                "precision": "very-high",
+                "security-severity": "5.3",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2025-13465",
+              "name": "LanguageSpecificPackageVulnerability",
+              "shortDescription": {
+                "text": "lodash: prototype pollution in _.unset and _.omit functions"
+              },
+              "fullDescription": {
+                "text": "The _.unset and _.omit functions in Lodash are vulnerable to prototype pollution. An attacker can pass crafted paths which cause Lodash to delete methods from global prototypes. The issue permits deletion of properties but does not allow overwriting their original behavior. The issue is patched from 4.17.23 to 4.18.0 depending on the package: lodash, lodash-es, and lodash-amd in 4.17.23, and the standalone lodash.unset and lodash.omit packages in 4.18.0."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2025-13465",
+              "help": {
+                "text": "Vulnerability CVE-2025-13465\nSeverity: MEDIUM\nPackage: lodash\nFixed Version: 4.17.23\nLink: [CVE-2025-13465](https://avd.aquasec.com/nvd/cve-2025-13465)\nThe _.unset and _.omit functions in Lodash are vulnerable to prototype pollution. An attacker can pass crafted paths which cause Lodash to delete methods from global prototypes. The issue permits deletion of properties but does not allow overwriting their original behavior. The issue is patched from 4.17.23 to 4.18.0 depending on the package: lodash, lodash-es, and lodash-amd in 4.17.23, and the standalone lodash.unset and lodash.omit packages in 4.18.0.",
+                "markdown": "**Vulnerability CVE-2025-13465**\n| Severity | Package | Fixed Version | Link |\n| --- | --- | --- | --- |\n|MEDIUM|lodash|4.17.23|[CVE-2025-13465](https://avd.aquasec.com/nvd/cve-2025-13465)|\n\nThe _.unset and _.omit functions in Lodash are vulnerable to prototype pollution. An attacker can pass crafted paths which cause Lodash to delete methods from global prototypes. The issue permits deletion of properties but does not allow overwriting their original behavior. The issue is patched from 4.17.23 to 4.18.0 depending on the package: lodash, lodash-es, and lodash-amd in 4.17.23, and the standalone lodash.unset and lodash.omit packages in 4.18.0."
+              },
+              "properties": {
+                "cvssv3_baseScore": 6.5,
+                "cvssv3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L",
+                "cvssv40_baseScore": 6.9,
+                "cvssv40_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:L/VA:L/SC:H/SI:H/SA:H/E:P",
+                "precision": "very-high",
+                "security-severity": "6.5",
+                "tags": [
+                  "vulnerability",
+                  "security",
+                  "MEDIUM"
+                ]
+              }
+            }
+          ],
+          "version": "0.76.1"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2021-38561",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Package: golang.org/x/text\nInstalled Version: v0.3.5\nVulnerability CVE-2021-38561\nSeverity: HIGH\nFixed Version: 0.3.7\nLink: [CVE-2021-38561](https://avd.aquasec.com/nvd/cve-2021-38561)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "go.mod: golang.org/x/text@v0.3.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2022-32149",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "Package: golang.org/x/text\nInstalled Version: v0.3.5\nVulnerability CVE-2022-32149\nSeverity: HIGH\nFixed Version: 0.3.8\nLink: [CVE-2022-32149](https://avd.aquasec.com/nvd/cve-2022-32149)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "go.mod: golang.org/x/text@v0.3.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-56851",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "Package: golang.org/x/text\nInstalled Version: v0.3.5\nVulnerability CVE-2026-56851\nSeverity: HIGH\nFixed Version: 0.41.0\nLink: [CVE-2026-56851](https://avd.aquasec.com/nvd/cve-2026-56851)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "go.mod: golang.org/x/text@v0.3.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-56852",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "Package: golang.org/x/text\nInstalled Version: v0.3.5\nVulnerability CVE-2026-56852\nSeverity: HIGH\nFixed Version: 0.39.0\nLink: [CVE-2026-56852](https://avd.aquasec.com/nvd/cve-2026-56852)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "go.mod",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endLine": 1,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "go.mod: golang.org/x/text@v0.3.5"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2020-8203",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.15\nVulnerability CVE-2020-8203\nSeverity: HIGH\nFixed Version: 4.17.19\nLink: [CVE-2020-8203](https://avd.aquasec.com/nvd/cve-2020-8203)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1,
+                  "endLine": 17,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "package-lock.json: lodash@4.17.15"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2021-23337",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.15\nVulnerability CVE-2021-23337\nSeverity: HIGH\nFixed Version: 4.17.21\nLink: [CVE-2021-23337](https://avd.aquasec.com/nvd/cve-2021-23337)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1,
+                  "endLine": 17,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "package-lock.json: lodash@4.17.15"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-4800",
+          "ruleIndex": 6,
+          "level": "error",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.15\nVulnerability CVE-2026-4800\nSeverity: HIGH\nFixed Version: 4.18.0\nLink: [CVE-2026-4800](https://avd.aquasec.com/nvd/cve-2026-4800)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1,
+                  "endLine": 17,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "package-lock.json: lodash@4.17.15"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "NSWG-ECO-516",
+          "ruleIndex": 7,
+          "level": "error",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.15\nVulnerability NSWG-ECO-516\nSeverity: HIGH\nFixed Version: \u003e=4.17.19\nLink: [NSWG-ECO-516](https://www.npmjs.com/advisories/1523)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1,
+                  "endLine": 17,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "package-lock.json: lodash@4.17.15"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2020-28500",
+          "ruleIndex": 8,
+          "level": "warning",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.15\nVulnerability CVE-2020-28500\nSeverity: MEDIUM\nFixed Version: 4.17.21\nLink: [CVE-2020-28500](https://avd.aquasec.com/nvd/cve-2020-28500)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1,
+                  "endLine": 17,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "package-lock.json: lodash@4.17.15"
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2025-13465",
+          "ruleIndex": 9,
+          "level": "warning",
+          "message": {
+            "text": "Package: lodash\nInstalled Version: 4.17.15\nVulnerability CVE-2025-13465\nSeverity: MEDIUM\nFixed Version: 4.17.23\nLink: [CVE-2025-13465](https://avd.aquasec.com/nvd/cve-2025-13465)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "package-lock.json",
+                  "uriBaseId": "ROOTPATH"
+                },
+                "region": {
+                  "startLine": 14,
+                  "startColumn": 1,
+                  "endLine": 17,
+                  "endColumn": 1
+                }
+              },
+              "message": {
+                "text": "package-lock.json: lodash@4.17.15"
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits",
+      "originalUriBaseIds": {
+        "ROOTPATH": {
+          "uri": "file:///src/app/"
+        }
+      }
+    }
+  ]
+}

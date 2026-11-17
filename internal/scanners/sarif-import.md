@@ -35,15 +35,15 @@ The file is read as SARIF 2.1.0:
   - A tool that writes only `warning` produces medium findings. A medium finding ranks P2 at most,
     so with the default gate, which fails on P1, such a file cannot fail the run unless KEV or EPSS
     raises a finding whose rule id holds a CVE.
-- **Package and fix** come through only where the file carries Draugr's own `package` property, an
-  object. A dependency finding from another tool's file names no package, its fix reads `no package
-  reported`, and it becomes a "Fix <rule>" action rather than an upgrade.
+- **Package and fix** are read wherever the file states them, as
+  [Dependency findings](#dependency-findings) lists. A dependency finding with a package and a fixed
+  version becomes one upgrade per package, however many advisories it clears.
 - **The rule** is the result's `ruleId`, its `rule.id`, or the rule its `ruleIndex` or `rule.index`
   points at in the run's `tool.driver.rules`.
 - **Other result properties are ignored.** Draugr's own `priority`, `aside` and suppression origin
   have no effect in a file another tool wrote. The properties read are `security-severity`,
-  `package` (an object), Bandit's `issue_severity` and `issue_confidence`, and a suppression's
-  `kind` and `justification`, which make it the tool's own.
+  `package` (an object), `purls`, `tags`, Bandit's `issue_severity` and `issue_confidence`, and a
+  suppression's `kind` and `justification`, which make it the tool's own.
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
 
 ## Before you import
@@ -77,8 +77,45 @@ The file is read as SARIF 2.1.0:
   component.
 - **Expect the file's own suppressions to hold.** A result with an entry in `suppressions` stays in
   the report, suppressed, whatever the entry's `status`.
-- **Expect KEV and EPSS only on a CVE.** They read a CVE id in the rule id, so a finding whose rule
-  id is a GHSA id or a tool's own code, such as `B602`, gets neither.
+- **Expect KEV and EPSS only on a CVE.** They read a CVE in the rule id or among the identifiers the
+  file lists for the finding (see [Dependency findings](#dependency-findings)). A finding named by a
+  GHSA id or a tool's own code, such as `B602`, gets neither unless its file lists a CVE for it.
+
+## Dependency findings
+
+SARIF has no member for a package, so each tool states it somewhere of its own. Draugr reads these,
+the first that names the finding's package winning:
+
+| Where the file states it | Package and installed version | Fixed version | Tools that write it |
+|---|---|---|---|
+| Draugr's own `package` property, an object | `name`, `version` | `fixedVersion` | Draugr |
+| The result's message, on `Package:` and `Installed Version:` lines | those lines | its `Fixed Version:` line | Trivy |
+| The result's message, opening `Package 'name@version' is vulnerable to` | the quoted name and version | rows naming the package in a `Package Name` and `Fixed Version` table in the rule's `help` | OSV-Scanner |
+| One `logicalLocations` entry written as `name@version` | the entry | a `fixes` replacement inserting the same package at another version | no tool checked |
+| One package URL in the `purls` property of the result, its artifact, or its rule | the package URL | the `Fix Version:` line of the rule's `help` text, where its `Package:` line names the package | Grype, on the rule |
+
+The tools are the versions checked against a file each wrote: Trivy 0.76.1, Grype 0.121.0 and
+OSV-Scanner 2.7.1.
+
+- **Nothing is worked out from a rule id.** A finding whose file states no package keeps none, its
+  fix reads `no package reported`, and it becomes a "Fix <rule>" action.
+- **A fixed version is read only for the finding's own package.** A fix that upgrades the package
+  bringing the vulnerable one in says nothing about which version of the vulnerable one is fixed. A
+  package with no fixed version stated becomes a "Replace or accept" action.
+- **A package URL must parse**, as `pkg:type/namespace/name@version`. One that does not, or one
+  naming another package or version than the message, is left off the finding.
+- **The ecosystem** comes from the package URL, or else from the dependency file the result is
+  located in, such as `go.mod` or `package-lock.json`. It orders the versions an upgrade chooses
+  between, and without one an upgrade whose advisories name several fixed versions lists them instead
+  of naming the release that clears them all.
+
+**Other identifiers.** A finding named by a GitHub or Go advisory reaches KEV and EPSS through a CVE
+the file lists for it in the result's or the rule's `tags`, where the whole tag is the identifier,
+or in the rule's `deprecatedIds`, which OSV-Scanner fills with the advisory's other identifiers.
+Nothing is looked up, so Grype's file, which names its findings by GHSA and Go ids and lists no
+CVE, reaches neither. A note under the KEV row of **Signals** counts each imported finding that
+names a package or an advisory and no CVE, as in
+`not checked against KEV or EPSS: 9 imported findings name no CVE`.
 
 ## What the report says about the file
 
