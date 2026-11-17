@@ -294,7 +294,7 @@ func TestWithGrypeExclusionsKeepsTheDocument(t *testing.T) {
 	if err := json.Unmarshal([]byte(grypeJSON(grypeIgnoredJinja2)), &doc); err != nil {
 		t.Fatal(err)
 	}
-	if err := withGrypeExclusions(&report, doc, ""); err != nil {
+	if err := withGrypeExclusions(&report, doc, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := report.Rules["CVE-2020-28493-jinja2"].ShortDescription; got != "Grype's own" || len(report.Results) != 1 {

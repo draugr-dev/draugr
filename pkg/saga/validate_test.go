@@ -984,7 +984,8 @@ func TestValidateImportFormat(t *testing.T) {
 		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
 	}
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
-	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "sarif", Severity: mapping}} {
+	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
+		{Format: "sarif", Severity: mapping}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -993,7 +994,8 @@ func TestValidateImportFormat(t *testing.T) {
 		imp  Import
 		want string
 	}{
-		{Import{Format: "grype-json"}, `imports[0].format "grype-json" is not one of sarif, trivy-json, govulncheck-json`},
+		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json`},
+		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

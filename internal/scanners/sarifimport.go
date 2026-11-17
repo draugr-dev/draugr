@@ -114,6 +114,7 @@ var importReaders = map[string]importReader{
 	saga.ImportFormatSARIF:           readSARIFImport,
 	saga.ImportFormatTrivyJSON:       readTrivyImport,
 	saga.ImportFormatGovulncheckJSON: readGovulncheckImport,
+	saga.ImportFormatGrypeJSON:       readGrypeImport,
 }
 
 // readImport reads data as the format ft names.

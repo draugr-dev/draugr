@@ -11,8 +11,8 @@ A component can read a SARIF 2.1.0 file that another tool wrote. The file's find
 control the descriptor names: they take the component's exposure and criticality into their
 priority, count toward the gate, and appear in **Fix first** beside the findings of Draugr's own
 scanners. Draugr does not run the tool. It reads the file an earlier pipeline step left behind.
-Trivy's and govulncheck's own JSON can be imported the same way, and keeps more than their SARIF
-does ([Import a tool's own JSON](#import-a-tools-own-json)).
+Trivy's, govulncheck's and Grype's own JSON can be imported the same way, and keeps more than their
+SARIF does ([Import a tool's own JSON](#import-a-tools-own-json)).
 
 The steps below use Bandit, which writes no commit into its SARIF, so they include binding the file
 to the commit it scanned. Another tool's file follows the same steps, with the limits
@@ -40,8 +40,9 @@ first import meets:
   lists where each tool puts them. A file that names no package, as most code scanners' do, gets a
   "Fix <rule>" action per rule.
 - **KEV and EPSS need a CVE**, in the rule id or listed by the file beside it, as OSV-Scanner lists
-  an advisory's other identifiers. Grype names its findings by GitHub and Go advisory and lists no
-  CVE, so neither reaches them, and **Signals** counts the imported findings that name no CVE.
+  an advisory's other identifiers. Grype's SARIF names its findings by GitHub and Go advisory and
+  lists no CVE, so neither reaches them; [import Grype's JSON](#import-a-tools-own-json) instead.
+  **Signals** counts the imported findings that name no CVE.
 - **Paths are read relative to the repository's root.** An absolute path or `file://` URI inside the
   component's repository, when its `url` is a local path, is made relative to it. Any other absolute
   path is kept as written: its finding still counts, the scan lists the path under `unread-files`,
@@ -261,12 +262,14 @@ The import names `commit: ${{ GITHUB_SHA }}`, as in [step 2](#2-name-the-commit-
 
 ## Import a tool's own JSON
 
-Trivy's SARIF states each finding's package and fixed version only in prose, and govulncheck's
-SARIF has no call path. Their own JSON keeps both, so import that instead and name the format:
+Trivy's SARIF states each finding's package and fixed version only in prose, govulncheck's has no
+call path, and Grype's lists no CVE, so KEV and EPSS can't reach its findings. Their own JSON keeps
+all of it, so import that instead and name the format:
 
 ```bash
 trivy fs --format json -o reports/trivy.json .
 govulncheck -format json ./... > reports/govulncheck.json
+grype dir:. -o json=reports/grype.json    # a directory scan; an image scan is refused
 ```
 
 ```yaml
@@ -279,19 +282,27 @@ imports:
     file: reports/govulncheck.json
     format: govulncheck-json
     commit: ${{ GITHUB_SHA }}
+  - control: sca
+    file: reports/grype.json
+    format: grype-json
+    commit: ${{ GITHUB_SHA }}
 ```
 
-Draugr reads each file with the parser its own `trivy-fs` and `govulncheck` scanners use, so an
-imported finding carries the package, the installed and fixed versions and, from govulncheck, the
-reachability verdict with its call path, as a native run's does. A govulncheck verdict moves the
-priority of the `trivy-fs` finding for the same advisory, as a native run's verdict does.
-What differs from a SARIF import:
+Draugr reads each file with the parser its own `trivy-fs`, `govulncheck` and `grype-fs` scanners
+use, so an imported finding carries the package, the installed and fixed versions and, from
+govulncheck, the reachability verdict with its call path, as a native run's does. A Grype finding
+carries its CVE, so it merges with another scanner's finding of that CVE. A govulncheck verdict moves the priority of the `trivy-fs`
+finding for the same advisory, as a native run's verdict does. What differs from a SARIF import:
 
-- **Severity is the native run's**: Trivy's CVSS score, else its own severity, and medium for
-  govulncheck, whose database publishes none. The import takes no `severity` mapping.
-- **Only `commit` binds the file**, since neither tool writes a commit into its JSON. A govulncheck
-  file that is not bound lowers nothing: its unreachable verdicts are read as undetermined, and its
-  reachable ones still apply.
+- **Severity is the native run's**, and the import takes no `severity` mapping:
+  - Trivy: the CVSS score, else Trivy's severity.
+  - Grype: the CVSS score, else Grype's severity.
+  - govulncheck: medium, since its database publishes none.
+- **Only `commit` binds the file**, since none of the tools writes a commit into its JSON. A
+  govulncheck file that is not bound lowers nothing: its unreachable verdicts are read as
+  undetermined, and its reachable ones still apply.
+- **Grype's file is a scan of a directory**, `grype dir:<path>`. An image scan is about the image,
+  not the component's repositories, so it is refused.
 - **The JSON names no repository.** In a component of several repositories, its findings merge with
   no native copy and are not scoped by `paths:` and `ignore:`, and `commit` cannot bind the file.
   Import it into a component of one repository.

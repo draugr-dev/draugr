@@ -128,11 +128,12 @@ type grypeMatch struct {
 }
 
 type grypeVulnerability struct {
-	ID          string `json:"id"`
-	DataSource  string `json:"dataSource"`
-	Namespace   string `json:"namespace"`
-	Severity    string `json:"severity"`
-	Description string `json:"description"`
+	ID          string   `json:"id"`
+	DataSource  string   `json:"dataSource"`
+	Namespace   string   `json:"namespace"`
+	Severity    string   `json:"severity"`
+	URLs        []string `json:"urls"`
+	Description string   `json:"description"`
 	CVSS        []struct {
 		Metrics struct {
 			BaseScore float64 `json:"baseScore"`
@@ -140,6 +141,8 @@ type grypeVulnerability struct {
 	} `json:"cvss"`
 	Fix struct {
 		Versions []string `json:"versions"`
+		// State is whether a fix exists, "fixed" where one does.
+		State string `json:"state"`
 	} `json:"fix"`
 }
 
@@ -213,13 +216,13 @@ func grypeConfigRules(dir string) []grypeRuleFile {
 }
 
 // withGrypeExclusions adds each match Grype's configuration ignored to report, as a result carrying
-// a suppression with origin scanner, and its rule where report has none of that id. dir is the
-// directory Grype ran in, where it looks for `.grype.yaml`, and so where the rule that ignored a
-// match is looked for. Empty means the working directory.
+// a suppression with origin scanner, and its rule where report has none of that id. configRules reads the
+// configuration files in the directory Grype ran in, where it looks for `.grype.yaml`, and so where
+// the rule that ignored a match is looked for; nil reads none, and the suppression names no file.
 //
 // The ignored matches are written as a SARIF document of their own and read by the SARIF reader, so
 // they arrive as Grype's reported results do, and only that document is encoded and decoded.
-func withGrypeExclusions(report *sarif.Report, doc grypeDoc, dir string) error {
+func withGrypeExclusions(report *sarif.Report, doc grypeDoc, configRules func() []grypeRuleFile) error {
 	image := grypeImageRef(doc)
 	var results, rules []any
 	var aliases [][]string
@@ -232,9 +235,10 @@ func withGrypeExclusions(report *sarif.Report, doc grypeDoc, dir string) error {
 		if len(applied) == 0 || m.Vulnerability.ID == "" || m.Artifact.Name == "" {
 			continue
 		}
-		if !read {
-			files, read = grypeConfigRules(dir), true
+		if !read && configRules != nil {
+			files = configRules()
 		}
+		read = true
 		result, rule := grypeExcludedResult(m, applied, image, files)
 		results = append(results, result)
 		aliases = append(aliases, grypeMatchAliases(m))
