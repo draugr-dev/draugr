@@ -1,0 +1,1 @@
+- **Imported SARIF is rated by its tool's own severity.** gosec, CodeQL, Fortify Static Code Analyzer, OWASP dependency-check and Snyk Open Source files are read by each tool's table, so a file with no score can yield critical findings. `imports[].severity` maps another tool's rating. Imported gosec MEDIUM and LOW findings now rank as gosec rates them.
