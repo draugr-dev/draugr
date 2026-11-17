@@ -3843,6 +3843,12 @@ func suppressionIn(results []sarif.Result, idxs []int) *sarif.Suppression {
 // Everything that is not a repository answers ("", true): an image is named by its digest or its
 // tag, a host by its URL, and their identities already say exactly what was read.
 func (e *Engine) commitOf(ctx context.Context, t plugin.Target) (string, bool) {
+	if file, ok := t.(plugin.FileTarget); ok && file.Source != "" {
+		// A service's alerts change with nothing in the descriptor or the tree changing: somebody
+		// dismisses one, or the service analyzes a new commit. Nothing names what was read, so it is
+		// read again on every run.
+		return "", false
+	}
 	repo, ok := t.(plugin.RepositoryTarget)
 	if !ok {
 		return "", true
@@ -3951,8 +3957,8 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 	return true
 }
 
-// planImports plans a job for each SARIF file a component imports, under the control the
-// descriptor names.
+// planImports plans a job for each file, or each service's alerts, a component imports, under the
+// control the descriptor names.
 //
 // Planned here rather than by a controller, because an import is no controller's decision: the
 // descriptor said which control the findings belong to, and the control's own planning would only
@@ -3972,11 +3978,15 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 			}
 			if _, ok := e.reg.controllers[imp.Control]; !ok {
 				errs = append(errs, fmt.Errorf("plan import %s for %s: %q is not a control this build provides",
-					imp.File, comp.Name, imp.Control))
+					imp.Name(), comp.Name, imp.Control))
 				continue
 			}
-			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity,
-				Commit: imp.Commit, Format: imp.Format, CountSuppressed: !imp.Suppressions.Honored()}
+			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Severity: imp.Severity,
+				Commit: imp.Commit, Format: imp.Format, CountSuppressed: !imp.Suppressions.Honored(),
+				Source: imp.Source, TokenEnv: imp.TokenEnv, Repository: imp.Repository}
+			if imp.File != "" {
+				target.Digest = fileDigest(imp.File)
+			}
 			if unset := imp.CommitUnset(); unset != "" {
 				target.Commit, target.CommitUnset = "", unset
 			}

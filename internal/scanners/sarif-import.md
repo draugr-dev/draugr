@@ -1,6 +1,6 @@
 ---
 title: "sarif-import"
-description: "Reads a SARIF file, or Trivy's, govulncheck's or Grype's own JSON, that another tool wrote into one of Draugr's controls, so its findings are ranked and gated with the rest."
+description: "Reads a SARIF file, Trivy's, govulncheck's or Grype's own JSON, or a repository's GitHub code-scanning or Dependabot alerts into one of Draugr's controls, so their findings are ranked and gated with the rest."
 section: Scanners
 order: 90
 ---
@@ -9,8 +9,8 @@ order: 90
 
 - **Control:** the control each import names in [`components[].imports`](../../docs/reference/saga-schema.md#componentsimports)
 - **Tool:** none. Draugr reads a file; the tool that wrote it ran somewhere else.
-- **Target:** file (a SARIF 2.1.0 log, or a tool's own JSON as [A tool's own JSON](#a-tools-own-json) lists)
-- **Effects:** none
+- **Target:** file (a SARIF 2.1.0 log, or a tool's own JSON as [A tool's own JSON](#a-tools-own-json) lists), or a repository's alerts on GitHub ([GitHub's alerts](#githubs-alerts))
+- **Effects:** none for a file. An import with `source` has a `network` effect: it asks GitHub's REST API for the repository's alerts with the import's token
 - **Status:** ✅ implemented
 
 [Import another scanner's SARIF](../../docs/guides/importing-sarif.md) walks through a pipeline that
@@ -537,13 +537,178 @@ with the same message, and a file that passes reports how many results it holds,
 compare paths with the component's checkout, and does not hold the file to a commit: the scan lists
 a path it cannot place under `unread-files`, and stops on a file named for another commit.
 
+## GitHub's alerts
+
+An import's [`source`](../../docs/reference/saga-schema.md#githubs-alerts) reads a repository's
+alerts from GitHub's REST API in place of a file:
+
+| `source` | Endpoint | Alerts read |
+|---|---|---|
+| `github-code-scanning` | `GET /repos/{owner}/{repo}/code-scanning/alerts` | `open` and `dismissed` |
+| `github-dependabot` | `GET /repos/{owner}/{repo}/dependabot/alerts` | `open`, `dismissed` and `auto_dismissed` |
+
+Each state is asked for 100 alerts a page, following the `Link` header's next page, with API version
+`2026-03-10`. A `fixed` alert is not read. No `ref` is sent: GitHub answers a ref it has not
+analyzed with an empty list, the same answer as a repository with no alerts, so the default branch's
+alerts are read and held to the commit this run reads instead ([Alerts and the commit](#alerts-and-the-commit)). GitHub marks
+the Dependabot alerts API "public preview and subject to change", and the report says so under
+**Measured against** as `api`.
+
+**The repository** is the component's one repository, read from its `url`, or from the remote of a
+local checkout, which has to be on `github.com`. A component of several repositories names one with
+`repository: owner/name`, one import each, and validate refuses a source that leaves the choice
+open; a `repository` the component does not declare stops the run. Its findings are placed in that
+repository, so its `paths:` and `ignore:` apply, as [Paths and ignore](#paths-and-ignore) describes.
+GitHub Enterprise Server is reached where the pipeline sets `$GITHUB_API_URL`, with the repository
+named by `repository`, since its address is not on `github.com`.
+
+**The token** is read from the variable `tokenEnv` names, `GITHUB_TOKEN` when unset. Any other name
+has to be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets, because the descriptor changes by
+pull request and the token goes to GitHub. It is sent as `Authorization: Bearer` over https to the
+API's own address, never to a next page on another host, and is never stored, logged, or written to
+a report. GitHub's documentation names the classic scope `security_events`, or `public_repo` for a
+public repository only; the pages read for this do not state the fine-grained permission.
+
+### Code-scanning alerts
+
+| Finding | From the alert |
+|---|---|
+| tool | `tool.name`, as `Draugr` or `CodeQL` |
+| rule | `rule.id` |
+| location | `most_recent_instance.location`: `path` and `start_line`. A Scorecard alert's `no file associated with this alert` is read as no location |
+| message | `most_recent_instance.message.text`, else `rule.description` |
+| severity | `rule.security_severity_level` (`critical`, `high`, `medium`, `low`) where the rule has one; else `rule.severity` as a SARIF level: `error` high, `warning` medium, `note` and `none` low |
+
+An alert carries a severity bucket and no score, package URL, aliases or fixed version, so its
+finding is ranked from less than a SARIF file with scores. The report's `severity` field says so:
+`rule.severity for 8, security_severity_level for 3; alerts carry no score, package, aliases or fix`.
+KEV and EPSS reach a finding only where its rule id is a CVE. A finding merges with the control's
+own scanner's copy of the same tool's rule at the same line, as a SARIF file's does.
+
+### Dependabot alerts
+
+| Finding | From the alert |
+|---|---|
+| tool | `Dependabot` |
+| rule | `security_advisory.ghsa_id` |
+| aliases | `security_advisory.cve_id` and the other `identifiers`, so KEV and EPSS reach it through the CVE |
+| location | `dependency.manifest_path` |
+| package | `dependency.package.name` and `ecosystem` |
+| fixed version | `security_vulnerability.first_patched_version.identifier`, which makes it an upgrade |
+| score | `security_advisory.cvss_severities.cvss_v3.score`, else `cvss_v4`, else `cvss`; with none, `security_advisory.severity` as a level |
+
+The alert's own `epss` is not read: the CVE reaches Draugr's EPSS data, so a finding is not ranked by
+two copies of one feed from different days. The alert names no installed version, and correlation
+keys a package on its name and version, so a Dependabot finding is counted beside the control's own
+scanner's copy of the same advisory rather than merged into it.
+
+### Dismissed alerts
+
+| State | `suppressions: honor` (the default) | `suppressions: count` |
+|---|---|---|
+| `dismissed`, by a person | set aside: `who` is `dismissed_by.login`, the reason `dismissed_reason` with `dismissed_comment`, or `no reason given`, and the source the alert's address | counted, its detail `octocat dismissed it in Dependabot · reason: tolerable risk (…) · counted, as the import says suppressions: count` |
+| `auto_dismissed` (Dependabot) | counted | counted |
+
+An alert Dependabot dismissed by one of its own rules counts, because nobody looked at the finding.
+Its detail says so and gives the [`config.exclude`](../../docs/reference/saga-schema.md#configexclude)
+entry that sets it aside here, with its manifest as `paths`, for a reader who has:
+
+```text
+dismissed automatically by a GitHub rule · counted. To set it aside, add to config.exclude {rules: [GHSA-xvch-5gv4-984h], paths: [web/package-lock.json], reason: <why it is set aside>, expires: <YYYY-MM-DD>}
+```
+
+A set-aside alert is on the `ACCEPTED` row named for the tool, and `--evidence` names who dismissed
+it, as
+[Findings an imported tool suppressed](../../docs/reference/saga-schema.md#findings-an-imported-tool-suppressed)
+shows. In `report.json` its `suppressed` carries `origin` `scanner`, `service`, `author`, `asserted`
+and the alert's address as `source`.
+
+### Alerts and the commit
+
+Each code-scanning alert names the commit GitHub last saw it at, and each analysis, a tool and a
+category, runs on its own schedule: a weekly OpenSSF Scorecard analysis names an older commit than a
+scanner run on every push. Each analysis is held to the commit this run reads apart, as each run of
+a SARIF file is:
+
+- **An analysis with an alert seen at this commit** describes this commit. A dismissed alert of it
+  last seen at another commit is one that analysis did not find here: it is left out, and **Measured
+  against** counts it, as `left out: 1 dismissed alert GitHub last saw at another commit, not this
+  one`.
+- **An analysis with no alert seen at this commit** describes other code. Its alerts are kept, the
+  open ones counting at their full rating, and the import is unbound, `commit` reading `not stated,
+  Scorecard (supply-chain/local) did not analyze cc4899689bce`.
+- **No alerts at all** reads `not stated, GitHub lists no alerts`.
+
+Dependabot alerts name no commit. They describe the default branch's manifests when GitHub last read
+them, which need not be the commit this run reads, so a Dependabot import is always unbound, `commit`
+reading `not stated, Dependabot alerts name no commit`. An unbound import is listed under
+**Caveats** as `unbound-imports`, and nothing in it is ranked lower for an absence.
+
+Alerts are read on every run, never from the cache: an alert is dismissed, or a new analysis lands,
+with nothing in the descriptor or the tree changing.
+
+### What the report says about the alerts
+
+| Field | Value |
+|---|---|
+| `tool` | the tools the alerts name, with their versions, as `Draugr 0.181.1, Scorecard v5.6.0`, or `Dependabot` |
+| `source` | the service and the repository, as `GitHub code scanning alerts for draugr-dev/draugr` |
+| `read` | when the alerts were read |
+| `severity` | where severities came from, as above |
+| `commit` | as [Alerts and the commit](#alerts-and-the-commit) describes |
+| `component` | the component that imports them |
+| `left out` | dismissed alerts last seen at another commit. Absent where none was |
+| `api` | for Dependabot, that its API is in public preview and subject to change |
+
+### Errors
+
+Each refusal stops the run as a scanner that could not run does, rather than reading as a repository
+with no alerts:
+
+| GitHub answers | The error |
+|---|---|
+| 401 | `GitHub refused the token as invalid or expired (HTTP 401)` |
+| 403, code scanning off | `needs GitHub Code Security (Advanced Security) turned on (HTTP 403)` |
+| 403, Dependabot alerts off | `Dependabot alerts are off for this repository (HTTP 403)` |
+| 403, any other | `the token may not read these alerts. It needs security_events (HTTP 403)` |
+| 404 | `no such repository, or the token cannot see it (HTTP 404)` |
+| 429, or 403 with a rate limit | waited out, as below |
+
+A rate-limited answer is waited out for as long as its `retry-after` says, or until the
+`x-ratelimit-reset` it sends with `x-ratelimit-remaining: 0`, or a minute where it names neither, as
+GitHub's documentation asks, and asked again, three times in all. A wait longer than two minutes
+stops the run with `GitHub's rate limit lasts until 15:40 UTC (HTTP 403)`, and a limit still in force
+after the third try with `GitHub kept limiting requests after 3 tries (HTTP 429)`. An empty or
+unlisted token variable, and an `--offline` run, stop the run before anything is sent.
+
+`draugr doctor` checks that the token's variable may be read and is set, sending nothing.
+
+## What is sent
+
+Only for an import with `source`. To GitHub's REST API, `api.github.com` or `$GITHUB_API_URL`: the
+repository's owner and name, the alert states asked for, and the token. Nothing about the code, the
+findings or the descriptor is sent; GitHub already holds the repository and its alerts.
+
 ## License & terms
 
 No third-party tool is executed or bundled, so the scanner carries only Draugr's own license. The
 file is the reader's; its tool's terms governed whoever produced it, before Draugr read it.
 
+An import with `source` uses GitHub's REST API with the reader's own token, under
+[GitHub's Terms of Service](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service),
+section H, API Terms, and the
+[GitHub General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement),
+both read on 2026-11-17. The terms say "Abuse or excessively frequent requests … may result in the
+temporary or permanent suspension of your Account's access to the API", and that "You may not share
+API tokens to exceed GitHub's rate limitations". Draugr asks for one repository's alerts per import
+per run and honors `retry-after`. The terms say nothing specific about a tool keeping alert data; the
+alerts go into the report on the machine that ran the scan.
+
 ## Data
 
-Nothing. The scan reads the file the descriptor names, on the machine running Draugr, and resolves
-the component's repository revision with `git`, locally for a path and with `git ls-remote` for a
-remote.
+For a file, nothing. The scan reads the file the descriptor names, on the machine running Draugr,
+and resolves the component's repository revision with `git`, locally for a path and with
+`git ls-remote` for a remote.
+
+For an import with `source`, `api.github.com` (or `$GITHUB_API_URL`), on every run: the alerts are
+GitHub's current account of the repository and are not cached.

@@ -942,14 +942,32 @@ type Component struct {
 	Imports []Import `yaml:"imports,omitempty"`
 }
 
-// Import is one file another tool wrote, read into a control.
+// Import is one file another tool wrote, or one service's alerts, read into a control.
 type Import struct {
 	// Control is the control the file's findings belong to, such as sast or sca. Named rather than
 	// inferred from the tool's rules: a guess that put findings under the wrong control would leave
 	// nothing to show it.
 	Control string `yaml:"control"`
 	// File is the file, resolved relative to where Draugr runs, as every path in a descriptor is.
-	File string `yaml:"file"`
+	// Exactly one of File and Source.
+	File string `yaml:"file,omitempty"`
+	// Source names a service whose alerts for the component's repository are read in place of a
+	// file: ImportSourceGitHubCodeScanning or ImportSourceGitHubDependabot. Exactly one of File and
+	// Source.
+	//
+	// One source per import, as one file is, so each has its own control, suppressions setting and
+	// line in the report: code-scanning alerts belong in sast and Dependabot's in sca.
+	Source string `yaml:"source,omitempty"`
+	// TokenEnv names the environment variable holding the token a source is read with, GITHUB_TOKEN
+	// when unset. Any other name must be listed in $DRAUGR_TOKEN_ENVS, which the pipeline sets, as
+	// for a publisher: the descriptor changes by pull request, and the token goes to the service.
+	// Source only. The token itself is never written here.
+	TokenEnv string `yaml:"tokenEnv,omitempty"`
+	// Repository is the repository whose alerts a source reads, as owner/name. Optional where the
+	// component declares one repository, whose address names it; required where it declares several,
+	// one import per repository, because the alerts of one would otherwise be read as another's.
+	// Source only.
+	Repository string `yaml:"repository,omitempty"`
 	// Format is what the file is: ImportFormatSARIF, the default, or a tool's own JSON, which
 	// Draugr reads with the reader its own run of that tool uses. A dependency scanner's SARIF
 	// states the package and its fixed version only in prose, and govulncheck's carries no call
@@ -991,6 +1009,27 @@ const (
 
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON}
+
+// The services an import's Source names.
+const (
+	// ImportSourceGitHubCodeScanning is a repository's GitHub code-scanning alerts, read from GitHub's
+	// REST API.
+	ImportSourceGitHubCodeScanning = "github-code-scanning"
+	// ImportSourceGitHubDependabot is a repository's Dependabot alerts, read from GitHub's REST API.
+	ImportSourceGitHubDependabot = "github-dependabot"
+)
+
+// ImportSources are the values an import's source accepts.
+var ImportSources = []string{ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot}
+
+// Name is what the import reads as a reader is told it: the file, or the source and the repository
+// it names, `github-code-scanning acme/api`.
+func (i Import) Name() string {
+	if i.Source == "" {
+		return i.File
+	}
+	return strings.TrimSpace(i.Source + " " + i.Repository)
+}
 
 // ReadFormat is the format the import's file is read as: Format, or SARIF where it names none.
 func (i Import) ReadFormat() string {

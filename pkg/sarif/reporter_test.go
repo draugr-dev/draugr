@@ -20,3 +20,17 @@ func TestReporter(t *testing.T) {
 		}
 	}
 }
+
+// Where a tool recorded a suppression reads from its kind, and a dismissal in a service names the
+// service.
+func TestWhereASuppressionWasRecorded(t *testing.T) {
+	for s, want := range map[Suppression]string{
+		{Kind: "inSource"}: "suppressed in a comment in the code",
+		{Kind: "external"}: "suppressed in the tool's own settings",
+		{Kind: "external", Service: "Dependabot", Author: "octocat"}: "dismissed in Dependabot",
+	} {
+		if got := s.Where(); got != want {
+			t.Errorf("Where(%+v) = %q, want %q", s, got, want)
+		}
+	}
+}

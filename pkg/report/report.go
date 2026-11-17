@@ -791,6 +791,9 @@ type finding struct {
 	acceptedVia string
 	// justification is why a suppressed finding was set aside. Empty for an active finding.
 	justification string
+	// dismissedBy is who dismissed an imported finding in the service it was read from, where the
+	// service records a person. Empty for every other finding.
+	dismissedBy string
 	// decision is decisionKey of a suppressed finding, so the HTML report lists it under the
 	// decision that covers it. recorded is recordedIn, and expires when its suppression lapses.
 	// All three empty for an active finding.
@@ -1005,6 +1008,7 @@ func summarize(d Data) summary {
 					ranked:        res.RankedSeverity(),
 					acceptedVia:   acceptedVia(res),
 					justification: res.Suppression.Justification,
+					dismissedBy:   dismissedBy(res.Suppression),
 					decision:      decisionKey(res),
 					recorded:      recordedIn(res),
 					expires:       res.Suppression.Expires,
@@ -1602,8 +1606,38 @@ type toolAside struct {
 // rules.
 type toolReason struct {
 	in, why string
-	n       int
-	rules   []string
+	// who is who dismissed the findings, where the service they were dismissed in records a person,
+	// and empty where the tool records nobody.
+	who   string
+	n     int
+	rules []string
+}
+
+// recordedWhere is where the tool recorded the suppression as a reason line says it: in the code or in
+// its settings for a file's tool, and dismissed in the service for an alert dismissed there.
+func recordedWhere(s *sarif.Suppression) string {
+	if s.Service != "" {
+		return s.Where()
+	}
+	return sarif.SuppressedIn(s.Kind)
+}
+
+// dismissedBy is who dismissed a finding in the service an import read it from, empty where the
+// suppression was read from a file, which has no field for a person.
+func dismissedBy(s *sarif.Suppression) string {
+	if s == nil || s.Service == "" {
+		return ""
+	}
+	return s.Author
+}
+
+// whoOf is who a reason's findings were dismissed by as the Who column shows it, or that the tool
+// recorded nobody.
+func (r toolReason) whoOf() string {
+	if r.who == "" {
+		return whoCell
+	}
+	return r.who
 }
 
 // reason is the justification as a cell shows it, under a heading that already says it is one.
@@ -1630,11 +1664,20 @@ var whoCell = strings.TrimPrefix(sarif.WhoNotRecorded, "who: ")
 // has no field for a person, and a reader should not take a missing name for one the report
 // dropped. Once for the tool rather than on every line, since it holds for every finding the file
 // holds, and a reason line that carried it too would run past the edge of the screen.
+//
+// A service that records who dismissed an alert, as GitHub does, names them on each reason line
+// instead, and the line saying nobody is recorded is left out where every reason names someone.
 func (t toolAside) notes() []string {
 	out := make([]string, 0, len(t.reasons)+1)
-	out = append(out, sarif.WhoNotRecorded)
+	if slices.ContainsFunc(t.reasons, func(r toolReason) bool { return r.who == "" }) {
+		out = append(out, sarif.WhoNotRecorded)
+	}
 	for _, r := range t.reasons {
-		parts := []string{r.in, findingSummary(sarif.GivenReason(r.why)), english.Count(r.n, "finding")}
+		in := r.in
+		if r.who != "" {
+			in += " by " + r.who
+		}
+		parts := []string{in, findingSummary(sarif.GivenReason(r.why)), english.Count(r.n, "finding")}
 		if rules := decisionRules(r.rules); rules != "" {
 			parts = append(parts, rules)
 		}
@@ -1650,7 +1693,7 @@ func (t toolAside) notes() []string {
 // same tool wrote are one place to look. Every copy counts, as the engine's count of the scanners'
 // own exclusions does, so the rows and the scanner exclusions line together sum to that count.
 func toolAsides(d Data) []toolAside {
-	type at struct{ in, why string }
+	type at struct{ in, why, who string }
 	byTool := map[string]*toolAside{}
 	reasons := map[string]map[at]*toolReason{}
 	var order []*toolAside
@@ -1667,10 +1710,10 @@ func toolAsides(d Data) []toolAside {
 				order = append(order, row)
 			}
 			row.n++
-			k := at{sarif.SuppressedIn(res.Suppression.Kind), strings.TrimSpace(res.Suppression.Justification)}
+			k := at{recordedWhere(res.Suppression), strings.TrimSpace(res.Suppression.Justification), dismissedBy(res.Suppression)}
 			r := reasons[who][k]
 			if r == nil {
-				r = &toolReason{in: k.in, why: k.why}
+				r = &toolReason{in: k.in, why: k.why, who: k.who}
 				reasons[who][k] = r
 			}
 			r.n++
@@ -1693,7 +1736,10 @@ func toolAsides(d Data) []toolAside {
 			if a.in != b.in {
 				return a.in < b.in
 			}
-			return a.why < b.why
+			if a.why != b.why {
+				return a.why < b.why
+			}
+			return a.who < b.who
 		})
 		out = append(out, *row)
 	}
@@ -2229,7 +2275,7 @@ func acceptedVia(res sarif.Result) string {
 	case res.SetAsideInImport():
 		// The tool that wrote the file and where it recorded the suppression, which is where a
 		// reader goes to see or undo it.
-		return res.Reporter() + ", suppressed " + sarif.SuppressedIn(res.Suppression.Kind)
+		return res.Reporter() + ", " + res.Suppression.Where()
 	case res.SilencedInSource():
 		return "source directive"
 	case res.SetAsideByScanner():

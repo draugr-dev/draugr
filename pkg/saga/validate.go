@@ -301,7 +301,7 @@ func validateComponents(comps []Component) []error {
 		if c.BuiltBy != "" && !c.BuiltBy.Valid() {
 			errs = append(errs, fmt.Errorf("%s: builtBy %q is not %s", where, c.BuiltBy, orList(BuiltByValues)))
 		}
-		errs = append(errs, validateImports(c.Imports, where)...)
+		errs = append(errs, validateImports(c.Imports, c.Repositories, where)...)
 
 		for j, r := range c.Repositories {
 			if r.URL == "" {
@@ -872,33 +872,42 @@ func validateImportFormat(imp Import, at string) []error {
 	return nil
 }
 
-// validateImports refuses an import without a control or a file, and one file imported twice into
-// the same control, which would count every finding in it twice. Whether the control exists is a
-// question for the registry, asked where control names are checked.
-func validateImports(imports []Import, where string) []error {
+// validateImports refuses an import without a control, or without exactly one of a file and a
+// source, and one file or source imported twice into the same control, which would count every
+// finding in it twice. Whether the control exists is a question for the registry, asked where control
+// names are checked. repositories are the component's, which say whether a source has to name one.
+func validateImports(imports []Import, repositories []Repository, where string) []error {
 	var errs []error
-	seen := map[[2]string]bool{}
+	seen := map[importKey]bool{}
 	for i, imp := range imports {
 		at := fmt.Sprintf("%s: imports[%d]", where, i)
 		if imp.Control == "" {
 			errs = append(errs, fmt.Errorf("%s: control is required, the control its findings belong to", at))
 		}
-		if imp.File == "" {
-			errs = append(errs, fmt.Errorf("%s: file is required, the file to read", at))
+		switch {
+		case imp.File == "" && imp.Source == "":
+			errs = append(errs, fmt.Errorf("%s: file or source is required, the file to read or the service whose alerts to read", at))
+		case imp.File != "" && imp.Source != "":
+			errs = append(errs, fmt.Errorf("%s: names both file and source. An import reads one; write a second import for the other", at))
 		}
-		key := [2]string{imp.Control, imp.File}
-		if imp.Control != "" && imp.File != "" && seen[key] {
-			errs = append(errs, fmt.Errorf("%s: %s is imported into %s twice", at, imp.File, imp.Control))
+		key := imp.key()
+		if imp.Control != "" && imp.Name() != "" && seen[key] {
+			errs = append(errs, fmt.Errorf("%s: %s is imported into %s twice", at, imp.Name(), imp.Control))
 		}
 		seen[key] = true
+		if !imp.Suppressions.Valid() {
+			errs = append(errs, fmt.Errorf("%s: suppressions %q is not %s", at, imp.Suppressions, orList(ImportSuppressionsValues)))
+		}
+		if imp.Source != "" {
+			errs = append(errs, validateImportSource(imp, repositories, at)...)
+			continue
+		}
+		errs = append(errs, validateFileOnly(imp, at)...)
 		errs = append(errs, validateImportFormat(imp, at)...)
 		if imp.Severity != nil && imp.ReadFormat() == ImportFormatSARIF {
 			errs = append(errs, validateImportSeverity(*imp.Severity, at+".severity")...)
 		}
 		errs = append(errs, validateImportCommit(imp, at)...)
-		if !imp.Suppressions.Valid() {
-			errs = append(errs, fmt.Errorf("%s: suppressions %q is not %s", at, imp.Suppressions, orList(ImportSuppressionsValues)))
-		}
 	}
 	return errs
 }

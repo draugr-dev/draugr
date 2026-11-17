@@ -261,6 +261,10 @@ func writeEffects(w io.Writer, col tui.Painter, reg *engine.Registry, only strin
 				// A job has it only where its host declares spec, so the row names the field.
 				detail = "with spec on a host, " + detail
 			}
+			if e.Source != "" {
+				// A job has it only where an import names the source, so the row names it.
+				detail = "with source: " + e.Source + " on an import, " + detail
+			}
 			if e.Option != "" {
 				// A job has it only where its block sets the option, so the row names the option.
 				if e.Default {

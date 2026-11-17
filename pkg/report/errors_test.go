@@ -719,3 +719,25 @@ func TestAnUnboundImportIsACaveat(t *testing.T) {
 		t.Errorf("want the bound file not listed:\n%s", out)
 	}
 }
+
+// A service's alerts that name no commit, as Dependabot's never do, are an unbound import named by the
+// source and repository, with no file for a location to point at.
+func TestAnUnboundSourceIsACaveatWithNoLocation(t *testing.T) {
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{{Tool: plugin.ImportScanner, Fields: []sarif.Field{
+			{Key: "source", Value: "github-dependabot acme/api"}, {Key: "commit", Value: "not stated, Dependabot alerts name no commit"},
+			{Key: "component", Value: "api"}}}}}},
+	}}}
+	var found bool
+	for _, c := range caveats(d) {
+		if c.key == saga.CaveatUnboundImports {
+			found = true
+			if c.what != "github-dependabot acme/api" || len(c.locations) != 0 {
+				t.Errorf("caveat %+v, want the source named and no location", c)
+			}
+		}
+	}
+	if !found {
+		t.Error("no unbound-imports caveat")
+	}
+}

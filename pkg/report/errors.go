@@ -222,9 +222,14 @@ func caveats(d Data) []caveat {
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
 	for _, u := range unboundImports(d) {
-		out = append(out, caveat{component: u.component, what: u.file,
+		c := caveat{component: u.component, what: u.file,
 			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports,
-			controls: u.controls, locations: []sarif.NotificationLocation{{URI: u.file}}})
+			controls: u.controls}
+		// A service's alerts are no file a location could point at.
+		if !u.source {
+			c.locations = []sarif.NotificationLocation{{URI: u.file}}
+		}
+		out = append(out, c)
 	}
 	out = append(out, uncommittedCaveats(d.Repositories)...)
 	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
@@ -931,7 +936,9 @@ func namesOfKinds(kinds []saga.CaveatKind) []string {
 // unboundImport is an imported SARIF file that stated no commit, and the controls that read it.
 type unboundImport struct {
 	component, file string
-	controls        []string
+	// source marks an import of a service's alerts, whose file is the service and the repository.
+	source   bool
+	controls []string
 }
 
 // unboundImports reads them off the import scanner's provenance, which records the commit each
@@ -946,13 +953,15 @@ func unboundImports(d Data) []unboundImport {
 				continue
 			}
 			var k key
-			bound := true
+			bound, source := true, false
 			for _, f := range p.Fields {
 				switch f.Key {
 				case "component":
 					k.component = f.Value
 				case "file":
 					k.file = f.Value
+				case "source":
+					k.file, source = f.Value, true
 				case "commit":
 					// "not stated", or "not stated, " and why a commit the descriptor named did not bind.
 					bound = !strings.HasPrefix(f.Value, "not stated")
@@ -965,7 +974,7 @@ func unboundImports(d Data) []unboundImport {
 			if !seen {
 				i = len(out)
 				at[k] = i
-				out = append(out, unboundImport{component: k.component, file: k.file})
+				out = append(out, unboundImport{component: k.component, file: k.file, source: source})
 			}
 			if !slices.Contains(out[i].controls, name) {
 				out[i].controls = append(out[i].controls, name)

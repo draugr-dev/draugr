@@ -250,6 +250,7 @@ func TestClientKeepsTheCallersSettings(t *testing.T) {
 var credentialFields = map[string]string{
 	"PublisherConfig.tokenEnv": "pkg/publish tokenFor and ResolveAPI",
 	"HostAuth.tokenEnv":        "internal/scanners authHeader",
+	"Import.tokenEnv":          "internal/scanners githubToken and SourceCheck",
 }
 
 func TestEveryCredentialFieldIsKnown(t *testing.T) {
@@ -299,6 +300,9 @@ var carriesTheName = map[string]string{
 	"pkg/plugin/target.go Marker":                  "keys two jobs against one endpoint apart",
 	"internal/controllers/dast.go hostAuth":        "copies the descriptor's block into the scanner's",
 	"internal/scanners/nuclei.go nucleiProvenance": "records which variable authenticated the scan",
+	"pkg/saga/importsource.go validateFileOnly":    "refuses the field on an import that reads a file",
+	"pkg/engine/engine.go planImports":             "copies the descriptor's import into its target",
+	"internal/preflight/preflight.go Run":          "keys one check per source and variable",
 }
 
 func TestEveryTokenEnvIsReadThroughHere(t *testing.T) {

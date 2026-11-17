@@ -184,8 +184,8 @@ func sagaFields() map[string]map[string]any {
 				"findings.",
 		},
 		"component.imports": {
-			"description": "Files another tool wrote about this component, SARIF or the tool's own JSON, each read into " +
-				"a control and ranked and gated like the rest.",
+			"description": "Files another tool wrote about this component, SARIF or the tool's own JSON, or GitHub's " +
+				"alerts for its repository, each read into a control and ranked and gated like the rest.",
 		},
 		"config.controls": {
 			"description": "Which controls run here, and what each is told. Named for what you meet everywhere else: " +
@@ -472,8 +472,31 @@ func sagaFields() map[string]map[string]any {
 			"description": "The control the file's findings belong to, such as sast or sca.",
 		},
 		"import.file": {
-			"description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names.",
-			"minLength":   1,
+			"description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names. " +
+				"Exactly one of file and source.",
+			"minLength": 1,
+		},
+		"import.source": {
+			"anyOf": vocab(saga.ImportSources,
+				valueDoc{"github-code-scanning", "The repository's GitHub code-scanning alerts, read from GitHub's REST API. " +
+					"Each carries a rule, a location and a severity bucket, and no score, package or fix."},
+				valueDoc{"github-dependabot", "The repository's Dependabot alerts, read from GitHub's REST API, which GitHub " +
+					"marks public preview and subject to change. Each carries the advisory, its CVE, a CVSS score, the " +
+					"package and the first patched version."},
+			),
+			"description": "A service whose alerts for the component's repository are read in place of a file. " +
+				"Exactly one of file and source.",
+		},
+		"import.tokenEnv": {
+			"description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset. " +
+				"Any other name must be listed in $DRAUGR_TOKEN_ENVS. A classic token needs security_events, or " +
+				"public_repo for a public repository. Source only.",
+			"minLength": 1,
+		},
+		"import.repository": {
+			"description": "The repository whose alerts a source reads, as owner/name. Required where the component " +
+				"declares several repositories, one import each. Source only.",
+			"pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$",
 		},
 		"import.format": {
 			"anyOf": vocab(saga.ImportFormats,
@@ -500,7 +523,8 @@ func sagaFields() map[string]map[string]any {
 				valueDoc{"count", "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."},
 			),
 			"description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own " +
-				"settings. A suppression the file marks rejected or underReview never sets a finding aside.",
+				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
+				"and an alert Dependabot dismissed by its own rule, never sets a finding aside.",
 		},
 		"import.severity": {
 			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +
@@ -1049,8 +1073,10 @@ func sagaDefinitions() map[string]map[string]any {
 			"required": []any{"image"},
 		},
 		"import": {
-			"description": "A file another tool wrote about this component, read into one of Draugr's controls.",
-			"required":    []any{"control", "file"},
+			"description": "A file another tool wrote about this component, or a service's alerts for its repository, " +
+				"read into one of Draugr's controls.",
+			"required": []any{"control"},
+			"oneOf":    []any{map[string]any{"required": []any{"file"}}, map[string]any{"required": []any{"source"}}},
 		},
 		"importSeverity": {
 			"description": "The result property a tool states its rating in, and the severity each of its values means.",

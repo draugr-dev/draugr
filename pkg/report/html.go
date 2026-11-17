@@ -513,6 +513,9 @@ type htmlFinding struct {
 	AcceptedVia string
 	// Justification is why the finding was set aside. Only set for suppressed findings.
 	Justification string
+	// DismissedBy is who dismissed an imported finding in the service it was read from, such as
+	// GitHub, empty where the tool recorded nobody.
+	DismissedBy string
 	// Recorded and Ends are a suppressed finding's values for the Accepted tab's Recorded in and
 	// Ends menus, and empty for an open one.
 	Recorded, Ends string
@@ -1133,6 +1136,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Signals:       strings.Join(signalKeys(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
+		DismissedBy:   f.dismissedBy,
 		Package:       pkgLabel,
 		NonShipping:   f.nonShipping,
 		Aside:         asideNote(f.aside),
@@ -2669,7 +2673,7 @@ lists the other fields.</p>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
     <div class="sub"><span class="lbl">recorded in</span> {{.AcceptedVia}}<span class="faint"> · </span>{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}</div>
     <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else if eq .Recorded "import"}}<span class="none">no reason given</span>{{else}}<span class="none">no reason recorded</span>{{end}}
-      {{- if eq .Recorded "import"}}<span class="faint"> · </span><span class="lbl">who</span> <span class="none">not recorded by the tool</span>{{end}}</div>
+      {{- if eq .Recorded "import"}}<span class="faint"> · </span><span class="lbl">who</span> {{if .DismissedBy}}{{.DismissedBy}}{{else}}<span class="none">not recorded by the tool</span>{{end}}{{end}}</div>
   </div>
 </div>{{end}}
 {{template "paging"}}

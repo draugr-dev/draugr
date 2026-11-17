@@ -452,14 +452,29 @@ type FileTarget struct {
 	// CountSuppressed counts the findings the file's tool suppressed, as the descriptor's
 	// imports[].suppressions: count asks, rather than setting them aside.
 	CountSuppressed bool
+	// Source is the service whose alerts are read in place of a file, one of saga.ImportSources, and
+	// empty for a file. Path is then empty.
+	Source string
+	// TokenEnv is the variable the descriptor names for the source's token, empty for the source's
+	// own. The token is read when the scan runs and kept nowhere else.
+	TokenEnv string
+	// Repository is the repository the descriptor names for the source as owner/name, empty where the
+	// component's one repository names it.
+	Repository string
 }
 
 // Kind returns TargetFile.
 func (FileTarget) Kind() TargetKind { return TargetFile }
 
-// Identity returns the path, e.g. "reports/checkmarx.sarif". The kind is beside it wherever the
-// two are shown or keyed together, as for every other target.
-func (t FileTarget) Identity() string { return t.Path }
+// Identity returns the path, e.g. "reports/checkmarx.sarif", or for a source the source and the
+// repository it names, "github-code-scanning acme/api". The kind is beside it wherever the two are
+// shown or keyed together, as for every other target.
+func (t FileTarget) Identity() string {
+	if t.Source != "" {
+		return strings.TrimSpace(t.Source + " " + t.Repository)
+	}
+	return t.Path
+}
 
 // CacheDetail is the file's content, so the same path holding different findings is a different
 // scan; the repositories it is read against, because what the import makes of a file depends on
@@ -468,7 +483,21 @@ func (t FileTarget) Identity() string { return t.Path }
 // unbound; the format it is read as, since one file read by two readers is two answers; whether
 // the tool's own suppressions are counted; and the descriptor's mapping of its tool's rating
 // where it gives one.
+//
+// A source's alerts are never served from the cache (the engine does not cache a source), so its
+// detail keeps it apart from a file's, and two reads of one source that make different findings
+// of it apart from each other.
 func (t FileTarget) CacheDetail() string {
+	if t.Source != "" {
+		detail := "source=" + t.Identity()
+		for _, r := range t.Repositories {
+			detail += " repo=" + r.Identity()
+		}
+		if t.CountSuppressed {
+			detail += " suppressions=count"
+		}
+		return detail
+	}
 	detail := "sha256=" + t.Digest
 	// A SARIF file's key is as it was before formats existed, so its cached reads stay valid.
 	if t.Format != "" && t.Format != saga.ImportFormatSARIF {

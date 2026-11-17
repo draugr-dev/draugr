@@ -886,6 +886,20 @@ type Suppression struct {
 	// not known. Source and Line together name the exclusion that set the finding aside, which is
 	// how report.json's descriptor.exclusions[] entry for it, and its git history, is found.
 	Line int `json:"line,omitempty"`
+	// Service is the service an imported finding was dismissed in, such as GitHub code scanning,
+	// where a person dismissed the alert there rather than a file recording a suppression. Author is
+	// then who dismissed it, Asserted when, and Source the alert. Empty for a suppression read from a
+	// file and for every one Draugr makes.
+	Service string `json:"service,omitempty"`
+}
+
+// Where says where a tool recorded that it suppressed a finding: dismissed in the service for one
+// dismissed there, and otherwise as SuppressedIn reads the kind.
+func (s Suppression) Where() string {
+	if s.Service != "" {
+		return "dismissed in " + s.Service
+	}
+	return "suppressed " + SuppressedIn(s.Kind)
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.

@@ -263,7 +263,7 @@
           "type": "array"
         },
         "imports": {
-          "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, each read into a control and ranked and gated like the rest.",
+          "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, or GitHub's alerts for its repository, each read into a control and ranked and gated like the rest.",
           "items": {
             "$ref": "#/$defs/import"
           },
@@ -1683,7 +1683,7 @@
           "type": "array"
         },
         "imports": {
-          "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, each read into a control and ranked and gated like the rest.",
+          "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, or GitHub's alerts for its repository, each read into a control and ranked and gated like the rest.",
           "items": {
             "$ref": "#/$defs/import"
           },
@@ -2210,7 +2210,19 @@
     },
     "import": {
       "additionalProperties": false,
-      "description": "A file another tool wrote about this component, read into one of Draugr's controls.",
+      "description": "A file another tool wrote about this component, or a service's alerts for its repository, read into one of Draugr's controls.",
+      "oneOf": [
+        {
+          "required": [
+            "file"
+          ]
+        },
+        {
+          "required": [
+            "source"
+          ]
+        }
+      ],
       "properties": {
         "commit": {
           "description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into versionControlProvenance. The run stops where it is not the commit this run reads, or not the one the file names. An unset variable leaves the file unbound.",
@@ -2222,7 +2234,7 @@
           "description": "The control the file's findings belong to, such as sast or sca."
         },
         "file": {
-          "description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names.",
+          "description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names. Exactly one of file and source.",
           "minLength": 1,
           "type": "string"
         },
@@ -2248,9 +2260,28 @@
           "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
           "type": "string"
         },
+        "repository": {
+          "description": "The repository whose alerts a source reads, as owner/name. Required where the component declares several repositories, one import each. Source only.",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$",
+          "type": "string"
+        },
         "severity": {
           "$ref": "#/$defs/importSeverity",
           "description": "Where the file's tool states its own rating, for a tool Draugr has no table for. Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it. SARIF only."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "const": "github-code-scanning",
+              "description": "The repository's GitHub code-scanning alerts, read from GitHub's REST API. Each carries a rule, a location and a severity bucket, and no score, package or fix."
+            },
+            {
+              "const": "github-dependabot",
+              "description": "The repository's Dependabot alerts, read from GitHub's REST API, which GitHub marks public preview and subject to change. Each carries the advisory, its CVE, a CVSS score, the package and the first patched version."
+            }
+          ],
+          "description": "A service whose alerts for the component's repository are read in place of a file. Exactly one of file and source.",
+          "type": "string"
         },
         "suppressions": {
           "anyOf": [
@@ -2263,13 +2294,17 @@
               "description": "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."
             }
           ],
-          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings. A suppression the file marks rejected or underReview never sets a finding aside.",
+          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, and an alert Dependabot dismissed by its own rule, never sets a finding aside.",
+          "type": "string"
+        },
+        "tokenEnv": {
+          "description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset. Any other name must be listed in $DRAUGR_TOKEN_ENVS. A classic token needs security_events, or public_repo for a public repository. Source only.",
+          "minLength": 1,
           "type": "string"
         }
       },
       "required": [
-        "control",
-        "file"
+        "control"
       ],
       "type": "object"
     },

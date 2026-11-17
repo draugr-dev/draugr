@@ -139,6 +139,61 @@ func TestHTMLNamesWhatEachImportedToolSetAside(t *testing.T) {
 	}
 }
 
+// githubAsideData is a run that imported a repository's code-scanning alerts, two of which people
+// dismissed in GitHub, and a SARIF file whose tool suppressed one finding.
+func githubAsideData() Data {
+	dismissed := func(rule, file, who, why string) sarif.Result {
+		return sarif.Result{RuleID: rule, Level: sarif.LevelWarning, Priority: "P2", Component: "app", Tool: "CodeQL",
+			Scanner: sarif.ImportScanner, ImportFormat: "github-code-scanning", Location: sarif.Location{URI: file, StartLine: 4},
+			Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginScanner, Justification: why, Author: who,
+				Service: "GitHub code scanning", Source: "https://github.com/acme/app/security/code-scanning/1"}}
+	}
+	results := []sarif.Result{
+		dismissed("go/path-injection", "cmd/main.go", "octocat", "false positive (the path is a constant)"),
+		dismissed("go/sql-injection", "db/query.go", "monalisa", "won't fix"),
+		{RuleID: "B105", Level: sarif.LevelError, Component: "app", Tool: "bandit", Scanner: sarif.ImportScanner,
+			Location: sarif.Location{URI: "app/config.py"}, Suppression: &sarif.Suppression{Kind: "inSource", Origin: sarif.OriginTool}},
+	}
+	return Data{Project: "app", Evidence: true, Run: engine.Result{Silenced: 3, Controls: map[string]plugin.ControlResult{
+		"sast": {Control: "sast", Report: sarif.Report{Results: results}},
+	}}}
+}
+
+// An alert a person dismissed in GitHub is set aside under the imported tool's row, and each reason
+// names who dismissed it, so the line saying the tool recorded nobody is left out where every reason
+// names someone. The markdown table and the HTML row name them too.
+func TestAnAlertDismissedInGitHubNamesWhoDismissedIt(t *testing.T) {
+	d := githubAsideData()
+	out := renderWith(t, consoleReporter{}, d)
+	for _, want := range []string{
+		"imported CodeQL (github-code-scanning)",
+		"dismissed in GitHub code scanning by octocat · reason: false positive (the path is a constant) · 1 finding · go/path-injection",
+		"dismissed in GitHub code scanning by monalisa · reason: won't fix · 1 finding · go/sql-injection",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	if n := strings.Count(out, "who: not recorded by the tool"); n != 1 {
+		t.Errorf("who is said unrecorded %d times, want only under bandit:\n%s", n, out)
+	}
+
+	md := renderWith(t, markdownReporter{}, d)
+	if want := "| 1 | imported CodeQL (github-code-scanning) | dismissed in GitHub code scanning | won't fix | monalisa |"; !strings.Contains(md, want) {
+		t.Errorf("markdown lacks %q:\n%s", want, md)
+	}
+	html := renderWith(t, htmlReporter{}, d)
+	for _, want := range []string{
+		"imported CodeQL (github-code-scanning), dismissed in GitHub code scanning",
+		`<span class="lbl">who</span> octocat`,
+		`<span class="lbl">who</span> <span class="none">not recorded by the tool</span>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("HTML lacks %q", want)
+		}
+	}
+}
+
 // The markdown report counts each imported tool in its Accepted table and lists where and why in a
 // table of its own, a cell per reason, the file's text kept from breaking the table.
 func TestMarkdownListsWhereAndWhyEachImportedToolSetFindingsAside(t *testing.T) {

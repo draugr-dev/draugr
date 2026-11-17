@@ -353,6 +353,26 @@ func TestRepositoryEntryKeysTheAnalysisNotTheCheckout(t *testing.T) {
 
 // A file is identified by its path and keyed by its content, so the same path holding different
 // findings is never answered from the cache.
+// A source is named by the source and the repository it names, and its key tells it from a file's,
+// from the same source for another component's repositories, and from one that counts suppressions.
+func TestASourceTargetIsNamedByItsSource(t *testing.T) {
+	src := FileTarget{Source: "github-dependabot", Repository: "acme/api",
+		Repositories: []RepositoryTarget{{URL: "https://github.com/acme/api"}}}
+	if src.Identity() != "github-dependabot acme/api" || (FileTarget{Source: "github-code-scanning"}).Identity() != "github-code-scanning" {
+		t.Errorf("identity %q", src.Identity())
+	}
+	other, count := src, src
+	other.Repositories = []RepositoryTarget{{URL: "https://github.com/acme/web"}}
+	count.CountSuppressed = true
+	keys := map[string]bool{}
+	for _, ft := range []FileTarget{src, other, count, {Path: "github-dependabot acme/api"}} {
+		keys[ft.CacheDetail()] = true
+	}
+	if len(keys) != 4 {
+		t.Errorf("%d distinct details, want 4", len(keys))
+	}
+}
+
 func TestFileTargetKeysOnItsContent(t *testing.T) {
 	a := FileTarget{Path: "reports/x.sarif", Digest: "aaa"}
 	b := FileTarget{Path: "reports/x.sarif", Digest: "bbb"}

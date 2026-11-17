@@ -35,18 +35,33 @@ type sarifImport struct {
 	// resolve turns a repository's revision into a commit, so a file that states the revision it
 	// scanned can be held to the one this run reads. Injectable for tests.
 	resolve func(ctx context.Context, url, revision string) (string, error)
+	// github reads the alerts an import names a GitHub source for. Injectable for tests, which
+	// answer from recorded responses.
+	github githubClient
 }
 
 // NewSARIFImport returns the scanner every import is planned for.
-func NewSARIFImport() plugin.Scanner { return sarifImport{resolve: git.ResolveRevision} }
+func NewSARIFImport() plugin.Scanner {
+	return sarifImport{resolve: git.ResolveRevision, github: newGitHubClient()}
+}
 
 // Info describes the import scanner.
+//
+// Reading a file is no effect. Reading a source is: the scan sends GitHub a request for the
+// repository's alerts, carrying the token, which an import of a file never does. Declared per source
+// so the report records it only for a run that read one, and `draugr controls` lists it.
 func (sarifImport) Info() plugin.ScannerInfo {
 	return plugin.ScannerInfo{
 		Name:         plugin.ImportScanner,
 		Origin:       "draugr",
 		TargetKinds:  []plugin.TargetKind{plugin.TargetFile},
 		ConfigSchema: json.RawMessage(noScannerOptions),
+		Effects: []plugin.Effect{
+			{Kind: plugin.EffectNetwork, Source: saga.ImportSourceGitHubCodeScanning, Online: true,
+				Detail: "asks GitHub's REST API for the repository's code-scanning alerts, with the import's token"},
+			{Kind: plugin.EffectNetwork, Source: saga.ImportSourceGitHubDependabot, Online: true,
+				Detail: "asks GitHub's REST API for the repository's Dependabot alerts, with the import's token"},
+		},
 	}
 }
 
@@ -151,6 +166,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	ft, ok := target.(plugin.FileTarget)
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want file)", plugin.ImportScanner, target)
+	}
+	if ft.Source != "" {
+		return s.scanGitHub(ctx, ft)
 	}
 	data, err := os.ReadFile(ft.Path) // #nosec G304 -- the file the descriptor names for import
 	if err != nil {
