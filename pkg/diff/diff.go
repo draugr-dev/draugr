@@ -362,10 +362,17 @@ func identity(r sarif.Result) string {
 	//
 	// The repository by its identity rather than as written, so a baseline from a scan that spelled
 	// it `…/api.git` and a head that spelled it `…/api` agree about which findings they share.
-	return strings.Join([]string{
+	parts := []string{
 		r.Tool, r.RuleID, r.Location.URI, r.Message, r.Component,
 		sarif.RepositoryIdentity(r.Repository),
-	}, "\x00")
+	}
+	// An imported file can place one advisory in two packages at one line under one message, and the
+	// package is then what makes them two findings, as it does for the fingerprint. Only there, so
+	// every other finding pairs as it did.
+	if pkg := r.ImportedPackage(); pkg != "" {
+		parts = append(parts, pkg)
+	}
+	return strings.Join(parts, "\x00")
 }
 
 // sortMoves orders moves the way sortResults orders findings, by the head copy.

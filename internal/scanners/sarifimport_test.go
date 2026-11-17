@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -269,15 +270,17 @@ func TestSARIFImportHelpers(t *testing.T) {
 // do not reach.
 func TestSARIFImportPlacesPathsInTheComponentsCheckouts(t *testing.T) {
 	api, web := t.TempDir(), t.TempDir()
-	at := func(uri string) string {
-		return `{"ruleId":"EX2","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"` + uri + `"}}}]}`
+	at := func(uri string, line int) string {
+		return `{"ruleId":"EX2","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"` + uri +
+			`"},"region":{"startLine":` + strconv.Itoa(line) + `}}}]}`
 	}
+	// Two findings in the file outside both checkouts, at two lines, so neither repeats the other.
 	results := strings.Join([]string{
-		at("file://" + filepath.ToSlash(api) + "/cmd/main.go"),
-		at(filepath.ToSlash(web) + "/src/app.ts"),
-		at("/opt/ci/build/gen.go"),
-		at("/opt/ci/build/gen.go"),
-		at("relative/ok.go"),
+		at("file://"+filepath.ToSlash(api)+"/cmd/main.go", 1),
+		at(filepath.ToSlash(web)+"/src/app.ts", 1),
+		at("/opt/ci/build/gen.go", 1),
+		at("/opt/ci/build/gen.go", 2),
+		at("relative/ok.go", 1),
 	}, ",")
 	repos := []plugin.RepositoryTarget{{URL: api}, {URL: web}, {URL: "https://github.com/acme/remote"}}
 	rep, err := NewSARIFImport().Scan(context.Background(),

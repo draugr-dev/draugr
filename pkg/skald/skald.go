@@ -76,9 +76,10 @@ type jsonReport struct {
 	// are in the report, and nothing in them shows they describe the code this run scanned.
 	UnboundImports []UnboundImport `json:"unboundImports,omitempty"`
 	// ScopedImports are the imported SARIF files a repository's paths: and ignore: narrowed, per
-	// component: how many findings they left out of it, and how many they could not be applied to. A
-	// finding left out is in no other count of this document, so without this its absence reads the
-	// same as a file that never reported it.
+	// component: how many findings they left out of it, and how many they could not be applied to,
+	// and the files whose repeated findings were counted once. A finding left out or folded is in no
+	// other count of this document, so without this its absence reads the same as a file that never
+	// reported it.
 	ScopedImports []ScopedImport `json:"scopedImports,omitempty"`
 	// Effects is which scanner effects the run accepted after --allow-effects, beside what the
 	// descriptor declared, and which effects its scanners had. Always present.
@@ -420,8 +421,9 @@ type UnboundImport struct {
 	Reason string `json:"reason"`
 }
 
-// ScopedImport is one imported SARIF file in one component whose repositories declare paths: or
-// ignore:, where the scope left a finding out or could not be applied to one.
+// ScopedImport is one imported SARIF file in one component where the import did not count every
+// finding the file lists as one of its own: a repository's paths: or ignore: left a finding out or
+// could not be applied to one, or a finding repeated another exactly and was counted once.
 type ScopedImport struct {
 	// Component is the component that imported it.
 	Component string `json:"component,omitempty"`
@@ -437,6 +439,8 @@ type ScopedImport struct {
 	// NotScoped counts the findings kept whole because the file establishes no one repository of the
 	// component's, whose scope would apply. They are in the report and counted.
 	NotScoped int `json:"notScoped,omitempty"`
+	// Folded counts the findings that repeated another of the file's exactly and were counted once.
+	Folded int `json:"folded,omitempty"`
 }
 
 // scopedImportsOf reads, from the import scanner's provenance, the counts it recorded for each file
@@ -474,9 +478,11 @@ func scopedImportsOf(run engine.Result) []ScopedImport {
 					s.Ignored = n
 				case sarif.ImportNotScoped:
 					s.NotScoped = n
+				case sarif.ImportFolded:
+					s.Folded = n
 				}
 			}
-			if s.OutsidePaths+s.Ignored+s.NotScoped == 0 {
+			if s.OutsidePaths+s.Ignored+s.NotScoped+s.Folded == 0 {
 				continue
 			}
 			i, seen := at[k]

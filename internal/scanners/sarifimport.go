@@ -193,6 +193,8 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	toolsSuppressions(rep.Results, ft)
 	keep, scoped := scopeImported(rep.Results, read.outside, ft.Repositories)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
+	keep, scoped.folded = foldRepeats(rep.Results)
+	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
 	ownJSON := toolJSON(ft)
 	for i := range rep.Results {
 		rep.Results[i].ImportFormat = ownJSON
@@ -451,6 +453,8 @@ type importScope struct {
 	// notScoped are the findings kept whole because no one repository was established for them, in a
 	// component whose repositories declare a scope.
 	notScoped int
+	// folded are the findings that repeated another of the file's in every respect, counted once.
+	folded int
 	// ownJSON is the file's format where it is a tool's own JSON, which has nowhere to name a
 	// repository, so the remedy for findings not scoped is another component rather than the file.
 	ownJSON string
@@ -482,6 +486,10 @@ func (s importScope) fields() []sarif.Field {
 		out = append(out, sarif.Field{Key: "not scoped", Value: english.Count(s.notScoped, "finding") +
 			", not in any one repository, so paths and ignore were not applied. " + remedy})
 	}
+	if s.folded > 0 {
+		out = append(out, sarif.Field{Key: "folded", Value: english.Count(s.folded, "finding") +
+			" repeating another of the file's exactly, counted once"})
+	}
 	return out
 }
 
@@ -491,7 +499,8 @@ func (s importScope) detail() []sarif.Field {
 	for _, c := range []struct {
 		key string
 		n   int
-	}{{sarif.ImportOutsidePaths, s.outsidePaths}, {sarif.ImportIgnored, s.ignored}, {sarif.ImportNotScoped, s.notScoped}} {
+	}{{sarif.ImportOutsidePaths, s.outsidePaths}, {sarif.ImportIgnored, s.ignored}, {sarif.ImportNotScoped, s.notScoped},
+		{sarif.ImportFolded, s.folded}} {
 		if c.n > 0 {
 			out = append(out, sarif.Field{Key: c.key, Value: strconv.Itoa(c.n)})
 		}
@@ -556,6 +565,30 @@ func keepOnly[T any](items []T, keep []bool) []T {
 		}
 	}
 	return out
+}
+
+// foldRepeats says which findings to keep where several are one: alike in every respect the
+// fingerprint compares, which for a dependency finding includes its package. It keeps the first and
+// returns how many it folded into it.
+//
+// A merge would fold them anyway, since one fingerprint is one finding, and without a word, so a
+// file that lists a finding twice would read exactly like one that lists it once. Folded here
+// instead, where the count can be stated. Compared as the engine will stamp them, under the import
+// scanner, because every finding of one file gets the same component and repository.
+func foldRepeats(results []sarif.Result) ([]bool, int) {
+	keep := make([]bool, len(results))
+	seen := make(map[string]bool, len(results))
+	folded := 0
+	for i, r := range results {
+		r.Scanner = plugin.ImportScanner
+		fp := r.Fingerprint()
+		if seen[fp] {
+			folded++
+			continue
+		}
+		seen[fp], keep[i] = true, true
+	}
+	return keep, folded
 }
 
 // repositoryOf is the one repository a run is about: the component's only one, whatever the run
