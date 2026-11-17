@@ -845,6 +845,7 @@ programmatically, is in the [report schema](../reference/report-schema.md).
 ## The HTML report
 
 One file, no external assets, safe to email, attach to a build, or open from disk.
+[Read a finding in the HTML report](reading-the-html-report.md) follows one finding through it.
 
 [draugr.dev/demo/cli/report](https://draugr.dev/demo/cli/report/) serves the newest release's scan of the
 [demo sandbox](https://github.com/draugr-dev/draugr-demo). Each release also attaches its report as
