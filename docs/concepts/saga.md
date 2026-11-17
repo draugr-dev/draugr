@@ -149,7 +149,9 @@ draugr scan draugr.saga.yaml    # run the descriptor
 Any string value may reference an environment variable with `${{ VAR_NAME }}`, if it is one of
 the [built-in CI names](../reference/saga-schema.md#substitution) or one the pipeline lists in
 `$DRAUGR_SAGA_ENVS`. Loading **fails fast on any other name, or on one that is unset**, rather than
-scanning on with an empty value.
+scanning on with an empty value. An imported file's
+[`commit`](../reference/saga-schema.md#componentsimports) is the exception: unset, it leaves the
+file unbound.
 
 ## Keeping it honest
 

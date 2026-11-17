@@ -2212,6 +2212,11 @@
       "additionalProperties": false,
       "description": "A SARIF file another tool wrote about this component, read into one of Draugr's controls.",
       "properties": {
+        "commit": {
+          "description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into versionControlProvenance. The run stops where it is not the commit this run reads, or not the one the file names. An unset variable leaves the file unbound.",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[0-9a-fA-F]{7,64})$",
+          "type": "string"
+        },
         "control": {
           "$ref": "#/$defs/controlName",
           "description": "The control the file's findings belong to, such as sast or sca."

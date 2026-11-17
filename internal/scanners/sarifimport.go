@@ -157,17 +157,37 @@ func checkoutRoots(repos []plugin.RepositoryTarget) []string {
 	return roots
 }
 
-// bind holds a file to the revision this run reads, where the file states the revision it scanned.
+// bind holds a file to the revision this run reads, where the file states the revision it scanned
+// or the descriptor's import states it for the file.
 //
-// A file left from an old run reads exactly like a current scan, and the revision it names is the
-// only thing that tells them apart. A file that names one for a different commit is refused; a file
-// that names none is read and reported as unbound, so a gate can choose to refuse it too.
+// A file left from an old run reads exactly like a current scan, and the revision named for it is
+// the only thing that tells them apart. A file named for a different commit is refused; a file
+// named for none is read and reported as unbound, so a gate can choose to refuse it too.
+//
+// The descriptor's commit names a commit and no repository. A run whose file states no revision is
+// held to it in the repository the run is about, established as placeImported establishes it: the
+// component's one repository, or the one of several the run's provenance names. Where that cannot
+// be told, the run is not bound, because holding the commit to a repository it may not be in would
+// either refuse a current file or bind a stale one by chance.
 func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta importLog) (string, error) {
 	var stated []string
+	declared := ft.Commit
 	for _, run := range meta.Runs {
+		var named []string
+		vouched := false
 		for _, vcp := range run.VersionControlProvenance {
+			if vcp.RepositoryURI != "" && !slices.Contains(named, vcp.RepositoryURI) {
+				named = append(named, vcp.RepositoryURI)
+			}
 			if vcp.RevisionID == "" {
 				continue
+			}
+			// Two statements of the commit that disagree, and neither can be trusted to say which is
+			// wrong, so the reason names both and both fixes. Worded without a colon, which would cut
+			// the errors block's reason short.
+			if declared != "" && !sameCommit(declared, vcp.RevisionID) {
+				return "", fmt.Errorf("%s: file has %s, commit is %s. Fix commit, or run the tool again",
+					ft.Path, short(vcp.RevisionID), short(declared))
 			}
 			repo, ok := matchRepository(vcp.RepositoryURI, ft.Repositories)
 			if !ok {
@@ -176,27 +196,64 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 				return "", fmt.Errorf("%s: names repository %s, which component %s does not declare",
 					ft.Path, repoName(vcp.RepositoryURI), ft.Component)
 			}
-			revision := repo.Revision
-			if repo.WorkingTree {
-				revision = ""
-			}
-			commit, err := s.resolve(ctx, repo.URL, revision)
+			commit, err := s.holdTo(ctx, ft.Path, repo, vcp.RevisionID)
 			if err != nil {
-				return "", fmt.Errorf("%s: names commit %s, and the commit this run reads could not be resolved: %w",
-					ft.Path, short(vcp.RevisionID), err)
+				return "", err
 			}
-			if !sameCommit(commit, vcp.RevisionID) {
-				return "", fmt.Errorf("%s: written for commit %s, and this run reads %s",
-					ft.Path, short(vcp.RevisionID), short(commit))
-			}
-			stated = append(stated, short(commit))
+			stated, vouched = append(stated, commit), true
 		}
+		if vouched || declared == "" {
+			continue
+		}
+		repo, ok := repositoryOf(named, ft.Repositories)
+		if !ok {
+			continue
+		}
+		commit, err := s.holdTo(ctx, ft.Path, repo, declared)
+		if err != nil {
+			return "", err
+		}
+		stated = append(stated, commit)
 	}
 	if len(stated) == 0 {
-		return notStated, nil
+		return unbound(ft), nil
 	}
 	slices.Sort(stated)
 	return strings.Join(slices.Compact(stated), ", "), nil
+}
+
+// holdTo resolves the commit this run reads in repo and refuses a file named for another, returning
+// the commit as the report shows it.
+func (s sarifImport) holdTo(ctx context.Context, file string, repo plugin.RepositoryTarget, named string) (string, error) {
+	revision := repo.Revision
+	if repo.WorkingTree {
+		revision = ""
+	}
+	commit, err := s.resolve(ctx, repo.URL, revision)
+	if err != nil {
+		return "", fmt.Errorf("%s: names commit %s, and the commit this run reads could not be resolved: %w",
+			file, short(named), err)
+	}
+	if !sameCommit(commit, named) {
+		// What to do, inside the errors block's width: the console keeps 80 characters of the
+		// reason, which holds both commits and one remedy. Removing the import is in the docs.
+		return "", fmt.Errorf("%s: scanned %s, this run reads %s. Run the tool again",
+			file, short(named), short(commit))
+	}
+	return short(commit), nil
+}
+
+// unbound is the commit field of a file nothing binds: notStated, and where the descriptor named a
+// commit that could not bind it, why, so a reader who wrote one is not left wondering where it went.
+// The report reads a value starting notStated as unbound.
+func unbound(ft plugin.FileTarget) string {
+	switch {
+	case ft.CommitUnset != "":
+		return notStated + ", ${{ " + ft.CommitUnset + " }} is not set"
+	case ft.Commit != "":
+		return notStated + ", the file names none or several of the component's repositories"
+	}
+	return notStated
 }
 
 // placeImported sets each finding's ImportedRepository to the repository of the component its run

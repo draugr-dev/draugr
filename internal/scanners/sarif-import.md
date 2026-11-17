@@ -190,10 +190,10 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `file` | the path the descriptor gave |
 | `written` | when the file says its run ended (`invocations[].endTimeUtc`), or else the file's modification time |
 | `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5` |
-| `commit` | the commit the file was checked against, or `not stated` |
+| `commit` | the commit the file was checked against, or `not stated`. Where the import's `commit` could not bind the file, why, as `not stated, ${{ GITHUB_SHA }} is not set` or `not stated, the file does not say which repository 0123456789ab is in` |
 | `component` | the component that imports it |
 | `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |
-| `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file names none of the component's repositories, or more than one. Add `runs[].versionControlProvenance` naming the repository the tool scanned, as [Name the commit the file describes](../../docs/guides/importing-sarif.md#2-name-the-commit-the-file-describes) shows, and they are scoped on the next run. Absent where none was, and where the component's repositories declare no scope |
+| `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file names none of the component's repositories, or more than one. Add `runs[].versionControlProvenance` naming the repository the tool scanned, as [In a component with several repositories](../../docs/guides/importing-sarif.md#in-a-component-with-several-repositories) shows, and they are scoped on the next run. Absent where none was, and where the component's repositories declare no scope |
 | `sha256` | the file's content, so a run can be checked against the file it read |
 
 ## Each tool's own rating
@@ -382,20 +382,30 @@ descriptor`.
 ## Commit
 
 A file left from an old run reads exactly like a current scan. Where the file names the commit it
-scanned, in `runs[].versionControlProvenance`, Draugr holds it to the commit this run reads:
+scanned, in `runs[].versionControlProvenance`, or the import's
+[`commit`](../../docs/reference/saga-schema.md#componentsimports) names it, Draugr holds the file to
+the commit this run reads:
 
 - **The same commit:** the file is read, and `commit` names it.
-- **A different commit:** the run stops with an error naming both. Run the tool again on this
-  commit, or remove the import.
+- **A different commit:** the run stops with an error naming both, as `scanned fedcba987654, this
+  run reads 0123456789ab. Run the tool again`. Run the tool on this commit, or remove the import.
 - **No commit named:** the file is read and listed under **Caveats** as `unbound-imports`, because nothing
   ties its findings to this code.
   [`config.gate.failOnCaveats: [unbound-imports]`](../../docs/reference/saga-schema.md#configgate)
   makes that fail the run.
 
+A commit matches its abbreviation, of 7 characters or more, regardless of case. Where the file and
+the import both name a commit and they differ, the run stops with `file has 0123456789ab,
+commit is fedcba987654. Fix commit, or run the tool again`. An import's `commit` that references a variable the
+environment does not set, such as `${{ GITHUB_SHA }}` on a laptop, leaves the file unbound rather
+than failing the load.
+
 A component with one repository is held to it whatever address the file gives, because a tool
 records the remote it saw and the descriptor may name the same repository by a local path. Entries
 that list one repository at one revision, a subtree each, count as one. With several distinct
-repositories, the address has to name one of them.
+repositories, the address has to name one of them. The import's `commit` names no repository, so
+with several it is held to the one the file's `repositoryUri` names, and a file that names none of
+them, or more than one, stays unbound.
 
 ## Errors
 
@@ -415,8 +425,8 @@ entry of tool.driver.rules, which has 4 rules (0 to 3)`.
 
 `draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor
 with the same message, and a file that passes reports how many results it holds. Doctor does not
-compare paths with the component's checkout; the scan lists a path it cannot place under
-`unread-files`.
+compare paths with the component's checkout, and does not hold the file to a commit: the scan lists
+a path it cannot place under `unread-files`, and stops on a file named for another commit.
 
 ## License & terms
 

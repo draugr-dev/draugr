@@ -34,9 +34,12 @@ func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
 		{"gitleaks: git clone: exit status 128: fatal: repository '/home/u/shop/app' does not exist",
 			"repository does not exist"},
 		{"draugr-k8s-policies: " + strings.Repeat("x", 120), strings.Repeat("x", whyWidth-1) + "…"},
-		// An imported SARIF file that cannot be read for this run says why, the file being the target.
-		{"sarif-import: reports/bandit.sarif: written for commit 4f2a9c1e7b3d, and this run reads 123509aace3d",
-			"written for commit 4f2a9c1e7b3d, and this run reads 123509aace3d"},
+		// An imported SARIF file that cannot be read for this run says why, the file being the target,
+		// and what to do, whole within the width.
+		{"sarif-import: reports/bandit.sarif: scanned 4f2a9c1e7b3d, this run reads 123509aace3d. Run the tool again",
+			"scanned 4f2a9c1e7b3d, this run reads 123509aace3d. Run the tool again"},
+		{"sarif-import: reports/bandit.sarif: file has 4f2a9c1e7b3d, commit is 123509aace3d. Fix commit, or run the tool again",
+			"file has 4f2a9c1e7b3d, commit is 123509aace3d. Fix commit, or run the tool again"},
 		{"sarif-import: reports/bandit.sarif: names repository draugr-demo, which component api does not declare",
 			"names repository draugr-demo, which component api does not declare"},
 		// A registry's request id is not a reason; the clause before it is.
@@ -682,8 +685,9 @@ func TestReportJSONCarriesTheGateOnNewFindings(t *testing.T) {
 	}
 }
 
-// An imported file that states no commit is a caveat, once however many controls read it; a bound
-// file and another scanner's provenance are not.
+// An imported file that states no commit is a caveat, once however many controls read it, and so is
+// one whose descriptor named a commit that could not bind it; a bound file and another scanner's
+// provenance are not.
 func TestAnUnboundImportIsACaveat(t *testing.T) {
 	imported := func(file, commit string) sarif.Provenance {
 		return sarif.Provenance{Tool: plugin.ImportScanner, Fields: []sarif.Field{
@@ -696,16 +700,22 @@ func TestAnUnboundImportIsACaveat(t *testing.T) {
 		Run: engine.Result{Controls: map[string]plugin.ControlResult{
 			"sast": {Report: sarif.Report{Provenance: []sarif.Provenance{
 				unbound, imported("reports/semgrep.sarif", "0123456789ab"),
+				imported("reports/bandit.sarif", "not stated, ${{ GITHUB_SHA }} is not set"),
 				{Tool: "gosec", Fields: []sarif.Field{{Key: "commit", Value: "not stated"}}}}}},
 			"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{unbound}}},
 		}},
 	}
 	got := FailedCaveats(d)
-	if len(got) != 1 || got[0].Component != "web" || got[0].Kind != saga.CaveatUnboundImports {
-		t.Fatalf("FailedCaveats = %+v, want web's one unbound import", got)
+	if len(got) != 2 || got[0].Component != "web" || got[0].Kind != saga.CaveatUnboundImports || got[1].Kind != saga.CaveatUnboundImports {
+		t.Fatalf("FailedCaveats = %+v, want web's two unbound imports", got)
 	}
 	out := renderWith(t, consoleReporter{}, d)
-	if !strings.Contains(out, "reports/codeql.sarif") || strings.Contains(out, "reports/semgrep.sarif") {
-		t.Errorf("want the unbound file listed and the bound one not:\n%s", out)
+	for _, file := range []string{"reports/codeql.sarif", "reports/bandit.sarif"} {
+		if !strings.Contains(out, file) {
+			t.Errorf("want the unbound file %s listed:\n%s", file, out)
+		}
+	}
+	if strings.Contains(out, "reports/semgrep.sarif") {
+		t.Errorf("want the bound file not listed:\n%s", out)
 	}
 }

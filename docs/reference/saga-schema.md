@@ -46,7 +46,8 @@ with `${{ VAR_NAME }}`. The variable must be one of:
 
 Any other name fails the load before anything runs, naming the variable, and the error is the same
 whether or not the job holds it. A listed name that is unset also fails the load, rather than
-leaving an empty value. The [environment reference](cli.md#environment) says why the pipeline
+leaving an empty value, except in an import's [`commit`](#componentsimports), where it leaves the
+file unbound. The [environment reference](cli.md#environment) says why the pipeline
 decides.
 
 ```bash
@@ -244,6 +245,7 @@ components:
     imports:
       - control: sast                           # required, the control its findings belong to
         file: reports/checkmarx.sarif           # required, a SARIF 2.1.0 file another tool wrote
+        commit: ${{ GITHUB_SHA }}               # optional, the commit the file describes
         severity:                               # optional, how to read the tool's own rating
           property: severity                    #   required, the result property it rates in
           values: {Critical: critical, High: high, Medium: medium, Low: low}  # required
@@ -395,6 +397,7 @@ components:
 |---|---|
 | `control` | the control the file's findings belong to, such as `sast` or `sca` |
 | `file` | the SARIF 2.1.0 file, relative to where Draugr runs |
+| `commit` | optional: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none |
 | `severity` | optional: the result property the tool states its rating in, and the severity each of its values means |
 
 A finding in the file keeps the path the file wrote, so write paths relative to the repository's
@@ -442,8 +445,31 @@ A finding the control's own scanner also reports is counted once, naming both; [
 control's scanners](../../internal/scanners/sarif-import.md#merging-with-the-controls-scanners)
 says which findings merge.
 
-A file that states the commit it scanned is held to the commit this run reads, and a different
-commit stops the run. A file that states none is read and listed under **Caveats** as `unbound-imports`,
+**`commit`** names the commit the file describes, for a tool that writes none into the file:
+
+```yaml
+imports:
+  - control: sast
+    file: reports/bandit.sarif
+    commit: ${{ GITHUB_SHA }}      # the commit the pipeline checked out for the tool
+```
+
+A file with a commit, from `commit` or from its own `runs[].versionControlProvenance`, is held to
+the commit this run reads:
+
+- **A different commit stops the run**, naming both. Run the tool again on this commit, or remove
+  the import.
+- **`commit` and the file's own commit must agree.** Where they differ, the run stops naming both,
+  and says to fix `commit` or run the tool again. An abbreviated commit matches the whole one.
+- **A variable the environment does not set leaves the file unbound** instead of failing the load,
+  so a descriptor written for CI still runs on a laptop. Any other unset variable still fails it.
+  The report's `commit` field reads `not stated, ${{ GITHUB_SHA }} is not set`.
+- **In a component with several repositories**, `commit` is held to the repository the file's
+  `versionControlProvenance` names by `repositoryUri`. A file that names none of them, or more than
+  one, stays unbound, and `commit` reads `not stated, the file names none or several of the
+  component's repositories`.
+
+A file that states no commit is read and listed under **Caveats** as `unbound-imports`,
 which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missing, unreadable or
 invalid file stops the run as a scanner that could not run does. The
 [`sarif-import`](../../internal/scanners/sarif-import.md) page has the details, and [Import another
