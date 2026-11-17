@@ -153,7 +153,7 @@ func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
 	}{
 		{"the same commit", one, vcp("https://github.com/acme/api", head), "0123456789ab", false},
 		{"an abbreviated commit", one, vcp("https://github.com/acme/api", head[:10]), "0123456789ab", false},
-		{"another commit", one, vcp("https://github.com/acme/api", other), "written for commit fedcba987654, and this run reads 0123456789ab", true},
+		{"another commit", one, vcp("https://github.com/acme/api", other), "scanned fedcba987654, not 0123456789ab. Run the tool again, or remove the import", true},
 		{"one of two repositories, by name", two, vcp("git@github.com:acme/web.git", head), "0123456789ab", false},
 		{"one repository listed per subtree", subtrees, vcp("https://github.com/acme/demo", head), "0123456789ab", false},
 		{"a repository the component does not declare", two, vcp("https://github.com/acme/other", head), "names repository other, which component api does not declare", true},
@@ -175,6 +175,71 @@ func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
 		}
 		if got := field(t, rep, "written"); got != "2026-10-07 12:30 UTC" {
 			t.Errorf("%s: written = %q, want the run's end time", c.name, got)
+		}
+	}
+}
+
+// The descriptor's commit binds a file as the file's own provenance does: alone, beside a
+// provenance that agrees, abbreviated, and refused where it is not the commit this run reads or
+// where the file names another. In a component of two repositories at different commits it is held
+// to the one the file's provenance names, and where the file names none it binds nothing, the
+// commit saying which repository it is in.
+func TestSARIFImportHoldsAFileToTheDescriptorsCommit(t *testing.T) {
+	const (
+		firstHead  = "0123456789abcdef0123456789abcdef01234567"
+		secondHead = "89abcdef0123456789abcdef0123456789abcdef"
+		other      = "fedcba9876543210fedcba9876543210fedcba98" // a commit this run does not read
+	)
+	scanner := sarifImport{resolve: func(_ context.Context, url, _ string) (string, error) {
+		if strings.HasSuffix(url, "/web") {
+			return secondHead, nil
+		}
+		return firstHead, nil
+	}}
+	provenance := func(uri, rev string) string {
+		return `"versionControlProvenance":[{"repositoryUri":"` + uri + `","revisionId":"` + rev + `"}],`
+	}
+	one := []plugin.RepositoryTarget{{URL: "."}}
+	two := []plugin.RepositoryTarget{{URL: "https://github.com/acme/api"}, {URL: "https://github.com/acme/web"}}
+	for _, c := range []struct {
+		name          string
+		repos         []plugin.RepositoryTarget
+		commit, unset string
+		extra         string
+		want          string // the commit field, or the error
+		fails         bool
+	}{
+		{"the descriptor's commit alone", one, firstHead, "", "", "0123456789ab", false},
+		{"an abbreviated commit", one, firstHead[:7], "", "", "0123456789ab", false},
+		{"an abbreviation in capitals", one, strings.ToUpper(firstHead[:12]), "", "", "0123456789ab", false},
+		{"the provenance alone", one, "", "", provenance("https://github.com/acme/api", firstHead), "0123456789ab", false},
+		{"both, the same commit", one, firstHead[:10], "", provenance("https://github.com/acme/api", firstHead), "0123456789ab", false},
+		{"both, different commits", one, other, "", provenance("https://github.com/acme/api", firstHead),
+			"names commit 0123456789ab, the descriptor fedcba987654. One of them is wrong", true},
+		{"another commit", one, other, "", "", "scanned fedcba987654, not 0123456789ab. Run the tool again, or remove the import", true},
+		{"an unset variable", one, "", "GITHUB_SHA", "", "not stated, ${{ GITHUB_SHA }} is not set", false},
+		{"an unset variable beside the provenance", one, "", "GITHUB_SHA", provenance("https://github.com/acme/api", firstHead), "0123456789ab", false},
+		{"two repositories, the file naming the second", two, secondHead, "", `"versionControlProvenance":[{"repositoryUri":"https://github.com/acme/web"}],`,
+			"89abcdef0123", false},
+		{"two repositories, the first's commit for the second", two, firstHead, "", `"versionControlProvenance":[{"repositoryUri":"https://github.com/acme/web"}],`,
+			"scanned 0123456789ab, not 89abcdef0123", true},
+		{"two repositories, the file naming neither", two, secondHead, "", "",
+			"not stated, the file does not say which repository 89abcdef0123 is in", false},
+	} {
+		ft := plugin.FileTarget{Path: writeFile(t, exampleLog(scoredResult, c.extra)), Component: "api", Repositories: c.repos,
+			Commit: c.commit, CommitUnset: c.unset}
+		rep, err := scanner.Scan(context.Background(), ft, nil)
+		if c.fails {
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Errorf("%s: err = %v, want %q", c.name, err, c.want)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := field(t, rep, "commit"); got != c.want {
+			t.Errorf("%s: commit = %q, want %q", c.name, got, c.want)
 		}
 	}
 }

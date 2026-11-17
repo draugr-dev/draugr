@@ -113,6 +113,38 @@ func TestAnImportsRepositoriesAreNamedByTheirRemote(t *testing.T) {
 	}
 }
 
+// The commit the descriptor names reaches the import's target, and a variable left unset reaches it
+// as the variable's name with no commit, so the file is read unbound rather than held to the
+// reference's text.
+func TestAnImportsCommitReachesItsTarget(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(repoController{scanner: "unused"})
+	reg.RegisterScanner(&importStub{})
+	model := saga.Model{Components: []saga.Component{{
+		Name: "api", Repositories: []saga.Repository{{URL: "."}, {URL: "https://github.com/acme/web"}},
+		Imports: []saga.Import{
+			{Control: "sast", File: "x.sarif", Commit: "0123456789ab"},
+			{Control: "sast", File: "y.sarif", Commit: "${{ GITHUB_SHA }}"},
+		},
+	}}}
+	jobs, err := New(reg).Plan(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]plugin.FileTarget{}
+	for _, j := range jobs {
+		if f, ok := j.Job.Target.(plugin.FileTarget); ok {
+			got[f.Path] = f
+		}
+	}
+	if x := got["x.sarif"]; x.Commit != "0123456789ab" || x.CommitUnset != "" || len(x.Repositories) != 2 {
+		t.Errorf("x.sarif = %+v, want its commit and both repositories", x)
+	}
+	if y := got["y.sarif"]; y.Commit != "" || y.CommitUnset != "GITHUB_SHA" {
+		t.Errorf("y.sarif = %+v, want no commit and the unset variable", y)
+	}
+}
+
 // A control this build does not have refuses the plan, and a component outside the run's scope
 // imports nothing.
 func TestImportsRespectTheRegistryAndTheScope(t *testing.T) {

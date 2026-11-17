@@ -306,15 +306,23 @@ func envRefs(names []string) string {
 // nodes, YAML comments (which live in the nodes' comment fields, not in scalar values)
 // are never substituted. It returns the names it may substitute and the environment does
 // not set, and the names it may not substitute at all, each once, in the order they appear.
+//
+// An import's commit is the one value an unset name leaves as written instead of reporting it
+// missing, so the file reads as unbound rather than the descriptor failing to load (see
+// Import.CommitUnset). A name it may not substitute is refused there as anywhere.
 func substituteEnv(root *yaml.Node) (missing, refused []string) {
 	seen := map[string]bool{}
 
-	var walk func(*yaml.Node)
-	walk = func(n *yaml.Node) {
+	// key is the mapping key n is the value of, or the key of the sequence n is an item of, and
+	// parent is the key the mapping holding n is under, so an import's commit is key "commit" under
+	// parent "imports".
+	var walk func(n *yaml.Node, key, parent string)
+	walk = func(n *yaml.Node, key, parent string) {
 		if n == nil {
 			return
 		}
 		if n.Kind == yaml.ScalarNode {
+			mayBeUnset := key == "commit" && parent == "imports"
 			n.Value = envPattern.ReplaceAllStringFunc(n.Value, func(match string) string {
 				name := envPattern.FindStringSubmatch(match)[1]
 				if !substitutable(name) {
@@ -327,19 +335,26 @@ func substituteEnv(root *yaml.Node) (missing, refused []string) {
 				if val, ok := os.LookupEnv(name); ok {
 					return val
 				}
-				if !seen[name] {
+				if !mayBeUnset && !seen[name] {
 					seen[name] = true
 					missing = append(missing, name)
 				}
 				return match
 			})
 		}
+		if n.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(n.Content); i += 2 {
+				walk(n.Content[i], "", "")
+				walk(n.Content[i+1], n.Content[i].Value, key)
+			}
+			return
+		}
 		for _, child := range n.Content {
-			walk(child)
+			walk(child, key, parent)
 		}
 	}
 
-	walk(root)
+	walk(root, "", "")
 	return missing, refused
 }
 

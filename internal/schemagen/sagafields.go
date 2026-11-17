@@ -474,6 +474,12 @@ func sagaFields() map[string]map[string]any {
 			"description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
 			"minLength":   1,
 		},
+		"import.commit": {
+			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
+				"versionControlProvenance. The run stops where it is not the commit this run reads, or not the one the " +
+				"file names. An unset variable leaves the file unbound.",
+			"pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[0-9a-fA-F]{7,64})$",
+		},
 		"import.severity": {
 			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +
 				"Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it.",

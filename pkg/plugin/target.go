@@ -441,6 +441,12 @@ type FileTarget struct {
 	Repositories []RepositoryTarget
 	// Severity is the descriptor's mapping of the tool's own rating, nil where it gives none.
 	Severity *saga.ImportSeverity
+	// Commit is the commit the descriptor says the file describes, held to the one this run reads as
+	// a commit the file names itself is. Empty where the descriptor names none.
+	Commit string
+	// CommitUnset is the variable the descriptor's commit references where the environment does not
+	// set it, so the file is read unbound and the report can say why. Commit is then empty.
+	CommitUnset string
 }
 
 // Kind returns TargetFile.
@@ -453,12 +459,18 @@ func (t FileTarget) Identity() string { return t.Path }
 // CacheDetail is the file's content, so the same path holding different findings is a different
 // scan; the repositories it is read against, because what the import makes of a file depends on
 // them, the revision it is held to, the repository its findings are placed in and the scope that
-// keeps or leaves out each one; and the
-// descriptor's mapping of its tool's rating where it gives one.
+// keeps or leaves out each one; the commit the descriptor holds it to, or the variable that left it
+// unbound; and the descriptor's mapping of its tool's rating where it gives one.
 func (t FileTarget) CacheDetail() string {
 	detail := "sha256=" + t.Digest
 	for _, r := range t.Repositories {
 		detail += " repo=" + r.Identity()
+	}
+	if t.Commit != "" {
+		detail += " commit=" + t.Commit
+	}
+	if t.CommitUnset != "" {
+		detail += " commit-unset=" + t.CommitUnset
 	}
 	if t.Severity == nil {
 		return detail

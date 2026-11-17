@@ -370,4 +370,14 @@ func TestFileTargetKeysOnItsContent(t *testing.T) {
 	if ComputeCacheKey(ImportScanner, "1", api, nil) == ComputeCacheKey(ImportScanner, "1", web, nil) {
 		t.Error("two components' repositories share a cache key")
 	}
+	// The commit the descriptor holds it to decides whether it binds, so each is its own scan: a file
+	// read unbound must not answer for one held to a commit, nor one commit for another.
+	keys := map[CacheKey]bool{}
+	for _, ft := range []FileTarget{a, {Path: a.Path, Digest: a.Digest, Commit: "0123456"},
+		{Path: a.Path, Digest: a.Digest, Commit: "89abcde"}, {Path: a.Path, Digest: a.Digest, CommitUnset: "GITHUB_SHA"}} {
+		keys[ComputeCacheKey(ImportScanner, "1", ft, nil)] = true
+	}
+	if len(keys) != 4 {
+		t.Errorf("%d cache keys for four commits, want four", len(keys))
+	}
 }

@@ -954,7 +954,8 @@ func unboundImports(d Data) []unboundImport {
 				case "file":
 					k.file = f.Value
 				case "commit":
-					bound = f.Value != "not stated"
+					// "not stated", or "not stated, " and why a commit the descriptor named did not bind.
+					bound = !strings.HasPrefix(f.Value, "not stated")
 				}
 			}
 			if bound {

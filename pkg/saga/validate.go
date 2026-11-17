@@ -876,6 +876,7 @@ func validateImports(imports []Import, where string) []error {
 		if imp.Severity != nil {
 			errs = append(errs, validateImportSeverity(*imp.Severity, at+".severity")...)
 		}
+		errs = append(errs, validateImportCommit(imp, at)...)
 	}
 	return errs
 }

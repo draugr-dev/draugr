@@ -3970,7 +3970,11 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 					imp.File, comp.Name, imp.Control))
 				continue
 			}
-			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity}
+			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity,
+				Commit: imp.Commit}
+			if unset := imp.CommitUnset(); unset != "" {
+				target.Commit, target.CommitUnset = "", unset
+			}
 			for _, r := range comp.Repositories {
 				// With its paths and ignore, which decide which of the file's findings are this
 				// component's, as they decide which files its own scanners read.

@@ -954,6 +954,15 @@ type Import struct {
 	// Severity reads the rating a tool Draugr has no table for writes into the file. Optional; a
 	// file without it is rated by Draugr's own table for its tool, or else by its SARIF level.
 	Severity *ImportSeverity `yaml:"severity,omitempty"`
+	// Commit is the commit the file describes, which holds it to the commit this run reads as the
+	// file's own runs[].versionControlProvenance does, for a tool that writes none. Typically
+	// `${{ GITHUB_SHA }}`, the commit the pipeline checked out for the tool. Optional; a file
+	// neither names a commit for is read unbound.
+	//
+	// A variable the environment does not set here leaves the reference in place instead of failing
+	// the load, and the file is read unbound (CommitUnset): a descriptor written for CI still runs on
+	// a laptop, and nothing claims a commit it was not given.
+	Commit string `yaml:"commit,omitempty"`
 }
 
 // ImportSeverity names the result property a tool states its rating in, and the severity each of

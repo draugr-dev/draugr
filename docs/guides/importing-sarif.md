@@ -51,7 +51,8 @@ first import meets:
   import it. A left-out finding is not counted, and **Measured against** says how many, as `left
   out: 3 findings outside paths, not counted`. In a component with several repositories, a file that
   names none of them, or more than one, isn't scoped and shows as `not scoped`: name the repository
-  in its `versionControlProvenance` ([step 2](#2-name-the-commit-the-file-describes)) to scope it.
+  in its `versionControlProvenance` ([several repositories](#in-a-component-with-several-repositories))
+  to scope it.
   [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the rules.
 - **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed.
 
@@ -72,21 +73,41 @@ commented out, with the control the tool's findings go in.
 
 ## 2. Name the commit the file describes
 
-A SARIF file left from an earlier run reads exactly like a current one. When a file names the
-commit it scanned, in `runs[].versionControlProvenance`, Draugr holds it to the commit this run
-reads:
+A SARIF file left from an earlier run reads exactly like a current one. Name the commit the tool
+scanned with the import's `commit`, and Draugr holds the file to the commit this run reads:
+
+```yaml
+imports:
+  - control: sast
+    file: reports/bandit.sarif
+    commit: ${{ GITHUB_SHA }}
+```
 
 - **The same commit:** the file is read, and the report names the commit.
-- **A different commit:** the run stops with an error naming both.
+- **A different commit:** the run stops with an error naming both. Run the tool again on this
+  commit, or remove the import.
 - **No commit:** the file is read, and the report lists it under **Caveats** as `unbound-imports`.
 
-To see whether a tool already writes the field:
+`GITHUB_SHA` is the commit GitHub Actions checked out, the one the tool scanned and Draugr reads.
+GitLab CI's is `${{ CI_COMMIT_SHA }}`, and Azure Pipelines' is `${{ BUILD_SOURCEVERSION }}`. Where
+the variable is not set, as on a laptop, the file is read unbound and **Measured against** reads
+`commit: not stated, ${{ GITHUB_SHA }} is not set`.
+
+A tool that writes the commit into the file, in `runs[].versionControlProvenance`, binds it the
+same way with no `commit`. To see whether a tool does:
 
 ```bash
 jq '.runs[].versionControlProvenance' bandit.sarif
 ```
 
-Bandit's prints `null`. Add the field from the checkout the tool ran in:
+Bandit's prints `null`. Where the file and `commit` both name a commit and they differ, the run
+stops naming both, since one of them is wrong.
+
+### In a component with several repositories
+
+`commit` names a commit and no repository, so in a component with several repositories the file has
+to name the repository the tool scanned, in `versionControlProvenance`. A file that names none of
+them stays unbound. Add the repository and the commit from the checkout the tool ran in:
 
 ```bash
 mkdir -p reports
@@ -98,10 +119,8 @@ jq --arg uri "$(git remote get-url origin)" --arg rev "$(git rev-parse HEAD)" \
 `git remote get-url origin` prints the address as the remote holds it. Where that address carries a
 credential, as `https://user:token@host/…` does, pass the address without it, since the SARIF file is
 often kept as a pipeline artifact. A checkout with no remote has no address to print; pass the
-repository's address as Draugr's descriptor names it.
-
-A component with one repository is held to it whatever address the file gives. With several, the
-address has to name one of them.
+repository's address as Draugr's descriptor names it. The address has to name one of the
+component's repositories.
 
 ## 3. Declare the import
 
@@ -115,9 +134,10 @@ components:
         file: reports/bandit.sarif   # relative to where Draugr runs
 ```
 
-`control` names the control that reports the findings, such as `sast` or `sca`. A finding in the
-file belongs to the component that imports it where its path is inside the `paths:` and `ignore:` of
-the component's repository. A component can import several files, one entry each.
+`control` names the control that reports the findings, such as `sast` or `sca`, and `commit` is
+step 2's, where the pipeline sets it. A finding in the file belongs to the component that imports it
+where its path is inside the `paths:` and `ignore:` of the component's repository. A component can
+import several files, one entry each.
 
 ## 4. Scan
 
@@ -186,10 +206,9 @@ This run is [`draugr-demo`](https://github.com/draugr-dev/draugr-demo), whose `a
 declares the step 3 import and is `exposure: public` and `criticality: important`, so Bandit's
 high-severity findings rank P1. Draugr did not run Bandit, so **Measured against** states what the
 file says about itself: the tool and version, when it was written, where severities came from, the
-commit it was checked against, and its SHA-256. This file names no commit, so the run reads
-`commit: not stated` and lists the file under **Caveats** as `unbound-imports`, which does not fail
-the run. Step 5 makes it fail; the GitHub Actions example below shows how to write the commit into
-the file.
+commit it was checked against, and its SHA-256. Neither the file nor the import names a commit, so
+the run reads `commit: not stated` and lists the file under **Caveats** as `unbound-imports`, which
+does not fail the run. Step 5 makes it fail; the GitHub Actions example below names the commit.
 
 ## 5. Require the commit
 
@@ -212,19 +231,25 @@ steps:
   - name: Bandit
     run: |
       pipx install 'bandit[sarif]'
-      bandit -r app -f sarif -o bandit.sarif --exit-zero
       mkdir -p reports
-      jq --arg uri "$(git remote get-url origin)" --arg rev "$(git rev-parse HEAD)" \
-        '.runs[].versionControlProvenance = [{repositoryUri: $uri, revisionId: $rev}]' \
-        bandit.sarif > reports/bandit.sarif
+      bandit -r app -f sarif -o reports/bandit.sarif --exit-zero
   - uses: draugr-dev/draugr@v0
     with:
       saga: draugr.saga.yaml
       tools: true
 ```
 
-The commit comes from the checkout, so on a pull request it is the merge commit the workflow checked
-out, which is also the commit Draugr reads.
+The descriptor's import names the commit:
+
+```yaml
+imports:
+  - control: sast
+    file: reports/bandit.sarif
+    commit: ${{ GITHUB_SHA }}
+```
+
+On a pull request, `GITHUB_SHA` is the merge commit the workflow checked out, which is the commit
+both Bandit and Draugr read.
 
 ## See also
 
