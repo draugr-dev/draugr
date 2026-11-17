@@ -951,6 +951,23 @@ type Import struct {
 	// File is the SARIF 2.1.0 file, resolved relative to where Draugr runs, as every path in a
 	// descriptor is.
 	File string `yaml:"file"`
+	// Severity reads the rating a tool Draugr has no table for writes into the file. Optional; a
+	// file without it is rated by Draugr's own table for its tool, or else by its SARIF level.
+	Severity *ImportSeverity `yaml:"severity,omitempty"`
+}
+
+// ImportSeverity names the result property a tool states its rating in, and the severity each of
+// its values means.
+//
+// Declared rather than guessed: a word such as "Major" means a different band to every tool that
+// writes it, and only the team that runs the tool knows which one it is.
+type ImportSeverity struct {
+	// Property is the result property holding the rating, read from the result and else from its
+	// rule, the way SARIF lets a result inherit its rule's properties.
+	Property string `yaml:"property"`
+	// Values maps each value the tool writes to a severity: critical, high, medium or low. A value
+	// it does not name leaves the finding on its SARIF level.
+	Values map[string]string `yaml:"values"`
 }
 
 // VEXSource is where one supplier's VEX document comes from.

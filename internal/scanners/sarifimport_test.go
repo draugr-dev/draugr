@@ -53,7 +53,8 @@ const (
 )
 
 // A real gosec run imports as written: every finding, the tool and version from the file, its
-// severities from the SARIF level because gosec scores nothing, and no commit, so it is unbound.
+// severities from gosec's own severity tag because gosec scores nothing, and no commit, so it is
+// unbound.
 func TestSARIFImportReadsARealToolsFile(t *testing.T) {
 	ft := plugin.FileTarget{Path: "testdata/sarif-import/gosec.sarif", Component: "app"}
 	rep, err := NewSARIFImport().Scan(context.Background(), ft, nil)
@@ -64,7 +65,7 @@ func TestSARIFImportReadsARealToolsFile(t *testing.T) {
 		t.Fatalf("results = %d, tool %q, want gosec's three", len(rep.Results), rep.Results[0].Tool)
 	}
 	for key, want := range map[string]string{
-		"tool": "gosec 2.29.0", "file": ft.Path, "severity": "SARIF level", "commit": notStated, "component": "app",
+		"tool": "gosec 2.29.0", "file": ft.Path, "severity": "gosec's severity tag", "commit": notStated, "component": "app",
 	} {
 		if got := field(t, rep, key); got != want {
 			t.Errorf("%s = %q, want %q", key, got, want)

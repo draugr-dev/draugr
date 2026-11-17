@@ -14,10 +14,11 @@ import (
 )
 
 // importSaga declares a component importing gosec's own SARIF output, with nothing else enabled,
-// so the run needs no tool: the import scanner reads a file.
+// so the run needs no tool: the import scanner reads a file. The file holds one rule gosec rates
+// HIGH, two MEDIUM and one LOW.
 func importSaga(t *testing.T, gate string) string {
 	t.Helper()
-	abs, err := filepath.Abs("../scanners/testdata/sarif-import/gosec.sarif")
+	abs, err := filepath.Abs("../scanners/testdata/sarif-import/gosec-ratings.sarif")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +38,8 @@ components:
 }
 
 // An imported file's findings are judged with everything else: they reach report.json under the
-// control the descriptor named, and the file, stating no revision, is listed as unbound.
+// control the descriptor named, ranked by gosec's own rating, and the file, stating no revision, is
+// listed as unbound.
 func TestAnImportedFileIsRankedAndGated(t *testing.T) {
 	var buf bytes.Buffer
 	err := runScan(context.Background(), importSaga(t, ""), scanOptions{format: "json"}, builtins.Registry(), &buf)
@@ -67,19 +69,25 @@ func TestAnImportedFileIsRankedAndGated(t *testing.T) {
 		t.Errorf("controls = %+v, want sast failing on the imported findings", doc.Controls)
 	}
 	clears := 0
+	bands := map[string]int{}
 	for _, a := range doc.Actions {
-		if a.Control != "sast" || a.Component != "api" || a.Priority != "P1" {
-			t.Errorf("action %+v, want it under sast, on api, ranked P1", a)
+		if a.Control != "sast" || a.Component != "api" {
+			t.Errorf("action %+v, want it under sast, on api", a)
 		}
 		clears += a.Clears
+		bands[a.Priority] += a.Clears
 	}
-	if clears != 3 {
-		t.Errorf("actions clear %d findings, want gosec's three", clears)
+	if clears != 4 {
+		t.Errorf("actions clear %d findings, want gosec's four", clears)
+	}
+	// The HIGH rule alone is P1; the MEDIUM and LOW ones rank below it, as gosec rates them.
+	if bands["P1"] != 1 {
+		t.Errorf("priorities %v, want only gosec's HIGH finding at P1", bands)
 	}
 
 	var console bytes.Buffer
 	_ = runScan(context.Background(), importSaga(t, ""), scanOptions{format: "console"}, builtins.Registry(), &console)
-	if !strings.Contains(console.String(), "unbound") || !strings.Contains(console.String(), "tool: gosec 2.29.0") {
+	if !strings.Contains(console.String(), "unbound") || !strings.Contains(console.String(), "tool: gosec 2.30.0") {
 		t.Errorf("want the unbound caveat and the tool under measured against:\n%s", console.String())
 	}
 }

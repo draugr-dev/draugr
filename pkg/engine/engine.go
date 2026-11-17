@@ -3970,7 +3970,7 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 					imp.File, comp.Name, imp.Control))
 				continue
 			}
-			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File)}
+			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity}
 			for _, r := range comp.Repositories {
 				repo := plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree}
 				// Resolved as a scanned repository's is, so the repository an imported finding is

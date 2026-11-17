@@ -3,6 +3,8 @@ package saga
 import (
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 func TestValidateErrors(t *testing.T) {
@@ -970,5 +972,57 @@ func TestValidateImports(t *testing.T) {
 		if err := with(c.imps...); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("err = %v, want %q", err, c.want)
 		}
+	}
+}
+
+// A severity mapping is refused where it cannot rate as written. A word that is not a severity is an
+// error rather than a default, since a misspelled band would rate the findings it names wrongly
+// without anyone being told.
+func TestValidateImportSeverity(t *testing.T) {
+	with := func(s ImportSeverity) error {
+		imp := Import{Control: "sast", File: "a.sarif", Severity: &s}
+		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
+	}
+	good := ImportSeverity{Property: "impact", Values: map[string]string{"Blocker": "critical", "Major": "high", "Minor": "medium", "3": "low"}}
+	if err := with(good); err != nil {
+		t.Errorf("a valid mapping was refused: %v", err)
+	}
+	for _, c := range []struct {
+		name string
+		s    ImportSeverity
+		want string
+	}{
+		{"no property", ImportSeverity{Values: map[string]string{"Major": "high"}}, "imports[0].severity.property is empty"},
+		{"no values", ImportSeverity{Property: "impact"}, "imports[0].severity.values is empty"},
+		{"not a severity", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "severe"}},
+			`imports[0].severity.values["Major"]: "severe" is not a severity: use critical, high, medium, low`},
+		{"a level, not a severity", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "error"}},
+			`"error" is not a severity`},
+		{"a capitalized band", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "High"}},
+			`"High" is not a severity`},
+		{"one value twice", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high", "major ": "low"}},
+			`"Major" and "major " match the same value`},
+		{"one number twice", ImportSeverity{Property: "impact", Values: map[string]string{"3": "high", "3.0": "low"}},
+			`"3" and "3.0" match the same value`},
+		{"an empty value", ImportSeverity{Property: "impact", Values: map[string]string{" ": "high"}},
+			"remove the empty key"},
+	} {
+		if err := with(c.s); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v, want %q", c.name, err, c.want)
+		}
+	}
+}
+
+// SeverityOf matches a value regardless of case and space, a number by value, and names nothing for
+// a value the mapping does not list.
+func TestImportSeverityOf(t *testing.T) {
+	m := ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high", "3.0": "low"}}
+	for value, want := range map[string]sarif.Severity{" MAJOR": sarif.SeverityHigh, "3": sarif.SeverityLow, "3.00": sarif.SeverityLow} {
+		if got, ok := m.SeverityOf(value); !ok || got != want {
+			t.Errorf("SeverityOf(%q) = %q, %v, want %q", value, got, ok, want)
+		}
+	}
+	if got, ok := m.SeverityOf("Minor"); ok {
+		t.Errorf("SeverityOf(Minor) = %q, want no severity", got)
 	}
 }

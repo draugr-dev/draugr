@@ -243,6 +243,13 @@ components:
     imports:
       - control: sast
         file: reports/codeql.sarif
+      # A tool Draugr has no table for: name the result property it rates in and what each of its
+      # words means, or its findings rank by SARIF level alone, which never reaches critical.
+      - control: sast
+        file: reports/acme.sarif
+        severity:
+          property: acme-severity
+          values: {Blocker: critical, Major: high, Minor: medium, Info: low}
     cloud:
       - account: web-prod    # the whole account: every region, and the findings about the account
 

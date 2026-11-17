@@ -73,9 +73,10 @@ func (s Severity) Deescalate() Severity {
 	}
 }
 
-// severityFromScore maps a numeric CVSS-style score (0–10) to a band, using the standard
-// CVSS v3 ranges.
-func severityFromScore(score float64) Severity {
+// SeverityFromScore maps a numeric CVSS-style score (0–10) to a band, using the standard
+// CVSS v3 ranges. Exported for a scanner that reads a score from somewhere other than
+// security-severity and has to band it the way every other score is banded.
+func SeverityFromScore(score float64) Severity {
 	switch {
 	case score >= 9.0:
 		return SeverityCritical
@@ -113,7 +114,7 @@ func (r Result) Severity(floor Severity) Severity {
 	base := severityFromLevel(r.Level)
 	switch {
 	case r.HasScore:
-		base = severityFromScore(r.Score)
+		base = SeverityFromScore(r.Score)
 	case r.Rating != nil && r.Rating.Severity.Rank() > 0:
 		base = r.Rating.Severity
 	}

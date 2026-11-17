@@ -102,7 +102,7 @@ The ledger CVE's high comes from its CVSS score, 7.5.
 | CVSS 4.0 to 6.9 | <span class="dr-med">medium</span> |
 | CVSS below 4.0 | <span class="dr-low">low</span> |
 | a Semgrep rule's impact and likelihood | by the table in [`semgrep`](../../internal/scanners/semgrep.md#severity) |
-| a Bandit finding's severity and confidence | by the table in [`sarif-import`](../../internal/scanners/sarif-import.md#bandit) |
+| an imported file's own rating, from Bandit, gosec, CodeQL, Fortify, dependency-check or Snyk, or by the import's mapping | by the tables in [`sarif-import`](../../internal/scanners/sarif-import.md#each-tools-own-rating) |
 | no score or rating: SARIF level `error` | <span class="dr-high">high</span> |
 | SARIF level `warning` | <span class="dr-med">medium</span> |
 | SARIF level `note` or `none` | <span class="dr-low">low</span> |

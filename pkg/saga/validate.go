@@ -873,6 +873,9 @@ func validateImports(imports []Import, where string) []error {
 			errs = append(errs, fmt.Errorf("%s: %s is imported into %s twice", at, imp.File, imp.Control))
 		}
 		seen[key] = true
+		if imp.Severity != nil {
+			errs = append(errs, validateImportSeverity(*imp.Severity, at+".severity")...)
+		}
 	}
 	return errs
 }

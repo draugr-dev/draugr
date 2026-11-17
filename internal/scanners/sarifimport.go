@@ -98,7 +98,8 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
 	}
-	if err := rateBandit(&rep, data); err != nil {
+	rated, err := rateImported(&rep, data, ft.Severity)
+	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %s: %w", plugin.ImportScanner, ft.Path, err)
 	}
 	revision, err := s.bind(ctx, ft, meta)
@@ -114,7 +115,7 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 		{Key: "tool", Value: toolsOf(meta)},
 		{Key: "file", Value: ft.Path},
 		{Key: "written", Value: writtenAt(ft.Path, meta)},
-		{Key: "severity", Value: severitySource(rep)},
+		{Key: "severity", Value: severitySource(rep, rated)},
 		{Key: "commit", Value: revision},
 	}
 	if ft.Component != "" {
@@ -341,29 +342,35 @@ func writtenAt(file string, meta importLog) string {
 }
 
 // severitySource says where the findings' severities came from: the numeric security-severity a
-// tool scores them with, Bandit's own rating, or the SARIF level, which a tool may use for
-// something other than how bad a flaw is. A priority resting on a level should say so.
-func severitySource(rep sarif.Report) string {
+// tool scores them with, the tool's own rating read by its table or the descriptor's mapping, or the
+// SARIF level, which a tool may use for something other than how bad a flaw is. A priority resting
+// on a level should say so. rated names the rating each result was read from, "" for none.
+func severitySource(rep sarif.Report, rated []string) string {
 	if len(rep.Results) == 0 {
 		return "no findings"
 	}
-	var scored, rated int
-	for _, r := range rep.Results {
-		switch {
-		case r.HasScore:
-			scored++
-		case r.Rating != nil:
-			rated++
-		}
-	}
-	sources := []struct {
+	type source struct {
 		name  string
 		count int
-	}{
-		{"security-severity", scored},
-		{banditSource, rated},
-		{"SARIF level", len(rep.Results) - scored - rated},
 	}
+	sources := []source{{name: "security-severity"}}
+	at := map[string]int{}
+	leveled := 0
+	for i, r := range rep.Results {
+		switch {
+		case r.HasScore:
+			sources[0].count++
+		case i < len(rated) && rated[i] != "":
+			if _, seen := at[rated[i]]; !seen {
+				at[rated[i]] = len(sources)
+				sources = append(sources, source{name: rated[i]})
+			}
+			sources[at[rated[i]]].count++
+		default:
+			leveled++
+		}
+	}
+	sources = append(sources, source{"SARIF level", leveled})
 	var parts []string
 	for _, s := range sources {
 		if s.count == len(rep.Results) {
@@ -375,6 +382,3 @@ func severitySource(rep sarif.Report) string {
 	}
 	return strings.Join(parts, ", ")
 }
-
-// banditSource names the rating a Bandit file's severities came from.
-const banditSource = "issue_severity and issue_confidence"

@@ -2220,11 +2220,57 @@
           "description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
           "minLength": 1,
           "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/importSeverity",
+          "description": "Where the file's tool states its own rating, for a tool Draugr has no table for. Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it."
         }
       },
       "required": [
         "control",
         "file"
+      ],
+      "type": "object"
+    },
+    "importSeverity": {
+      "additionalProperties": false,
+      "description": "The result property a tool states its rating in, and the severity each of its values means.",
+      "properties": {
+        "property": {
+          "description": "The result property holding the tool's rating, read from the result and else from its rule.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "const": "critical",
+                "description": "The most severe band, which a SARIF level alone never reaches."
+              },
+              {
+                "const": "high",
+                "description": "The band SARIF level error gives."
+              },
+              {
+                "const": "medium",
+                "description": "The band SARIF level warning gives."
+              },
+              {
+                "const": "low",
+                "description": "The band SARIF level note gives."
+              }
+            ],
+            "type": "string"
+          },
+          "description": "Each value the tool writes, matched regardless of case, and the severity it means. A value not listed leaves the finding on its SARIF level.",
+          "minProperties": 1,
+          "type": "object"
+        }
+      },
+      "required": [
+        "property",
+        "values"
       ],
       "type": "object"
     },

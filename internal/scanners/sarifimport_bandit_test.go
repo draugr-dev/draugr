@@ -171,17 +171,18 @@ func TestSARIFImportRatesOnlyBanditsUnscoredResults(t *testing.T) {
 
 // A file whose runs hold fewer results than the parse read is rated as far as it goes. Only a file
 // read twice could disagree with itself, so this guards the indexing rather than any file.
-func TestRateBanditStopsAtTheReportsResults(t *testing.T) {
+func TestRateImportedStopsAtTheReportsResults(t *testing.T) {
 	rep := sarif.Report{Results: []sarif.Result{{RuleID: "B1"}}}
 	doc := `{"runs":[{"tool":{"driver":{"name":"Bandit"}},"results":[
 		{"properties":{"issue_severity":"HIGH"}},{"properties":{"issue_severity":"HIGH"}}]}]}`
-	if err := rateBandit(&rep, []byte(doc)); err != nil {
+	sources, err := rateImported(&rep, []byte(doc), nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if rep.Results[0].Rating == nil {
-		t.Error("the first result was not rated")
+	if rep.Results[0].Rating == nil || len(sources) != 1 || sources[0] != banditSource {
+		t.Errorf("the first result was not rated: %+v, sources %q", rep.Results[0].Rating, sources)
 	}
-	if err := rateBandit(&rep, []byte("{")); err == nil {
+	if _, err := rateImported(&rep, []byte("{"), nil); err == nil {
 		t.Error("an unreadable file was accepted")
 	}
 }

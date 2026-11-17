@@ -244,6 +244,9 @@ components:
     imports:
       - control: sast                           # required, the control its findings belong to
         file: reports/checkmarx.sarif           # required, a SARIF 2.1.0 file another tool wrote
+        severity:                               # optional, how to read the tool's own rating
+          property: severity                    #   required, the result property it rates in
+          values: {Critical: critical, High: high, Medium: medium, Low: low}  # required
     controls:              # optional per-component overrides (same shape as config.controls)
       images:
         enabled: true
@@ -392,15 +395,46 @@ components:
 |---|---|
 | `control` | the control the file's findings belong to, such as `sast` or `sca` |
 | `file` | the SARIF 2.1.0 file, relative to where Draugr runs |
+| `severity` | optional: the result property the tool states its rating in, and the severity each of its values means |
 
 Every finding in the file belongs to this component, whatever the repository's `paths:` and
 `ignore:` say, and keeps the path the file wrote, so write paths relative to the repository's root.
 Severity comes from each result's `security-severity`, a score written as a string such as `"7.5"`.
-A Bandit file without one is rated from Bandit's `issue_severity` and `issue_confidence`, by the
-table on the [`sarif-import`](../../internal/scanners/sarif-import.md#bandit) page, and any other
-result from its SARIF `level`, which tops out at high. The report says which source each file's
-severities came from, and names the tool and version the file states, when it was written, and its
-SHA-256, under **Measured against**.
+A result without one is rated by its tool's own rating where Draugr has a table for the tool:
+Bandit, gosec, CodeQL, Fortify Static Code Analyzer, OWASP dependency-check and Snyk Open Source,
+each by the table on the [`sarif-import`](../../internal/scanners/sarif-import.md#each-tools-own-rating)
+page. Any other result is rated from its SARIF `level`, which tops out at high. The report says which
+source each file's severities came from, and names the tool and version the file states, when it was
+written, and its SHA-256, under **Measured against**.
+
+**`severity`** rates a file from a tool Draugr has no table for. Name the property the tool writes
+its rating in, and map each value it writes to a severity:
+
+```yaml
+imports:
+  - control: sast
+    file: reports/acme.sarif
+    severity:
+      property: acme-severity      # read from the result, else from its rule
+      values: {Blocker: critical, Major: high, Minor: medium, Info: low}
+```
+
+| field | meaning |
+|---|---|
+| `property` | the name of the key in the result's `properties` that holds the rating, as the tool writes it. A result without it is read from its rule's `properties` |
+| `values` | each value the tool writes and the severity it means: `critical`, `high`, `medium` or `low` |
+
+- **Values match regardless of case and surrounding space**, and a number matches however it is
+  written, so `3` names a value the file writes as `3.0`. Where the property holds a list, such as
+  a rule's `tags`, the most severe value the mapping names decides.
+- **A value the mapping does not name, or a result with no such property, keeps the SARIF level**,
+  and a result with a numeric `security-severity` keeps its score.
+- **The mapping replaces Draugr's table** for a tool it has one for.
+- **A value that is not `critical`, `high`, `medium` or `low` is refused** when the descriptor
+  loads, as are two keys that differ only in case or number formatting.
+
+The report's `severity` field under **Measured against** then reads `acme-severity, mapped by the
+descriptor`, and each finding it rated prints the value, `acme-severity Blocker`.
 
 A finding the control's own scanner also reports is counted once, naming both; [Merging with the
 control's scanners](../../internal/scanners/sarif-import.md#merging-with-the-controls-scanners)
