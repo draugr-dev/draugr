@@ -253,6 +253,12 @@ components:
         severity:
           property: acme-severity
           values: {Blocker: critical, Major: high, Minor: medium, Info: low}
+      # A dependency scanner's own JSON keeps what its SARIF leaves out: the package, the fixed
+      # version, and for govulncheck the call path. Read as Draugr's run of the tool reads it.
+      - control: sca
+        file: reports/trivy.json      # trivy fs --format json -o reports/trivy.json .
+        format: trivy-json
+        commit: ${{ GITHUB_SHA }}
     cloud:
       - account: web-prod    # the whole account: every region, and the findings about the account
 

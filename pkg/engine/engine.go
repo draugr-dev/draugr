@@ -2949,8 +2949,13 @@ func reachRule(res sarif.Result) string {
 }
 
 // reachKeyOf is the key a finding's verdict is matched on, under the finding's own vulnerability.
+//
+// In the repository correlation places the finding in (placedRepository), so a verdict read from an
+// imported govulncheck file reaches the native copies in the repository the import established, as
+// a govulncheck run's verdict does, and an imported finding whose repository nothing establishes
+// meets none.
 func reachKeyOf(res sarif.Result) reachKey {
-	return reachKey{res.Component, res.Repository, res.Location.URI, packageName(res), reachRule(res)}
+	return reachKey{res.Component, placedRepository(res), res.Location.URI, packageName(res), reachRule(res)}
 }
 
 // aliasReachKeys are own under each other identifier the finding's scanner named for it.
@@ -3971,7 +3976,7 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 				continue
 			}
 			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity,
-				Commit: imp.Commit}
+				Commit: imp.Commit, Format: imp.Format}
 			if unset := imp.CommitUnset(); unset != "" {
 				target.Commit, target.CommitUnset = "", unset
 			}

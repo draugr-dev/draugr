@@ -408,6 +408,33 @@ func TestLocalKeepsEachImportedResultsRepository(t *testing.T) {
 	}
 }
 
+// The format an imported finding was read from survives the disk, so a cached import of a tool's
+// JSON names its copy of a flaw as the run that stored it did.
+func TestLocalKeepsEachImportedResultsFormat(t *testing.T) {
+	c := NewLocal(t.TempDir(), 0)
+	report := sarif.Report{Tool: "trivy", Results: []sarif.Result{
+		{RuleID: "a", ImportFormat: "trivy-json"},
+		{RuleID: "b"},
+	}}
+	if err := c.Put("k", report); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := c.Get("k")
+	if !ok {
+		t.Fatal("miss")
+	}
+	for i, want := range []string{"trivy-json", ""} {
+		if got.Results[i].ImportFormat != want {
+			t.Errorf("result %d: ImportFormat = %q, want %q", i, got.Results[i].ImportFormat, want)
+		}
+	}
+	bad := entry{Report: sarif.Report{Results: []sarif.Result{{RuleID: "a"}}}, ImportFormats: map[int]string{3: "x", -1: "x"}}
+	bad.restoreUses()
+	if bad.Report.Results[0].ImportFormat != "" {
+		t.Error("an index past the results marked a result")
+	}
+}
+
 // An entry written before scores were recorded takes a non-zero score as present.
 func TestLocalReadsAnEntryWrittenBeforeScoresWereRecorded(t *testing.T) {
 	e := entry{Report: sarif.Report{Results: []sarif.Result{

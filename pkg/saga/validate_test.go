@@ -975,6 +975,37 @@ func TestValidateImports(t *testing.T) {
 	}
 }
 
+// An import's format is one Draugr reads, named in lowercase, and a severity mapping, which names a
+// SARIF property, is refused beside a tool's own JSON rather than ignored.
+func TestValidateImportFormat(t *testing.T) {
+	with := func(imp Import) error {
+		imp.Control, imp.File = "sca", "reports/tool.json"
+		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
+	}
+	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
+	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "sarif", Severity: mapping}} {
+		if err := with(imp); err != nil {
+			t.Errorf("format %q refused: %v", imp.Format, err)
+		}
+	}
+	for _, c := range []struct {
+		imp  Import
+		want string
+	}{
+		{Import{Format: "grype-json"}, `imports[0].format "grype-json" is not one of sarif, trivy-json, govulncheck-json`},
+		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
+		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
+			"as Draugr's own run of its tool rates it. Remove severity"},
+	} {
+		if err := with(c.imp); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("format %q: err = %v, want %q", c.imp.Format, err, c.want)
+		}
+	}
+	if got := (Import{}).ReadFormat(); got != ImportFormatSARIF {
+		t.Errorf("ReadFormat of an import naming none = %q, want sarif", got)
+	}
+}
+
 // A severity mapping is refused where it cannot rate as written. A word that is not a severity is an
 // error rather than a default, since a misspelled band would rate the findings it names wrongly
 // without anyone being told.

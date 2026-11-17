@@ -378,8 +378,8 @@ question asked where there is a fleet.
 
 ### `components[].imports`
 
-`imports` reads a SARIF 2.1.0 file another tool wrote into one of Draugr's controls, as though one of
-that control's scanners had produced it. Its findings take this component's exposure and
+`imports` reads a SARIF 2.1.0 file another tool wrote, or Trivy's or govulncheck's own JSON, into one
+of Draugr's controls, as though one of that control's scanners had produced it. Its findings take this component's exposure and
 criticality into their priority, count toward the gate, and appear in the fix list beside everything
 Draugr found.
 
@@ -396,9 +396,10 @@ components:
 | field | meaning |
 |---|---|
 | `control` | the control the file's findings belong to, such as `sast` or `sca` |
-| `file` | the SARIF 2.1.0 file, relative to where Draugr runs |
-| `commit` | optional: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none |
-| `severity` | optional: the result property the tool states its rating in, and the severity each of its values means |
+| `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON `format` names |
+| `format` | optional: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, or `govulncheck-json` for what `govulncheck -format json` writes. A tool's JSON is read as Draugr's run of that tool reads it, so its findings keep the package, the fixed version and, for govulncheck, the reachability verdict ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
+| `commit` | optional: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
+| `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
 
 A finding in the file keeps the path the file wrote, so write paths relative to the repository's
 root, and belongs to this component where that path is inside the repository's

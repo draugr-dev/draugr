@@ -437,3 +437,29 @@ func TestDoctorChecksAnImportedFile(t *testing.T) {
 		}
 	}
 }
+
+// A tool's own JSON is checked by the reader its format names, once per file and format, so a file
+// imported as one format and read as another fails doctor as it would fail the scan.
+func TestDoctorChecksAnImportedFileAsItsFormat(t *testing.T) {
+	trivy := filepath.Join(t.TempDir(), "trivy.json")
+	doc := `{"SchemaVersion":2,"Results":[{"Target":"go.mod","Class":"lang-pkgs","Type":"gomod","Vulnerabilities":[` +
+		`{"VulnerabilityID":"CVE-2026-0001","PkgName":"a","InstalledVersion":"1.0.0","Severity":"HIGH"}]}]}`
+	if err := os.WriteFile(trivy, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got := Run(context.Background(), []plugin.Target{
+		plugin.FileTarget{Path: trivy, Format: "trivy-json"},
+		plugin.FileTarget{Path: trivy, Format: "trivy-json"},
+		plugin.FileTarget{Path: trivy, Format: "govulncheck-json"},
+	}, Options{Offline: true})
+	if len(got) != 2 {
+		t.Fatalf("%d checks, want one per format: %+v", len(got), got)
+	}
+	details := map[Status]string{}
+	for _, c := range got {
+		details[c.Status] = c.Detail
+	}
+	if details[Passed] != "Trivy JSON, 1 finding" || !strings.Contains(details[Failed], "not govulncheck JSON") {
+		t.Errorf("checks %+v", got)
+	}
+}

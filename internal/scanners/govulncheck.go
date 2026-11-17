@@ -438,6 +438,10 @@ type govulncheckConfig struct {
 	ScanLevel string `json:"scan_level"`
 	// ScanMode is "source" or "binary".
 	ScanMode string `json:"scan_mode"`
+	// ScannerName and ScannerVersion name the govulncheck that wrote the stream, which an imported
+	// file is reported under.
+	ScannerName    string `json:"scanner_name"`
+	ScannerVersion string `json:"scanner_version"`
 }
 
 // govulncheckSBOM lists what the analysis actually covered.
@@ -1266,12 +1270,15 @@ func govulncheckMessageText(key govulncheckKey, advisory *govulncheckOSV, reach 
 		b.WriteString(", reachable: ")
 		b.WriteString(govulncheckPathSummary(reach.Paths))
 	case sarif.ReachabilityUnreachable:
-		b.WriteString(", the vulnerable code is never called")
+		b.WriteString(govulncheckNeverCalled)
 	case sarif.ReachabilityUnknown:
 		b.WriteString(", reachability not determined")
 	}
 	return b.String()
 }
+
+// govulncheckNeverCalled closes the message of a finding govulncheck found unreachable.
+const govulncheckNeverCalled = ", the vulnerable code is never called"
 
 // govulncheckPathSummary renders the shortest call path as one line, which is what a reader needs
 // before deciding whether to open the full evidence.

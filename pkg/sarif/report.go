@@ -118,6 +118,12 @@ type Result struct {
 	// file names none, and its fingerprint and every report read it that way; correlation reads this
 	// to join the finding to the native copy in the same repository.
 	ImportedRepository string `json:"-"`
+	// ImportFormat is, on a finding read from a tool's own JSON rather than its SARIF, the format the
+	// import named, such as trivy-json. Empty on a finding from a SARIF file and on every native one.
+	//
+	// Held for the run and never written, as ImportedRepository is: Reporter names it beside the tool,
+	// so a row that counts a native copy says which file the other copy came from.
+	ImportFormat string `json:"-"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty
@@ -776,7 +782,8 @@ const (
 )
 
 // Reporter names who gave an account of a finding, for telling one flaw's copies apart: the tool,
-// and for a finding read from another tool's file, the tool marked as imported.
+// and for a finding read from another tool's file, the tool marked as imported, with the format
+// where the file is the tool's own JSON: `imported trivy (trivy-json)`.
 //
 // The tool's name alone does not tell them apart. Semgrep's file names its tool `Semgrep OSS`, as
 // the Semgrep that Draugr runs does, and the two are separate runs that each found the flaw. Under
@@ -786,10 +793,14 @@ func (r Result) Reporter() string {
 	if r.Scanner != ImportScanner {
 		return r.Tool
 	}
-	if r.Tool == "" {
-		return "imported"
+	name := "imported"
+	if r.Tool != "" {
+		name += " " + r.Tool
 	}
-	return "imported " + r.Tool
+	if r.ImportFormat != "" {
+		name += " (" + r.ImportFormat + ")"
+	}
+	return name
 }
 
 // Correlated reports whether another scanner's finding is the one being counted for this flaw.

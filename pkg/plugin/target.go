@@ -424,8 +424,8 @@ type CacheDetailer interface {
 // (sarif.Result.Reporter).
 const ImportScanner = sarif.ImportScanner
 
-// FileTarget is a file another tool wrote, read in place of running a scanner: a SARIF file a
-// component imports.
+// FileTarget is a file another tool wrote, read in place of running a scanner: a SARIF file, or a
+// tool's own JSON, a component imports.
 type FileTarget struct {
 	// Path is the file, relative to where Draugr runs.
 	Path string
@@ -447,6 +447,8 @@ type FileTarget struct {
 	// CommitUnset is the variable the descriptor's commit references where the environment does not
 	// set it, so the file is read unbound and the report can say why. Commit is then empty.
 	CommitUnset string
+	// Format is what the file is, one of saga.ImportFormats. Empty is SARIF.
+	Format string
 }
 
 // Kind returns TargetFile.
@@ -460,9 +462,14 @@ func (t FileTarget) Identity() string { return t.Path }
 // scan; the repositories it is read against, because what the import makes of a file depends on
 // them, the revision it is held to, the repository its findings are placed in and the scope that
 // keeps or leaves out each one; the commit the descriptor holds it to, or the variable that left it
-// unbound; and the descriptor's mapping of its tool's rating where it gives one.
+// unbound; the format it is read as, since one file read by two readers is two answers; and the
+// descriptor's mapping of its tool's rating where it gives one.
 func (t FileTarget) CacheDetail() string {
 	detail := "sha256=" + t.Digest
+	// A SARIF file's key is as it was before formats existed, so its cached reads stay valid.
+	if t.Format != "" && t.Format != saga.ImportFormatSARIF {
+		detail += " format=" + t.Format
+	}
 	for _, r := range t.Repositories {
 		detail += " repo=" + r.Identity()
 	}

@@ -13,6 +13,7 @@ func TestReporter(t *testing.T) {
 		{Result{Tool: "trivy"}, "trivy"},
 		{Result{Tool: "Semgrep OSS", Scanner: ImportScanner}, "imported Semgrep OSS"},
 		{Result{Scanner: ImportScanner}, "imported"},
+		{Result{Tool: "trivy", Scanner: ImportScanner, ImportFormat: "trivy-json"}, "imported trivy (trivy-json)"},
 	} {
 		if got := c.res.Reporter(); got != c.want {
 			t.Errorf("Reporter(%+v) = %q, want %q", c.res, got, c.want)

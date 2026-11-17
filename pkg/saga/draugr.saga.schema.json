@@ -263,7 +263,7 @@
           "type": "array"
         },
         "imports": {
-          "description": "SARIF files another tool wrote about this component, each read into a control and ranked and gated like the rest.",
+          "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, each read into a control and ranked and gated like the rest.",
           "items": {
             "$ref": "#/$defs/import"
           },
@@ -1683,7 +1683,7 @@
           "type": "array"
         },
         "imports": {
-          "description": "SARIF files another tool wrote about this component, each read into a control and ranked and gated like the rest.",
+          "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, each read into a control and ranked and gated like the rest.",
           "items": {
             "$ref": "#/$defs/import"
           },
@@ -1997,7 +1997,7 @@
               },
               {
                 "const": "unbound-imports",
-                "description": "An imported SARIF file that states no revision, so nothing shows it describes the code being scanned."
+                "description": "An imported file that states no revision, so nothing shows it describes the code being scanned."
               },
               {
                 "const": "uncommitted-files",
@@ -2210,7 +2210,7 @@
     },
     "import": {
       "additionalProperties": false,
-      "description": "A SARIF file another tool wrote about this component, read into one of Draugr's controls.",
+      "description": "A file another tool wrote about this component, read into one of Draugr's controls.",
       "properties": {
         "commit": {
           "description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into versionControlProvenance. The run stops where it is not the commit this run reads, or not the one the file names. An unset variable leaves the file unbound.",
@@ -2222,13 +2222,31 @@
           "description": "The control the file's findings belong to, such as sast or sca."
         },
         "file": {
-          "description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
+          "description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names.",
           "minLength": 1,
+          "type": "string"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "const": "sarif",
+              "description": "A SARIF 2.1.0 log, from any tool (default)."
+            },
+            {
+              "const": "trivy-json",
+              "description": "The JSON trivy fs --format json writes, read as Draugr's trivy-fs reads it, with each finding's package, installed and fixed version, and package URL."
+            },
+            {
+              "const": "govulncheck-json",
+              "description": "The stream govulncheck -format json writes, read as Draugr's govulncheck reads it, with each finding's module, fixed version and reachability verdict."
+            }
+          ],
+          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
           "type": "string"
         },
         "severity": {
           "$ref": "#/$defs/importSeverity",
-          "description": "Where the file's tool states its own rating, for a tool Draugr has no table for. Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it."
+          "description": "Where the file's tool states its own rating, for a tool Draugr has no table for. Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it. SARIF only."
         }
       },
       "required": [

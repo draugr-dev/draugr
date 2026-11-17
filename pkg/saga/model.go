@@ -253,7 +253,7 @@ const (
 	// CaveatUnreadChecks is a cloud check the scan could not evaluate, or could evaluate only in part,
 	// because a read it needs was denied.
 	CaveatUnreadChecks CaveatKind = "unread-checks"
-	// CaveatUnboundImports is an imported SARIF file that states no revision, so nothing shows it
+	// CaveatUnboundImports is an imported file that states no revision, so nothing shows it
 	// describes the code being scanned.
 	CaveatUnboundImports CaveatKind = "unbound-imports"
 	// CaveatUncommittedFiles is a local repository with uncommitted changes the scan did not read,
@@ -933,7 +933,7 @@ type Component struct {
 	// Draugr **writes** about your product, this lists documents Draugr **reads** about a supplier's.
 	// A component does not author claims about itself.
 	VEX []VEXSource `yaml:"vex,omitempty"`
-	// Imports are SARIF files another tool wrote about this component, each read into one of
+	// Imports are files another tool wrote about this component, each read into one of
 	// Draugr's controls as though one of its scanners had produced it, so the findings are ranked by
 	// this component's exposure and criticality and judged by the same gate.
 	//
@@ -942,17 +942,22 @@ type Component struct {
 	Imports []Import `yaml:"imports,omitempty"`
 }
 
-// Import is one SARIF file read into a control.
+// Import is one file another tool wrote, read into a control.
 type Import struct {
 	// Control is the control the file's findings belong to, such as sast or sca. Named rather than
 	// inferred from the tool's rules: a guess that put findings under the wrong control would leave
 	// nothing to show it.
 	Control string `yaml:"control"`
-	// File is the SARIF 2.1.0 file, resolved relative to where Draugr runs, as every path in a
-	// descriptor is.
+	// File is the file, resolved relative to where Draugr runs, as every path in a descriptor is.
 	File string `yaml:"file"`
+	// Format is what the file is: ImportFormatSARIF, the default, or a tool's own JSON, which
+	// Draugr reads with the reader its own run of that tool uses. A dependency scanner's SARIF
+	// states the package and its fixed version only in prose, and govulncheck's carries no call
+	// path, so its own JSON is what keeps them.
+	Format string `yaml:"format,omitempty"`
 	// Severity reads the rating a tool Draugr has no table for writes into the file. Optional; a
-	// file without it is rated by Draugr's own table for its tool, or else by its SARIF level.
+	// file without it is rated by Draugr's own table for its tool, or else by its SARIF level. SARIF
+	// only: a tool's own JSON is rated as Draugr's run of that tool rates it.
 	Severity *ImportSeverity `yaml:"severity,omitempty"`
 	// Commit is the commit the file describes, which holds it to the commit this run reads as the
 	// file's own runs[].versionControlProvenance does, for a tool that writes none. Typically
@@ -963,6 +968,27 @@ type Import struct {
 	// the load, and the file is read unbound (CommitUnset): a descriptor written for CI still runs on
 	// a laptop, and nothing claims a commit it was not given.
 	Commit string `yaml:"commit,omitempty"`
+}
+
+// The formats an import's Format names.
+const (
+	// ImportFormatSARIF is a SARIF 2.1.0 log, the format an import has when it names none.
+	ImportFormatSARIF = "sarif"
+	// ImportFormatTrivyJSON is the JSON `trivy fs --format json` writes.
+	ImportFormatTrivyJSON = "trivy-json"
+	// ImportFormatGovulncheckJSON is the stream `govulncheck -format json` writes.
+	ImportFormatGovulncheckJSON = "govulncheck-json"
+)
+
+// ImportFormats are the values an import's format accepts.
+var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON}
+
+// ReadFormat is the format the import's file is read as: Format, or SARIF where it names none.
+func (i Import) ReadFormat() string {
+	if i.Format == "" {
+		return ImportFormatSARIF
+	}
+	return i.Format
 }
 
 // ImportSeverity names the result property a tool states its rating in, and the severity each of
