@@ -124,6 +124,13 @@ type Result struct {
 	// Held for the run and never written, as ImportedRepository is: Reporter names it beside the tool,
 	// so a row that counts a native copy says which file the other copy came from.
 	ImportFormat string `json:"-"`
+	// ImportedTool is, on a finding read from GitHub's code-scanning alerts that Draugr itself
+	// uploaded, the tool the alert's rule names in the one `scanner:` tag Draugr's SARIF writes, such
+	// as gosec. Tool stays Draugr, the tool GitHub names. Empty on every other finding.
+	//
+	// Held for the run and never written. The engine reads it to find the native finding of that tool
+	// at the same line, whose suppression in the code at this commit then applies to the alert.
+	ImportedTool string `json:"-"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty

@@ -588,6 +588,12 @@ finding is ranked from less than a SARIF file with scores. The report's `severit
 KEV and EPSS reach a finding only where its rule id is a CVE. A finding merges with the control's
 own scanner's copy of the same tool's rule at the same line, as a SARIF file's does.
 
+An alert Draugr uploaded of its own run names `Draugr` as its tool, and its rule's `scanner:` tag
+names the tool that found it, such as `gosec`. Where that tool's native finding of the same rule at
+the same line was suppressed in this commit's code, by a `#nosec` or a `nosemgrep`, the alert takes
+that suppression, origin `tool` and its reason, and is set aside rather than counted. An alert whose
+native copy counts keeps counting, and an alert's dismissal never sets a native finding aside.
+
 ### Dependabot alerts
 
 | Finding | From the alert |

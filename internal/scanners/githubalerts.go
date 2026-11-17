@@ -628,10 +628,11 @@ func (d githubDismissal) justification() string {
 type codeScanningAlert struct {
 	githubDismissed
 	Rule struct {
-		ID                    string `json:"id"`
-		Severity              string `json:"severity"`
-		SecuritySeverityLevel string `json:"security_severity_level"`
-		Description           string `json:"description"`
+		ID                    string   `json:"id"`
+		Severity              string   `json:"severity"`
+		SecuritySeverityLevel string   `json:"security_severity_level"`
+		Description           string   `json:"description"`
+		Tags                  []string `json:"tags"`
 	} `json:"rule"`
 	Tool struct {
 		Name    string `json:"name"`
@@ -695,6 +696,7 @@ func readCodeScanningAlerts(raw []json.RawMessage) (githubAlerts, error) {
 			Message:  cmp.Or(strings.TrimSpace(inst.Message.Text), a.Rule.Description),
 			Location: sarif.Location{URI: inst.Location.Path, StartLine: inst.Location.StartLine},
 		}
+		r.ImportedTool = uploadedTool(a.Tool.Name, a.Rule.Tags)
 		rated := ratedRuleSeverity
 		if word := strings.ToLower(a.Rule.SecuritySeverityLevel); cvssRating[word] != "" {
 			r.Rating = newRating(cvssRating[word], map[string]string{ratedSecuritySeverity: word}, ratedSecuritySeverity+" "+word)
@@ -715,6 +717,26 @@ func readCodeScanningAlerts(raw []json.RawMessage) (githubAlerts, error) {
 		}
 	}
 	return out, nil
+}
+
+// uploadedTool is the tool whose finding Draugr uploaded as an alert: the one `scanner:` tag Draugr's
+// SARIF writes on each rule (sarif.Report.MarshalSARIFWith), read only on an alert whose tool is Draugr, since
+// the tag is Draugr's convention and another tool's tag of that shape has not said it means the same.
+// Empty where the rule names no such tool, or several, which could each be the one at this line.
+func uploadedTool(tool string, tags []string) string {
+	if !strings.EqualFold(tool, "Draugr") {
+		return ""
+	}
+	var named []string
+	for _, t := range tags {
+		if name, ok := strings.CutPrefix(t, "scanner:"); ok && name != "" {
+			named = append(named, name)
+		}
+	}
+	if len(named) != 1 {
+		return ""
+	}
+	return named[0]
 }
 
 // dependabotAlert is the part of a Dependabot alert the import reads.

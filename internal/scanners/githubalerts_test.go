@@ -934,6 +934,168 @@ func TestGitHubAlertsOnTheConsole(t *testing.T) {
 	}
 }
 
+// nativeSAST is a sast control that runs one scanner on each repository, standing in for Draugr's own
+// so a test can place a native finding beside imported alerts.
+type nativeSAST struct{}
+
+func (nativeSAST) Info() plugin.ControllerInfo {
+	return plugin.ControllerInfo{Name: "sast", Scope: plugin.ScopeComponent}
+}
+
+func (nativeSAST) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob, error) {
+	var jobs []plugin.ScanJob
+	for _, r := range comp.Repositories {
+		jobs = append(jobs, plugin.ScanJob{Scanner: "gosec", Target: plugin.RepositoryTarget{URL: r.URL}})
+	}
+	return jobs, nil
+}
+
+func (nativeSAST) Aggregate(reports []sarif.Report) (plugin.ControlResult, error) {
+	return plugin.ControlResult{Control: "sast", Report: sarif.Merge(reports...)}, nil
+}
+
+// nativeGosec is a gosec run that reports the given findings, as the gosec scanner does after reading
+// the checkout: tool gosec, repository-relative paths, and the repository they are in.
+type nativeGosec struct{ results []sarif.Result }
+
+func (nativeGosec) Info() plugin.ScannerInfo {
+	return plugin.ScannerInfo{Name: "gosec", TargetKinds: []plugin.TargetKind{plugin.TargetRepository}}
+}
+
+func (g nativeGosec) Scan(context.Context, plugin.Target, plugin.Config) (sarif.Report, error) {
+	out := make([]sarif.Result, len(g.results))
+	for i, r := range g.results {
+		r.Tool, r.Repository = "gosec", "https://github.com/draugr-dev/draugr"
+		out[i] = r
+	}
+	return sarif.Report{Tool: "gosec", Results: out}, nil
+}
+
+// g304At is a native gosec G304 finding at a line of a file.
+func g304At(file string, line int, suppression *sarif.Suppression) sarif.Result {
+	return sarif.Result{RuleID: "G304", Level: sarif.LevelError, Message: "Potential file inclusion via variable",
+		Location: sarif.Location{URI: file, StartLine: line}, Suppression: suppression}
+}
+
+// runBesideNativeGosec imports the recorded code-scanning alerts, the dismissed ones as given, into a
+// component whose native gosec run reports native, and returns the sast control's findings.
+func runBesideNativeGosec(t *testing.T, dismissed []byte, native ...sarif.Result) []sarif.Result {
+	t.Helper()
+	t.Setenv("GITHUB_TOKEN", testToken)
+	f, srv := newFakeGitHub(t)
+	f.serve(codeScanningPath, "open", "code-scanning-open-page1.json")
+	f.pages[codeScanningPath+"?dismissed"] = [][]byte{dismissed}
+	reg := engine.NewRegistry()
+	reg.RegisterController(nativeSAST{})
+	reg.RegisterScanner(nativeGosec{results: native})
+	reg.RegisterScanner(githubImport(srv, githubAlertsCommit, nil))
+	model := saga.Model{Components: []saga.Component{{Name: "draugr",
+		Repositories: []saga.Repository{{URL: "https://github.com/draugr-dev/draugr"}},
+		Imports:      []saga.Import{{Control: "sast", Source: saga.ImportSourceGitHubCodeScanning}}}},
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{"sast": {"enabled": true}}}}
+	res, err := engine.New(reg).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.ScanErrors) > 0 {
+		t.Fatalf("errors: %v", res.ScanErrors)
+	}
+	return res.Controls["sast"].Report.Results
+}
+
+// findingAt is the finding a scanner reported at a file and line, imported or native.
+func findingAt(t *testing.T, results []sarif.Result, imported bool, file string, line int) sarif.Result {
+	t.Helper()
+	for _, r := range results {
+		if (r.Scanner == plugin.ImportScanner) == imported && r.Location.URI == file && r.Location.StartLine == line {
+			return r
+		}
+	}
+	t.Fatalf("no finding at %s:%d (imported %v)", file, line, imported)
+	return sarif.Result{}
+}
+
+// An alert Draugr uploaded of its own gosec run, at a line where gosec read a `#nosec` in this
+// commit's code, is the finding the code suppresses: it takes gosec's suppression, origin and reason,
+// and is set aside rather than counted, its detail no longer saying it counts. The native finding is
+// left as it was.
+func TestAnAlertTakesTheSuppressionInTheCodeAtItsLine(t *testing.T) {
+	nosec := &sarif.Suppression{Kind: "inSource", Origin: sarif.OriginTool, Justification: "a go.mod inside the checkout"}
+	results := runBesideNativeGosec(t, recorded(t, "code-scanning-dismissed.json"),
+		g304At("internal/scanners/govulncheck.go", 732, nosec))
+	alert := findingAt(t, results, true, "internal/scanners/govulncheck.go", 732)
+	if s := alert.Suppression; s == nil || s.Origin != sarif.OriginTool || s.Kind != "inSource" ||
+		s.Justification != "a go.mod inside the checkout" || !alert.SetAsideInImport() {
+		t.Errorf("alert suppression = %+v, want gosec's in-source suppression", s)
+	}
+	if strings.Contains(alert.Detail, "counted") || !strings.HasPrefix(alert.Detail, "dismissed by github-actions[bot] in GitHub code scanning") {
+		t.Errorf("alert detail = %q, want who dismissed it and no claim that it counts", alert.Detail)
+	}
+	if native := findingAt(t, results, false, "internal/scanners/govulncheck.go", 732); native.Suppression != nosec && *native.Suppression != *nosec {
+		t.Errorf("native suppression = %+v", native.Suppression)
+	}
+}
+
+// A `#nosec` at one line says nothing about another: the alert at the next line gosec suppressed
+// nothing at still counts, and so does an alert of another rule at the suppressed line.
+func TestAnAlertAtAnotherLineStillCounts(t *testing.T) {
+	nosec := &sarif.Suppression{Kind: "inSource", Origin: sarif.OriginTool, Justification: "a go.mod inside the checkout"}
+	results := runBesideNativeGosec(t, recorded(t, "code-scanning-dismissed.json"),
+		g304At("internal/scanners/govulncheck.go", 732, nosec),
+		sarif.Result{RuleID: "G104", Level: sarif.LevelWarning, Message: "Errors unhandled",
+			Location:    sarif.Location{URI: "internal/scanners/govulncheck.go", StartLine: 746},
+			Suppression: &sarif.Suppression{Kind: "inSource", Origin: sarif.OriginTool}})
+	if a := findingAt(t, results, true, "internal/scanners/govulncheck.go", 746); a.Suppressed() {
+		t.Errorf("the alert at 746 = %+v, want it counted", a.Suppression)
+	}
+	if a := findingAt(t, results, true, "internal/feeds/govulndb.go", 84); a.Suppressed() {
+		t.Errorf("the alert with no native finding = %+v, want it counted", a.Suppression)
+	}
+}
+
+// Where the native finding counts and a person dismissed the alert in GitHub, the alert is set aside
+// as a person's dismissal and the native finding counts: an import's suppression never sets a native
+// finding aside.
+func TestAPersonsDismissalLeavesTheNativeFindingCounting(t *testing.T) {
+	var dismissed []map[string]any
+	if err := json.Unmarshal(recorded(t, "code-scanning-dismissed.json"), &dismissed); err != nil {
+		t.Fatal(err)
+	}
+	dismissed[2]["dismissed_by"] = map[string]any{"login": "octocat", "id": 1, "type": "User"}
+	data, err := json.Marshal(dismissed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := runBesideNativeGosec(t, data, g304At("internal/feeds/govulndb.go", 84, nil))
+	if a := findingAt(t, results, true, "internal/feeds/govulndb.go", 84); a.Suppression == nil || a.Suppression.Author != "octocat" ||
+		a.Suppression.Service != "GitHub code scanning" {
+		t.Errorf("alert suppression = %+v, want octocat's dismissal", a.Suppression)
+	}
+	if n := findingAt(t, results, false, "internal/feeds/govulndb.go", 84); n.Suppressed() {
+		t.Errorf("native suppression = %+v, want it counted", n.Suppression)
+	}
+}
+
+// The tool an alert of Draugr's own upload stands for is the one its rule's scanner tag names, read
+// only where the alert's tool is Draugr and the rule names exactly one.
+func TestUploadedTool(t *testing.T) {
+	for _, c := range []struct {
+		tool string
+		tags []string
+		want string
+	}{
+		{"Draugr", []string{"scanner:gosec"}, "gosec"},
+		{"draugr", []string{"security", "scanner:Semgrep OSS"}, "Semgrep OSS"},
+		{"Draugr", []string{"scanner:gosec", "scanner:Semgrep OSS"}, ""},
+		{"Draugr", nil, ""},
+		{"CodeQL", []string{"scanner:gosec"}, ""},
+	} {
+		if got := uploadedTool(c.tool, c.tags); got != c.want {
+			t.Errorf("uploadedTool(%q, %v) = %q, want %q", c.tool, c.tags, got, c.want)
+		}
+	}
+}
+
 // The Link header's next page is read wherever GitHub puts it, and the last page has none.
 func TestNextLink(t *testing.T) {
 	h := `<https://api.github.com/repositories/1/code-scanning/alerts?page=1>; rel="prev", ` +
