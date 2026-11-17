@@ -208,7 +208,8 @@ These stay counted apart:
   are two rules, each the tool's own.
 - **The same rule on another line, or the same advisory in another package.** Two packages stay two
   findings at one line too: Trivy's SARIF places every Go dependency at `go.mod:1` and names the
-  package only in its message, and each keeps its own package and fixed version.
+  package only in its message, and each keeps its own package and fixed version. Each keeps the
+  advisory's own title, so two rows can share a title and differ only in the package line.
 - **A rule reported more than once on one line.** Two copies on one line, at two columns, cannot be
   paired copy to copy.
 - **An imported finding whose repository the import cannot establish.** In a component that
