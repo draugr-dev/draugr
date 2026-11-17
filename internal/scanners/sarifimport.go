@@ -182,10 +182,11 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 			if vcp.RevisionID == "" {
 				continue
 			}
-			// Two statements of the commit that disagree: one is wrong, and neither can be trusted
-			// to say which. Worded without a colon, which would cut the errors block's reason short.
+			// Two statements of the commit that disagree, and neither can be trusted to say which is
+			// wrong, so the reason names both and both fixes. Worded without a colon, which would cut
+			// the errors block's reason short.
 			if declared != "" && !sameCommit(declared, vcp.RevisionID) {
-				return "", fmt.Errorf("%s: names commit %s, the descriptor %s. One of them is wrong",
+				return "", fmt.Errorf("%s: file has %s, commit is %s. Fix commit, or run the tool again",
 					ft.Path, short(vcp.RevisionID), short(declared))
 			}
 			repo, ok := matchRepository(vcp.RepositoryURI, ft.Repositories)
@@ -235,8 +236,8 @@ func (s sarifImport) holdTo(ctx context.Context, file string, repo plugin.Reposi
 	}
 	if !sameCommit(commit, named) {
 		// What to do, inside the errors block's width: the console keeps 80 characters of the
-		// reason, and both commits and both remedies fit in it only this short.
-		return "", fmt.Errorf("%s: scanned %s, not %s. Run the tool again, or remove the import",
+		// reason, which holds both commits and one remedy. Removing the import is in the docs.
+		return "", fmt.Errorf("%s: scanned %s, this run reads %s. Run the tool again",
 			file, short(named), short(commit))
 	}
 	return short(commit), nil
@@ -250,7 +251,7 @@ func unbound(ft plugin.FileTarget) string {
 	case ft.CommitUnset != "":
 		return notStated + ", ${{ " + ft.CommitUnset + " }} is not set"
 	case ft.Commit != "":
-		return notStated + ", the file does not say which repository " + short(ft.Commit) + " is in"
+		return notStated + ", the file names none or several of the component's repositories"
 	}
 	return notStated
 }

@@ -460,14 +460,14 @@ the commit this run reads:
 - **A different commit stops the run**, naming both. Run the tool again on this commit, or remove
   the import.
 - **`commit` and the file's own commit must agree.** Where they differ, the run stops naming both,
-  because one of them is wrong. An abbreviated commit matches the whole one.
+  and says to fix `commit` or run the tool again. An abbreviated commit matches the whole one.
 - **A variable the environment does not set leaves the file unbound** instead of failing the load,
   so a descriptor written for CI still runs on a laptop. Any other unset variable still fails it.
   The report's `commit` field reads `not stated, ${{ GITHUB_SHA }} is not set`.
 - **In a component with several repositories**, `commit` is held to the repository the file's
   `versionControlProvenance` names by `repositoryUri`. A file that names none of them, or more than
-  one, stays unbound, and `commit` reads `not stated, the file does not say which repository
-  0123456789ab is in`.
+  one, stays unbound, and `commit` reads `not stated, the file names none or several of the
+  component's repositories`.
 
 A file that states no commit is read and listed under **Caveats** as `unbound-imports`,
 which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missing, unreadable or

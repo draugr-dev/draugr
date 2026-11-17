@@ -36,10 +36,10 @@ func TestShortReasonKeepsWhatWentWrong(t *testing.T) {
 		{"draugr-k8s-policies: " + strings.Repeat("x", 120), strings.Repeat("x", whyWidth-1) + "…"},
 		// An imported SARIF file that cannot be read for this run says why, the file being the target,
 		// and what to do, whole within the width.
-		{"sarif-import: reports/bandit.sarif: scanned 4f2a9c1e7b3d, not 123509aace3d. Run the tool again, or remove the import",
-			"scanned 4f2a9c1e7b3d, not 123509aace3d. Run the tool again, or remove the import"},
-		{"sarif-import: reports/bandit.sarif: names commit 4f2a9c1e7b3d, the descriptor 123509aace3d. One of them is wrong",
-			"names commit 4f2a9c1e7b3d, the descriptor 123509aace3d. One of them is wrong"},
+		{"sarif-import: reports/bandit.sarif: scanned 4f2a9c1e7b3d, this run reads 123509aace3d. Run the tool again",
+			"scanned 4f2a9c1e7b3d, this run reads 123509aace3d. Run the tool again"},
+		{"sarif-import: reports/bandit.sarif: file has 4f2a9c1e7b3d, commit is 123509aace3d. Fix commit, or run the tool again",
+			"file has 4f2a9c1e7b3d, commit is 123509aace3d. Fix commit, or run the tool again"},
 		{"sarif-import: reports/bandit.sarif: names repository draugr-demo, which component api does not declare",
 			"names repository draugr-demo, which component api does not declare"},
 		// A registry's request id is not a reason; the clause before it is.

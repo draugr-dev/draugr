@@ -88,26 +88,34 @@ imports:
   commit, or remove the import.
 - **No commit:** the file is read, and the report lists it under **Caveats** as `unbound-imports`.
 
-`GITHUB_SHA` is the commit GitHub Actions checked out, the one the tool scanned and Draugr reads.
-GitLab CI's is `${{ CI_COMMIT_SHA }}`, and Azure Pipelines' is `${{ BUILD_SOURCEVERSION }}`. Where
-the variable is not set, as on a laptop, the file is read unbound and **Measured against** reads
-`commit: not stated, ${{ GITHUB_SHA }} is not set`.
+The variable each CI sets to the commit it checked out:
 
-A tool that writes the commit into the file, in `runs[].versionControlProvenance`, binds it the
-same way with no `commit`. To see whether a tool does:
+- GitHub Actions: `${{ GITHUB_SHA }}`
+- GitLab CI: `${{ CI_COMMIT_SHA }}`
+- Azure Pipelines: `${{ BUILD_SOURCEVERSION }}`
+
+On a `pull_request` run, `GITHUB_SHA` is the merge commit `actions/checkout` checks out by default.
+A workflow that checks out the pull request's head commit instead sets `GIT_SHA:
+${{ github.event.pull_request.head.sha }}` in its `env:`, and the import names `${{ GIT_SHA }}`.
+
+Where the variable is not set, as on a laptop, the file is read unbound and **Measured against**
+reads `commit: not stated, ${{ GITHUB_SHA }} is not set`.
+
+A tool that writes the commit into the file, in `runs[].versionControlProvenance`, needs no
+`commit`. To see whether a tool does:
 
 ```bash
 jq '.runs[].versionControlProvenance' bandit.sarif
 ```
 
 Bandit's prints `null`. Where the file and `commit` both name a commit and they differ, the run
-stops naming both, since one of them is wrong.
+stops naming both: fix `commit`, or run the tool again.
 
 ### In a component with several repositories
 
-`commit` names a commit and no repository, so in a component with several repositories the file has
-to name the repository the tool scanned, in `versionControlProvenance`. A file that names none of
-them stays unbound. Add the repository and the commit from the checkout the tool ran in:
+With several repositories, the file names the one the tool scanned, in `versionControlProvenance`.
+A file that names none of them, or more than one, stays unbound. Add the repository and the commit
+from the checkout the tool ran in:
 
 ```bash
 mkdir -p reports
@@ -239,17 +247,7 @@ steps:
       tools: true
 ```
 
-The descriptor's import names the commit:
-
-```yaml
-imports:
-  - control: sast
-    file: reports/bandit.sarif
-    commit: ${{ GITHUB_SHA }}
-```
-
-On a pull request, `GITHUB_SHA` is the merge commit the workflow checked out, which is the commit
-both Bandit and Draugr read.
+The import names `commit: ${{ GITHUB_SHA }}`, as in [step 2](#2-name-the-commit-the-file-describes).
 
 ## See also
 

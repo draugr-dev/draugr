@@ -387,16 +387,16 @@ scanned, in `runs[].versionControlProvenance`, or the import's
 the commit this run reads:
 
 - **The same commit:** the file is read, and `commit` names it.
-- **A different commit:** the run stops with an error naming both, as `scanned fedcba987654, not
-  0123456789ab. Run the tool again, or remove the import`.
+- **A different commit:** the run stops with an error naming both, as `scanned fedcba987654, this
+  run reads 0123456789ab. Run the tool again`. Run the tool on this commit, or remove the import.
 - **No commit named:** the file is read and listed under **Caveats** as `unbound-imports`, because nothing
   ties its findings to this code.
   [`config.gate.failOnCaveats: [unbound-imports]`](../../docs/reference/saga-schema.md#configgate)
   makes that fail the run.
 
 A commit matches its abbreviation, of 7 characters or more, regardless of case. Where the file and
-the import both name a commit and they differ, the run stops with `names commit 0123456789ab, the
-descriptor fedcba987654. One of them is wrong`. An import's `commit` that references a variable the
+the import both name a commit and they differ, the run stops with `file has 0123456789ab,
+commit is fedcba987654. Fix commit, or run the tool again`. An import's `commit` that references a variable the
 environment does not set, such as `${{ GITHUB_SHA }}` on a laptop, leaves the file unbound rather
 than failing the load.
 

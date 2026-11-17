@@ -1,0 +1,1 @@
+- **An import takes `commit: ${{ GITHUB_SHA }}`, so a file from a tool that records no commit is held to the commit this run reads.** A file for another commit stops the run, naming both. Where the variable is unset, as on a laptop, the file is read unbound and listed as a caveat.
