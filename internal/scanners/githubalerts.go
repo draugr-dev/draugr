@@ -126,13 +126,17 @@ func (s sarifImport) scanGitHub(ctx context.Context, ft plugin.FileTarget) (sari
 	if err != nil {
 		return fail(err)
 	}
-	token, err := githubToken(ft)
+	variable, token, err := githubToken(ft)
 	if err != nil {
 		return fail(err)
 	}
 	var raw []json.RawMessage
 	for _, state := range githubStates[ft.Source] {
 		page, err := s.github.list(ctx, token, githubPath(ft.Source, ownerName), state)
+		var status *githubStatus
+		if errors.As(err, &status) {
+			err = githubRefusal(status, githubAsked{variable: variable, source: ft.Source, repository: ownerName})
+		}
 		if err != nil {
 			return fail(err)
 		}
@@ -154,11 +158,12 @@ func (s sarifImport) scanGitHub(ctx context.Context, ft plugin.FileTarget) (sari
 		return fail(err)
 	}
 
-	revision, kept, staleDismissed, err := s.bindAlerts(ctx, ft, repo, alerts)
+	bound, err := s.bindAlerts(ctx, ft, repo, alerts)
 	if err != nil {
 		return fail(err)
 	}
-	alerts = alerts.only(kept)
+	alerts = alerts.only(bound.keep)
+	revision := bound.commit
 
 	rep := sarif.Report{Tool: service}
 	for i := range alerts.results {
@@ -176,25 +181,61 @@ func (s sarifImport) scanGitHub(ctx context.Context, ft plugin.FileTarget) (sari
 	rated := keepOnly(alerts.rated, keep)
 
 	fields := []sarif.Field{
-		{Key: "tool", Value: cmp.Or(toolsOf(alerts.meta), service)},
+		{Key: "tool", Value: cmp.Or(alertTools(alerts.meta), service)},
 		{Key: "source", Value: service + " alerts for " + ownerName},
 		{Key: "read", Value: read.Format("2006-01-02 15:04 UTC")},
 		{Key: "severity", Value: alertSeverity(rep, rated, ft.Source)},
 		{Key: "commit", Value: revision},
 	}
+	if len(bound.elsewhere) > 0 {
+		// Named under --evidence only (pkg/report): the commit field's count is what a reader needs
+		// to see, and the names are what one checking it needs.
+		fields = append(fields, sarif.Field{Key: sarif.ImportAnalysesElsewhere,
+			Value: english.And(bound.elsewhere) + " last ran at another commit"})
+	}
 	if ft.Component != "" {
 		fields = append(fields, sarif.Field{Key: "component", Value: ft.Component})
 	}
-	if staleDismissed > 0 {
-		fields = append(fields, sarif.Field{Key: "left out", Value: english.Count(staleDismissed, "dismissed alert") +
-			" GitHub last saw at another commit, not this one"})
+	if bound.stale > 0 {
+		fields = append(fields, sarif.Field{Key: "left out", Value: english.Count(bound.stale, "dismissed alert") +
+			" not counted: GitHub last saw " + english.Choose(bound.stale, "it", "them") + " at another commit"})
 	}
 	if ft.Source == saga.ImportSourceGitHubDependabot {
 		fields = append(fields, sarif.Field{Key: "api", Value: "Dependabot's alerts API is in public preview and subject to change"})
 	}
 	fields = append(fields, scoped.fields()...)
-	rep.Provenance = append(rep.Provenance, sarif.Provenance{Tool: plugin.ImportScanner, Fields: fields, Detail: scoped.detail()})
+	detail := scoped.detail()
+	if bound.caveat != "" {
+		detail = append(detail, sarif.Field{Key: sarif.ImportUnbound, Value: bound.caveat})
+	}
+	rep.Provenance = append(rep.Provenance, sarif.Provenance{Tool: plugin.ImportScanner, Fields: fields, Detail: detail})
 	return rep, nil
+}
+
+// alertTools names the tools whose analyses raised the alerts, each once with its versions, in the
+// order the alerts name them: `Draugr 0.181.1, Scorecard v5.6.0, Semgrep OSS`. A tool some of whose
+// alerts name no version is not listed again without one.
+func alertTools(meta importLog) string {
+	var names []string
+	versions := map[string][]string{}
+	for _, run := range meta.Runs {
+		d := run.Tool.Driver
+		name := cmp.Or(d.Name, "an unnamed tool")
+		if !slices.Contains(names, name) {
+			names = append(names, name)
+		}
+		if v := cmp.Or(d.Version, d.SemanticVersion); v != "" && !slices.Contains(versions[name], v) {
+			versions[name] = append(versions[name], v)
+		}
+	}
+	out := make([]string, 0, len(names))
+	for _, name := range names {
+		if vs := versions[name]; len(vs) > 0 {
+			name += " " + strings.Join(vs, " and ")
+		}
+		out = append(out, name)
+	}
+	return strings.Join(out, ", ")
 }
 
 // SourceCheck says whether an import of a service's alerts has its token to send, for doctor: the
@@ -202,10 +243,10 @@ func (s sarifImport) scanGitHub(ctx context.Context, ft plugin.FileTarget) (sari
 // repository's settings are left to the scan, which names what GitHub refused. The detail never holds
 // the token.
 func SourceCheck(ft plugin.FileTarget) (detail string, ok bool) {
-	if _, err := githubToken(ft); err != nil {
+	name, _, err := githubToken(ft)
+	if err != nil {
 		return err.Error(), false
 	}
-	name, _ := credential.Variable(ft.TokenEnv, githubTokenEnv)
 	return "token in $" + name + ", alerts read by the scan", true
 }
 
@@ -220,20 +261,20 @@ func githubPath(source, ownerName string) string {
 // githubToken reads the token from the variable the import names, or GITHUB_TOKEN. A name the
 // pipeline has not listed in $DRAUGR_TOKEN_ENVS is refused before anything is read, and an empty
 // variable is an error rather than a request GitHub would answer with less.
-func githubToken(ft plugin.FileTarget) (string, error) {
+func githubToken(ft plugin.FileTarget) (variable, token string, err error) {
 	name, value, err := credential.Token(ft.TokenEnv, githubTokenEnv)
 	var refused *credential.RefusedVariableError
 	if errors.As(err, &refused) {
-		return "", &githubError{fmt.Sprintf("$%s is not listed in $%s. List it there, or use $%s",
+		return name, "", &githubError{fmt.Sprintf("$%s is not listed in $%s. List it there, or use $%s",
 			refused.Name, credential.TokenEnvsVar, githubTokenEnv)}
 	}
 	if err != nil {
-		return "", err
+		return name, "", err
 	}
 	if strings.TrimSpace(value) == "" {
-		return "", &githubError{fmt.Sprintf("$%s is empty. Set it to a token that can read security alerts", name)}
+		return name, "", &githubError{fmt.Sprintf("$%s is empty. Set it to a token that can read security alerts", name)}
 	}
-	return strings.TrimSpace(value), nil
+	return name, strings.TrimSpace(value), nil
 }
 
 // githubRepositoryOf is the repository a source reads, as owner/name, and the component's repository
@@ -351,7 +392,11 @@ func (c githubClient) get(ctx context.Context, token, target string) ([]byte, st
 		}
 		wait, limited := c.rateLimitWait(resp)
 		if !limited {
-			return nil, "", githubRefusal(resp.StatusCode, body)
+			var msg struct {
+				Message string `json:"message"`
+			}
+			_ = json.Unmarshal(body, &msg)
+			return nil, "", &githubStatus{code: resp.StatusCode, message: msg.Message}
 		}
 		if attempt >= githubAttempts {
 			return nil, "", &githubError{fmt.Sprintf("GitHub kept limiting requests after %d tries (HTTP %d)", attempt, resp.StatusCode)}
@@ -412,31 +457,49 @@ func retryAfter(v string, now time.Time) (time.Duration, bool) {
 	return 0, false
 }
 
+// githubStatus is a status GitHub answered with in place of the alerts, and its message, which
+// scanGitHub words as an error naming the variable and the repository (githubRefusal).
+type githubStatus struct {
+	code    int
+	message string
+}
+
+func (e *githubStatus) Error() string {
+	return fmt.Sprintf("GitHub answered HTTP %d in place of the alerts", e.code)
+}
+
+// githubAsked is what a request for alerts was about, which an error names.
+type githubAsked struct {
+	// variable holds the token, source is the import's, and repository is owner/name.
+	variable, source, repository string
+}
+
 // githubRefusal is the error for a status GitHub answered with in place of the alerts, naming what a
 // reader can do about it. None is an empty import: each would otherwise read as a repository with no
-// alerts.
-func githubRefusal(status int, body []byte) error {
-	var msg struct {
-		Message string `json:"message"`
-	}
-	_ = json.Unmarshal(body, &msg)
-	text := strings.ToLower(msg.Message)
+// alerts, a missing analysis included.
+//
+// A 403 is read by its message only for the source whose page states it: "Code Security must be
+// enabled" for code scanning, recorded from GitHub, and "Dependabot alerts are disabled" for
+// Dependabot. Any other 403 is the token lacking access.
+func githubRefusal(s *githubStatus, asked githubAsked) error {
+	text := strings.ToLower(s.message)
+	codeScanning := asked.source == saga.ImportSourceGitHubCodeScanning
 	switch {
-	case status == http.StatusUnauthorized:
-		return &githubError{"GitHub refused the token as invalid or expired (HTTP 401)"}
-	case status == http.StatusForbidden && strings.Contains(text, "dependabot alerts are disabled"):
-		return &githubError{"Dependabot alerts are off for this repository (HTTP 403)"}
-	case status == http.StatusForbidden && (strings.Contains(text, "advanced security") ||
-		strings.Contains(text, "code security") || strings.Contains(text, "must be enabled")):
-		return &githubError{"needs GitHub Code Security (Advanced Security) turned on (HTTP 403)"}
-	case status == http.StatusForbidden:
-		return &githubError{"the token may not read these alerts. It needs security_events (HTTP 403)"}
-	case status == http.StatusNotFound && strings.Contains(text, "no analysis"):
-		return &githubError{"GitHub has no code-scanning analysis of this repository (HTTP 404)"}
-	case status == http.StatusNotFound:
-		return &githubError{"no such repository, or the token cannot see it (HTTP 404)"}
+	case s.code == http.StatusUnauthorized:
+		return &githubError{fmt.Sprintf("GitHub refused $%s as invalid or expired. Create a new one", asked.variable)}
+	case s.code == http.StatusForbidden && !codeScanning && strings.Contains(text, "dependabot alerts are disabled"):
+		return &githubError{"Dependabot alerts are off. Turn them on in Settings, Code security (HTTP 403)"}
+	case s.code == http.StatusForbidden && codeScanning && strings.Contains(text, "must be enabled") &&
+		(strings.Contains(text, "code security") || strings.Contains(text, "advanced security")):
+		return &githubError{"Code Security is off. Turn it on in the repository's settings (HTTP 403)"}
+	case s.code == http.StatusForbidden:
+		return &githubError{"a classic token needs security_events, or public_repo if public (HTTP 403)"}
+	case s.code == http.StatusNotFound && codeScanning && strings.Contains(text, "no analysis"):
+		return &githubError{fmt.Sprintf("GitHub has no code-scanning analysis of %s (HTTP 404)", asked.repository)}
+	case s.code == http.StatusNotFound:
+		return &githubError{fmt.Sprintf("no repository %s, or the token cannot see it (HTTP 404)", asked.repository)}
 	}
-	return &githubError{fmt.Sprintf("GitHub answered HTTP %d in place of the alerts", status)}
+	return s
 }
 
 // transportReason is why a request got no answer, without the URL, which net/http puts in front.
@@ -495,16 +558,21 @@ func (a githubAlerts) only(keep []bool) githubAlerts {
 }
 
 // githubDismissal is what GitHub recorded about an alert it lists as dismissed: by a person, with
-// their reason and comment, or by one of its own rules.
+// their reason and comment, by an account that is not one, or by one of GitHub's own rules.
 type githubDismissal struct {
 	by, reason, comment, at, alert string
 	// auto marks an alert GitHub dismissed by a rule, which no person looked at.
 	auto bool
+	// person marks a dismissal by an account GitHub types User. A bot's, a workflow's, or one whose
+	// account states no type is not a person's decision about the finding.
+	person bool
 }
 
-// githubUser is the person an alert names.
+// githubUser is the account an alert names.
 type githubUser struct {
 	Login string `json:"login"`
+	// Type is the account's kind, User for a person and Bot for an app such as github-actions[bot].
+	Type string `json:"type"`
 }
 
 // githubDismissed is the dismissal fields both kinds of alert share.
@@ -528,7 +596,8 @@ func (d githubDismissed) dismissal() *githubDismissal {
 	}
 	out := &githubDismissal{alert: d.HTMLURL}
 	if d.DismissedBy != nil {
-		out.by = d.DismissedBy.Login
+		// Only an account GitHub types User is a person. No type is not assumed to be one.
+		out.by, out.person = d.DismissedBy.Login, d.DismissedBy.Type == "User"
 	}
 	if d.DismissedReason != nil {
 		out.reason = strings.ReplaceAll(*d.DismissedReason, "_", " ")
@@ -778,16 +847,20 @@ func readDependabotAlerts(raw []json.RawMessage) (githubAlerts, error) {
 // Dependabot names no commit. Its alerts describe the default branch's manifests when GitHub last
 // read them, which need not be the commit this run reads, so the import is unbound and reported as
 // such.
-func (s sarifImport) bindAlerts(ctx context.Context, ft plugin.FileTarget, repo plugin.RepositoryTarget, a githubAlerts) (string, []bool, int, error) {
-	keep := make([]bool, len(a.results))
-	for i := range keep {
-		keep[i] = true
+func (s sarifImport) bindAlerts(ctx context.Context, ft plugin.FileTarget, repo plugin.RepositoryTarget, a githubAlerts) (alertBinding, error) {
+	b := alertBinding{keep: make([]bool, len(a.results))}
+	for i := range b.keep {
+		b.keep[i] = true
 	}
 	if ft.Source != saga.ImportSourceGitHubCodeScanning {
-		return notStated + ", Dependabot alerts name no commit", keep, 0, nil
+		b.commit = notStated + " · Dependabot alerts name no commit"
+		b.caveat = "Dependabot alerts describe the default branch, not this commit"
+		return b, nil
 	}
 	if len(a.results) == 0 {
-		return notStated + ", GitHub lists no alerts", keep, 0, nil
+		b.commit = notStated + " · GitHub lists no alerts"
+		b.caveat = "GitHub lists no alerts, so nothing shows this commit was analyzed"
+		return b, nil
 	}
 	revision := repo.Revision
 	if repo.WorkingTree {
@@ -795,32 +868,53 @@ func (s sarifImport) bindAlerts(ctx context.Context, ft plugin.FileTarget, repo 
 	}
 	commit, err := s.resolve(ctx, repo.URL, revision)
 	if err != nil {
-		return "", nil, 0, fmt.Errorf("the commit this run reads could not be resolved, so GitHub's alerts cannot be held to it: %w", err)
+		return alertBinding{}, fmt.Errorf("the commit this run reads could not be resolved, so GitHub's alerts cannot be held to it: %w", err)
 	}
 	here := map[string]bool{}
+	var analyses []string
 	for i, at := range a.commits {
+		if !slices.Contains(analyses, a.analyses[i]) {
+			analyses = append(analyses, a.analyses[i])
+		}
 		if sameCommit(at, commit) {
 			here[a.analyses[i]] = true
 		}
 	}
-	stale := 0
-	var elsewhere []string
 	for i, at := range a.commits {
 		switch {
 		case !here[a.analyses[i]]:
 			name := analysisName(a.analyses[i])
-			if !slices.Contains(elsewhere, name) {
-				elsewhere = append(elsewhere, name)
+			if !slices.Contains(b.elsewhere, name) {
+				b.elsewhere = append(b.elsewhere, name)
 			}
 		case !sameCommit(at, commit) && !a.open[i]:
-			keep[i] = false
-			stale++
+			b.keep[i] = false
+			b.stale++
 		}
 	}
-	if len(elsewhere) > 0 {
-		return fmt.Sprintf("%s, %s did not analyze %s", notStated, english.And(elsewhere), short(commit)), keep, stale, nil
+	if n := len(b.elsewhere); n > 0 {
+		total := fmt.Sprintf("%d %s", len(analyses), english.Choose(len(analyses), "analysis", "analyses"))
+		b.commit = fmt.Sprintf("%s · %d of %s last ran at another commit; this run reads %s",
+			notStated, n, total, short(commit))
+		// Within the 80 columns a caveat's reason is shown in.
+		b.caveat = fmt.Sprintf("%d of %s ran at another commit; some alerts may not describe this code", n, total)
+		return b, nil
 	}
-	return short(commit), keep, stale, nil
+	b.commit = short(commit)
+	return b, nil
+}
+
+// alertBinding is what holding a source's alerts to the commit this run reads made of them.
+type alertBinding struct {
+	// commit is the provenance's commit field: the commit, or notStated and why.
+	commit string
+	// caveat is the unbound-imports caveat's sentence for an unbound import, empty for a bound one.
+	caveat string
+	// elsewhere names the analyses GitHub last ran at another commit, which --evidence lists.
+	elsewhere []string
+	// keep marks the alerts kept, and stale counts the dismissed ones left out.
+	keep  []bool
+	stale int
 }
 
 // analysisName is an analysis as a reader is told it: the tool, and the category where it has one.
@@ -838,15 +932,23 @@ func analysisName(key string) string {
 //
 // A person's dismissal is honored by default, set aside with who dismissed it, their reason and
 // comment, and the alert, and counted under suppressions: count with the same in its detail. An alert
-// GitHub dismissed by its own rule always counts, since nobody looked at the finding, and its detail
-// gives the config.exclude entry that sets it aside here, for a reader who has.
+// GitHub dismissed by its own rule, or one a bot or an account of no stated type dismissed, always
+// counts: a rule or a workflow is not a person's decision about the finding. Its detail names who
+// dismissed it, so a team sees which workflow did, and gives the config.exclude entry that sets it
+// aside here, for a reader who has looked.
 func settleDismissal(r *sarif.Result, d *githubDismissal, ft plugin.FileTarget, service string) {
 	if d == nil {
 		return
 	}
+	setAside := ". To set it aside, add to config.exclude " + excludeFlow(r.RuleID, r.Location.URI)
 	if d.auto {
-		r.Detail = strings.TrimPrefix(r.Detail+" · dismissed automatically by a GitHub rule · counted. To set it aside, add "+
-			"to config.exclude "+excludeFlow(r.RuleID, r.Location.URI), " · ")
+		r.Detail = strings.TrimPrefix(r.Detail+" · dismissed automatically by a GitHub rule · counted"+setAside, " · ")
+		return
+	}
+	if !d.person {
+		by := cmp.Or(d.by, "an unnamed account")
+		said := fmt.Sprintf("dismissed by %s in %s · %s · counted%s", by, service, sarif.GivenReason(d.justification()), setAside)
+		r.Detail = strings.TrimPrefix(r.Detail+" · "+said, " · ")
 		return
 	}
 	if ft.CountSuppressed {

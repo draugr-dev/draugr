@@ -223,7 +223,7 @@ func caveats(d Data) []caveat {
 	// run scanned.
 	for _, u := range unboundImports(d) {
 		c := caveat{component: u.component, what: u.file,
-			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports,
+			detail: cmp.Or(u.why, "names no commit, so nothing ties its findings to this code"), key: saga.CaveatUnboundImports,
 			controls: u.controls}
 		// A service's alerts are no file a location could point at.
 		if !u.source {
@@ -939,6 +939,9 @@ type unboundImport struct {
 	// source marks an import of a service's alerts, whose file is the service and the repository.
 	source   bool
 	controls []string
+	// why is the sentence the import gave for being unbound (sarif.ImportUnbound), empty for a file,
+	// whose reason is always that it names no commit.
+	why string
 }
 
 // unboundImports reads them off the import scanner's provenance, which records the commit each
@@ -961,7 +964,10 @@ func unboundImports(d Data) []unboundImport {
 				case "file":
 					k.file = f.Value
 				case "source":
-					k.file, source = f.Value, true
+					// The service alone, `Dependabot` of `Dependabot alerts for acme/api`: the row is
+					// under its component already, and the caveat's sentence needs the width.
+					k.file, _, _ = strings.Cut(f.Value, " alerts for ")
+					source = true
 				case "commit":
 					// "not stated", or "not stated, " and why a commit the descriptor named did not bind.
 					bound = !strings.HasPrefix(f.Value, "not stated")
@@ -974,7 +980,13 @@ func unboundImports(d Data) []unboundImport {
 			if !seen {
 				i = len(out)
 				at[k] = i
-				out = append(out, unboundImport{component: k.component, file: k.file, source: source})
+				u := unboundImport{component: k.component, file: k.file, source: source}
+				for _, f := range p.Detail {
+					if f.Key == sarif.ImportUnbound {
+						u.why = f.Value
+					}
+				}
+				out = append(out, u)
 			}
 			if !slices.Contains(out[i].controls, name) {
 				out[i].controls = append(out[i].controls, name)

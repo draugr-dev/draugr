@@ -855,6 +855,8 @@ func htmlAcceptances(d Data, excluded []finding) ([]htmlFinding, []htmlDecision,
 type htmlToolAside struct {
 	Reporter string
 	N        int
+	// Said is the row's statement, as the console's says it.
+	Said string
 }
 
 // htmlToolAsides are the page's rows for toolAsides. Where and why each finding was set aside is
@@ -862,7 +864,7 @@ type htmlToolAside struct {
 func htmlToolAsides(d Data) []htmlToolAside {
 	var out []htmlToolAside
 	for _, t := range toolAsides(d) {
-		out = append(out, htmlToolAside{Reporter: t.reporter, N: t.n})
+		out = append(out, htmlToolAside{Reporter: t.reporter, N: t.n, Said: t.said()})
 	}
 	return out
 }
@@ -2595,7 +2597,7 @@ lists the other fields.</p>
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
-{{- range .ToolAside}}{{.Reporter}}: {{plural .N "finding"}} the tool suppressed, not counted. {{end -}}
+{{- range .ToolAside}}{{.Reporter}}: {{.Said}}. {{end -}}
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
 {{- if not (or .Suppressed .Imported .Silenced .ToolAside)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>

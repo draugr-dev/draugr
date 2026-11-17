@@ -15,8 +15,12 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/credential"
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -180,10 +184,11 @@ func byRuleAt(rep sarif.Report) map[string]sarif.Result {
 
 // Each open code-scanning alert is a finding, read across both pages GitHub links: the tool's name
 // as its tool, the rule, the location of its most recent instance, and its severity from
-// security_severity_level where the rule has one and from the rule's severity otherwise. Each
-// dismissed alert is set aside by default, naming who dismissed it, why, and the alert. An analysis
-// GitHub last ran at another commit, Scorecard's weekly one here, is kept whole, counted, and makes
-// the import unbound; nothing tells a reader its alerts describe this code.
+// security_severity_level where the rule has one and from the rule's severity otherwise. The recorded
+// dismissals were made by the GitHub Actions bot, a workflow rather than a person, so each counts under
+// the default setting, its detail naming the bot and the exclude entry. An analysis GitHub last ran at
+// another commit, Scorecard's weekly one here, is kept whole, counted, and makes the import unbound;
+// nothing tells a reader its alerts describe this code.
 func TestCodeScanningAlertsAreFindings(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", testToken)
 	f, srv := newFakeGitHub(t)
@@ -220,17 +225,29 @@ func TestCodeScanningAlertsAreFindings(t *testing.T) {
 		t.Errorf("Scorecard alert = %+v, want counted with no location", r)
 	}
 	g := got["G304@internal/inventory/sarif.go:118"]
-	if s := g.Suppression; s == nil || s.Author != "github-actions[bot]" || s.Service != "GitHub code scanning" ||
-		s.Justification != "won't fix (Accepted in Draugr: a file under the tree being initialized)" ||
-		s.Source != "https://github.com/draugr-dev/draugr/security/code-scanning/690" || s.Asserted != "2026-11-17" ||
-		s.Origin != sarif.OriginScanner || !g.SetAsideInImport() {
-		t.Errorf("G304 suppression = %+v, want set aside naming who, why, when and the alert", s)
+	wantBot := "dismissed by github-actions[bot] in GitHub code scanning · reason: won't fix (Accepted in Draugr: a file " +
+		"under the tree being initialized) · counted. To set it aside, add to config.exclude {rules: [G304], paths: " +
+		"[internal/inventory/sarif.go], reason: <why it is set aside>, expires: <YYYY-MM-DD>}"
+	if g.Suppressed() || g.Detail != wantBot {
+		t.Errorf("G304 = %q (suppression %+v), want counted with %q", g.Detail, g.Suppression, wantBot)
 	}
-	if c := rep.Counts(); c.Error+c.Warning+c.Note != 6 {
-		t.Errorf("counted %+v, want the six open alerts", c)
+	if c := rep.Counts(); c.Error+c.Warning+c.Note != 11 {
+		t.Errorf("counted %+v, want the six open alerts and the five a bot dismissed", c)
 	}
-	if v := fieldOf(rep, "commit"); v != "not stated, Scorecard (supply-chain/local) did not analyze cc4899689bce" {
-		t.Errorf("commit = %q, want unbound naming the analysis of another commit", v)
+	if v := fieldOf(rep, "commit"); v != "not stated · 1 of 2 analyses last ran at another commit; this run reads cc4899689bce" {
+		t.Errorf("commit = %q, want unbound counting the analyses of another commit", v)
+	}
+	if v := fieldOf(rep, sarif.ImportAnalysesElsewhere); v != "Scorecard (supply-chain/local) last ran at another commit" {
+		t.Errorf("analyses = %q", v)
+	}
+	var caveat string
+	for _, d := range rep.Provenance[0].Detail {
+		if d.Key == sarif.ImportUnbound {
+			caveat = d.Value
+		}
+	}
+	if caveat != "1 of 2 analyses ran at another commit; some alerts may not describe this code" || len(caveat) > 80 {
+		t.Errorf("caveat = %q, want it within the 80 columns a caveat's reason is shown in", caveat)
 	}
 	if v := fieldOf(rep, "severity"); v != "rule.severity for 8, security_severity_level for 3; alerts carry no score, package, aliases or fix" ||
 		!strings.HasSuffix(v, "alerts carry no score, package, aliases or fix") {
@@ -287,7 +304,7 @@ func TestCodeScanningAlertsBindToTheCommitRead(t *testing.T) {
 	if v := fieldOf(rep, "commit"); v != "cc4899689bce" {
 		t.Errorf("commit = %q, want bound", v)
 	}
-	if v := fieldOf(rep, "left out"); v != "1 dismissed alert GitHub last saw at another commit, not this one" {
+	if v := fieldOf(rep, "left out"); v != "1 dismissed alert not counted: GitHub last saw it at another commit" {
 		t.Errorf("left out = %q", v)
 	}
 	if len(rep.Results) != 9 {
@@ -298,9 +315,9 @@ func TestCodeScanningAlertsBindToTheCommitRead(t *testing.T) {
 	}
 }
 
-// Under suppressions: count every dismissed alert counts, and its detail keeps who dismissed it, in
-// which service and why, so nothing GitHub recorded is lost.
-func TestCodeScanningDismissalsCountWhenAsked(t *testing.T) {
+// A bot's dismissal counts under suppressions: count as under honor, with the same line naming the
+// bot and the exclude entry.
+func TestABotsDismissalCountsUnderEitherSetting(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", testToken)
 	f, srv := newFakeGitHub(t)
 	f.serve(codeScanningPath, "open", "code-scanning-open-page1.json")
@@ -315,10 +332,83 @@ func TestCodeScanningDismissalsCountWhenAsked(t *testing.T) {
 		t.Errorf("counted %+v, want all ten", c)
 	}
 	r := byRuleAt(rep)["G304@internal/scanners/govulncheck.go:732"]
-	want := "github-actions[bot] dismissed it in GitHub code scanning · reason: won't fix (Accepted in Draugr: a go.mod " +
-		"inside the checkout) · counted, as the import says suppressions: count"
+	want := "dismissed by github-actions[bot] in GitHub code scanning · reason: won't fix (Accepted in Draugr: a go.mod " +
+		"inside the checkout) · counted. To set it aside, add to config.exclude {rules: [G304], paths: " +
+		"[internal/scanners/govulncheck.go], reason: <why it is set aside>, expires: <YYYY-MM-DD>}"
 	if r.Suppression != nil || r.Detail != want {
 		t.Errorf("detail = %q, suppression %+v, want %q", r.Detail, r.Suppression, want)
+	}
+}
+
+// Only an account GitHub types User is a person. A Dependabot dismissal whose account states no type,
+// or none at all, is not assumed to be one, and counts with the line naming it; the person's
+// dismissal beside them is still set aside.
+func TestADismissalWithNoAccountTypeCounts(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", testToken)
+	var all []map[string]any
+	if err := json.Unmarshal(recorded(t, "dependabot-alerts-constructed.json"), &all); err != nil {
+		t.Fatal(err)
+	}
+	untyped := map[string]any{}
+	for k, v := range all[1] {
+		untyped[k] = v
+	}
+	untyped["dismissed_by"] = map[string]any{"login": "octocat", "id": 1}
+	untyped["security_advisory"] = map[string]any{"ghsa_id": "GHSA-untyped", "summary": "untyped", "severity": "high"}
+	nobody := map[string]any{}
+	for k, v := range all[1] {
+		nobody[k] = v
+	}
+	nobody["dismissed_by"] = nil
+	nobody["security_advisory"] = map[string]any{"ghsa_id": "GHSA-nobody", "summary": "nobody", "severity": "high"}
+	dismissed, err := json.Marshal([]map[string]any{all[1], untyped, nobody})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, srv := newFakeGitHub(t)
+	f.pages[dependabotPath+"?dismissed"] = [][]byte{dismissed}
+	ft := plugin.FileTarget{Source: saga.ImportSourceGitHubDependabot,
+		Repositories: []plugin.RepositoryTarget{{URL: "https://github.com/octo-org/octo-repo"}}}
+	rep, err := githubImport(srv, githubAlertsCommit, nil).Scan(context.Background(), ft, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resultsByRule(rep)
+	if s := got["GHSA-35jh-r3h4-6jhm"].Suppression; s == nil || s.Author != "octocat" {
+		t.Errorf("the person's dismissal = %+v, want set aside", s)
+	}
+	for rule, by := range map[string]string{"GHSA-untyped": "octocat", "GHSA-nobody": "an unnamed account"} {
+		r := got[rule]
+		if r.Suppressed() || !strings.HasPrefix(r.Detail, "dismissed by "+by+" in Dependabot · ") ||
+			!strings.Contains(r.Detail, "counted. To set it aside, add to config.exclude {rules: ["+rule+"]") {
+			t.Errorf("%s = %q (suppression %+v), want counted with the line", rule, r.Detail, r.Suppression)
+		}
+	}
+}
+
+// The exclude entry a bot's dismissal gives, filled in and read as the descriptor reads it, sets that
+// finding aside and no other.
+func TestTheExcludeEntryABotsDismissalGivesSetsItAside(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", testToken)
+	f, srv := newFakeGitHub(t)
+	f.serve(codeScanningPath, "dismissed", "code-scanning-dismissed.json")
+	ft := plugin.FileTarget{Source: saga.ImportSourceGitHubCodeScanning, Repositories: draugrRepo()}
+	rep, err := githubImport(srv, githubAlertsCommit, nil).Scan(context.Background(), ft, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := byRuleAt(rep)["G304@internal/feeds/govulndb.go:84"]
+	_, entry, ok := strings.Cut(r.Detail, "add to config.exclude ")
+	if !ok {
+		t.Fatalf("no entry in %q", r.Detail)
+	}
+	entry = strings.NewReplacer("<why it is set aside>", "a workflow's decision we checked", "<YYYY-MM-DD>", "2027-01-01").Replace(entry)
+	var rule saga.ExcludeRule
+	if err := yaml.Unmarshal([]byte(entry), &rule); err != nil {
+		t.Fatalf("%s: %v", entry, err)
+	}
+	if !rule.Matches(r.Location.URI, r.RuleID) || rule.Matches("internal/inventory/sarif.go", "G304") {
+		t.Errorf("%+v matches the wrong findings", rule)
 	}
 }
 
@@ -357,8 +447,12 @@ func TestDependabotAlertsAreDependencyFindings(t *testing.T) {
 	if auto.Suppressed() || auto.Detail != wantAuto {
 		t.Errorf("minimist = %q (suppression %+v), want counted with %q", auto.Detail, auto.Suppression, wantAuto)
 	}
-	if v := fieldOf(rep, "commit"); v != "not stated, Dependabot alerts name no commit" {
+	if v := fieldOf(rep, "commit"); v != "not stated · Dependabot alerts name no commit" {
 		t.Errorf("commit = %q, want unbound", v)
+	}
+	if d := rep.Provenance[0].Detail; len(d) != 1 || d[0].Key != sarif.ImportUnbound ||
+		d[0].Value != "Dependabot alerts describe the default branch, not this commit" {
+		t.Errorf("detail = %+v, want the caveat's sentence", d)
 	}
 	if v := fieldOf(rep, "api"); !strings.Contains(v, "public preview") {
 		t.Errorf("api = %q, want the preview named", v)
@@ -435,12 +529,19 @@ func TestGitHubRefusalsAreErrors(t *testing.T) {
 		body   string
 		want   string
 	}{
-		{"401", saga.ImportSourceGitHubCodeScanning, 401, "unauthorized-401-constructed.json", "GitHub refused the token as invalid or expired (HTTP 401)"},
+		{"401", saga.ImportSourceGitHubCodeScanning, 401, "unauthorized-401-constructed.json",
+			"GitHub refused $GITHUB_TOKEN as invalid or expired. Create a new one"},
 		{"403 code security", saga.ImportSourceGitHubCodeScanning, 403, "code-scanning-403-code-security.json",
-			"needs GitHub Code Security (Advanced Security) turned on (HTTP 403)"},
+			"Code Security is off. Turn it on in the repository's settings (HTTP 403)"},
 		{"403 dependabot", saga.ImportSourceGitHubDependabot, 403, "dependabot-403-disabled.json",
-			"Dependabot alerts are off for this repository (HTTP 403)"},
-		{"404", saga.ImportSourceGitHubCodeScanning, 404, "code-scanning-404.json", "no such repository, or the token cannot see it (HTTP 404)"},
+			"Dependabot alerts are off. Turn them on in Settings, Code security (HTTP 403)"},
+		// Each source's message is read only for that source, so neither is mistaken for the other.
+		{"403 code security message from dependabot", saga.ImportSourceGitHubDependabot, 403, "code-scanning-403-code-security.json",
+			"a classic token needs security_events, or public_repo if public (HTTP 403)"},
+		{"403 dependabot message from code scanning", saga.ImportSourceGitHubCodeScanning, 403, "dependabot-403-disabled.json",
+			"a classic token needs security_events, or public_repo if public (HTTP 403)"},
+		{"404", saga.ImportSourceGitHubCodeScanning, 404, "code-scanning-404.json",
+			"no repository draugr-dev/draugr, or the token cannot see it (HTTP 404)"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			f, srv := newFakeGitHub(t)
@@ -530,17 +631,40 @@ func TestGitHubRateLimitsAreWaitedOut(t *testing.T) {
 	}
 }
 
-// A 403 with no rate limit about it is the token lacking access, and says which scope it needs.
+// A 403 with no rate limit about it is the token lacking access, and says which scope it needs. A 404
+// for a repository GitHub has not analyzed is an error naming it, never no findings. Any other 403
+// that merely says something must be enabled is not read as Code Security being off.
 func TestAForbiddenAnswerNamesTheScope(t *testing.T) {
-	err := githubRefusal(http.StatusForbidden, []byte(`{"message":"Resource not accessible by integration"}`))
-	if err.Error() != "the token may not read these alerts. It needs security_events (HTTP 403)" {
-		t.Errorf("err = %v", err)
+	asked := githubAsked{variable: "GITHUB_TOKEN", source: saga.ImportSourceGitHubCodeScanning, repository: "acme/api"}
+	for _, c := range []struct {
+		status  int
+		message string
+		want    string
+	}{
+		{403, "Resource not accessible by integration", "a classic token needs security_events, or public_repo if public (HTTP 403)"},
+		{403, "SAML enforcement must be enabled for this organization", "a classic token needs security_events, or public_repo if public (HTTP 403)"},
+		{404, "no analysis found", "GitHub has no code-scanning analysis of acme/api (HTTP 404)"},
+		{500, "", "GitHub answered HTTP 500 in place of the alerts"},
+	} {
+		err := githubRefusal(&githubStatus{code: c.status, message: c.message}, asked)
+		if err.Error() != c.want || len(err.Error()) > 80 || strings.Contains(err.Error(), ": ") {
+			t.Errorf("%d %q: err = %v, want %q", c.status, c.message, err, c.want)
+		}
 	}
-	if err := githubRefusal(http.StatusNotFound, []byte(`{"message":"no analysis found"}`)); !strings.Contains(err.Error(), "no code-scanning analysis") {
-		t.Errorf("err = %v", err)
+}
+
+// The tools are named once each, with each version once, and a tool some of whose alerts name no
+// version is not listed again without one.
+func TestAlertToolsNameEachToolOnce(t *testing.T) {
+	var meta importLog
+	for _, d := range []importDriver{{Name: "Draugr", Version: "0.181.1"}, {Name: "Scorecard", Version: "v5.6.0"},
+		{Name: "Draugr"}, {Name: "Semgrep OSS"}, {Name: "Draugr", Version: "0.181.1"}, {Name: ""}} {
+		var r importRun
+		r.Tool.Driver = d
+		meta.Runs = append(meta.Runs, r)
 	}
-	if err := githubRefusal(http.StatusInternalServerError, nil); err.Error() != "GitHub answered HTTP 500 in place of the alerts" {
-		t.Errorf("err = %v", err)
+	if got := alertTools(meta); got != "Draugr 0.181.1, Scorecard v5.6.0, Semgrep OSS, an unnamed tool" {
+		t.Errorf("tools = %q", got)
 	}
 }
 
@@ -752,6 +876,61 @@ func TestDismissalAndAnalysisNames(t *testing.T) {
 	}
 	if got := analysisName("\x00cat"); got != "an unnamed tool (cat)" {
 		t.Errorf("%q", got)
+	}
+}
+
+// A run importing both sources from the recorded responses, through the engine and onto the console:
+// what each import was measured against, with the analyses at another commit named only under
+// --evidence, the caveat each unbound import gives, and the ACCEPTED row of the alert a person
+// dismissed, apart from the tool rows of a file's import.
+func TestGitHubAlertsOnTheConsole(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", testToken)
+	f, srv := newFakeGitHub(t)
+	f.serve(codeScanningPath, "open", "code-scanning-open-page1.json", "code-scanning-open-page2.json")
+	f.serve(codeScanningPath, "dismissed", "code-scanning-dismissed.json")
+	f.serveByState(dependabotPath, "dependabot-alerts-constructed.json", "open", "dismissed", "auto_dismissed")
+	reg := engine.NewRegistry()
+	reg.RegisterController(controllers.NewSAST())
+	reg.RegisterController(controllers.NewSCA())
+	reg.RegisterScanner(githubImport(srv, githubAlertsCommit, nil))
+	model := saga.Model{Components: []saga.Component{
+		{Name: "draugr", Repositories: []saga.Repository{{URL: "https://github.com/draugr-dev/draugr"}},
+			Imports: []saga.Import{{Control: "sast", Source: saga.ImportSourceGitHubCodeScanning}}},
+		{Name: "shop", Repositories: []saga.Repository{{URL: "https://github.com/octo-org/octo-repo"}},
+			Imports: []saga.Import{{Control: "sca", Source: saga.ImportSourceGitHubDependabot}}},
+	}}
+	res, err := engine.New(reg).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.ScanErrors) > 0 {
+		t.Fatalf("errors: %v", res.ScanErrors)
+	}
+	verdict := norn.Policy{}.Evaluate(map[string]sarif.Report{"sast": res.Controls["sast"].Report, "sca": res.Controls["sca"].Report})
+	d := report.Data{Project: "p", Run: res, Verdict: verdict}
+	plain := renderFormat(t, "console", d)
+	d.Evidence = true
+	evidence := renderFormat(t, "console", d)
+	t.Logf("console:\n%s\nwith --evidence:\n%s", plain, evidence)
+	fold := func(s string) string { return strings.Join(strings.Fields(s), " ") }
+	for _, said := range []string{
+		"commit: not stated · 1 of 2 analyses last ran at another commit; this run reads cc4899689bce",
+		"tool: Draugr 0.181.1, Scorecard v5.6.0",
+		"commit: not stated · Dependabot alerts name no commit",
+		"GitHub code scanning 1 of 2 analyses ran at another commit; some alerts may not describe this code",
+		"Dependabot Dependabot alerts describe the default branch, not this commit",
+		"Dependabot 1 alert dismissed in GitHub, not counted",
+	} {
+		if !strings.Contains(fold(plain), said) {
+			t.Errorf("the console does not say %q", said)
+		}
+	}
+	if strings.Contains(fold(plain), "analyses: Scorecard") || !strings.Contains(fold(evidence),
+		"analyses: Scorecard (supply-chain/local) last ran at another commit") {
+		t.Error("the analyses at another commit are named other than under --evidence alone")
+	}
+	if !strings.Contains(fold(evidence), "dismissed in Dependabot by octocat · reason: tolerable risk") {
+		t.Error("--evidence does not name who dismissed the alert")
 	}
 }
 

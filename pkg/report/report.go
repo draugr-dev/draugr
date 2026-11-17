@@ -1377,6 +1377,11 @@ func provenanceLines(d Data) []provenanceLine {
 			// five controls reading one checkout is one fact, and repeating it five times in a
 			// block headed "measured against" is how a useful section becomes wallpaper.
 			p.Fields = withoutRepositoryFields(p.Fields)
+			// The analyses an import of GitHub's alerts found at another commit are counted in its
+			// commit field; their names are for a reader checking that count.
+			if p.Tool == plugin.ImportScanner && !d.Evidence {
+				p.Fields = withoutField(p.Fields, sarif.ImportAnalysesElsewhere)
+			}
 			// A version with nothing else to say does not earn a line here. This block answers what
 			// a control was measured against, which for a compliance control is the standard it
 			// applied, and a row per scanner carrying only a build string turns that into a
@@ -1599,6 +1604,22 @@ type toolAside struct {
 	reporter string
 	n        int
 	reasons  []toolReason
+	// alerts marks a row of alerts dismissed in GitHub, which no tool suppressed.
+	alerts bool
+}
+
+// asideLabel names the ACCEPTED row a set-aside imported finding is counted on: the tool as the
+// report names its findings, or for an alert dismissed in GitHub the service and the tool whose
+// analysis raised it, `GitHub code scanning (CodeQL)`, or the service alone where the tool is it.
+func asideLabel(res sarif.Result) string {
+	s := res.Suppression
+	if s == nil || s.Service == "" {
+		return res.Reporter()
+	}
+	if res.Tool == "" || res.Tool == s.Service {
+		return s.Service
+	}
+	return s.Service + " (" + res.Tool + ")"
 }
 
 // toolReason is one place and reason a tool recorded for findings it suppressed: where
@@ -1650,6 +1671,9 @@ func (r toolReason) reason() string {
 
 // said is the row's statement: what the tool did, and what Draugr did with it.
 func (t toolAside) said() string {
+	if t.alerts {
+		return english.Count(t.n, "alert") + " dismissed in GitHub, not counted"
+	}
 	return english.Count(t.n, "finding") + " the tool suppressed, not counted"
 }
 
@@ -1702,10 +1726,10 @@ func toolAsides(d Data) []toolAside {
 			if !res.SetAsideInImport() {
 				continue
 			}
-			who := res.Reporter()
+			who := asideLabel(res)
 			row := byTool[who]
 			if row == nil {
-				row = &toolAside{reporter: who}
+				row = &toolAside{reporter: who, alerts: res.Suppression.Service != ""}
 				byTool[who], reasons[who] = row, map[at]*toolReason{}
 				order = append(order, row)
 			}
@@ -2275,6 +2299,10 @@ func acceptedVia(res sarif.Result) string {
 	case res.SetAsideInImport():
 		// The tool that wrote the file and where it recorded the suppression, which is where a
 		// reader goes to see or undo it.
+		if res.Suppression.Service != "" {
+			// The row's own name, which already says it was dismissed in GitHub.
+			return asideLabel(res)
+		}
 		return res.Reporter() + ", " + res.Suppression.Where()
 	case res.SilencedInSource():
 		return "source directive"

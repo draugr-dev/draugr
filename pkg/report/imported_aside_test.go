@@ -166,7 +166,8 @@ func TestAnAlertDismissedInGitHubNamesWhoDismissedIt(t *testing.T) {
 	d := githubAsideData()
 	out := renderWith(t, consoleReporter{}, d)
 	for _, want := range []string{
-		"imported CodeQL (github-code-scanning)",
+		"GitHub code scanning (CodeQL)  2 alerts dismissed in GitHub, not counted\n",
+		"imported bandit                1 finding the tool suppressed, not counted\n",
 		"dismissed in GitHub code scanning by octocat · reason: false positive (the path is a constant) · 1 finding · go/path-injection",
 		"dismissed in GitHub code scanning by monalisa · reason: won't fix · 1 finding · go/sql-injection",
 	} {
@@ -179,12 +180,18 @@ func TestAnAlertDismissedInGitHubNamesWhoDismissedIt(t *testing.T) {
 	}
 
 	md := renderWith(t, markdownReporter{}, d)
-	if want := "| 1 | imported CodeQL (github-code-scanning) | dismissed in GitHub code scanning | won't fix | monalisa |"; !strings.Contains(md, want) {
-		t.Errorf("markdown lacks %q:\n%s", want, md)
+	for _, want := range []string{
+		"| GitHub code scanning (CodeQL) | 2 alerts dismissed in GitHub, not counted |",
+		"| 1 | GitHub code scanning (CodeQL) | dismissed in GitHub code scanning | won't fix | monalisa |",
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown lacks %q:\n%s", want, md)
+		}
 	}
 	html := renderWith(t, htmlReporter{}, d)
 	for _, want := range []string{
-		"imported CodeQL (github-code-scanning), dismissed in GitHub code scanning",
+		"GitHub code scanning (CodeQL): 2 alerts dismissed in GitHub, not counted.",
+		`<span class="lbl">recorded in</span> GitHub code scanning (CodeQL)<span`,
 		`<span class="lbl">who</span> octocat`,
 		`<span class="lbl">who</span> <span class="none">not recorded by the tool</span>`,
 	} {

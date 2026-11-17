@@ -804,7 +804,15 @@ const (
 	// ImportNotScoped counts the findings kept whole in a component whose repositories declare paths:
 	// or ignore:, because the file establishes no one repository whose scope would apply.
 	ImportNotScoped = "notScoped"
+	// ImportUnbound is, for an import of a service's alerts that nothing binds to the commit the
+	// run reads, the sentence its unbound-imports caveat says why in. Not a count.
+	ImportUnbound = "unbound"
 )
+
+// ImportAnalysesElsewhere is the key of the import scanner's provenance field naming the code-scanning
+// analyses GitHub last ran at another commit than the one the run reads. Reports show it only with
+// the evidence, since the commit field already counts them.
+const ImportAnalysesElsewhere = "analyses"
 
 // Reporter names who gave an account of a finding, for telling one flaw's copies apart: the tool,
 // and for a finding read from another tool's file, the tool marked as imported, with the format

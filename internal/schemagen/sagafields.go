@@ -524,7 +524,7 @@ func sagaFields() map[string]map[string]any {
 			),
 			"description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own " +
 				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
-				"and an alert Dependabot dismissed by its own rule, never sets a finding aside.",
+				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside.",
 		},
 		"import.severity": {
 			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +

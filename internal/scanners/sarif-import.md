@@ -567,7 +567,10 @@ has to be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets, because the d
 pull request and the token goes to GitHub. It is sent as `Authorization: Bearer` over https to the
 API's own address, never to a next page on another host, and is never stored, logged, or written to
 a report. GitHub's documentation names the classic scope `security_events`, or `public_repo` for a
-public repository only; the pages read for this do not state the fine-grained permission.
+public repository only. Its REST pages for both endpoints state no fine-grained token permission,
+so none is named here. In GitHub Actions, `GITHUB_TOKEN` lists code-scanning alerts with
+`security-events: read` and Dependabot alerts with `vulnerability-alerts: read`, as the workflow
+syntax's `permissions` table states.
 
 ### Code-scanning alerts
 
@@ -606,19 +609,30 @@ scanner's copy of the same advisory rather than merged into it.
 
 | State | `suppressions: honor` (the default) | `suppressions: count` |
 |---|---|---|
-| `dismissed`, by a person | set aside: `who` is `dismissed_by.login`, the reason `dismissed_reason` with `dismissed_comment`, or `no reason given`, and the source the alert's address | counted, its detail `octocat dismissed it in Dependabot · reason: tolerable risk (…) · counted, as the import says suppressions: count` |
+| `dismissed`, by a person (`dismissed_by.type` `User`) | set aside: `who` is `dismissed_by.login`, the reason `dismissed_reason` with `dismissed_comment`, or `no reason given`, and the source the alert's address | counted, its detail `octocat dismissed it in Dependabot · reason: tolerable risk (…) · counted, as the import says suppressions: count` |
+| `dismissed`, by a bot or an account of no stated type | counted | counted |
 | `auto_dismissed` (Dependabot) | counted | counted |
 
-An alert Dependabot dismissed by one of its own rules counts, because nobody looked at the finding.
-Its detail says so and gives the [`config.exclude`](../../docs/reference/saga-schema.md#configexclude)
-entry that sets it aside here, with its manifest as `paths`, for a reader who has:
+A bot's dismissal counts because a workflow is not a person's decision about the finding, and an
+account whose type GitHub does not state is not assumed to be a person. Its detail names the account,
+so a team sees which workflow did it, and gives the
+[`config.exclude`](../../docs/reference/saga-schema.md#configexclude) entry that sets it aside here,
+with the alert's file as `paths`, for a reader who has looked:
+
+```text
+dismissed by github-actions[bot] in GitHub code scanning · reason: won't fix (Accepted in Draugr: a go.mod inside the checkout) · counted. To set it aside, add to config.exclude {rules: [G304], paths: [internal/scanners/govulncheck.go], reason: <why it is set aside>, expires: <YYYY-MM-DD>}
+```
+
+An alert Dependabot dismissed by one of its own rules counts the same way, because nobody looked at
+the finding, with the manifest as `paths`:
 
 ```text
 dismissed automatically by a GitHub rule · counted. To set it aside, add to config.exclude {rules: [GHSA-xvch-5gv4-984h], paths: [web/package-lock.json], reason: <why it is set aside>, expires: <YYYY-MM-DD>}
 ```
 
-A set-aside alert is on the `ACCEPTED` row named for the tool, and `--evidence` names who dismissed
-it, as
+A set-aside alert is counted on an `ACCEPTED` row named for the service and the tool, as
+`GitHub code scanning (CodeQL)  2 alerts dismissed in GitHub, not counted`, or `Dependabot`, and
+`--evidence` names who dismissed each, as
 [Findings an imported tool suppressed](../../docs/reference/saga-schema.md#findings-an-imported-tool-suppressed)
 shows. In `report.json` its `suppressed` carries `origin` `scanner`, `service`, `author`, `asserted`
 and the alert's address as `source`.
@@ -631,18 +645,27 @@ scanner run on every push. Each analysis is held to the commit this run reads ap
 a SARIF file is:
 
 - **An analysis with an alert seen at this commit** describes this commit. A dismissed alert of it
-  last seen at another commit is one that analysis did not find here: it is left out, and **Measured
-  against** counts it, as `left out: 1 dismissed alert GitHub last saw at another commit, not this
-  one`.
+  last seen at another commit is one that analysis did not find here: it is left out of the
+  findings, the gate and the `ACCEPTED` block alike, and **Measured against** counts it, as
+  `left out: 1 dismissed alert not counted: GitHub last saw it at another commit`.
 - **An analysis with no alert seen at this commit** describes other code. Its alerts are kept, the
-  open ones counting at their full rating, and the import is unbound, `commit` reading `not stated,
-  Scorecard (supply-chain/local) did not analyze cc4899689bce`.
-- **No alerts at all** reads `not stated, GitHub lists no alerts`.
+  open ones counting at their full rating, and the import is unbound, `commit` reading `not stated ·
+  1 of 2 analyses last ran at another commit; this run reads cc4899689bce`. `--evidence` names the
+  analyses, as `analyses: Scorecard (supply-chain/local) last ran at another commit`.
+- **No alerts at all** reads `not stated · GitHub lists no alerts`.
 
 Dependabot alerts name no commit. They describe the default branch's manifests when GitHub last read
 them, which need not be the commit this run reads, so a Dependabot import is always unbound, `commit`
-reading `not stated, Dependabot alerts name no commit`. An unbound import is listed under
-**Caveats** as `unbound-imports`, and nothing in it is ranked lower for an absence.
+reading `not stated · Dependabot alerts name no commit`. An unbound import is listed under
+**Caveats** as `unbound-imports`, and nothing in it is ranked lower for an absence:
+
+```text
+unbound-imports
+  draugr
+    GitHub code scanning  1 of 2 analyses ran at another commit; some alerts may not describe this code
+  shop
+    Dependabot  Dependabot alerts describe the default branch, not this commit
+```
 
 Alerts are read on every run, never from the cache: an alert is dismissed, or a new analysis lands,
 with nothing in the descriptor or the tree changing.
@@ -651,13 +674,14 @@ with nothing in the descriptor or the tree changing.
 
 | Field | Value |
 |---|---|
-| `tool` | the tools the alerts name, with their versions, as `Draugr 0.181.1, Scorecard v5.6.0`, or `Dependabot` |
+| `tool` | the tools the alerts name, each once with its versions, as `Draugr 0.181.1, Scorecard v5.6.0`, or `Dependabot` |
 | `source` | the service and the repository, as `GitHub code scanning alerts for draugr-dev/draugr` |
 | `read` | when the alerts were read |
 | `severity` | where severities came from, as above |
 | `commit` | as [Alerts and the commit](#alerts-and-the-commit) describes |
+| `analyses` | with `--evidence` only, the analyses GitHub last ran at another commit. Absent where none did |
 | `component` | the component that imports them |
-| `left out` | dismissed alerts last seen at another commit. Absent where none was |
+| `left out` | dismissed alerts last seen at another commit, which are in no finding or count. Absent where none was |
 | `api` | for Dependabot, that its API is in public preview and subject to change |
 
 ### Errors
@@ -667,12 +691,16 @@ with no alerts:
 
 | GitHub answers | The error |
 |---|---|
-| 401 | `GitHub refused the token as invalid or expired (HTTP 401)` |
-| 403, code scanning off | `needs GitHub Code Security (Advanced Security) turned on (HTTP 403)` |
-| 403, Dependabot alerts off | `Dependabot alerts are off for this repository (HTTP 403)` |
-| 403, any other | `the token may not read these alerts. It needs security_events (HTTP 403)` |
-| 404 | `no such repository, or the token cannot see it (HTTP 404)` |
+| 401 | `GitHub refused $GITHUB_TOKEN as invalid or expired. Create a new one` |
+| 403 to code scanning, "Code Security must be enabled" | `Code Security is off. Turn it on in the repository's settings (HTTP 403)` |
+| 403 to Dependabot, "Dependabot alerts are disabled" | `Dependabot alerts are off. Turn them on in Settings, Code security (HTTP 403)` |
+| 403, any other | `a classic token needs security_events, or public_repo if public (HTTP 403)` |
+| 404, "no analysis found" | `GitHub has no code-scanning analysis of acme/api (HTTP 404)` |
+| 404, any other | `no repository acme/api, or the token cannot see it (HTTP 404)` |
 | 429, or 403 with a rate limit | waited out, as below |
+
+Each source's message is read only from that source, so another 403 that says something must be
+enabled, such as an organization's SAML enforcement, is read as the token lacking access.
 
 A rate-limited answer is waited out for as long as its `retry-after` says, or until the
 `x-ratelimit-reset` it sends with `x-ratelimit-remaining: 0`, or a minute where it names neither, as
@@ -685,9 +713,9 @@ unlisted token variable, and an `--offline` run, stop the run before anything is
 
 ## What is sent
 
-Only for an import with `source`. To GitHub's REST API, `api.github.com` or `$GITHUB_API_URL`: the
-repository's owner and name, the alert states asked for, and the token. Nothing about the code, the
-findings or the descriptor is sent; GitHub already holds the repository and its alerts.
+For an import of a file, nothing. For an import with `source`, to GitHub's REST API at
+`api.github.com`, or `$GITHUB_API_URL`: the repository's owner and name, the alert states asked for,
+and the token. Nothing about the code, the findings or the descriptor is sent.
 
 ## License & terms
 
@@ -706,8 +734,8 @@ alerts go into the report on the machine that ran the scan.
 
 ## Data
 
-For a file, nothing. The scan reads the file the descriptor names, on the machine running Draugr,
-and resolves the component's repository revision with `git`, locally for a path and with
+For a file, no data source: the scan reads the file the descriptor names, on the machine running
+Draugr, and resolves the component's repository revision with `git`, locally for a path and with
 `git ls-remote` for a remote.
 
 For an import with `source`, `api.github.com` (or `$GITHUB_API_URL`), on every run: the alerts are

@@ -411,8 +411,8 @@ type NotChecked struct {
 type UnboundImport struct {
 	// Component is the component that imported it.
 	Component string `json:"component,omitempty"`
-	// File is the imported file, as the descriptor names it, or for a service's alerts the source and
-	// the repository, `github-dependabot acme/api`.
+	// File is the imported file, as the descriptor names it, or for a service's alerts the service,
+	// `Dependabot`.
 	File string `json:"file"`
 	// Controls are the controls that read it.
 	Controls []string `json:"controls,omitempty"`

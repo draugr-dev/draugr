@@ -520,11 +520,14 @@ imports:
   import per repository; validate refuses a source that leaves the choice open.
 - **The token** is read from `tokenEnv` when the scan runs, sent to GitHub's API and nowhere else,
   and never written to a report or a log. A classic token needs `security_events`, or `public_repo`
-  for a public repository; the GitHub page read for this does not state the fine-grained permission.
+  for a public repository.
 - **Open and dismissed alerts are read**, and Dependabot's `auto_dismissed` ones. A fixed alert is
   not.
 - **A person's dismissal is honored** under `suppressions: honor`, set aside with who dismissed it,
   the reason and comment, or `no reason given`. `count` counts it, with the same in its detail.
+- **A bot's dismissal counts** under either value, since a workflow is not a person's decision about
+  the finding, and so does one by an account whose type GitHub does not state. Its detail names the
+  account and gives the `config.exclude` entry that sets it aside here.
 - **An alert Dependabot dismissed by its own rule counts** under either value, since nobody looked
   at the finding, and its detail gives the `config.exclude` entry that sets it aside here.
 - **Reading the alerts is a `network` effect**, recorded in the report. It needs no
@@ -2465,13 +2468,14 @@ ACCEPTED
 Where a long tool name leaves no room on the row, `--evidence lists why` is the line under it. The
 import's [`suppressions: count`](#componentsimports) counts these findings instead.
 
-An alert a person dismissed in GitHub, read by an import's [`source`](#githubs-alerts), names who
-dismissed it on its line, and the line saying nobody is recorded is left out where every reason
-names someone:
+An alert a person dismissed in GitHub, read by an import's [`source`](#githubs-alerts), is counted on
+a row named for the service and the tool, and names who dismissed it on its line; the line saying
+nobody is recorded is left out where every reason names someone. A bot's dismissal is not here: it
+counts.
 
 ```console
 ACCEPTED
-  imported CodeQL (github-code-scanning)  2 findings the tool suppressed, not counted
+  GitHub code scanning (CodeQL)  2 alerts dismissed in GitHub, not counted
               dismissed in GitHub code scanning by octocat · reason: false positive (the path is a constant) · 1 finding · go/path-injection
               dismissed in GitHub code scanning by monalisa · reason: won't fix · 1 finding · go/sql-injection
 ```

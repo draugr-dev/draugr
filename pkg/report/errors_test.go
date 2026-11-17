@@ -721,23 +721,41 @@ func TestAnUnboundImportIsACaveat(t *testing.T) {
 }
 
 // A service's alerts that name no commit, as Dependabot's never do, are an unbound import named by the
-// source and repository, with no file for a location to point at.
+// service, with the sentence the import gave for why and no file for a location to point at.
 func TestAnUnboundSourceIsACaveatWithNoLocation(t *testing.T) {
 	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
 		"sca": {Report: sarif.Report{Provenance: []sarif.Provenance{{Tool: plugin.ImportScanner, Fields: []sarif.Field{
-			{Key: "source", Value: "github-dependabot acme/api"}, {Key: "commit", Value: "not stated, Dependabot alerts name no commit"},
-			{Key: "component", Value: "api"}}}}}},
+			{Key: "source", Value: "Dependabot alerts for acme/api"}, {Key: "commit", Value: "not stated · Dependabot alerts name no commit"},
+			{Key: "component", Value: "api"}},
+			Detail: []sarif.Field{{Key: sarif.ImportUnbound, Value: "Dependabot alerts describe the default branch, not this commit"}}}}}},
 	}}}
 	var found bool
 	for _, c := range caveats(d) {
 		if c.key == saga.CaveatUnboundImports {
 			found = true
-			if c.what != "github-dependabot acme/api" || len(c.locations) != 0 {
-				t.Errorf("caveat %+v, want the source named and no location", c)
+			if c.what != "Dependabot" || len(c.locations) != 0 || c.detail != "Dependabot alerts describe the default branch, not this commit" {
+				t.Errorf("caveat %+v, want the service named, its sentence and no location", c)
 			}
 		}
 	}
 	if !found {
 		t.Error("no unbound-imports caveat")
+	}
+}
+
+// The analyses an import of GitHub's alerts found at another commit are named in what it was measured
+// against only with the evidence, the commit field counting them either way.
+func TestTheAnalysesElsewhereAreNamedWithTheEvidence(t *testing.T) {
+	d := Data{Run: engine.Result{Controls: map[string]plugin.ControlResult{
+		"sast": {Report: sarif.Report{Provenance: []sarif.Provenance{{Tool: plugin.ImportScanner, Fields: []sarif.Field{
+			{Key: "commit", Value: "not stated · 1 of 2 analyses last ran at another commit; this run reads cc4899689bce"},
+			{Key: sarif.ImportAnalysesElsewhere, Value: "Scorecard (supply-chain/local) last ran at another commit"}}}}}},
+	}}}
+	if got := provenanceLines(d)[0].Detail; strings.Contains(got, "analyses: Scorecard") || !strings.Contains(got, "1 of 2 analyses") {
+		t.Errorf("without the evidence %q", got)
+	}
+	d.Evidence = true
+	if got := provenanceLines(d)[0].Detail; !strings.Contains(got, "analyses: Scorecard (supply-chain/local)") {
+		t.Errorf("with the evidence %q", got)
 	}
 }
