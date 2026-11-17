@@ -17,10 +17,12 @@ to the commit it scanned. Another tool's file follows the same steps, with the l
 [Before you import](../../internal/scanners/sarif-import.md#before-you-import) lists. The ones a
 first import meets:
 
-- **A tool Draugr also runs lists each finding twice.** An imported finding is not merged with the
-  control's own scanner's. Importing Semgrep's file into `sast`, or Trivy's into `sca` or `iac`,
-  means switching that scanner off: `config.controls.sast.semgrep.enabled: false`,
-  `config.controls.sca.trivyFs.enabled: false` or `config.controls.iac.trivyConfig.enabled: false`.
+- **A finding the control's own scanner also reports is counted once.** Semgrep's file imported
+  into `sast` beside Draugr's Semgrep run, or Trivy's into `sca` beside `trivy-fs`, lists each
+  finding once and names both scanners. A dependency finding merges on its advisory and package, a
+  code finding on its rule, file and line.
+  [Merging with the control's scanners](../../internal/scanners/sarif-import.md#merging-with-the-controls-scanners)
+  lists what stays apart, such as Bandit's rule beside Semgrep's on the same line.
 - **Severity comes from `security-severity`, written as a string or a number, or from the level.**
   A file that states only levels never yields critical, and one that writes only `warning` ranks P2 at most,
   below the default gate, unless KEV or EPSS raises a finding whose rule id is a CVE.

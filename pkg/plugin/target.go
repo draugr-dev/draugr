@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // TargetKind identifies the sort of surface a scanner acts on.
@@ -415,8 +417,9 @@ type CacheDetailer interface {
 }
 
 // ImportScanner is the scanner that reads a file another tool wrote, the one every import is
-// planned for.
-const ImportScanner = "sarif-import"
+// planned for. The name is sarif's, which reads it to tell an imported finding from a native one
+// (sarif.Result.Reporter).
+const ImportScanner = sarif.ImportScanner
 
 // FileTarget is a file another tool wrote, read in place of running a scanner: a SARIF file a
 // component imports.

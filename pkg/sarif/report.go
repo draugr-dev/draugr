@@ -749,6 +749,27 @@ type Observation struct {
 	Location string `json:"-"`
 }
 
+// ImportScanner is the name of Draugr's scanner that reads a SARIF file another tool wrote, which
+// the engine stamps as the Scanner of every finding read from one.
+const ImportScanner = "sarif-import"
+
+// Reporter names who gave an account of a finding, for telling one flaw's copies apart: the tool,
+// and for a finding read from another tool's file, the tool marked as imported.
+//
+// The tool's name alone does not tell them apart. Semgrep's file names its tool `Semgrep OSS`, as
+// the Semgrep that Draugr runs does, and the two are separate runs that each found the flaw. Under
+// one name they would read as one scanner's two findings, which correlation keeps apart, and a row
+// counting one would name the other as itself.
+func (r Result) Reporter() string {
+	if r.Scanner != ImportScanner {
+		return r.Tool
+	}
+	if r.Tool == "" {
+		return "imported"
+	}
+	return "imported " + r.Tool
+}
+
 // Correlated reports whether another scanner's finding is the one being counted for this flaw.
 //
 // True only on the copies that are not counted. The finding that is counted has a Correlation too,

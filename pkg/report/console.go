@@ -916,7 +916,7 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		notBuiltEvidence(f.reachability),
 		unreachableCredit(f.reachability),
 		unreachableStanding(f.reachability),
-		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.tool),
+		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.reporter),
 		f.priorityFloor,
 		historicalNote(f.historical),
 	} {

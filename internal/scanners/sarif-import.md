@@ -48,17 +48,8 @@ The file is read as SARIF 2.1.0:
 
 ## Before you import
 
-- **Switch off the control's own scanner when you import its tool's file.** An imported finding is
-  not merged with the same finding from that scanner, so a tool Draugr also runs lists each finding
-  twice, ranked twice.
-
-  | Imported tool | Control | Switch off |
-  |---|---|---|
-  | Semgrep | `sast` | `config.controls.sast.semgrep.enabled: false` |
-  | Trivy, vulnerabilities | `sca` | `config.controls.sca.trivyFs.enabled: false` |
-  | Trivy, misconfigurations | `iac` | `config.controls.iac.trivyConfig.enabled: false` |
-
-  The same block under `components[].controls` switches it off for one component.
+- **Keep the control's own scanner on.** A finding it also reports is counted once, naming both, as
+  [Merging with the control's scanners](#merging-with-the-controls-scanners) describes.
 - **Paths are read relative to the repository's root.** A location may be a URI, an index into the
   run's `artifacts`, or a URI relative to a base the run declares in `originalUriBaseIds`.
   - A relative path, or one relative to a base the run leaves undefined, such as `%SRCROOT%`, is
@@ -116,6 +107,37 @@ Nothing is looked up, so Grype's file, which names its findings by GHSA and Go i
 CVE, reaches neither. A note under the KEV row of **Signals** counts each imported finding that
 names a package or an advisory and no CVE, as in
 `not checked against KEV or EPSS: 9 imported findings name no CVE`.
+
+## Merging with the control's scanners
+
+An imported finding that the control's own scanner also reports is counted once. The copy with the
+higher rating is counted, and its row names the other copy's scanner, an imported copy as `imported`
+followed by the tool the file names: `also found by imported Trivy`, with that copy's rating beside
+it where the two disagree. An import and a native run of one tool are two scanners, though Semgrep's
+file and Draugr's Semgrep run both name their tool `Semgrep OSS`, because each is a run that found
+the flaw.
+
+- **A dependency finding** merges with a native one for the same advisory in the same package. The
+  advisory is the rule id, or an identifier the file lists for it. The package is matched on its
+  package URL, or where the file gives none, as Trivy's does, on its ecosystem, name and version.
+  Trivy's file imported into `sca` merges this way with `trivy-fs`.
+- **A code finding**, one about a line of code rather than a package, merges with a native one for
+  the same tool's rule at the same file and line. Semgrep puts the directory of a local rules file
+  on each rule's id, as `rules.no-os-popen`, and Draugr's Semgrep run leaves out the part that comes
+  from the path it was configured with, reporting `no-os-popen`. An imported Semgrep id that ends in
+  the native one after a dot is the same rule; the same id is preferred where both are on the line.
+
+These stay counted apart:
+
+- **Another tool's rule on the same line.** Bandit's `B605` and a Semgrep rule about the same call
+  are two rules, each the tool's own.
+- **The same rule on another line, or the same advisory in another package.**
+- **A rule reported more than once on one line.** Two copies on one line, at two columns, cannot be
+  paired copy to copy.
+- **An imported finding in a component whose other findings name two repositories.** The file's
+  paths do not say which repository they are in, so its findings stay counted apart rather than
+  being merged into whichever repository came first. Where the component's findings name one
+  repository, the imported findings are placed in it.
 
 ## What the report says about the file
 

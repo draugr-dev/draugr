@@ -2842,9 +2842,10 @@ func recountReachability(controls map[string]plugin.ControlResult, s Reachabilit
 		analyzers[a.Analyzer] = &AnalyzerReachability{Analyzer: a.Analyzer, Contributed: a.Contributed}
 	}
 	var out ReachabilitySummary
+	homes := componentHomes(controls)
 	for _, cr := range controls {
 		// Grouped as applyCorrelation grouped them, per control and by flawGroups.
-		groups := flawGroups(cr.Report)
+		groups := flawGroups(cr.Report, homes)
 		strongest := make([]*sarif.Reachability, len(groups))
 		groupOf := map[int]int{}
 		for g, idxs := range groups {
@@ -3055,13 +3056,23 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 // apart from the ones that count. The counted row then lists only copies that count, and the
 // set-aside ones stay a finding of their own under ACCEPTED, rather than being counted under a row
 // they do not belong to and leaving ACCEPTED to report locations with no finding.
+//
+// A finding imported from another tool's SARIF file is correlated with the control's own scanners'
+// findings: a dependency finding by package and advisory, as two native scanners' are, and a code
+// finding with the native finding of the same rule at the same line (codeGroups). Without it a tool
+// both imported and run counts every flaw twice, sometimes at two priorities.
 func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSuppressed int) {
+	homes := componentHomes(controls)
 	for name, cr := range controls {
 		results := cr.Report.Results
 		pickCheck := func(results []sarif.Result, idxs []int) int {
 			return countedCheckOf(results, cr.Report.Rules, idxs)
 		}
-		for _, idxs := range correlationGroups(results) {
+		for _, idxs := range correlationGroups(results, homes) {
+			g, extra := correlateGroup(results, idxs, strongestOf)
+			groups, extraSuppressed = groups+g, extraSuppressed+extra
+		}
+		for _, idxs := range codeGroups(results, cr.Report.Rules, homes) {
 			g, extra := correlateGroup(results, idxs, strongestOf)
 			groups, extraSuppressed = groups+g, extraSuppressed+extra
 		}
@@ -3134,7 +3145,7 @@ func correlate(results []sarif.Result, idxs []int, primary int) {
 			continue
 		}
 		others = append(others, sarif.Observation{
-			Tool:     results[i].Tool,
+			Tool:     results[i].Reporter(),
 			RuleID:   results[i].RuleID,
 			Severity: results[i].Severity(""),
 			Score:    results[i].Score,
@@ -3145,19 +3156,186 @@ func correlate(results []sarif.Result, idxs []int, primary int) {
 	results[primary].Correlation = &sarif.Correlation{AlsoFoundBy: others}
 	for _, i := range idxs {
 		if i != primary {
-			results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Tool}
+			results[i].Correlation = &sarif.Correlation{CountedUnder: results[primary].Reporter()}
 		}
 	}
 }
 
 // flawGroups is every set of a control's findings that correlation counts once: the copies of one
-// vulnerability in one dependency, and the copies of one benchmark check on one target.
-// applyCorrelation reads the two apart, because it picks the counted copy of each differently.
+// vulnerability in one dependency, an imported finding and its native copy at one line of code, and
+// the copies of one benchmark check on one target. applyCorrelation reads the check apart from the
+// others, because it picks the counted copy of a check differently. homes is componentHomes.
 //
-// The two never share a finding. A vulnerability key needs a package and a vulnerability, which a
-// benchmark check carries neither of, and checkGroups leaves out any finding correlationKeyOf keys.
-func flawGroups(rep sarif.Report) [][]int {
-	return append(correlationGroups(rep.Results), checkGroups(rep.Results, rep.Rules)...)
+// No two share a finding. A vulnerability key needs a package and a vulnerability, which a benchmark
+// check carries neither of; codeGroups leaves out any finding about a package, which every finding
+// correlationKeyOf keys is, and any rule that implements a benchmark check; and checkGroups leaves
+// out any finding correlationKeyOf keys.
+func flawGroups(rep sarif.Report, homes map[string]string) [][]int {
+	groups := append(correlationGroups(rep.Results, homes), codeGroups(rep.Results, rep.Rules, homes)...)
+	return append(groups, checkGroups(rep.Results, rep.Rules)...)
+}
+
+// componentHomes maps each component whose findings all name one repository to that repository,
+// over every control's findings. A component whose findings name two has no entry.
+//
+// It places an imported finding, which names no repository: a SARIF file another tool wrote gives
+// paths relative to what that tool scanned and says nothing of which repository it was. Where the
+// rest of the component was scanned in one repository, the file is about that one, which is how the
+// fix list places an imported finding at its line of code (report.PlaceLines). Where they name two,
+// a path alone does not say which repository's file it is, and the imported finding keys on no
+// repository and joins nothing, rather than being counted under whichever of the two came first.
+func componentHomes(controls map[string]plugin.ControlResult) map[string]string {
+	out := map[string]string{}
+	many := map[string]bool{}
+	for _, cr := range controls {
+		for _, res := range cr.Report.Results {
+			if res.Repository == "" || many[res.Component] {
+				continue
+			}
+			if r, ok := out[res.Component]; ok && r != res.Repository {
+				delete(out, res.Component)
+				many[res.Component] = true
+				continue
+			}
+			out[res.Component] = res.Repository
+		}
+	}
+	return out
+}
+
+// placedRepository is the repository a finding is correlated in: its own, or for an imported finding
+// that names none, its component's home (componentHomes). A native finding with no repository was
+// read from an image or a host, and stays without one.
+func placedRepository(res sarif.Result, homes map[string]string) string {
+	if res.Repository != "" || res.Scanner != plugin.ImportScanner || res.Image != "" {
+		return res.Repository
+	}
+	return homes[res.Component]
+}
+
+// codeKey identifies one line of code as a finding of one tool's rules reports it.
+type codeKey struct {
+	component, repository, image, location string
+	line                                   int
+	// product is the tool whose rules the finding names, without its edition (toolProduct): a rule id
+	// belongs to the tool that emitted it, so Bandit's B602 and Semgrep's rule about the same call are
+	// two rules even at one line.
+	product string
+}
+
+// codeGroups pairs each imported code finding with the native finding of the same rule at the same
+// line, the imported one first or second by index, the pairs in the order of their first finding.
+//
+// A code finding is one about a line of code rather than a package: a Semgrep or Bandit rule, a
+// leaked credential. Nothing but the rule and the line says two such findings are one flaw, and the
+// rule only within one tool, so a pair is the same tool's rule at the same file and line, in the same
+// component and repository. Only an imported finding is paired, and only with a native one: an import
+// beside a native run of the same tool is the case that counts one flaw twice, Semgrep's file
+// imported into sast, which runs Semgrep.
+//
+// A Semgrep rule loaded from a file has an id prefixed with the rules directory, dotted, and the
+// native scanner removes the part that comes from the path it was configured with
+// (renameSemgrepRules in internal/scanners). An imported file's ids keep whatever prefix the machine
+// that wrote it gave them, `rules.no-eval` where the native one reports `no-eval`, so a Semgrep id
+// that ends in the native id after a dot names the same rule. The same id is preferred where both
+// are at the line.
+//
+// A pair is made only where each side has exactly one match. A rule reported twice at one line, at
+// two columns, cannot be paired copy to copy from the line alone, and those findings stay counted
+// apart, which is what they were before.
+func codeGroups(results []sarif.Result, rules map[string]sarif.Rule, homes map[string]string) [][]int {
+	var order []codeKey
+	imported, native := map[codeKey][]int{}, map[codeKey][]int{}
+	for i, res := range results {
+		key, ok := codeKeyOf(res, rules, homes)
+		if !ok {
+			continue
+		}
+		if _, seen := imported[key]; !seen {
+			if _, seen := native[key]; !seen {
+				order = append(order, key)
+			}
+		}
+		if res.Scanner == plugin.ImportScanner {
+			imported[key] = append(imported[key], i)
+		} else {
+			native[key] = append(native[key], i)
+		}
+	}
+	var pairs [][]int
+	claims := map[int]int{}
+	for _, key := range order {
+		for _, i := range imported[key] {
+			j, ok := sameRuleAt(results, i, native[key], key.product)
+			if !ok {
+				continue
+			}
+			pairs = append(pairs, []int{min(i, j), max(i, j)})
+			claims[i]++
+			claims[j]++
+		}
+	}
+	var groups [][]int
+	for _, p := range pairs {
+		if claims[p[0]] == 1 && claims[p[1]] == 1 {
+			groups = append(groups, p)
+		}
+	}
+	sort.SliceStable(groups, func(a, b int) bool { return groups[a][0] < groups[b][0] })
+	return groups
+}
+
+// codeKeyOf is the line a code finding is keyed on, and false for a finding that is not about a line
+// of code or names no rule: one about a package, which includes every finding correlationKeyOf keys,
+// one of a benchmark check, or one with no file, line or tool.
+func codeKeyOf(res sarif.Result, rules map[string]sarif.Rule, homes map[string]string) (codeKey, bool) {
+	if res.Package != nil || res.RuleID == "" || res.Location.URI == "" || res.Location.StartLine <= 0 {
+		return codeKey{}, false
+	}
+	if _, check := benchmarkCheckOf(rules[res.RuleID]); check {
+		return codeKey{}, false
+	}
+	product := toolProduct(res.Tool)
+	if product == "" {
+		return codeKey{}, false
+	}
+	return codeKey{
+		component: res.Component, repository: placedRepository(res, homes), image: res.Image,
+		location: res.Location.URI, line: res.Location.StartLine, product: product,
+	}, true
+}
+
+// toolProduct is a tool's name without its edition, lowercased: `Semgrep OSS` is semgrep, and the
+// `Trivy` a file names and the `trivy` Draugr's scanner names are both trivy.
+func toolProduct(tool string) string {
+	fields := strings.Fields(tool)
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.ToLower(fields[0])
+}
+
+// sameRuleAt is the one native finding among candidates that reports the imported finding's rule,
+// and false where none does or more than one could. The same id first; then, for Semgrep, a native
+// id the imported one ends in after a dot (see codeGroups).
+func sameRuleAt(results []sarif.Result, imported int, candidates []int, product string) (int, bool) {
+	id := results[imported].RuleID
+	var same, suffixed []int
+	for _, j := range candidates {
+		switch other := results[j].RuleID; {
+		case other == id:
+			same = append(same, j)
+		case product == "semgrep" && strings.HasSuffix(id, "."+other):
+			suffixed = append(suffixed, j)
+		}
+	}
+	switch {
+	case len(same) == 1:
+		return same[0], true
+	case len(same) == 0 && len(suffixed) == 1:
+		return suffixed[0], true
+	}
+	return 0, false
 }
 
 // checkKey identifies one check of one benchmark revision, read from one target.
@@ -3401,7 +3579,12 @@ func purlType(purl string) string {
 // pkg:cargo/<name>@<version>, and both report one flaw. It joins only where exactly one URL-keyed
 // flaw has that name. Two would mean the scanners wrote two URLs for what reads as one package, and
 // picking one of them would be a guess.
-func correlationGroups(results []sarif.Result) [][]int {
+//
+// An imported finding names no repository and is keyed in its component's home (componentHomes), so
+// Trivy's file imported into sca meets trivy-fs's copy of the same advisory in the same package. Who
+// reported a copy is its Reporter rather than its tool's name, so that import and Draugr's own Trivy
+// run are two scanners, as they are two runs, while two copies from one file are still one scanner's.
+func correlationGroups(results []sarif.Result, homes map[string]string) [][]int {
 	parent := make([]int, len(results))
 	keys := make([]correlationKey, len(results))
 	keyed := make([]bool, len(results))
@@ -3419,6 +3602,7 @@ func correlationGroups(results []sarif.Result) [][]int {
 		if !keyed[i] {
 			continue
 		}
+		keys[i].repository = placedRepository(results[i], homes)
 		if j, seen := first[keys[i]]; seen {
 			parent[i] = root(j)
 		} else {
@@ -3435,7 +3619,7 @@ func correlationGroups(results []sarif.Result) [][]int {
 		if tools[r] == nil {
 			tools[r] = map[string]bool{}
 		}
-		tools[r][results[i].Tool] = true
+		tools[r][results[i].Reporter()] = true
 	}
 	join := func(i, j int) {
 		a, b := root(i), root(j)
@@ -3506,7 +3690,10 @@ func correlationGroups(results []sarif.Result) [][]int {
 	return groups
 }
 
-// sharesTool reports whether any scanner reported findings in both sets.
+// sharesTool reports whether any scanner reported findings in both sets. The sets hold each copy's
+// Reporter, compared as written: the tool names one scanner writes do not vary in case between its
+// own findings, and an import is told from a native run of the same tool by its Reporter, not by
+// how either spells the tool.
 func sharesTool(a, b map[string]bool) bool {
 	for tool := range a {
 		if b[tool] {
