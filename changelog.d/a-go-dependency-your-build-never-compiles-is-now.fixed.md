@@ -1,1 +1,0 @@
-- **A Go dependency your build never compiles is now marked as such.** After govulncheck loads a module cleanly, a finding on a `go.mod` requirement missing from the build it analyzed reads `not built`, with the platforms and build tags read. It is evidence only: the finding keeps its priority, because the analyzed platforms may not be all that ship.

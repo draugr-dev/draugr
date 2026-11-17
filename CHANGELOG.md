@@ -12,6 +12,40 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.181.0] - 2026-11-17
+
+### Added
+
+- **An import can set `commit: ${{ GITHUB_SHA }}`, so a file from a tool that records no commit is checked against the commit this run reads.** A file for another commit stops the run and names both commits. Where the variable is unset, as on a laptop, the file is read without the check and listed under Caveats.
+
+- **`draugr init` proposes importing the SARIF you already have.** A `.sarif` file in the repository, or a CI step that writes or uploads one (`upload-sarif`, or a tool run with a SARIF flag), gets a commented `imports:` entry with the control its findings go in, and a row under `FOUND`.
+
+- **KEV and EPSS now cover findings that have only a Go or GitHub advisory id.** With `--kev` or `--epss`, a `GO-…` or `GHSA-…` finding with no CVE is matched through the CVE its Go vulnerability database record lists. `draugr feeds update govulndb` fetches the database; without it, the run counts the findings it could not check.
+
+### Changed
+
+- **A Go module made only of test files is labeled `test`.** A dependency finding in the `go.mod` of a module whose every `.go` file ends in `_test.go`, such as an end-to-end suite, is listed after shipped code and still counts. Where a component sets `nonShippingPaths` under `sca`, these findings are now set aside too.
+
+- **An imported SARIF file now follows the component's `paths:` and `ignore:`.** A finding in an excluded path is no longer counted for that component, so counts may fall, and a file covering a whole monorepo divides its findings between components. Where a component has several repositories, the file must name its own in `versionControlProvenance` to be scoped.
+
+- **`__fixtures__/` and `test_fixtures/` count as test directories.** A finding under either is labeled `test` and listed after shipped code, still counted. Where a component sets `nonShippingPaths`, findings there are now set aside too, and `draugr init` proposes an `ignore:` line for each. `test_server/` is not included, since a test server may ship.
+
+- **Imported SARIF findings take their severity from the tool that wrote them.** gosec, CodeQL, Fortify Static Code Analyzer, OWASP dependency-check and Snyk Open Source files are read on each tool's own scale, so a file with no numeric score can yield critical findings, and imported gosec MEDIUM and LOW findings may rank differently. `imports[].severity` maps any other tool's rating.
+
+### Fixed
+
+- **A finding on a Go dependency your build doesn't compile is now marked `not built`.** Where govulncheck analyzed the module, a `go.mod` requirement missing from that build is marked, with the platforms and build tags analyzed. The finding keeps its priority, because the platforms analyzed may not be all that ship.
+
+- **An imported dependency finding now carries its package and fixed version.** SARIF from Trivy, Grype or OSV-Scanner groups into one upgrade per package naming the release to move to, a CVE the file lists beside a GitHub or Go advisory id reaches KEV and EPSS, and Signals counts imported findings that name no CVE.
+
+- **An imported SARIF finding is counted once with the same finding from the control's own scanner.** A dependency finding merges on advisory and package, a code finding on rule, file and line, keeping the higher rating and naming both scanners. In a component with several repositories, the file's `versionControlProvenance` must name the repository it scanned.
+
+- **`draugr diff` no longer says "Nothing changed" when findings moved between priority bands.** A finding in both scans at another band, as after declaring a component's exposure or criticality, is listed as reranked with both bands (`P1 → P3`) in the console, the pull-request comment and JSON. The unchanged count no longer includes these findings.
+
+- **Trivy findings now join their copies under other advisory ids.** A Trivy finding keyed on a CVE is counted once with another scanner's copy keyed on the same flaw's GitHub advisory id, and a govulncheck reachability result recorded under that id now applies to the Trivy finding and its priority.
+
+- **Within a priority band, a finding something reaches now comes first.** Bands are unchanged; within each, a finding govulncheck shows a call path to is listed before one no analysis answered for, and both before one marked `↓ unreachable`, in the findings list and the fix list. Before, an unreachable finding could lead its band.
+
 ## [0.180.0] - 2026-11-16
 
 ### Changed
@@ -7287,7 +7321,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.180.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.181.0...HEAD
+[0.181.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.0
 [0.180.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.180.0
 [0.179.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.179.0
 [0.178.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.178.0

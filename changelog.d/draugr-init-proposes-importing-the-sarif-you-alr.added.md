@@ -1,1 +1,0 @@
-- **`draugr init` proposes importing the SARIF you already have.** A `.sarif` file in the repository, or a CI step that writes or uploads one (`upload-sarif`, or a tool run with a SARIF flag), gets a commented `imports:` entry with the control its findings go in, and a row under `FOUND`.
