@@ -362,4 +362,12 @@ func TestFileTargetKeysOnItsContent(t *testing.T) {
 	if ComputeCacheKey(ImportScanner, "1", a, nil) == ComputeCacheKey(ImportScanner, "1", b, nil) {
 		t.Error("two contents share a cache key")
 	}
+	// One file read against two components' repositories is two scans: the repository its findings
+	// are placed in differs.
+	api, web := a, a
+	api.Repositories = []RepositoryTarget{{URL: "https://github.com/acme/api"}}
+	web.Repositories = []RepositoryTarget{{URL: "https://github.com/acme/web"}}
+	if ComputeCacheKey(ImportScanner, "1", api, nil) == ComputeCacheKey(ImportScanner, "1", web, nil) {
+		t.Error("two components' repositories share a cache key")
+	}
 }

@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // TargetKind identifies the sort of surface a scanner acts on.
@@ -415,8 +417,9 @@ type CacheDetailer interface {
 }
 
 // ImportScanner is the scanner that reads a file another tool wrote, the one every import is
-// planned for.
-const ImportScanner = "sarif-import"
+// planned for. The name is sarif's, which reads it to tell an imported finding from a native one
+// (sarif.Result.Reporter).
+const ImportScanner = sarif.ImportScanner
 
 // FileTarget is a file another tool wrote, read in place of running a scanner: a SARIF file a
 // component imports.
@@ -442,5 +445,13 @@ func (FileTarget) Kind() TargetKind { return TargetFile }
 func (t FileTarget) Identity() string { return t.Path }
 
 // CacheDetail is the file's content, so the same path holding different findings is a different
-// scan.
-func (t FileTarget) CacheDetail() string { return "sha256=" + t.Digest }
+// scan, and the repositories it is read against. What the import makes of a file depends on them,
+// the revision it is held to and the repository its findings are placed in, so two components that
+// import one file into different repositories are two scans rather than one shared answer.
+func (t FileTarget) CacheDetail() string {
+	detail := "sha256=" + t.Digest
+	for _, r := range t.Repositories {
+		detail += " repo=" + r.Identity()
+	}
+	return detail
+}

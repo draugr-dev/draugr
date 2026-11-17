@@ -65,6 +65,9 @@ type importLog struct {
 			RepositoryURI string `json:"repositoryUri"`
 			RevisionID    string `json:"revisionId"`
 		} `json:"versionControlProvenance"`
+		// Results are counted, not read: FromForeignSARIF returns every run's results in order, and
+		// the count says which of them a run's provenance describes.
+		Results []json.RawMessage `json:"results"`
 	} `json:"runs"`
 }
 
@@ -102,6 +105,7 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", plugin.ImportScanner, err)
 	}
+	placeImported(rep.Results, meta, ft.Repositories)
 
 	sum := sha256.Sum256(data)
 	// What a reader needs first leads, and the digest, which a reader checks rather than reads,
@@ -187,6 +191,67 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 	}
 	slices.Sort(stated)
 	return strings.Join(slices.Compact(stated), ", "), nil
+}
+
+// placeImported sets each finding's ImportedRepository to the repository of the component its run
+// is about, which correlation joins it to its native copy in. results are FromForeignSARIF's, every
+// run's in order.
+//
+// The repository comes from the descriptor and the file and from nothing else: the one the component
+// declares, or where it declares several, the one a run's versionControlProvenance names, read as
+// matchRepository reads it. A run that names none of several, or names more than one, is about no
+// repository Draugr can establish, and its findings are placed in none and merge with nothing. A
+// finding counted under a native copy it is not would take a flaw out of the count, so where the
+// repository is in doubt both copies stay counted.
+func placeImported(results []sarif.Result, meta importLog, repos []plugin.RepositoryTarget) {
+	next := 0
+	for _, run := range meta.Runs {
+		var named []string
+		for _, vcp := range run.VersionControlProvenance {
+			if vcp.RepositoryURI != "" && !slices.Contains(named, vcp.RepositoryURI) {
+				named = append(named, vcp.RepositoryURI)
+			}
+		}
+		where := ""
+		if repo, ok := repositoryOf(named, repos); ok {
+			where = repo.Source()
+		}
+		for range run.Results {
+			if next >= len(results) {
+				return
+			}
+			results[next].ImportedRepository = where
+			next++
+		}
+	}
+}
+
+// repositoryOf is the one repository a run is about: the component's only one, whatever the run
+// names, or the one of several that the run's one named repository is.
+func repositoryOf(named []string, repos []plugin.RepositoryTarget) (plugin.RepositoryTarget, bool) {
+	if len(repos) == 0 {
+		return plugin.RepositoryTarget{}, false
+	}
+	uri := ""
+	if len(named) == 1 {
+		uri = named[0]
+	}
+	// Checked before matching: an empty address would be matched by name against a repository
+	// declared as ".".
+	if uri == "" && !singleCheckout(repos) {
+		return plugin.RepositoryTarget{}, false
+	}
+	return matchRepository(uri, repos)
+}
+
+// singleCheckout reports whether repos are one repository, listed once or a subtree per entry.
+func singleCheckout(repos []plugin.RepositoryTarget) bool {
+	for _, r := range repos[1:] {
+		if r.URL != repos[0].URL || r.Revision != repos[0].Revision || r.WorkingTree != repos[0].WorkingTree {
+			return false
+		}
+	}
+	return true
 }
 
 // matchRepository finds the repository a file's versionControlProvenance names. A component with

@@ -70,6 +70,10 @@ type entry struct {
 	// reason Scored is: it is not part of a result's JSON, and a cached run would otherwise lose the
 	// reference a folded row is chosen by.
 	Uses map[int]string `json:"uses,omitempty"`
+	// ImportedRepositories is each result's Result.ImportedRepository, by index, for the results that
+	// carry one, kept for the reason Uses is: a cached import would otherwise lose the repository it
+	// is correlated in, and count a flaw twice that the same run uncached counts once.
+	ImportedRepositories map[int]string `json:"importedRepositories,omitempty"`
 }
 
 // newEntry records which of a report's results carry a score, and each `uses:` reference.
@@ -85,15 +89,27 @@ func newEntry(report sarif.Report, at time.Time) entry {
 			}
 			e.Uses[i] = r.Uses
 		}
+		if r.ImportedRepository != "" {
+			if e.ImportedRepositories == nil {
+				e.ImportedRepositories = map[int]string{}
+			}
+			e.ImportedRepositories[i] = r.ImportedRepository
+		}
 	}
 	return e
 }
 
-// restoreUses puts back each result's `uses:` reference. An index past the results is ignored.
+// restoreUses puts back each result's `uses:` reference and the repository an imported result is
+// about. An index past the results is ignored.
 func (e *entry) restoreUses() {
 	for i, uses := range e.Uses {
 		if i >= 0 && i < len(e.Report.Results) {
 			e.Report.Results[i].Uses = uses
+		}
+	}
+	for i, repo := range e.ImportedRepositories {
+		if i >= 0 && i < len(e.Report.Results) {
+			e.Report.Results[i].ImportedRepository = repo
 		}
 	}
 }

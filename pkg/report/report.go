@@ -759,6 +759,9 @@ type finding struct {
 	// scanner is the name the HTML report gives the scanner behind the finding (scannerShown), where
 	// tool is the name the tool gives itself and stays the finding's identity.
 	scanner string
+	// reporter is who gave this account of the finding (sarif.Result.Reporter), which the other
+	// copies of a correlated flaw are named by.
+	reporter string
 	// module is the downloaded Terraform module the finding lies in, nil where it lies in none.
 	module *sarif.Module
 	// detail is the scanner's sentence about this occurrence, where the message is the rule's title.
@@ -1098,7 +1101,8 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		control = res.Control
 	}
 	return finding{
-		control: control, ruleID: res.RuleID, tool: res.Tool, scanner: scannerShown(res), priority: res.Priority,
+		control: control, ruleID: res.RuleID, tool: res.Tool, scanner: scannerShown(res), reporter: res.Reporter(),
+		priority:      res.Priority,
 		fingerprint:   res.Fingerprint(),
 		escalation:    res.Escalation,
 		exploited:     exploitedOf(res),

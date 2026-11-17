@@ -402,8 +402,9 @@ result from its SARIF `level`, which tops out at high. The report says which sou
 severities came from, and names the tool and version the file states, when it was written, and its
 SHA-256, under **Measured against**.
 
-Importing a tool Draugr also runs lists each finding twice; [Before you
-import](../../internal/scanners/sarif-import.md#before-you-import) says what to switch off.
+A finding the control's own scanner also reports is counted once, naming both; [Merging with the
+control's scanners](../../internal/scanners/sarif-import.md#merging-with-the-controls-scanners)
+says which findings merge.
 
 A file that states the commit it scanned is held to the commit this run reads, and a different
 commit stops the run. A file that states none is read and listed under **Caveats** as `unbound-imports`,

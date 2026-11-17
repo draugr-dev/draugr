@@ -381,6 +381,33 @@ func TestLocalKeepsEachResultsUsesReference(t *testing.T) {
 	}
 }
 
+// The repository an imported finding is about survives the disk, so a cached import is correlated
+// with its native copy as the run that stored it was.
+func TestLocalKeepsEachImportedResultsRepository(t *testing.T) {
+	c := NewLocal(t.TempDir(), 0)
+	report := sarif.Report{Tool: "Semgrep OSS", Results: []sarif.Result{
+		{RuleID: "a", ImportedRepository: "github.com/acme/api"},
+		{RuleID: "b"},
+	}}
+	if err := c.Put("k", report); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := c.Get("k")
+	if !ok {
+		t.Fatal("miss")
+	}
+	for i, want := range []string{"github.com/acme/api", ""} {
+		if got.Results[i].ImportedRepository != want {
+			t.Errorf("result %d: ImportedRepository = %q, want %q", i, got.Results[i].ImportedRepository, want)
+		}
+	}
+	bad := entry{Report: sarif.Report{Results: []sarif.Result{{RuleID: "a"}}}, ImportedRepositories: map[int]string{3: "x", -1: "x"}}
+	bad.restoreUses()
+	if bad.Report.Results[0].ImportedRepository != "" {
+		t.Error("an index past the results marked a result")
+	}
+}
+
 // An entry written before scores were recorded takes a non-zero score as present.
 func TestLocalReadsAnEntryWrittenBeforeScoresWereRecorded(t *testing.T) {
 	e := entry{Report: sarif.Report{Results: []sarif.Result{

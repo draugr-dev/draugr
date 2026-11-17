@@ -109,6 +109,15 @@ type Result struct {
 	// Held for the run and never written: a row standing for several such findings shows one whose
 	// action somebody outside GitHub publishes, and nothing else reads it.
 	Uses string `json:"-"`
+	// ImportedRepository is, on a finding read from another tool's SARIF file, the repository of its
+	// component that the file is about, in the form Repository takes on a native finding: the one
+	// repository the component declares, or the one of several that the file's
+	// versionControlProvenance names. Empty where neither says, and on every native finding.
+	//
+	// Held for the run and never written. Repository stays empty on an imported finding, because the
+	// file names none, and its fingerprint and every report read it that way; correlation reads this
+	// to join the finding to the native copy in the same repository.
+	ImportedRepository string `json:"-"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty
@@ -747,6 +756,27 @@ type Observation struct {
 	// Location is the file this copy is in, for the row that names the counted copy's. Not written:
 	// each copy is a result of its own in the report, with its location.
 	Location string `json:"-"`
+}
+
+// ImportScanner is the name of Draugr's scanner that reads a SARIF file another tool wrote, which
+// the engine stamps as the Scanner of every finding read from one.
+const ImportScanner = "sarif-import"
+
+// Reporter names who gave an account of a finding, for telling one flaw's copies apart: the tool,
+// and for a finding read from another tool's file, the tool marked as imported.
+//
+// The tool's name alone does not tell them apart. Semgrep's file names its tool `Semgrep OSS`, as
+// the Semgrep that Draugr runs does, and the two are separate runs that each found the flaw. Under
+// one name they would read as one scanner's two findings, which correlation keeps apart, and a row
+// counting one would name the other as itself.
+func (r Result) Reporter() string {
+	if r.Scanner != ImportScanner {
+		return r.Tool
+	}
+	if r.Tool == "" {
+		return "imported"
+	}
+	return "imported " + r.Tool
 }
 
 // Correlated reports whether another scanner's finding is the one being counted for this flaw.
