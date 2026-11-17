@@ -257,11 +257,11 @@ func (s importScope) fields() []sarif.Field {
 		left = append(left, n+" matched by ignore")
 	}
 	if len(left) > 0 {
-		out = append(out, sarif.Field{Key: "left out", Value: strings.Join(left, ", ")})
+		out = append(out, sarif.Field{Key: "left out", Value: strings.Join(left, ", ") + ", not counted"})
 	}
 	if s.notScoped > 0 {
 		out = append(out, sarif.Field{Key: "not scoped", Value: english.Count(s.notScoped, "finding") +
-			" the file places in no one repository, so paths and ignore were not applied"})
+			", not in any one repository, so paths and ignore were not applied. Add versionControlProvenance to the file"})
 	}
 	return out
 }

@@ -91,8 +91,8 @@ func TestAnImportIntoTwoComponentsSplitsByTheirPaths(t *testing.T) {
 	// The console wraps the account to the terminal, so it is read with its line breaks folded.
 	console := strings.Join(strings.Fields(renderFormat(t, "console", d)), " ")
 	for _, said := range []string{
-		"component: api · left out: 3 findings outside paths",
-		"component: web · left out: 2 findings outside paths, 1 matched by ignore",
+		"component: api · left out: 3 findings outside paths, not counted",
+		"component: web · left out: 2 findings outside paths, 1 matched by ignore, not counted",
 	} {
 		if !strings.Contains(console, said) {
 			t.Errorf("the console does not say %q:\n%s", said, console)
@@ -137,14 +137,14 @@ func TestAnImportIsScopedByTheRepositoryItIsPlacedIn(t *testing.T) {
 			name:   "the file names the tools repository",
 			extra:  `"versionControlProvenance":[{"repositoryUri":"https://example.com/acme/tools.git"}],`,
 			want:   []string{"cmd/y.go"},
-			said:   map[string]string{"left out": "2 findings outside paths"},
+			said:   map[string]string{"left out": "2 findings outside paths, not counted"},
 			detail: []sarif.Field{{Key: sarif.ImportOutsidePaths, Value: "2"}},
 		},
 		{
 			name: "the file names neither",
 			want: []string{"app/x.py", "cmd/y.go", "docs/z.md"},
 			said: map[string]string{
-				"not scoped": "3 findings the file places in no one repository, so paths and ignore were not applied",
+				"not scoped": "3 findings, not in any one repository, so paths and ignore were not applied. Add versionControlProvenance to the file",
 			},
 			detail: []sarif.Field{{Key: sarif.ImportNotScoped, Value: "3"}},
 		},
@@ -197,7 +197,7 @@ func TestAnImportKeepsWhatItCannotPlace(t *testing.T) {
 	if want := []string{"/opt/ci/build/gen.go", "", "app/a.go", "deploy/chart.yaml"}; !slices.Equal(got, want) {
 		t.Errorf("kept %q, want %q", got, want)
 	}
-	if got := field(t, rep, "left out"); got != "1 finding outside paths" {
+	if got := field(t, rep, "left out"); got != "1 finding outside paths, not counted" {
 		t.Errorf("left out = %q", got)
 	}
 	if got := field(t, rep, "severity"); got != "SARIF level" {
@@ -230,7 +230,7 @@ func TestAnImportIntoAnUnscopedComponentIsUnchanged(t *testing.T) {
 // Only an ignore pattern: a finding it matches is counted as ignored, not as outside paths, and the
 // count reads as one clause.
 func TestImportScopeFields(t *testing.T) {
-	if got := (importScope{ignored: 1}).fields(); len(got) != 1 || got[0].Value != "1 finding matched by ignore" {
+	if got := (importScope{ignored: 1}).fields(); len(got) != 1 || got[0].Value != "1 finding matched by ignore, not counted" {
 		t.Errorf("fields = %v", got)
 	}
 	if got := (importScope{}).fields(); len(got) != 0 {
@@ -246,7 +246,7 @@ func TestImportScopeFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rep.Results) != 3 || field(t, rep, "left out") != "1 finding matched by ignore" {
+	if len(rep.Results) != 3 || field(t, rep, "left out") != "1 finding matched by ignore, not counted" {
 		t.Errorf("results = %d, left out = %q", len(rep.Results), field(t, rep, "left out"))
 	}
 }

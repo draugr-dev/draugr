@@ -48,8 +48,10 @@ first import meets:
   against, so write the file's paths relative to the repository root.
 - **The repository's `paths:` and `ignore:` apply to the file.** A finding outside them is left out
   of the component, so one file written for a whole monorepo splits between the components that
-  import it. **Measured against** counts what each left out, as `left out: 3 findings outside
-  paths`. A finding the import cannot place in one repository, or in the checkout at all, stays.
+  import it. A left-out finding is not counted, and **Measured against** says how many, as `left
+  out: 3 findings outside paths, not counted`. In a component with several repositories, a file that
+  names none of them, or more than one, isn't scoped and shows as `not scoped`: name the repository
+  in its `versionControlProvenance` ([step 2](#2-name-the-commit-the-file-describes)) to scope it.
   [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the rules.
 - **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed.
 

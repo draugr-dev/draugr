@@ -1,0 +1,1 @@
+- **An imported SARIF file is scoped by the repository's `paths:` and `ignore:`.** A finding they exclude is no longer counted for that component, so a monorepo-wide file splits between its components, and counts may fall. Measured against shows `left out` and `not scoped`; add `versionControlProvenance` to a file that names no one repository to scope it.

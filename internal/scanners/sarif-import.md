@@ -192,8 +192,8 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5` |
 | `commit` | the commit the file was checked against, or `not stated` |
 | `component` | the component that imports it |
-| `left out` | how many findings the repository's `paths:` and `ignore:` left out of the component, as `3 findings outside paths, 1 matched by ignore`. Absent where none was left out |
-| `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file establishes no one repository of the component's. Absent where none was, and where the component's repositories declare no scope |
+| `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |
+| `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file names none of the component's repositories, or more than one. Add `runs[].versionControlProvenance` naming the repository the tool scanned, as [Name the commit the file describes](../../docs/guides/importing-sarif.md#2-name-the-commit-the-file-describes) shows, and they are scoped on the next run. Absent where none was, and where the component's repositories declare no scope |
 | `sha256` | the file's content, so a run can be checked against the file it read |
 
 ## Each tool's own rating

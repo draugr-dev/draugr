@@ -1,1 +1,0 @@
-- **An imported SARIF file now follows the repository's `paths` and `ignore`.** A finding outside the importing component's `paths:`, or matched by its `ignore:`, is left out of that component, so one file written for a whole monorepo splits between the components that import it. The Measured against block and `report.json` count what each left out.

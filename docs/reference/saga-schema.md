@@ -2026,14 +2026,9 @@ the one the secret had in the commit that introduced it, so the finding belongs 
 whose `paths` held that path. The scope is applied after Gitleaks has reported every commit's
 findings, so `paths` and `ignore` do not lower the time or memory a history pass takes.
 
-**Imported findings follow the same scope.** A finding in a file the component
-[imports](#componentsimports) is kept only when its path would have been checked out from the
-repository the import places it in, so one file written for a whole monorepo splits between the
-components that import it. **Measured against** counts each file's findings left out, as `left out: 2
-findings outside paths, 1 matched by ignore`, and `report.json` lists them under `scopedImports[]`. A
-finding stays where the scope cannot be applied: one with no path, one whose path is outside every
-checkout, and, in a component with several repositories, one in a file that does not name which it
-scanned. [`sarif-import`](../../internal/scanners/sarif-import.md#paths-and-ignore) has the details.
+**Imported findings follow the same scope.** An imported SARIF file is scoped by the same `paths`
+and `ignore`; [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the
+rules.
 
 **[`gosec`](../../internal/scanners/gosec.md) and [`govulncheck`](../../internal/scanners/govulncheck.md)
 analyze whole Go modules.** Both type-check packages, and a package does not type-check without the
