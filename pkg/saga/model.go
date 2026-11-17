@@ -985,10 +985,12 @@ const (
 	ImportFormatTrivyJSON = "trivy-json"
 	// ImportFormatGovulncheckJSON is the stream `govulncheck -format json` writes.
 	ImportFormatGovulncheckJSON = "govulncheck-json"
+	// ImportFormatGrypeJSON is the JSON `grype dir:<path> -o json` writes.
+	ImportFormatGrypeJSON = "grype-json"
 )
 
 // ImportFormats are the values an import's format accepts.
-var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON}
+var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON}
 
 // ReadFormat is the format the import's file is read as: Format, or SARIF where it names none.
 func (i Import) ReadFormat() string {

@@ -482,6 +482,8 @@ func sagaFields() map[string]map[string]any {
 					"finding's package, installed and fixed version, and package URL."},
 				valueDoc{"govulncheck-json", "The stream govulncheck -format json writes, read as Draugr's govulncheck reads it, " +
 					"with each finding's module, fixed version and reachability verdict."},
+				valueDoc{"grype-json", "The JSON grype dir:<path> -o json writes, read as Draugr's grype-fs reads it, with each " +
+					"finding's package, fixed versions, package URL and the advisory ids Grype relates to it, such as its CVE."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",

@@ -2,10 +2,12 @@ package scanners
 
 import (
 	"cmp"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -141,6 +143,243 @@ func readGovulncheckImport(data []byte, ft plugin.FileTarget) (importRead, error
 	return importRead{rep: rep, meta: meta, rated: rated, scored: "security-severity"}, nil
 }
 
+// errNotGrypeJSON is the error of a file that is not Grype's JSON report.
+var errNotGrypeJSON = errors.New("not Grype JSON. Write it with grype dir:. -o json")
+
+// readGrypeImport reads the JSON `grype dir:<path> -o json` writes, with the parser grype-fs uses.
+//
+// grype-fs reads the two reports one Grype run writes: the SARIF, for each finding's message, level,
+// score, location and fingerprint, and the JSON, for each finding's own package, the identifiers
+// Grype relates to it, and the matches Grype's configuration ignored. A run asked for JSON alone
+// writes no SARIF, so the reader writes it from the JSON's match records as Grype's SARIF output
+// writes it (grypeSARIFOf), and reads the two together as grype-fs does. An imported finding is then
+// the finding grype-fs makes of the same run, its related CVE included, which is what KEV and EPSS
+// are read by when Grype reports a finding under a GitHub or Go advisory id.
+//
+// Only a scan of a directory is read. A finding of an image scan is about the image rather than the
+// component's repositories, which place and scope an import, and Grype's SARIF locates and
+// fingerprints it by the image's name, which its JSON does not state.
+//
+// The checkout is read for one thing a native run reads there: the `.grype.yaml` that may hold a rule
+// that ignored a match, to name it as the suppression's source. With no local checkout, none is named.
+func readGrypeImport(data []byte, ft plugin.FileTarget) (importRead, error) {
+	var head struct {
+		Matches    json.RawMessage `json:"matches"`
+		Descriptor struct {
+			Name      string `json:"name"`
+			Version   string `json:"version"`
+			Timestamp string `json:"timestamp"`
+		} `json:"descriptor"`
+	}
+	// Every Grype JSON report names Grype in its descriptor and lists its matches, an empty list for a
+	// clean scan. A SARIF log, a CycloneDX document or another tool's JSON has neither, and would
+	// decode to no matches and read as a clean scan.
+	if err := json.Unmarshal(data, &head); err != nil || head.Descriptor.Name != "grype" || len(head.Matches) == 0 {
+		return importRead{}, errNotGrypeJSON
+	}
+	var doc grypeDoc
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return importRead{}, errNotGrypeJSON
+	}
+	if doc.Source.Type != "directory" {
+		return importRead{}, fmt.Errorf("source type %s, not a directory. Write it with grype dir:. -o json", doc.Source.Type)
+	}
+	sarifOut, err := grypeSARIFOf(doc, head.Descriptor.Version)
+	if err != nil {
+		return importRead{}, err
+	}
+	rep, err := sarif.FromSARIF(sarifOut)
+	if err != nil {
+		return importRead{}, err
+	}
+	root := importRoot(ft.Repositories)
+	var rules func() []grypeRuleFile
+	if root != "" {
+		rules = func() []grypeRuleFile { return grypeConfigRules(root) }
+	}
+	if err := withGrypeJSON(&rep, sarifOut, doc, rules); err != nil {
+		return importRead{}, err
+	}
+	grypeRepoPaths(rep.Results, root)
+
+	rated := make([]string, len(rep.Results))
+	for i := range rated {
+		// Grype scores every finding it reports, with the CVSS score it holds or else the lowest score
+		// of the band its severity names. A match its configuration ignored and Grype rates
+		// negligible carries no score, and is read at the level Grype's severity gives it.
+		rated[i] = "Grype's severity"
+	}
+	var run importRun
+	run.Tool.Driver = importDriver{Name: head.Descriptor.Name, Version: head.Descriptor.Version}
+	if head.Descriptor.Timestamp != "" {
+		run.Invocations = append(run.Invocations, importInvocation{EndTimeUTC: head.Descriptor.Timestamp})
+	}
+	run.Results = make([]json.RawMessage, len(rep.Results))
+	return importRead{rep: rep, meta: importLog{Runs: []importRun{run}}, rated: rated,
+		scored: "CVSS score, else Grype's severity"}, nil
+}
+
+// grypeSARIFOf writes the SARIF Grype writes for the matches of doc, a directory scan's JSON report:
+// a rule for each advisory and package name, from its first match, and a result for each match, as
+// Grype's SARIF output (grype/presenter/sarif) builds them from the same records. Checked against the
+// SARIF and JSON one run of Grype 0.121.0 wrote.
+func grypeSARIFOf(doc grypeDoc, version string) ([]byte, error) {
+	in := grypeInputPath(doc)
+	rules, results := []any{}, []any{}
+	ruled := map[string]bool{}
+	for _, m := range doc.Matches {
+		id := m.Vulnerability.ID + "-" + m.Artifact.Name
+		severity := grypeSeverityText(m.Vulnerability.Severity)
+		at := grypePackagePath(m, in)
+		if !ruled[id] {
+			ruled[id] = true
+			rules = append(rules, grypeReportedRule(m, id, severity, at))
+		}
+		results = append(results, map[string]any{
+			"ruleId": id,
+			"level":  grypeLevel(severity),
+			"message": map[string]any{"text": fmt.Sprintf("A %s vulnerability in %s package: %s, version %s was found at: %s",
+				severity, m.Artifact.Type, m.Artifact.Name, m.Artifact.Version, at)},
+			"locations": []any{map[string]any{"physicalLocation": map[string]any{
+				"artifactLocation": map[string]any{"uri": at},
+				"region":           map[string]any{"startLine": 1, "startColumn": 1, "endLine": 1, "endColumn": 1},
+			}}},
+			"partialFingerprints": map[string]any{"primaryLocationLineHash": grypeLineHash(m, at)},
+		})
+	}
+	return json.Marshal(map[string]any{"version": "2.1.0", "runs": []any{map[string]any{
+		"tool":    map[string]any{"driver": map[string]any{"name": "grype", "version": cmp.Or(version, "0.0.0-dev"), "rules": rules}},
+		"results": results,
+	}}})
+}
+
+// grypeReportedRule is the rule Grype's SARIF writes for the first match m of an advisory and package
+// name: severity is Grype's word for the match's severity and at the package's location.
+func grypeReportedRule(m grypeMatch, id, severity, at string) map[string]any {
+	v := m.Vulnerability
+	link, helpURI := v.ID, "https://github.com/anchore/grype"
+	switch {
+	case v.DataSource != "":
+		link, helpURI = fmt.Sprintf("[%s](%s)", v.ID, v.DataSource), v.DataSource
+	case len(v.URLs) > 0:
+		link, helpURI = fmt.Sprintf("[%s](%s)", v.ID, v.URLs[0]), v.URLs[0]
+	}
+	help := fmt.Sprintf("Vulnerability %s\nSeverity: %s\nPackage: %s\nVersion: %s\nFix Version: %s\nType: %s\nLocation: %s\nData Namespace: %s\nLink: %s",
+		v.ID, severity, m.Artifact.Name, m.Artifact.Version, grypeFixVersions(m), m.Artifact.Type, at, v.Namespace, link)
+	properties := map[string]any{"security-severity": grypeSecuritySeverity(m)}
+	if m.Artifact.PURL != "" {
+		properties["purls"] = []string{m.Artifact.PURL}
+	}
+	return map[string]any{
+		"id":               id,
+		"name":             cmp.Or(grypeMatcherName(m), v.ID),
+		"helpUri":          helpURI,
+		"shortDescription": map[string]any{"text": fmt.Sprintf("%s %s vulnerability for %s package", v.ID, severity, m.Artifact.Name)},
+		"fullDescription":  map[string]any{"text": grypeSubtitle(m)},
+		"help":             map[string]any{"text": help},
+		"properties":       properties,
+	}
+}
+
+// grypeSeverity is Grype's severity word, lowercased, and "unknown" for any it does not know.
+func grypeSeverity(s string) string {
+	switch s = strings.ToLower(s); s {
+	case "negligible", "low", "medium", "high", "critical":
+		return s
+	}
+	return "unknown"
+}
+
+// grypeSeverityText is the word Grype's SARIF uses for a severity, which names negligible and unknown
+// low.
+func grypeSeverityText(s string) string {
+	switch s = grypeSeverity(s); s {
+	case "critical", "high", "medium":
+		return s
+	}
+	return "low"
+}
+
+// grypeSecuritySeverity is the security-severity Grype's SARIF writes: the highest CVSS base score of
+// the match's vulnerability and the ones related to it, a vendor's before the NVD's CPE match, else
+// the lowest score of the band its severity names, and 0.0 for negligible or unknown.
+func grypeSecuritySeverity(m grypeMatch) string {
+	all := append([]grypeVulnerability{m.Vulnerability}, m.RelatedVulnerabilities...)
+	score := -1.0
+	for _, vendorOnly := range []bool{true, false} {
+		for _, v := range all {
+			if vendorOnly && v.Namespace == "nvd:cpe" {
+				continue
+			}
+			for _, c := range v.CVSS {
+				score = max(score, c.Metrics.BaseScore)
+			}
+		}
+		if score > 0 {
+			return fmt.Sprintf("%.1f", score)
+		}
+	}
+	if s, ok := map[string]string{"critical": "9.0", "high": "7.0", "medium": "4.0", "low": "1.0"}[grypeSeverity(m.Vulnerability.Severity)]; ok {
+		return s
+	}
+	return "0.0"
+}
+
+// grypeFixVersions are the versions that fix a match, joined by commas, where Grype's record says a
+// fix exists.
+func grypeFixVersions(m grypeMatch) string {
+	if m.Vulnerability.Fix.State != "fixed" {
+		return ""
+	}
+	return strings.Join(m.Vulnerability.Fix.Versions, ",")
+}
+
+// grypeSubtitle is a rule's full description: the vulnerability's description, or else what its
+// versions say.
+func grypeSubtitle(m grypeMatch) string {
+	if d := grypeDescription(m); d != "" {
+		return d
+	}
+	if fix := grypeFixVersions(m); fix != "" {
+		return fmt.Sprintf("Version %s is affected with an available fix in versions %s", m.Artifact.Version, fix)
+	}
+	return fmt.Sprintf("Version %s is affected with no fixes reported yet.", m.Artifact.Version)
+}
+
+// grypeInputPath is the directory a scan was given, without a leading ./, and empty for the
+// directory Grype ran in.
+func grypeInputPath(doc grypeDoc) string {
+	var target string
+	if json.Unmarshal(doc.Source.Target, &target) != nil {
+		return ""
+	}
+	target = strings.TrimPrefix(target, "./")
+	if target == "." {
+		return ""
+	}
+	return target
+}
+
+// grypePackagePath is where Grype's SARIF locates a match: its package's first location, rooted at
+// the directory scanned, or the directory where the package has none.
+func grypePackagePath(m grypeMatch, in string) string {
+	if len(m.Artifact.Locations) == 0 {
+		return in
+	}
+	loc := strings.TrimPrefix(m.Artifact.Locations[0].Path, "./")
+	if path.IsAbs(loc) || in == "" {
+		return loc
+	}
+	return in + "/" + loc
+}
+
+// grypeLineHash is the primaryLocationLineHash Grype's SARIF writes for a match in a directory: the
+// package's type, name, version and location, hashed, and line 1.
+func grypeLineHash(m grypeMatch, at string) string {
+	sum := sha256.Sum256([]byte(m.Artifact.Type + m.Artifact.Name + m.Artifact.Version + at))
+	return fmt.Sprintf("%x:1", sum)
+}
+
 // importRoot is the local directory of the repository an imported tool's JSON is about: the
 // component's one repository, listed once or a subtree per entry, where its url is a path. Empty
 // with several repositories, since the JSON names none, and for a repository named by a remote
@@ -196,6 +435,7 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatSARIF:           "SARIF 2.1.0",
 	saga.ImportFormatTrivyJSON:       "Trivy JSON",
 	saga.ImportFormatGovulncheckJSON: "govulncheck JSON",
+	saga.ImportFormatGrypeJSON:       "Grype JSON",
 }
 
 // DescribeImport reads data as an import of format would, empty being SARIF, and says what it is and

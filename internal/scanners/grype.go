@@ -268,10 +268,16 @@ func parseGrypeRepoSARIF(out []byte, dir string, _ plugin.Config) (sarif.Report,
 	if err != nil {
 		return sarif.Report{}, err
 	}
-	for i := range report.Results {
-		report.Results[i].Location.URI = grypeRepoPath(dir, report.Results[i].Location.URI)
-	}
+	grypeRepoPaths(report.Results, dir)
 	return report, nil
+}
+
+// grypeRepoPaths makes each result's location relative to the repository Grype scanned at dir, as
+// grypeRepoPath does.
+func grypeRepoPaths(results []sarif.Result, dir string) {
+	for i := range results {
+		results[i].Location.URI = grypeRepoPath(dir, results[i].Location.URI)
+	}
 }
 
 // parseGrypeImageSARIF decodes Grype's SARIF for an image scan. The location is left as Grype
@@ -311,9 +317,20 @@ func parseGrypeSARIF(out []byte, dir string) (sarif.Report, error) {
 	if err := json.Unmarshal(reports.JSON, &doc); err != nil {
 		return sarif.Report{}, fmt.Errorf("read its JSON report: %w", err)
 	}
-	withGrypeMatchPackages(&report, doc.Matches)
-	if err := withGrypeExclusions(&report, doc, dir); err != nil {
+	if err := withGrypeJSON(&report, reports.SARIF, doc, func() []grypeRuleFile { return grypeConfigRules(dir) }); err != nil {
 		return sarif.Report{}, err
+	}
+	return report, nil
+}
+
+// withGrypeJSON adds to report, read from sarifOut, what one Grype run's JSON report, doc, says and
+// its SARIF does not: each result's own package and related identifiers, the matches Grype's
+// configuration ignored, and a package from the rule's help text where no match fits. rules reads the
+// configuration files that may hold the rule that ignored a match, and nil reads none.
+func withGrypeJSON(report *sarif.Report, sarifOut []byte, doc grypeDoc, rules func() []grypeRuleFile) error {
+	withGrypeMatchPackages(report, doc.Matches)
+	if err := withGrypeExclusions(report, doc, rules); err != nil {
+		return err
 	}
 	perRule := map[string]int{}
 	for _, r := range report.Results {
@@ -327,7 +344,7 @@ func parseGrypeSARIF(out []byte, dir string) (sarif.Report, error) {
 			continue
 		}
 		if packages == nil {
-			if packages = grypePackages(reports.SARIF); packages == nil {
+			if packages = grypePackages(sarifOut); packages == nil {
 				packages = map[string]sarif.Package{}
 			}
 		}
@@ -340,7 +357,7 @@ func parseGrypeSARIF(out []byte, dir string) (sarif.Report, error) {
 			r.Package = &p
 		}
 	}
-	return report, nil
+	return nil
 }
 
 // grypeResultMessage matches the sentence Grype writes as each result's message, naming the

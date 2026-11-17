@@ -1,6 +1,6 @@
 ---
 title: "sarif-import"
-description: "Reads a SARIF file, or Trivy's or govulncheck's own JSON, that another tool wrote into one of Draugr's controls, so its findings are ranked and gated with the rest."
+description: "Reads a SARIF file, or Trivy's, govulncheck's or Grype's own JSON, that another tool wrote into one of Draugr's controls, so its findings are ranked and gated with the rest."
 section: Scanners
 order: 90
 ---
@@ -111,15 +111,17 @@ OSV-Scanner 2.7.1.
 **Other identifiers.** A finding named by a GitHub or Go advisory reaches KEV and EPSS through a CVE
 the file lists for it in the result's or the rule's `tags`, where the whole tag is the identifier,
 or in the rule's `deprecatedIds`, which OSV-Scanner fills with the advisory's other identifiers.
-Nothing is looked up, so Grype's file, which names its findings by GHSA and Go ids and lists no
-CVE, reaches neither. A note under the KEV row of **Signals** counts each imported finding that
+Nothing is looked up, so Grype's SARIF, which names its findings by GHSA and Go ids and lists no
+CVE, reaches neither; Grype's JSON, imported as `grype-json`, lists the CVE (see
+[A tool's own JSON](#a-tools-own-json)). A note under the KEV row of **Signals** counts each imported finding that
 names a package or an advisory and no CVE, as in
 `not checked against KEV or EPSS: 9 imported findings name no CVE`.
 
 ## A tool's own JSON
 
-A dependency scanner's SARIF states the package and its fixed version in prose, if at all, and
-govulncheck's carries no call path. The import's
+A dependency scanner's SARIF states the package and its fixed version in prose, if at all,
+govulncheck's carries no call path, and Grype's names no CVE for a finding it reports under a GitHub
+or Go advisory. The import's
 [`format`](../../docs/reference/saga-schema.md#componentsimports) reads the tool's own JSON instead,
 with the parser Draugr's own run of that tool uses, so an imported finding is the finding a native
 run makes of the same file.
@@ -129,17 +131,29 @@ run makes of the same file.
 | `sarif` | a SARIF 2.1.0 log, from any tool (the default) | this page describes | what the file states, as [Dependency findings](#dependency-findings) lists |
 | `trivy-json` | `trivy fs --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded |
 | `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
+| `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
   for it, else by Trivy's own severity, `CRITICAL` and `HIGH` as high, `MEDIUM` as medium, `LOW` as
-  low. The Go vulnerability database publishes no severity, so a govulncheck finding is medium, as
-  a native one is. The tables in [Each tool's own rating](#each-tools-own-rating) read SARIF and do
-  not apply, and the descriptor refuses an import's `severity` beside a tool's JSON.
+  low. A Grype finding is rated by the score Grype's SARIF gives it: the highest CVSS score of the
+  advisory and the ones Grype relates to it, a vendor's before the NVD's, else the lowest score of
+  the band Grype's severity names. `Negligible` and `Unknown` score 0.0, which ranks as low, as a
+  native run's finding does (https://github.com/draugr-dev/draugr/issues/2222). The Go vulnerability
+  database publishes no severity, so a govulncheck finding is medium, as a native one is. The tables
+  in [Each tool's own rating](#each-tools-own-rating) read SARIF and do not apply, and the
+  descriptor refuses an import's `severity` beside a tool's JSON.
+- **Grype's JSON is read with the SARIF Grype writes from it.** grype-fs reads both reports of one
+  Grype run, and a run asked for JSON alone writes no SARIF, so Draugr writes it from the JSON's
+  matches as Grype does: the same message, level, score, location and fingerprint. Only a scan of a
+  directory is read. A scan of an image is about the image rather than the component's
+  repositories, and Grype's SARIF locates it by the image's name, which its JSON does not state.
 - **The checkout is read only to place a finding.** Where the component has one repository and its
   `url` is a path, the parsers read that checkout as a native run reads its own: Trivy's for the
   line of a package's entry in its manifest, govulncheck's for the `go.mod` of each module, matched
-  from the packages each run started from. With several repositories, or a remote address, a Trivy
-  finding has the line Trivy recorded or none, and a govulncheck finding is at `go.mod`.
+  from the packages each run started from, and Grype's for the `.grype.yaml` holding a rule that
+  ignored a match, which the suppression names. With several repositories, or a remote address, a
+  Trivy finding has the line Trivy recorded or none, a govulncheck finding is at `go.mod`, and a
+  match Grype ignored names the imported file.
 - **What a native run reads of this machine is left out.** Trivy's list of every package and of the
   dependency files it read, and govulncheck's runs per platform and its mark on a requirement no
   run compiled, describe the build of the machine that ran them. A file written on another machine
@@ -242,8 +256,8 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `tool` | the tool's name and version, as the file states them |
 | `format` | the import's `format`, where it is a tool's own JSON. Absent for SARIF |
 | `file` | the path the descriptor gave |
-| `written` | when the file says its run ended (`invocations[].endTimeUtc`, or `CreatedAt` in Trivy's JSON), or else the file's modification time |
-| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5`. For a tool's own JSON, `CVSS score` and `Trivy's severity`, or `govulncheck states none, read as medium` |
+| `written` | when the file says its run ended (`invocations[].endTimeUtc`, `CreatedAt` in Trivy's JSON, or `descriptor.timestamp` in Grype's), or else the file's modification time |
+| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5`. For a tool's own JSON, `CVSS score` and `Trivy's severity`, `CVSS score, else Grype's severity`, or `govulncheck states none, read as medium` |
 | `commit` | the commit the file was checked against, or `not stated`. Where the import's `commit` could not bind the file, why, as `not stated, ${{ GITHUB_SHA }} is not set` or `not stated, the file does not say which repository 0123456789ab is in` |
 | `component` | the component that imports it |
 | `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |
@@ -513,7 +527,11 @@ that found nothing:
   as a SARIF log or a CycloneDX document;
 - `schema 3 Trivy JSON; Draugr reads schema 2`, for a report in a schema Draugr does not read;
 - `not govulncheck JSON. Write it with govulncheck -format json`, for a stream whose runs do not
-  each open with govulncheck's `config` message.
+  each open with govulncheck's `config` message;
+- `not Grype JSON. Write it with grype dir:. -o json`, for a file whose `descriptor` does not name
+  Grype or that lists no `matches`;
+- `source type image, not a directory. Write it with grype dir:. -o json`, for Grype's JSON of a
+  scan of anything but a directory.
 
 `draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor
 with the same message, and a file that passes reports how many results it holds, as

@@ -269,6 +269,7 @@ func TestAnImportedToolJSONIsHeldToTheDescriptorsCommit(t *testing.T) {
 	for _, f := range []struct{ format, path string }{
 		{saga.ImportFormatTrivyJSON, filepath.Join("testdata", "sarif-import", "trivy-fs-gomod.json")},
 		{saga.ImportFormatGovulncheckJSON, govulncheck},
+		{saga.ImportFormatGrypeJSON, grypeLodash},
 	} {
 		for _, c := range []struct {
 			name   string
@@ -379,7 +380,8 @@ func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
 		{"SARIF as govulncheck JSON", saga.ImportFormatGovulncheckJSON, sarifLog, "not govulncheck JSON. Write it with govulncheck -format json"},
 		{"not JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, "{not json", "not govulncheck JSON"},
 		{"Trivy JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, `{"SchemaVersion":2,"Results":[]}`, "not govulncheck JSON"},
-		{"an unknown format", "grype-json", sarifLog, "format grype-json is not one of sarif, trivy-json, govulncheck-json"},
+		{"SARIF as Grype JSON", saga.ImportFormatGrypeJSON, sarifLog, "not Grype JSON. Write it with grype dir:. -o json"},
+		{"an unknown format", "sarif-2.0", sarifLog, "format sarif-2.0 is not one of sarif, trivy-json, govulncheck-json, grype-json"},
 	} {
 		_, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: writeFile(t, c.body), Format: c.format}, nil)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -430,6 +432,7 @@ func TestDescribeImportReadsEachFormat(t *testing.T) {
 		{saga.ImportFormatSARIF, []byte(exampleLog(scoredResult, "")), "SARIF 2.1.0, 1 result"},
 		{saga.ImportFormatTrivyJSON, importTestdata(t, "trivy-fs-gomod.json"), "Trivy JSON, 4 findings"},
 		{saga.ImportFormatGovulncheckJSON, govulncheck, "govulncheck JSON, "},
+		{saga.ImportFormatGrypeJSON, importTestdata(t, "grype-dir-lodash.json"), "Grype JSON, 4 findings"},
 	} {
 		got, err := DescribeImport(c.data, c.format)
 		if err != nil || !strings.HasPrefix(got, c.want) {
