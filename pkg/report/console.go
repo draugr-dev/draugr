@@ -2191,13 +2191,26 @@ const (
 	excludeRowSays = "set aside; findings stay, suppressed"
 )
 
-// excludeEntry is the entry config.exclude takes, as it is written under the key. Every field it
-// shows is required. rules matches a finding's rule id whole, or with `*` for any run of characters
-// (saga.WildcardMatch), so the entry asks for the full id: the short name an action's title quotes
-// matches nothing.
+// excludeEntry is the entry config.exclude takes, as it is written under the key. rules matches a
+// finding's rule id whole, or with `*` for any run of characters (saga.WildcardMatch), so the entry
+// asks for the full id: the short name an action's title quotes matches nothing.
+//
+// A schematic rather than one finding's entry, because it sits under a list rather than beside a
+// row, and filled in from the top of that list it would offer to set aside the finding the run
+// ranks first to fix. It still shows the narrow form: an entry with rules alone sets aside every
+// finding of the rule in every file, including the ones added later, and paths and expires are
+// the fields a reader has to know about to write anything narrower. paths takes the finding's file
+// as a row prints it, less the line, since paths match files and saga refuses the `:line` form.
+//
+// The reason fits a rule that does not apply and a risk accepted on purpose alike, in the row's own
+// verb, and no line is wider than the widest command TRY offers, so the entry never pushes the
+// column of descriptions to the right. An unfilled entry is refused by validate, since the date
+// placeholder does not parse.
 var excludeEntry = []string{
 	"  - rules: [<full rule id>]",
-	"    reason: <why it does not apply>",
+	"    paths: [<file without :line>]",
+	"    reason: <why it is set aside>",
+	"    expires: <YYYY-MM-DD>",
 }
 
 // htmlReportFlags is what to type for an HTML report: -o where the run writes no report files, and

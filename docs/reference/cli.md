@@ -375,17 +375,22 @@ them in place:
 | `--evidence` | A caveat row stands for several files, such as `Cargo.lock ×2`, and `--evidence` is off |
 
 Under a run that listed findings, in the findings and actions views, `TRY` also names
-[`config.exclude`](saga-schema.md#configexclude), where a rule that does not apply is set aside:
+[`config.exclude`](saga-schema.md#configexclude), where a finding that does not apply, or a risk
+accepted on purpose, is set aside:
 
 ```
-  config.exclude                       set aside; findings stay, suppressed
+  config.exclude                     set aside; findings stay, suppressed
     - rules: [<full rule id>]
-      reason: <why it does not apply>
+      paths: [<file without :line>]
+      reason: <why it is set aside>
+      expires: <YYYY-MM-DD>
 ```
 
 Every view prints a rule id whole, however long, so an id copied from a row matches as
 `config.exclude` reads it: whole, or with `*` for any run of characters. The short name an
-action's title quotes is not the id, and matches nothing.
+action's title quotes is not the id, and matches nothing. `paths` takes the file as the finding's
+row prints it, without the `:line`. Without `paths`, the entry sets aside every finding of the rule
+in every file, including ones a later run finds. After the `expires` date the finding counts again.
 
 A run that writes report files lists them under `REPORTS`, above `TRY`, each as a path and what it is
 for, the HTML report first:
@@ -1054,12 +1059,14 @@ WHAT TO DO  2 actions clear 15 findings
       requirements.txt:2 · CVE-2024-56201 +4
 
 TRY
-  --view compact                       one line each, to see how much there is
-  --view findings                      the findings themselves, one row each
-  config.exclude                       set aside; findings stay, suppressed
+  --view compact                     one line each, to see how much there is
+  --view findings                    the findings themselves, one row each
+  config.exclude                     set aside; findings stay, suppressed
     - rules: [<full rule id>]
-      reason: <why it does not apply>
-  draugr explain <rule>                what a rule means and how to fix it, from .draugr/out
+      paths: [<file without :line>]
+      reason: <why it is set aside>
+      expires: <YYYY-MM-DD>
+  draugr explain <rule>              what a rule means and how to fix it, from .draugr/out
 draugr: fails on P3: 15 new findings since b5bcb4b
 ```
 

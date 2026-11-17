@@ -2567,18 +2567,23 @@ prints each scanner's full output.</p>
 </div>{{end}}
 {{define "paging"}}<button type="button" class="next" hidden></button><p class="rest" hidden></p>{{end}}
 {{define "nomatch"}}<p class="nomatch" hidden><b>Nothing here matches.</b><span>Take a narrowing off to widen it.</span></p>{{end}}
-{{/* How a rule that does not apply is set aside: the entry the descriptor takes, with the id as a
-     row prints it. Shown under every run with findings, not only one that already set something
-     aside, because a reader who has never written an exclusion is the one who needs the syntax. */}}
-{{define "exclude-how"}}<p class="note">To set a rule aside, add an entry under <code class="cmd">config.exclude</code>
+{{/* How a finding is set aside: the entry the descriptor takes, the one TRY prints in the console,
+     with the id as a row prints it and the finding's file. Shown under every run with findings, not
+     only one that already set something aside, because a reader who has never written an exclusion
+     is the one who needs the syntax. */}}
+{{define "exclude-how"}}<p class="note">To set a finding aside, add an entry under <code class="cmd">config.exclude</code>
 in the descriptor, with the rule id whole as this report prints it, or with <code class="cmd">*</code> for any run
-of characters. Its findings stay in this report, marked suppressed with the reason. The
+of characters, and the finding's file without its line. Without <code class="cmd">paths</code>, the entry sets
+aside every finding of the rule in every file. Its findings stay in this report, marked suppressed with the
+reason, and count again after the <code class="cmd">expires</code> date. The
 <a href="https://draugr.dev/docs/latest/reference/saga-schema/#configexclude" target="_blank" rel="noopener noreferrer">reference for config.exclude</a>
 lists the other fields.</p>
 <pre class="cmd">config:
   exclude:
     - rules: [&lt;full rule id&gt;]
-      reason: &lt;why it does not apply&gt;</pre>{{end}}
+      paths: [&lt;file without :line&gt;]
+      reason: &lt;why it is set aside&gt;
+      expires: &lt;YYYY-MM-DD&gt;</pre>{{end}}
 
 {{if or .Suppressed .Imported .Silenced .ToolAside .Decisions .Unmatched .Excluded .Findings}}
 <details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
