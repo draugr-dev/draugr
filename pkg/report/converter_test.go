@@ -26,7 +26,7 @@ func TestAConvertersFindingSaysWhatItSetAndWhyItWasRaised(t *testing.T) {
 		}}},
 	}}}
 	out := renderConsole(t, d)
-	for _, want := range []string{"raised to P1 by converter acme-deps, listed", "converter acme-deps set package, cwe"} {
+	for _, want := range []string{"raised to P1 by converter acme-deps, listed", "converter acme-deps: package, cwe"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("console is missing %q:\n%s", want, out)
 		}

@@ -569,8 +569,67 @@ func addFragmentComponent(defs map[string]any) error {
 			fragProps[k] = v
 		}
 	}
+	if err := addFragmentImport(defs, fragProps); err != nil {
+		return err
+	}
 	fragComp["properties"] = fragProps
 	defs["fragmentComponent"] = fragComp
+	return nil
+}
+
+// addFragmentImport writes a copy of the import definition without `converter`, and without the
+// draugr-converter format that needs one, and points a fragment component's imports at it. The
+// loader refuses a converter from a fragment: a converter's properties are granted by the reviewed
+// descriptor, and a fragment may come from another team.
+func addFragmentImport(defs, fragProps map[string]any) error {
+	imp, ok := defs["import"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("schema has no import definition")
+	}
+	impProps, ok := imp["properties"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("import has no properties")
+	}
+	fragImp := make(map[string]any, len(imp))
+	for k, v := range imp {
+		fragImp[k] = v
+	}
+	props := make(map[string]any, len(impProps))
+	for k, v := range impProps {
+		if k != "converter" {
+			props[k] = v
+		}
+	}
+	format, ok := impProps["format"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("import has no format")
+	}
+	fragFormat := make(map[string]any, len(format))
+	for k, v := range format {
+		fragFormat[k] = v
+	}
+	values, _ := format["anyOf"].([]any)
+	var kept []any
+	for _, v := range values {
+		if c, _ := v.(map[string]any); c["const"] != saga.ImportFormatConverter {
+			kept = append(kept, v)
+		}
+	}
+	fragFormat["anyOf"] = kept
+	props["format"] = fragFormat
+	fragImp["properties"] = props
+	defs["fragmentImport"] = fragImp
+
+	list, ok := fragProps["imports"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("component has no imports property")
+	}
+	fragList := make(map[string]any, len(list))
+	for k, v := range list {
+		fragList[k] = v
+	}
+	fragList["items"] = map[string]any{"$ref": "#/$defs/fragmentImport"}
+	fragProps["imports"] = fragList
 	return nil
 }
 

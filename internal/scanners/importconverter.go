@@ -75,7 +75,7 @@ func readConverterImport(data []byte, ft plugin.FileTarget) (importRead, error) 
 	}{doc.Repository, doc.Commit})
 	run.Results = make([]json.RawMessage, len(doc.Results))
 	return importRead{rep: rep, outside: outside, meta: importLog{Runs: []importRun{run}}, rated: rated,
-		scored: "the converter's score"}, nil
+		scored: "converter score"}, nil
 }
 
 // converterResult is one result of a converter's file as a finding, and the rating its severity was
@@ -99,7 +99,7 @@ func converterResult(doc converter.Document, r converter.Result, digest, asOf st
 	} else {
 		// The tool's rating, which a level cannot carry at critical.
 		res.Rating = newRating(severity, map[string]string{"severity": r.Severity})
-		rating = "the converter's severity"
+		rating = "converter rating"
 	}
 	if p := r.Package; p != nil {
 		res.Package = &sarif.Package{Name: p.Name, Version: p.Version, FixedVersion: p.FixedVersion, PURL: p.PURL, Ecosystem: p.Ecosystem}

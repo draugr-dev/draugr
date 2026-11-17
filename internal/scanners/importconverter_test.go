@@ -138,7 +138,7 @@ func TestEveryAllowedPropertyReachesTheFinding(t *testing.T) {
 		"tool":      "Acme Deps 4.1",
 		"format":    saga.ImportFormatConverter,
 		"converter": "acme-deps 0.3.0, contract 1, may set package, cwe, labels, reachable, raise",
-		"severity":  "the converter's severity",
+		"severity":  "converter rating",
 		"commit":    "0123456789ab",
 		"written":   "2026-11-17 12:00 UTC",
 		"sha256":    digest,
@@ -177,7 +177,7 @@ func TestAConverterScoreAndSeverity(t *testing.T) {
 	if r := rep.Results[0]; !r.HasScore || r.Score != 9.8 || r.Rating != nil || r.Severity("") != sarif.SeverityCritical {
 		t.Errorf("finding %+v, want the score to decide the severity", r)
 	}
-	if got := field(t, rep, "severity"); got != "the converter's score" {
+	if got := field(t, rep, "severity"); got != "converter score" {
 		t.Errorf("severity source %q", got)
 	}
 }
@@ -260,7 +260,8 @@ func TestTheContractVersionIsChecked(t *testing.T) {
 		want    string
 	}{
 		{"older", 0, "contract version 0 is older than Draugr reads, version 1. Update the converter"},
-		{"unknown", 7, "contract version 7 is unknown here. Draugr reads version 1"},
+		{"newer", 7, "contract version 7 is newer than this Draugr reads, version 1. Update Draugr"},
+		{"not a whole number", "one", `contract version "one" is not a whole number. Draugr reads version 1`},
 	} {
 		doc := converterDoc()
 		doc["version"] = c.version
@@ -507,7 +508,7 @@ func TestTheStampIsInTheReportAndReportJSON(t *testing.T) {
 	plainPath, _ := writeConverterFile(t, plain)
 	plainRun := runConverterImport(t, plainPath, everyProperty(), saga.ExposureInternal, saga.CriticalitySupporting, nil)
 	if console := renderFormat(t, "console", report.Data{Project: "p", Run: plainRun}); !strings.Contains(console,
-		"converter acme-deps set package, cwe, labels, reachable") {
+		"converter acme-deps: package, cwe, labels, reachable") {
 		t.Errorf("console does not say what the converter set:\n%s", console)
 	}
 

@@ -93,15 +93,17 @@ set, and can leave any out and add none.
 
 ## What no converter may set
 
-Each of these sets a finding aside, says who accepted a risk, or ranks a finding lower. A file
-setting one is refused with an error naming it, whatever the descriptor declares:
+A finding moves down only on evidence Draugr can check, such as a call graph it reads or a decision
+recorded in the descriptor. A converter's statement is neither. Each of these sets a finding aside,
+says who accepted a risk, or ranks a finding lower, and a file setting one is refused with an error
+naming it, whatever the descriptor declares:
 
 - `suppression`, `suppressions`, `aside`, `nonShipping`, `acceptedBy`, `origin`;
-- `priority`, `priorityCap`, `rankedAs`, `unreachable`, and `reachable: false`.
+- a `priority` on a result (use `raise`, whose own `priority` only raises), `priorityCap`,
+  `rankedAs`, `unreachable`, and `reachable: false`.
 
-A finding moves down only on evidence Draugr can check, such as a call graph it reads or a decision
-recorded in the descriptor. A converter's statement is neither. `priority` sets a band outright,
-which can lower one, so a converter writes `raise` instead.
+A fragment may not declare a converter or import a converter's file. Declare it in the descriptor
+itself.
 
 ## The stamp
 
@@ -118,9 +120,10 @@ Every finding read from the file carries the converter that wrote it, as `conver
 | `raise` | the raise it asked for, where it asked one |
 
 The console names the converter beside the tool, as `imported npm audit (converter npm-audit)`, and
-says under the finding which properties it set: `converter npm-audit set package, cwe`. **Measured
+says under the finding which properties it set: `converter npm-audit: package, cwe`. **Measured
 against** lists `converter: npm-audit 1.0.0, contract 1, may set package, cwe` beside the file's
-SHA-256.
+SHA-256, and its `severity` field reads `converter score` or `converter rating`, whichever rated the
+findings.
 
 ## Errors
 
@@ -131,7 +134,8 @@ naming the key at fault, and is never read as a clean scan. `draugr doctor` read
 |---|---|
 | is not a converter file | `not a converter file. A converter writes contract draugr-converter` |
 | states an older version | `contract version 0 is older than Draugr reads, version 1. Update the converter` |
-| states a version this build does not know | `contract version 2 is unknown here. Draugr reads version 1` |
+| states a newer version | `contract version 2 is newer than this Draugr reads, version 1. Update Draugr`, or have the converter write version 1 |
+| states a version that is not a whole number | `contract version "one" is not a whole number. Draugr reads version 1` |
 | sets a property no converter may set | `results[0] sets aside, which no converter may set` |
 | says the code does not reach a flaw | `results[0] sets reachable false, a lowering no converter may make` |
 | sets a property `converter.sets` leaves out | `results[0] sets labels, which converter.sets does not list` |

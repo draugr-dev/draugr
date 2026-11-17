@@ -16,18 +16,26 @@ Each advisory npm lists against a package becomes one finding, with:
 A package npm lists only because one of its dependencies is vulnerable gets no finding of its own;
 the dependency's entry carries it.
 
-Draugr runs no converter. Your pipeline runs this one, and Draugr reads the file it writes.
-
 ## In CI
 
+The converter is a Go program in Draugr's repository. Pin it to the Draugr release you run, by its
+tag or a commit, so the file it writes follows the contract that release reads. `go run` needs a Go
+toolchain on the runner; without one, build it once with `go build` and keep the binary with the
+pipeline.
+
 ```yaml
-# GitHub Actions
+# GitHub Actions (npm audit example)
+- uses: actions/setup-go@v5
+  with:
+    go-version: stable
 - run: npm audit --json > npm-audit.json || true    # npm audit exits 1 when it finds something
 - run: >
-    go run github.com/draugr-dev/draugr/contrib/converters/npm-audit@latest
+    go run github.com/draugr-dev/draugr/contrib/converters/npm-audit@vX.Y.Z
     -audit npm-audit.json -lock package-lock.json -commit "$GITHUB_SHA" -o npm-audit.draugr.json
 - uses: draugr-dev/draugr@v0
 ```
+
+Replace `vX.Y.Z` with the Draugr release, such as the one `draugr version` prints.
 
 | flag | meaning |
 |---|---|
@@ -59,8 +67,7 @@ one the import accepts.
 
 `go test ./contrib/converters/npm-audit/` converts `testdata/npm-audit.json`, what npm 11.16.0's
 `npm audit --json` wrote for a lockfile pinning lodash 4.17.20 and minimist 1.2.5, and compares the
-result with `testdata/npm-audit.draugr.json`. `go test -update` rewrites that file after a change
-meant to alter it.
+result with `testdata/npm-audit.draugr.json`.
 
 [Write a converter](../../../docs/guides/writing-a-converter.md) says how to write one for another
 tool, and the [converter contract](../../../docs/reference/converter-contract.md) lists every key.

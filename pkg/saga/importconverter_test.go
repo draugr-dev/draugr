@@ -68,6 +68,44 @@ func TestAnImportsConverterIsHeldToTheFixedList(t *testing.T) {
 	}
 }
 
+// A fragment may come from another team, and a converter's properties rest on the reviewed
+// descriptor, so a fragment declaring one, or importing a converter's file, is refused, naming the
+// fragment and where to declare it, in a reason the errors block shows whole.
+func TestAFragmentMayNotDeclareAConverter(t *testing.T) {
+	for _, c := range []struct{ name, imp string }{
+		{"a converter", "format: draugr-converter\n        converter: {name: npm-audit, contract: 1, sets: [package]}"},
+		{"the format alone", "format: draugr-converter"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := LoadFragment([]byte(`components:
+  - name: web
+    imports:
+      - control: sca
+        file: npm-audit.draugr.json
+        `+c.imp+`
+`), "team.saga-fragment.yaml")
+			if err == nil {
+				t.Fatal("a fragment declared a converter")
+			}
+			msg := err.Error()
+			reason := msg[strings.LastIndex(msg, ": ")+2:]
+			if !strings.HasPrefix(msg, `fragment "team.saga-fragment.yaml": `) ||
+				!strings.Contains(msg, `component "web" imports[0] has a converter. Declare it in the descriptor`) {
+				t.Errorf("error %q, want the fragment named and the converter sent to the descriptor", msg)
+			}
+			if !strings.HasSuffix(reason, "Declare it in the descriptor") || len(reason) > 80 {
+				t.Errorf("the errors block shows %q, %d columns", reason, len(reason))
+			}
+		})
+	}
+	// The same import in the descriptor itself loads.
+	if _, err := Load([]byte("project: shop\ncomponents:\n  - name: web\n    imports:\n      - control: sca\n" +
+		"        file: npm-audit.draugr.json\n        format: draugr-converter\n" +
+		"        converter: {name: npm-audit, contract: 1, sets: [package]}\n")); err != nil {
+		t.Errorf("the descriptor's own converter import: %v", err)
+	}
+}
+
 func TestADescriptorLoadsAConverterImport(t *testing.T) {
 	m, err := Load([]byte(`project: shop
 components:

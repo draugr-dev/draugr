@@ -400,11 +400,23 @@ components:
 | `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
 | `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
 | `repository` | `source` only: the repository whose alerts to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
-| `format` | optional, `file` only: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, `govulncheck-json` for what `govulncheck -format json` writes, `grype-json` for what `grype dir:<path> -o json` writes (directory scans only), or `draugr-converter` for a converter's file in the [converter contract](converter-contract.md). A tool's JSON is read as Draugr's run of that tool reads it ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
-| `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets` which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one no converter may set, such as `aside`, is refused ([Write a converter](../guides/writing-a-converter.md)) |
+| `format` | optional, `file` only: what the file is, one of the [formats](#import-formats) below. `sarif` when left out |
+| `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
 | `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused |
+
+#### Import formats
+
+- **`sarif`**, the default: a SARIF 2.1.0 log, from any tool.
+- **`trivy-json`**: what `trivy fs --format json` writes.
+- **`govulncheck-json`**: what `govulncheck -format json` writes.
+- **`grype-json`**: what `grype dir:<path> -o json` writes, for a directory scan only.
+- **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
+  with `converter` declaring the converter.
+
+A tool's JSON is read as Draugr's run of that tool reads it ([a tool's own
+JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)).
 
 A finding in the file keeps the path the file wrote, so write paths relative to the repository's
 root, and belongs to this component where that path is inside the repository's

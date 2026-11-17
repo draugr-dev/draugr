@@ -223,11 +223,13 @@ func checkVersion(v any) error {
 	case v == nil:
 		return fmt.Errorf("states no contract version. Draugr reads version %d", Version)
 	case !ok || n != math.Trunc(n):
-		return fmt.Errorf("contract version %s is not one Draugr reads. It reads %d", show(v), Version)
+		return fmt.Errorf("contract version %s is not a whole number. Draugr reads version %d", show(v), Version)
 	case int(n) < Version:
 		return fmt.Errorf("contract version %d is older than Draugr reads, version %d. Update the converter", int(n), Version)
 	case int(n) > Version:
-		return fmt.Errorf("contract version %d is unknown here. Draugr reads version %d", int(n), Version)
+		// Within the errors block's 80 columns, which leaves no room to name the converter's remedy
+		// as well; the contract reference gives both.
+		return fmt.Errorf("contract version %d is newer than this Draugr reads, version %d. Update Draugr", int(n), Version)
 	}
 	return nil
 }

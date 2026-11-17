@@ -1,6 +1,6 @@
 ---
 title: "sarif-import"
-description: "Reads a SARIF file, Trivy's, govulncheck's or Grype's own JSON, a converter's file, or a repository's GitHub code-scanning or Dependabot alerts into one of Draugr's controls, so their findings are ranked and gated with the rest."
+description: "Reads a file another tool wrote, or a repository's GitHub alerts, into one of Draugr's controls, so their findings are ranked and gated with the rest."
 section: Scanners
 order: 90
 ---
@@ -189,26 +189,14 @@ with `format: draugr-converter` and declares it under
 [`converter`](../../docs/reference/saga-schema.md#componentsimports), and [Write a
 converter](../../docs/guides/writing-a-converter.md) walks through one.
 
-- **The descriptor grants what the file may set.** A converter may set a finding's `package`, `cwe`,
-  `labels`, a `reachable` verdict and a `raise`, a fixed list in Draugr, and the import's
-  `converter.sets` names which. A file setting a property outside `sets` is refused, naming it.
-- **Nothing sets a finding aside or lowers it.** A file naming a suppression, `aside`,
-  `nonShipping`, `acceptedBy`, `origin`, `priority` or `reachable: false` is refused, whatever
-  `sets` lists, rather than read without the property.
-- **The file is the declared converter's, in the contract version Draugr reads.** A file another
-  converter wrote, or one in an older or unknown contract version, is refused with the version
-  Draugr reads. So is a key the contract does not define.
 - **The file names its commit**, and is held to it as a SARIF file's `versionControlProvenance` is
   (see [Commit](#commit)). In a component with several repositories it names the one it is about
   in `repository`, and is placed and bound there.
-- **Every finding is stamped** with the converter, its version, the contract version, the file's
-  SHA-256 and the properties it set, as `converter` in `report.json`. The console names the
-  converter beside the tool, `imported npm audit (converter npm-audit)`, and says under the
-  finding `converter npm-audit set package, cwe`.
-- **A raise moves a band up, never down.** The finding is ranked at least at the band the raise
-  names, and the report gives its reason. A band already higher stays.
-- **Severity is the converter's**: its `score` where it gives one, else its `severity`, and the
-  provenance's `severity` field says which.
+- **Severity is the converter's**: its `score` where it gives one, else its `severity`. The
+  provenance's `severity` field reads `converter score` or `converter rating`.
+
+The [converter contract](../../docs/reference/converter-contract.md#what-a-converter-may-set) lists
+what a converter may and may never set, and the stamp each finding carries.
 
 ## Merging with the control's scanners
 

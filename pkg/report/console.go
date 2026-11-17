@@ -949,14 +949,14 @@ func controlFloorNote(f finding) string {
 	return f.priorityFloor
 }
 
-// converterSet says which of the finding's properties a declared converter set, "converter npm-audit
-// set package, cwe", or "" for a finding no converter wrote or one it set nothing of Draugr's on. The
-// row's reporter already names the converter; this says which facts rest on its word.
+// converterSet says which of the finding's properties a declared converter set, "converter
+// npm-audit: package, cwe", or "" for a finding no converter wrote or one it set nothing of Draugr's
+// on. The row's reporter already names the converter; this says which facts rest on its word.
 func converterSet(c *sarif.Converter) string {
 	if c == nil || len(c.Set) == 0 {
 		return ""
 	}
-	return "converter " + c.Name + " set " + strings.Join(c.Set, ", ")
+	return "converter " + c.Name + ": " + strings.Join(c.Set, ", ")
 }
 
 // moreFilesNote says how many files beside the row's own hold the flaw, in the words the actions view

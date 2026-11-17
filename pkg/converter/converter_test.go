@@ -86,9 +86,9 @@ func TestTheContractVersionIsHeldExactly(t *testing.T) {
 		says    string
 	}{
 		{"older", float64(0), "contract version 0 is older than Draugr reads, version 1. Update the converter"},
-		{"newer", float64(2), "contract version 2 is unknown here. Draugr reads version 1"},
-		{"not a whole number", 1.5, "contract version 1.5 is not one Draugr reads. It reads 1"},
-		{"a word", "one", `contract version "one" is not one Draugr reads. It reads 1`},
+		{"newer", float64(2), "contract version 2 is newer than this Draugr reads, version 1. Update Draugr"},
+		{"not a whole number", 1.5, "contract version 1.5 is not a whole number. Draugr reads version 1"},
+		{"a word", "one", `contract version "one" is not a whole number. Draugr reads version 1`},
 		{"missing", nil, "states no contract version. Draugr reads version 1"},
 	} {
 		t.Run(c.name, func(t *testing.T) {

@@ -1,6 +1,6 @@
 ---
 title: Write a converter
-description: Bring a tool Draugr has no reader for into a scan, with each finding's package, CWE ids or a priority raise, through a converter your pipeline runs and Draugr reads.
+description: Bring a tool Draugr has no reader for into a scan, with each finding's package, CWE ids or a raise to a higher priority, through a converter your pipeline runs and Draugr reads.
 section: Guides
 order: 28
 ---
@@ -32,28 +32,26 @@ location. Beyond that, it may set any of these of Draugr's own properties, and n
 | `raise` | a band a finding is ranked at least at, with the reason |
 
 A converter can never set a finding aside or lower one. A file that names `suppression`, `aside`,
-`priority` or `reachable: false` is refused, naming the property ([What no converter may
-set](../reference/converter-contract.md#what-no-converter-may-set)).
+`reachable: false`, or a `priority` on a result (use `raise`) is refused, naming the property
+([What no converter may set](../reference/converter-contract.md#what-no-converter-may-set)).
 
 The npm audit converter sets `package` and `cwe`.
 
 ## 2. Write the converter
 
-Read the tool's output and write one result per flaw. The npm audit converter reads each advisory npm
-lists against a package, takes the installed version from `package-lock.json`, and writes:
+A converter can be written in any language, since all it has to do is write one JSON file. The
+smallest file the contract accepts is the header and the results:
 
 ```json
-{
-  "ruleId": "GHSA-xvch-5gv4-984h",
-  "message": "Prototype Pollution in minimist",
-  "severity": "critical",
-  "score": 9.8,
-  "location": {"path": "package-lock.json"},
-  "package": {"name": "minimist", "version": "1.2.5", "fixedVersion": "1.2.8",
-              "purl": "pkg:npm/minimist@1.2.5", "ecosystem": "npm"},
-  "cwe": ["CWE-1321"]
-}
+{"contract": "draugr-converter", "version": 1,
+ "converter": {"name": "npm-audit"}, "source": {"tool": "npm audit"},
+ "commit": "7de995591d35d5cc0c7745d13cc00c948dea1672",
+ "results": [{"ruleId": "GHSA-xvch-5gv4-984h", "message": "Prototype Pollution in minimist",
+   "severity": "critical", "package": {"name": "minimist", "version": "1.2.5"}, "cwe": ["CWE-1321"]}]}
 ```
+
+Read the tool's output and write one result per flaw. The npm audit converter reads each advisory npm
+lists against a package and takes the installed version from `package-lock.json`.
 
 - **Use the advisory id the tool reports as `ruleId`**, a GHSA or CVE id, so the finding merges with
   another scanner's copy of the same advisory instead of counting twice.
@@ -68,39 +66,23 @@ lists against a package, takes the installed version from `package-lock.json`, a
 
 ## 3. Run it in the pipeline
 
-After the tool, and before `draugr scan`:
-
-```yaml
-# GitHub Actions
-- run: npm audit --json > npm-audit.json || true    # npm audit exits 1 when it finds something
-- run: >
-    go run github.com/draugr-dev/draugr/contrib/converters/npm-audit@latest
-    -audit npm-audit.json -lock package-lock.json -commit "$GITHUB_SHA" -o npm-audit.draugr.json
-- uses: draugr-dev/draugr@v0
-```
+Run the converter after the tool and before `draugr scan`. The npm audit converter's
+[README](../../contrib/converters/npm-audit/README.md#in-ci) has the CI steps, with the converter
+pinned to a Draugr release.
 
 ## 4. Declare the import
 
-Under the component the tool scanned, name the converter, the contract version it writes, and what
-it may set. A converter's file is refused unless its `converter.name` matches, and any property it
-sets beyond `sets` is refused too:
+Under the component the tool scanned, add an import with `format: draugr-converter` and a
+`converter` block naming the converter, the contract version it writes, and what it may set. The
+npm audit converter's [`manifest.yaml`](../../contrib/converters/npm-audit/manifest.yaml) is that
+entry, ready to copy.
 
-```yaml
-components:
-  - name: web
-    imports:
-      - control: sca
-        file: npm-audit.draugr.json
-        format: draugr-converter
-        commit: ${{ GITHUB_SHA }}
-        converter:
-          name: npm-audit
-          contract: 1
-          sets: [package, cwe]
-```
+`name` and `contract` are required. `sets` is optional, and left out it lets the converter set none
+of Draugr's properties, so its findings are only what the tool reported. A file is refused unless
+its `converter.name` matches, and any property it sets beyond `sets` is refused too.
 
-The descriptor grants the properties because it is the file your team reviews. The converter's file
-is written fresh on every run, so nothing in it can grant itself more.
+Declare the converter in the descriptor itself. A fragment that declares one, or imports a
+converter's file, is refused.
 
 In a component with several repositories, the converter also writes `repository`, the one the tool
 scanned.
@@ -116,13 +98,13 @@ repository  .                      ✓ resolves to 7de995591d35
 file        npm-audit.draugr.json  ✓ converter file, 5 findings
 ```
 
-`draugr scan` ranks the findings with the rest. Each names the converter, and says what it set:
+`draugr scan` ranks the findings with the rest. Each names the converter, and what it set:
 
 ```console
   P1  critical  GHSA-xvch-5gv4-984h
       Prototype Pollution in minimist
       scanner npm audit · minimist 1.2.5 → 1.2.8
-      package-lock.json · converter npm-audit set package, cwe · also found by trivy
+      package-lock.json · converter npm-audit: package, cwe · also found by trivy
 ```
 
 `report.json` carries the stamp on each finding, with the SHA-256 of the file read:
