@@ -1,0 +1,1 @@
+- **`draugr diff` reports findings whose priority band changed.** A finding in both scans at another band, as when a component declares its exposure or criticality, is listed as reranked with both bands (`P1 → P3`) in the console, the pull-request comment and JSON. The `unchanged` count no longer includes these findings.

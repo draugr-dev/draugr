@@ -885,8 +885,8 @@ the same rows under **Caveats**.
 new findings (`--base` with `--fail-on-new` or `config.gate.failOnNew`), the verdict is about what
 changed, and the **Change** tab, red when the change fails, says so. That tab holds the gate on new findings and its verdict, then every state a finding
 can be in against the base, the ones [`draugr diff`](pr-diff.md) reports: new, unaccepted (excused in
-the base and counting again), accepted (excused since the base) and fixed, then moved, unchanged and
-still accepted. The `?` beside them says what each state means. Each count is a way to its findings
+the base and counting again), accepted (excused since the base) and fixed, then moved, reranked (at
+another priority band than in the base), unchanged and still accepted. The `?` beside them says what each state means. Each count is a way to its findings
 in Findings, still accepted to the Accepted section. Under them are the five most urgent actions the
 change asks for, with a link to all of them in What to do, and the controls and components the change
 touched, each cell a way to its findings. The tab also says when a caveat fails the run as well.

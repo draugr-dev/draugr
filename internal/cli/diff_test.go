@@ -69,6 +69,26 @@ func TestRunDiffGatePasses(t *testing.T) {
 	}
 }
 
+// A finding already there that the head ranks P1 is reported reranked, in every format, and the gate
+// on new findings passes it: nothing was introduced, as with a moved finding.
+func TestARaisedFindingIsReportedAndPassesTheGate(t *testing.T) {
+	base := writeFile(t, "base.sarif", sarifDoc("CVE-1", "warning", "img", "P4"))
+	head := writeFile(t, "head.sarif", sarifDoc("CVE-1", "warning", "img", "P1"))
+	for format, want := range map[string]string{
+		"console":  "RERANKED  1 · 1 raised",
+		"markdown": "### Reranked · 1 · 1 raised",
+		"json":     `"fromPriority": "P4"`,
+	} {
+		var out bytes.Buffer
+		if err := runDiff(context.Background(), base, head, diffOptions{format: format, failOnNew: "P1"}, &out); err != nil {
+			t.Errorf("%s: a reranked finding tripped the gate on new findings: %v", format, err)
+		}
+		if !strings.Contains(out.String(), want) || strings.Contains(out.String(), "Nothing changed") {
+			t.Errorf("%s: want %q and no claim that nothing changed:\n%s", format, want, out.String())
+		}
+	}
+}
+
 func TestRunDiffMissingFile(t *testing.T) {
 	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
 	err := runDiff(context.Background(), filepath.Join(t.TempDir(), "nope.sarif"), head, diffOptions{}, &bytes.Buffer{})

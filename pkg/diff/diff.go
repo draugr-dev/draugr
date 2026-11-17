@@ -19,7 +19,7 @@ import (
 type Result struct {
 	New       []sarif.Result // present and active in head, absent from base
 	Fixed     []sarif.Result // active in base, absent from head
-	Unchanged []sarif.Result // active in both (head copy)
+	Unchanged []sarif.Result // active in both at the same band, or suppressed in both (head copy)
 	// Accepted is a finding somebody excused between the two scans, and one that arrived already
 	// excused by a rule that was already there.
 	//
@@ -46,6 +46,14 @@ type Result struct {
 	// other, each one would trip a gate on new findings. The gate does not read Moved, the same way
 	// it does not read Accepted.
 	Moved []Move
+	// Reranked is a finding counting in both scans, in the same component, whose priority band
+	// changed: declared exposure or criticality, an exploitation signal, a reachability verdict.
+	//
+	// Kept out of Unchanged rather than counted in it as well. A band change is often what the
+	// comparison was run to see, and a total that holds both the findings that changed band and the
+	// ones that did not reads as "nothing changed" to anybody who adds the headline up. Every finding
+	// in head stays in exactly one state. The gate does not read Reranked: nobody introduced these.
+	Reranked []Rerank
 	// Objects are the checks listing objects whose list changed between the scans, with what joined
 	// and left each, in the same state in both: counting in both, or excused in both.
 	Objects []ObjectChange
@@ -87,6 +95,19 @@ type Move struct {
 	Was sarif.Result
 }
 
+// Rerank is a finding whose band changed between the scans and nothing else did: the head's copy,
+// with the band the base gave it.
+type Rerank struct {
+	sarif.Result
+	// From is the band the finding had in the base, "" where the base did not prioritize it.
+	From string
+}
+
+// Raised reports whether the head ranks the finding more urgent than the base did.
+func (r Rerank) Raised() bool {
+	return prioritization.Priority(r.Priority).Rank() > prioritization.Priority(r.From).Rank()
+}
+
 // HelpURI is where a reader can look up a rule: what the scanner published, or a URL derived from
 // a well-known identifier scheme. Empty when neither applies. A wrong link is worse than none.
 func (r Result) HelpURI(ruleID string) string {
@@ -122,6 +143,10 @@ func Compare(base, head sarif.Report) Result {
 			// is new, so a gate on new findings trips on what this change added.
 			r.New = append(r.New, res)
 		case inBase && res.Component != was.Component && res.Suppressed() == was.Suppressed():
+			// Moved even where the band changed too, and never reranked as well. The new component's
+			// declared context is usually why the band changed, so the move is the explanation, and
+			// its listing already names both bands beside both components. A finding in two lists
+			// would be counted twice in the strips, which add up to the head scan.
 			r.Moved = append(r.Moved, Move{Result: res, Was: was})
 		case res.Suppressed() && (!inBase || !was.Suppressed()):
 			// Excused in this change: either somebody wrote a rule for a finding that was counting, or a
@@ -134,6 +159,10 @@ func Compare(base, head sarif.Report) Result {
 			r.Unchanged = append(r.Unchanged, res)
 		case inBase && was.Suppressed():
 			r.Unaccepted = append(r.Unaccepted, res)
+		case inBase && res.Priority != was.Priority:
+			// Counting in both, and ranked differently. Only a counting finding: one excused in both
+			// scans is still accepted whatever its band, because nobody is working from it.
+			r.Reranked = append(r.Reranked, Rerank{Result: res, From: was.Priority})
 		case inBase:
 			r.Unchanged = append(r.Unchanged, res)
 		default:
@@ -154,6 +183,7 @@ func Compare(base, head sarif.Report) Result {
 	sortResults(r.Accepted)
 	sortResults(r.Unaccepted)
 	sortMoves(r.Moved)
+	sortReranks(r.Reranked)
 	sortObjectChanges(r.Objects)
 	// Head first, so a rule the change updated is described as it is now; base fills in whatever
 	// only the old scan saw, which is every fixed finding's rule.
@@ -341,6 +371,17 @@ func identity(r sarif.Result) string {
 // sortMoves orders moves the way sortResults orders findings, by the head copy.
 func sortMoves(ms []Move) {
 	sort.SliceStable(ms, func(i, j int) bool { return moreUrgent(ms[i].Result, ms[j].Result) })
+}
+
+// sortReranks orders the raised findings before the lowered ones, each most urgent first by the
+// head's band. A raised finding is more work than there was, which is what a reader looks for first.
+func sortReranks(rs []Rerank) {
+	sort.SliceStable(rs, func(i, j int) bool {
+		if a, b := rs[i].Raised(), rs[j].Raised(); a != b {
+			return a
+		}
+		return moreUrgent(rs[i].Result, rs[j].Result)
+	})
 }
 
 // sortResults orders most-urgent first: by priority, then numeric score, then SARIF level, then
@@ -616,6 +657,12 @@ func (r Result) Counted() Result {
 	for _, m := range r.Moved {
 		if !m.Correlated() {
 			out.Moved = append(out.Moved, m)
+		}
+	}
+	out.Reranked = nil
+	for _, rr := range r.Reranked {
+		if !rr.Correlated() {
+			out.Reranked = append(out.Reranked, rr)
 		}
 	}
 	return out

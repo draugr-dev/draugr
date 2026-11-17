@@ -134,6 +134,13 @@ func headline(r Result, emoji bool) []string {
 		}
 		parts = append(parts, part)
 	}
+	if n := len(r.Reranked); n > 0 {
+		part := fmt.Sprintf("%d reranked (%s)", n, directions(r.Reranked))
+		if emoji {
+			part = "↕️ " + part
+		}
+		parts = append(parts, part)
+	}
 	// With no base nothing can be unchanged, and a zero there would read as a measurement.
 	if r.NoBase {
 		if len(parts) == 0 {
@@ -318,7 +325,8 @@ func renderConsole(w io.Writer, r Result, opts Options) error {
 	}
 	writeObjects(w, col, r, opts, len(entries) == 0)
 	writeMoved(w, col, r, opts)
-	if len(entries) > 0 || len(r.Moved) > 0 {
+	writeReranked(w, col, r, opts)
+	if len(entries) > 0 || len(r.Moved) > 0 || len(r.Reranked) > 0 {
 		writeTry(w, col, r, opts, entries)
 	}
 	return nil
@@ -742,7 +750,7 @@ func writeTry(w io.Writer, col tui.Painter, r Result, opts Options, entries []En
 	row := func(what, does string) {
 		t.Row(tui.Styled(tui.StyleMuted, what), tui.Styled(tui.StyleMuted, does))
 	}
-	if opts.Top > 0 && len(entries) > opts.Top {
+	if opts.Top > 0 && (len(entries) > opts.Top || len(r.Reranked) > opts.Top) {
 		row("--top 0", "every one of them, not the first "+fmt.Sprint(opts.Top))
 	}
 	if opts.View != ViewCompact {
@@ -771,6 +779,7 @@ func renderMarkdown(w io.Writer, r Result, opts Options) error {
 	}
 	writeMarkdownObjects(w, r)
 	writeMarkdownMoved(w, r, opts)
+	writeMarkdownReranked(w, r, opts)
 	return nil
 }
 
@@ -976,6 +985,8 @@ type jsonDiff struct {
 	New     []sarif.Result `json:"new"`
 	Fixed   []sarif.Result `json:"fixed"`
 	Moved   []jsonMove     `json:"moved"`
+	// Reranked is each finding whose band changed and nothing else did, raised ones first.
+	Reranked []jsonRerank `json:"reranked"`
 	// NoBase is present, and true, when there was no base scan to compare against.
 	NoBase bool `json:"noBase,omitempty"`
 }
@@ -987,10 +998,24 @@ type jsonMove struct {
 	FromPriority  string       `json:"fromPriority,omitempty"`
 }
 
+// jsonRerank is a finding as head has it, with the band it had in base.
+type jsonRerank struct {
+	Finding      sarif.Result `json:"finding"`
+	FromPriority string       `json:"fromPriority"`
+	// Direction is "raised" where head ranks the finding more urgent than base did, "lowered"
+	// otherwise.
+	Direction string `json:"direction"`
+}
+
 type jsonSummary struct {
-	New       int `json:"new"`
-	Fixed     int `json:"fixed"`
-	Moved     int `json:"moved"`
+	New      int `json:"new"`
+	Fixed    int `json:"fixed"`
+	Moved    int `json:"moved"`
+	Reranked int `json:"reranked"`
+	// Raised and Lowered divide Reranked by direction.
+	Raised  int `json:"raised"`
+	Lowered int `json:"lowered"`
+	// Unchanged leaves the reranked findings out, so no finding is counted twice.
 	Unchanged int `json:"unchanged"`
 
 	NewBySeverity   SeverityCounts `json:"newBySeverity"`
@@ -1006,13 +1031,25 @@ func renderJSON(w io.Writer, r Result) error {
 			NewBySeverity: countSeverities(r.New), FixedBySeverity: countSeverities(r.Fixed),
 			NewByPriority: countPriorities(r.New), FixedByPriority: countPriorities(r.Fixed),
 		},
-		New:    r.New,
-		Fixed:  r.Fixed,
-		Moved:  make([]jsonMove, 0, len(r.Moved)),
-		NoBase: r.NoBase,
+		New:      r.New,
+		Fixed:    r.Fixed,
+		Moved:    make([]jsonMove, 0, len(r.Moved)),
+		Reranked: make([]jsonRerank, 0, len(r.Reranked)),
+		NoBase:   r.NoBase,
 	}
 	for _, m := range r.Moved {
 		doc.Moved = append(doc.Moved, jsonMove{Finding: m.Result, FromComponent: m.Was.Component, FromPriority: m.Was.Priority})
+	}
+	doc.Summary.Reranked = len(r.Reranked)
+	for _, rr := range r.Reranked {
+		direction := "lowered"
+		if rr.Raised() {
+			direction = "raised"
+			doc.Summary.Raised++
+		} else {
+			doc.Summary.Lowered++
+		}
+		doc.Reranked = append(doc.Reranked, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: direction})
 	}
 	if doc.New == nil {
 		doc.New = []sarif.Result{}
@@ -1030,8 +1067,9 @@ func renderJSON(w io.Writer, r Result) error {
 //
 // Fixed findings get no strip, because it would put the good news in the same red as the bad. The
 // strips stay apart rather than summed, because each answers a different question: the gate asks
-// about new, unaccepted is a decision that ended, accepted is one this change took, unchanged is
-// work this change inherited, and still accepted is what somebody decided to live with before it.
+// about new, unaccepted is a decision that ended, accepted is one this change took, reranked is
+// inherited work this change ranked differently, unchanged is work this change inherited as it was,
+// and still accepted is what somebody decided to live with before it.
 // Every finding in head is in exactly one strip, so the strips add up to the head scan.
 func writeBandRows(w io.Writer, col tui.Painter, r Result) {
 	drawBandRows(w, col, bandRows(r))
@@ -1078,6 +1116,7 @@ func bandRows(r Result) []bandRow {
 		{string(ChangeUnaccepted), bands(r.Unaccepted)},
 		{string(ChangeAccepted), bands(r.Accepted)},
 		{"moved", bands(movedResults(r.Moved))},
+		{"reranked", bands(rerankedResults(r.Reranked))},
 		{"unchanged", bands(open)},
 		{"still accepted", bands(held)},
 	}

@@ -1219,6 +1219,30 @@ func TestDiffCountsAFindingThatChangedComponentAsMoved(t *testing.T) {
 	}
 }
 
+// TestDiffCountsAFindingThatChangedBandAsReranked. Declaring a component's context moves bands and
+// nothing else; an assistant told only new and fixed would report that the change did nothing.
+func TestDiffCountsAFindingThatChangedBandAsReranked(t *testing.T) {
+	f := sarif.Result{RuleID: "CVE-1", Tool: "trivy", Level: sarif.LevelError, Component: "worker",
+		Repository: "repo", Location: sarif.Location{URI: "worker/package-lock.json", StartLine: 3}}
+	g := f
+	g.RuleID, g.Location.StartLine = "CVE-2", 9
+	wasF, nowF, wasG, nowG := f, f, g, g
+	wasF.Priority, nowF.Priority = "P1", "P3"
+	wasG.Priority, nowG.Priority = "P4", "P1"
+
+	_, out, err := DiffReportsTool(context.Background(), nil, DiffInput{
+		BasePath:  writeSARIF(t, sarif.Report{Results: []sarif.Result{wasF, wasG}}),
+		HeadPath:  writeSARIF(t, sarif.Report{Results: []sarif.Result{nowF, nowG}}),
+		FailOnNew: "P1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.NewCount != 0 || out.FixedCount != 0 || out.RerankedCount != 2 || out.RaisedCount != 1 || out.WouldFail {
+		t.Errorf("want two reranked findings, one raised, and no gate failure, got %+v", out)
+	}
+}
+
 // TestDiffGateAnswersTheQuestionCIWillAsk, rather than a different one: a change that introduces
 // only a low finding does not fail a gate set to high, and saying otherwise trains people to
 // ignore the answer.

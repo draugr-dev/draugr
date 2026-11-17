@@ -755,7 +755,7 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 	view.Scanners = theirVocabulary(tools)
 	view.Movements = movementFacets(moved)
 	if d.Gate.judgesChange() {
-		for _, st := range []string{stateNew, stateUnaccepted, stateAccepted, stateFixed, stateMoved, stateUnchanged} {
+		for _, st := range []string{stateNew, stateUnaccepted, stateAccepted, stateFixed, stateMoved, stateReranked, stateUnchanged} {
 			if changes[st] > 0 {
 				view.Changes = append(view.Changes, htmlFacet{Value: st, Count: changes[st]})
 			}

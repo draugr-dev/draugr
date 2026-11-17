@@ -35,8 +35,9 @@ type ChangeView interface {
 }
 
 // ChangeStates is a run's findings sorted by what happened to each against the base, in the states
-// `draugr diff` reports. New, unaccepted, accepted and fixed are the change; moved, unchanged and
-// still accepted are what it left as it was. Every finding at the head is in exactly one of the
+// `draugr diff` reports. New, unaccepted, accepted and fixed are the change; moved and reranked are
+// findings it left in place and filed or ranked differently; unchanged and still accepted are what it
+// left as it was. Every finding at the head is in exactly one of the
 // states other than fixed, which holds findings only the base had.
 type ChangeStates struct {
 	New, Unaccepted, Accepted, Fixed []sarif.Result
@@ -44,13 +45,17 @@ type ChangeStates struct {
 	// MovedFrom the component each was under, in the same order.
 	Moved     []sarif.Result
 	MovedFrom []string
-	// Unchanged count in both scans, and StillAccepted were excused in both.
+	// Reranked count in both scans, in one component, at a different band, and RerankedFrom is the
+	// band each had in the base, in the same order.
+	Reranked     []sarif.Result
+	RerankedFrom []string
+	// Unchanged count in both scans at one band, and StillAccepted were excused in both.
 	Unchanged, StillAccepted []sarif.Result
 }
 
 // Changed reports whether anything changed against the base.
 func (c ChangeStates) Changed() bool {
-	return len(c.New)+len(c.Unaccepted)+len(c.Accepted)+len(c.Fixed)+len(c.Moved) > 0
+	return len(c.New)+len(c.Unaccepted)+len(c.Accepted)+len(c.Fixed)+len(c.Moved)+len(c.Reranked) > 0
 }
 
 // judgedOnChange reports whether the console prints this run as its change: the gate on new
