@@ -22,6 +22,12 @@ import (
 // alert whose result is suppressed is dismissed with the reason, and an alert Draugr dismissed
 // earlier whose result is no longer suppressed, an exclusion that expired, say, is reopened. An
 // alert a person dismissed is theirs and is left alone.
+//
+// It reads the document as uploaded, which holds no copy of a flaw counted under another scanner's
+// finding (see countedOnly). A suppressed flaw's counted finding is dismissed and its copies have no
+// result to match, so an alert opened for a copy by an upload that carried one is neither dismissed
+// nor reopened here: it is code scanning's to resolve, as it resolves any open alert an upload no
+// longer carries.
 
 // dismissedBy opens every dismissal comment the publisher writes. It is how a later run tells its
 // own dismissals from a person's, which it must never reopen.

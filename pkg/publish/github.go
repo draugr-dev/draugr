@@ -90,6 +90,13 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 	if sarif == nil {
 		return fmt.Errorf("github publisher requires a 'sarif' report")
 	}
+	// What is uploaded, and what the dismissal pass reads, is the report less the copies of flaws
+	// another scanner's finding is counted under. The artifact itself is left as rendered, because
+	// it is shared with every other destination that asked for the sarif report.
+	sarif, err := countedOnly(sarif)
+	if err != nil {
+		return err
+	}
 
 	encoded, err := gzipBase64(sarif)
 	if err != nil {
@@ -130,6 +137,74 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 		return fmt.Errorf("github code scanning accepted the upload and returned no upload id, so no accepted finding's alert was dismissed. Re-run the publish")
 	}
 	return g.syncSuppressions(ctx, accepted.ID, sarif)
+}
+
+// countedOnly returns a SARIF document holding one result per counted finding: the results whose
+// properties.correlation.countedUnder names another scanner's finding are left out.
+//
+// Code scanning opens an alert for every result and reads nothing in the property bag, so a flaw two
+// scanners reported would otherwise be two alerts under two rule ids, and the Security tab would count
+// what the gate counts once. Leaving the copy out, rather than marking it with a SARIF suppression,
+// keeps the dismissal pass and the Security tab from presenting a second scanner's agreement as
+// somebody's decision to accept the flaw. The counted result's correlation.alsoFoundBy still names
+// the other scanners and what each said.
+//
+// Every other value in the document is kept as written, the rules included, so a result's
+// fingerprints and its ruleIndex into the run's rules are what the report on disk says they are. A
+// document with no copy in it is returned unchanged.
+func countedOnly(doc []byte) ([]byte, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(doc, &top); err != nil {
+		return nil, fmt.Errorf("github code scanning: could not read the report to leave out the copies of findings counted once: %w", err)
+	}
+	var runs []map[string]json.RawMessage
+	if err := json.Unmarshal(top["runs"], &runs); err != nil {
+		return nil, fmt.Errorf("github code scanning: could not read the report's runs: %w", err)
+	}
+	dropped := false
+	for i, run := range runs {
+		var results []json.RawMessage
+		if raw, ok := run["results"]; ok {
+			if err := json.Unmarshal(raw, &results); err != nil {
+				return nil, fmt.Errorf("github code scanning: could not read the report's results: %w", err)
+			}
+		}
+		kept := make([]json.RawMessage, 0, len(results))
+		for _, r := range results {
+			var probe struct {
+				Properties struct {
+					Correlation struct {
+						CountedUnder string `json:"countedUnder"`
+					} `json:"correlation"`
+				} `json:"properties"`
+			}
+			if err := json.Unmarshal(r, &probe); err != nil {
+				return nil, fmt.Errorf("github code scanning: could not read a result's correlation: %w", err)
+			}
+			if probe.Properties.Correlation.CountedUnder != "" {
+				continue
+			}
+			kept = append(kept, r)
+		}
+		if len(kept) == len(results) {
+			continue
+		}
+		dropped = true
+		b, err := json.Marshal(kept)
+		if err != nil {
+			return nil, err
+		}
+		runs[i]["results"] = b
+	}
+	if !dropped {
+		return doc, nil
+	}
+	b, err := json.Marshal(runs)
+	if err != nil {
+		return nil, err
+	}
+	top["runs"] = b
+	return json.Marshal(top)
 }
 
 // gzipBase64 gzip-compresses then base64-encodes data, as required by the code-scanning

@@ -111,6 +111,13 @@ The token needs no permission beyond the `security-events: write` the upload alr
 made with `github/codeql-action/upload-sarif` instead of the publisher leaves accepted findings
 open.
 
+### A flaw two scanners found
+
+The publisher uploads a flaw two scanners found, such as a CVE Trivy and Grype both report, once,
+as the finding the gate counts, so it is one alert, and that result's `correlation.alsoFoundBy`
+property names the other scanner and what it called the flaw, while `results.sarif` keeps both
+scanners' results.
+
 ### Caveats
 
 The uploaded file carries the run's caveats and scan errors as SARIF

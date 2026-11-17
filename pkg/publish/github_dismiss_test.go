@@ -39,6 +39,8 @@ type fakeCodeScanning struct {
 	toolName string
 	ref      string
 	patches  map[int]map[string]string
+	// uploaded is the SARIF document the upload carried, decoded from its gzip and base64.
+	uploaded []byte
 }
 
 func (f *fakeCodeScanning) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +48,12 @@ func (f *fakeCodeScanning) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer f.mu.Unlock()
 	switch {
 	case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/code-scanning/sarifs"):
+		var body struct {
+			SARIF string `json:"sarif"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil {
+			f.uploaded = decodeUpload(f.t, body.SARIF)
+		}
 		w.WriteHeader(http.StatusAccepted)
 		if !f.noID {
 			_, _ = w.Write([]byte(`{"id":"up-1","url":"x"}`))

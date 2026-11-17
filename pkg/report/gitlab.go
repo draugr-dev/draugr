@@ -217,6 +217,11 @@ type glFinding struct {
 // accept. It would show one as open and wait to be dismissed, which asks for the decision the Saga
 // already records, with the reason and the person attached. They remain in Draugr's own report,
 // marked, which is where that evidence belongs.
+//
+// So is a second scanner's copy of a flaw another finding is counted under. GitLab files a
+// vulnerability per entry, and the copy would put one flaw on the list twice under two rule ids,
+// where the gate counts it once. It stays in results.sarif, marked with the finding it is counted
+// under.
 func gitlabFindings(d Data, controls []string) []glFinding {
 	want := map[string]bool{}
 	for _, c := range controls {
@@ -234,7 +239,7 @@ func gitlabFindings(d Data, controls []string) []glFinding {
 	for _, name := range names {
 		rep := d.Run.Controls[name].Report
 		for _, res := range rep.Results {
-			if res.Suppressed() {
+			if res.Suppressed() || res.Correlated() {
 				continue
 			}
 			out = append(out, glFinding{res: res, helpURI: rep.HelpURI(res.RuleID)})
