@@ -201,6 +201,7 @@ type foreignResult struct {
 	Fixes        looseFixes `json:"fixes"`
 	Suppressions []struct {
 		Kind          string `json:"kind"`
+		Status        string `json:"status"`
 		Justification string `json:"justification"`
 	} `json:"suppressions"`
 	Properties *foreignProperties `json:"properties"`
@@ -338,9 +339,24 @@ func (fr foreignRunReader) result(sr foreignResult) (Result, string, error) {
 	}
 	// The tool's suppression, as the tool's: its kind says which of the scanner's two it is, and
 	// nothing in the file's property bag can make it a decision somebody recorded with Draugr.
-	if len(sr.Suppressions) > 0 {
+	//
+	// A finding is set aside only where every suppression on it stands. SARIF's status records the
+	// team's decision about the request (3.35.3): rejected is a decision not to suppress, and
+	// underReview is no decision yet. A file listing one of those beside an accepted entry disagrees
+	// with itself, and a disagreement leaves the finding counting, with the request said in its
+	// detail. Reading every entry means the order a tool lists them in decides nothing.
+	declined := ""
+	for _, sup := range sr.Suppressions {
+		if !suppressionStands(sup.Status) && declined == "" {
+			declined = "the file's suppression is " + sup.Status
+		}
+	}
+	if len(sr.Suppressions) > 0 && declined == "" {
 		first := sr.Suppressions[0]
 		res.Suppression = &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: scannersOwn(first.Kind)}
+	}
+	if declined != "" {
+		res.Detail = strings.TrimPrefix(res.Detail+" · "+declined, " · ")
 	}
 	return res, outside, nil
 }
@@ -516,4 +532,15 @@ func unescape(s string) string {
 		return p
 	}
 	return s
+}
+
+// suppressionStands reports whether a SARIF suppression with this status asks for its result to be
+// set aside: accepted, or no status, which SARIF leaves optional and which tools write when the
+// suppression is simply in force. rejected and underReview do not.
+func suppressionStands(status string) bool {
+	switch strings.ToLower(status) {
+	case "", "accepted":
+		return true
+	}
+	return false
 }

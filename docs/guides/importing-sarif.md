@@ -54,7 +54,8 @@ first import meets:
   in its `versionControlProvenance` ([several repositories](#in-a-component-with-several-repositories))
   to scope it.
   [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the rules.
-- **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed.
+- **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed. A
+  suppression whose `status` is `rejected` or `underReview` leaves the finding counting.
 
 ## 1. Write the SARIF file
 

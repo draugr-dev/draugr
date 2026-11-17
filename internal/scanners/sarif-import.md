@@ -44,8 +44,8 @@ The file is read as SARIF 2.1.0:
 - **Other result properties are ignored.** Draugr's own `priority`, `aside` and suppression origin
   have no effect in a file another tool wrote. The properties read are `security-severity`,
   `package` (an object), `purls`, `tags`, the rating properties each tool's table names and the
-  one the import's mapping names, and a suppression's `kind` and `justification`, which make it the
-  tool's own.
+  one the import's mapping names, and a suppression's `kind`, `status` and `justification`, which make it
+  the tool's own.
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
 
 ## Before you import
@@ -69,8 +69,10 @@ The file is read as SARIF 2.1.0:
   the component's own scanners read. A finding outside the component's scope is left out of it, and
   the report counts it, as [Paths and ignore](#paths-and-ignore) describes. To set aside a finding
   inside the scope, use `config.exclude`, which keeps it in the report, suppressed.
-- **Expect the file's own suppressions to hold.** A result with an entry in `suppressions` stays in
-  the report, suppressed, whatever the entry's `status`.
+- **Expect the file's own suppressions to hold, where they stand.** A result whose every entry in
+  `suppressions` is `accepted` or has no `status` stays in the report, suppressed. An entry that is
+  `rejected` (the team decided not to suppress it) or `underReview` (not decided yet) leaves the
+  finding counting, and its detail says `the file's suppression is rejected` or `underReview`.
 - **Expect KEV and EPSS only on a CVE.** They read a CVE in the rule id or among the identifiers the
   file lists for the finding (see [Dependency findings](#dependency-findings)). A finding named by a
   GHSA id or a tool's own code, such as `B602`, gets neither unless its file lists a CVE for it.

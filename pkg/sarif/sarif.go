@@ -400,6 +400,9 @@ type sarifResult struct {
 // in-source `nosem` comments). A result with any suppression is not an active finding.
 type sarifSuppression struct {
 	Kind string `json:"kind"`
+	// Status is the team's decision about the request to suppress (SARIF 3.35.3). Read so that a
+	// rejected or underReview suppression never sets a finding aside; Draugr writes none.
+	Status string `json:"status,omitempty"`
 	// Justification is why. SARIF makes it optional; Draugr always writes one for the
 	// suppressions it creates, because an exclusion without a stated reason is how a scanner
 	// gets quietly defanged.
@@ -772,6 +775,13 @@ func parseSecuritySeverity(p *sarifProperties) (float64, bool) {
 func readSuppression(sups []sarifSuppression) *Suppression {
 	if len(sups) == 0 {
 		return nil
+	}
+	// Set aside only where every entry stands, as for another tool's file: a rejected or underReview
+	// entry is a request the team declined or has not decided.
+	for _, s := range sups {
+		if !suppressionStands(s.Status) {
+			return nil
+		}
 	}
 	first := sups[0]
 	sup := &Suppression{Kind: first.Kind, Justification: first.Justification, Origin: scannersOwn(first.Kind)}
