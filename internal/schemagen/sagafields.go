@@ -474,6 +474,28 @@ func sagaFields() map[string]map[string]any {
 			"description": "The SARIF 2.1.0 file, relative to where Draugr runs.",
 			"minLength":   1,
 		},
+		"import.severity": {
+			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +
+				"Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it.",
+		},
+		"importSeverity.property": {
+			"description": "The result property holding the tool's rating, read from the result and else from its rule.",
+			"minLength":   1,
+		},
+		"importSeverity.values": {
+			"additionalProperties": map[string]any{
+				"anyOf": vocab(sarif.Severities,
+					valueDoc{"critical", "The most severe band, which a SARIF level alone never reaches."},
+					valueDoc{"high", "The band SARIF level error gives."},
+					valueDoc{"medium", "The band SARIF level warning gives."},
+					valueDoc{"low", "The band SARIF level note gives."},
+				),
+				"type": "string",
+			},
+			"description": "Each value the tool writes, matched regardless of case, and the severity it means. A " +
+				"value not listed leaves the finding on its SARIF level.",
+			"minProperties": 1,
+		},
 		"issueItem.labels": {
 			"description": "github-issue, gitlab-issue: labels applied beside the tracking label.",
 			"items": map[string]any{
@@ -1000,6 +1022,10 @@ func sagaDefinitions() map[string]map[string]any {
 		"import": {
 			"description": "A SARIF file another tool wrote about this component, read into one of Draugr's controls.",
 			"required":    []any{"control", "file"},
+		},
+		"importSeverity": {
+			"description": "The result property a tool states its rating in, and the severity each of its values means.",
+			"required":    []any{"property", "values"},
 		},
 		"issueItem": {
 			"description": "Metadata set on an issue or work item when it is created. A later run adds back a " +

@@ -27,11 +27,12 @@ The file is read as SARIF 2.1.0:
 
 - **Severity** comes from each result's `security-severity` property, a CVSS-style score written as
   a string such as `"7.5"`, the convention GitHub code scanning reads, or as a number. A result with
-  none inherits its rule's. A result without one, in a file Bandit wrote, is rated from its
-  `issue_severity` and `issue_confidence` (see [Bandit](#bandit)). Any other result falls back to
-  its `level`, mapped as every other SARIF level is: `error` to high, `warning` to medium, `note`
-  to low.
-  - A file that states only levels never yields a critical finding.
+  none inherits its rule's. A result without one is rated by its tool's own rating where Draugr has
+  a table for the tool, or the import's [`severity`](#a-tool-draugr-has-no-table-for) mapping where
+  the descriptor gives one (see [Each tool's own rating](#each-tools-own-rating)). Any other result
+  falls back to its `level`, mapped as every other SARIF level is: `error` to high, `warning` to
+  medium, `note` to low.
+  - A file rated by level alone never yields a critical finding.
   - A tool that writes only `warning` produces medium findings. A medium finding ranks P2 at most,
     so with the default gate, which fails on P1, such a file cannot fail the run unless KEV or EPSS
     raises a finding whose rule id holds a CVE.
@@ -42,8 +43,9 @@ The file is read as SARIF 2.1.0:
   points at in the run's `tool.driver.rules`.
 - **Other result properties are ignored.** Draugr's own `priority`, `aside` and suppression origin
   have no effect in a file another tool wrote. The properties read are `security-severity`,
-  `package` (an object), `purls`, `tags`, Bandit's `issue_severity` and `issue_confidence`, and a
-  suppression's `kind` and `justification`, which make it the tool's own.
+  `package` (an object), `purls`, `tags`, the rating properties each tool's table names and the
+  one the import's mapping names, and a suppression's `kind` and `justification`, which make it the
+  tool's own.
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
 
 ## Before you import
@@ -156,12 +158,40 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `tool` | the tool's name and version, as the file states them |
 | `file` | the path the descriptor gave |
 | `written` | when the file says its run ended (`invocations[].endTimeUtc`), or else the file's modification time |
-| `severity` | where severities came from: `security-severity`, `issue_severity and issue_confidence`, `SARIF level`, or a count of each |
+| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5` |
 | `commit` | the commit the file was checked against, or `not stated` |
 | `component` | the component that imports it |
 | `sha256` | the file's content, so a run can be checked against the file it read |
 
-## Bandit
+## Each tool's own rating
+
+Most tools state their own rating somewhere in the file besides the level. For the tools below,
+Draugr reads it by a table taken from the tool's documentation or its source, named under each. A
+table applies to a run whose `tool.driver.name` is the name shown, compared regardless of case, and
+to no other run: another tool writing a property of the same name has not said it means the same
+thing by it.
+
+- **A numeric `security-severity` still decides first.** A table rates only a result without one.
+- **A result the table has no row for keeps its level.**
+- **A property is read from the result, and else from its rule**, the way `security-severity` is.
+- **The finding records the row that applied.** The report prints the tool's words on the
+  finding's evidence line, such as `severity tag medium`, and `results.sarif` keeps the tool's level
+  and adds the result property `draugr/rating`, holding the severity, that line, and the properties
+  read with the tool's values.
+
+| Tool, as `tool.driver.name` | Rating read | Source |
+|---|---|---|
+| `Bandit` | `issue_severity`, `issue_confidence` | [Bandit](#bandit) |
+| `gosec` | the rule's severity tag | [gosec](#gosec) |
+| `CodeQL` | `problem.severity` | [CodeQL](#codeql) |
+| `Micro Focus Fortify Static Code Analyzer` | `Impact`, `Accuracy`, `Probability`, `Confidence` | [Fortify](#fortify) |
+| `dependency-check` | CVSS properties, `severity`, the rule's summary | [OWASP dependency-check](#owasp-dependency-check) |
+| `Snyk Open Source` | the rule's summary | [Snyk](#snyk) |
+
+A tool not listed is rated by its level, unless the import names a mapping
+([A tool Draugr has no table for](#a-tool-draugr-has-no-table-for)).
+
+### Bandit
 
 A result in a run whose `tool.driver.name` is `Bandit` is rated from the two result properties
 Bandit writes, `issue_severity` and `issue_confidence`, each `LOW`, `MEDIUM` or `HIGH`, by the table
@@ -178,11 +208,143 @@ a result Bandit rates `LOW` confidence, which is one level lower. Bandit has no 
 nothing it reports is critical. A result with an `issue_severity` outside the three, such as
 `UNDEFINED`, keeps its level, and a result carrying a `security-severity` keeps that.
 
-The report prints the rating on the finding's evidence line in Bandit's own terms,
-`issue_severity medium`, with `issue_confidence low` added where Bandit rated the confidence `LOW`.
-`results.sarif` keeps Bandit's level and adds the result property `draugr/rating`, which holds the
-severity, that line, and both properties with Bandit's value. A file another tool wrote is not rated this way, whatever its
-properties are called.
+The evidence line reads `issue_severity medium`, with `issue_confidence low` added where Bandit
+rated the confidence `LOW`. The provenance's `severity` field reads `issue_severity and
+issue_confidence`.
+
+### gosec
+
+gosec states its rating only as a tag on the rule, `"tags": ["security", "MEDIUM"]`, and writes the
+level `error` for a `MEDIUM` rule as well as a `HIGH` one, and `warning` for a `LOW` one. Read by
+level, a `MEDIUM` finding ranks high and a `LOW` one medium, a band above where gosec put each.
+
+| severity tag | severity | level gosec writes |
+|---|---|---|
+| `HIGH` | high | `error` |
+| `MEDIUM` | medium | `error` |
+| `LOW` | low | `warning` |
+
+Source: gosec's SARIF writer,
+[`report/sarif/formatter.go`](https://github.com/securego/gosec/blob/244f1f6f4d1d0d14f89e79a73dab1219eabb5228/report/sarif/formatter.go)
+(`parseSarifRule` and `getSarifLevel`). It is the table Draugr's own [gosec](gosec.md) scanner
+reads, so an imported gosec file ranks each finding as a gosec run by Draugr does. gosec has no rung
+above `HIGH`, so nothing it reports is critical. Its confidence, written as the rule's `precision`,
+is not read, as the gosec scanner does not read it. The evidence line reads `severity tag medium`.
+
+### CodeQL
+
+A CodeQL security query carries `security-severity` on its rule, which is read first. A query without
+one is rated from its rule's `problem.severity`:
+
+| `problem.severity` | severity |
+|---|---|
+| `error` | high |
+| `warning` | medium |
+| `recommendation` | low |
+
+Source: CodeQL's
+[query metadata style guide](https://github.com/github/codeql/blob/57bace85f49150248166ec49587bcbb1fa53c440/docs/query-metadata-style-guide.md),
+where `error` is "likely to cause incorrect program behavior, for example a crash or vulnerability",
+`warning` "a potential problem", and `recommendation` code that "behaves correctly, but it could be
+improved". The guide maps none of them to a band. These are the bands of the level CodeQL writes for
+each, `error`, `warning` and `note`, so the rating names CodeQL's word without moving any finding.
+The evidence line reads `problem.severity warning`.
+
+### Fortify
+
+A file Fortify Static Code Analyzer writes carries `Impact`, `Accuracy` and `Probability` on each
+rule and `Confidence` on each result, each from 0 to 5. Fortify ranks a finding by impact and
+likelihood:
+
+```text
+likelihood = Accuracy × Confidence × Probability / 25
+```
+
+| | likelihood 2.5 or more | likelihood below 2.5 |
+|---|---|---|
+| `Impact` 2.5 or more | critical | high |
+| `Impact` below 2.5 | medium | low |
+
+Source: Fortify's own computation in fcli,
+[`VulnFinalizer.java`](https://github.com/fortify/fcli/blob/d3f24cc9763f8889a232a08167f0a1bde31a89da/fcli-core/fcli-common-fpr/src/main/java/com/fortify/cli/common/fpr/processor/VulnFinalizer.java)
+(`deriveFields`), whose four priorities, Critical, High, Medium and Low, are the severities of the
+same names. A value of exactly 2.5 counts as high, as Fortify counts it. A result missing any of the
+four values keeps its level: Fortify fills a missing one from category data the file does not carry.
+The evidence line reads `Impact 3.0 · likelihood 3.2`.
+
+A file Fortify on Demand writes through fcli scores every result with `security-severity`, which is
+read before any table, so it needs none.
+
+### OWASP dependency-check
+
+dependency-check writes `security-severity` wherever an advisory has a CVSS v3 or v4 score, and it
+is read first. Otherwise the rating is the first of these the file states:
+
+| Read | severity |
+|---|---|
+| `cvssv3_baseSeverity` | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` to the band of the same name |
+| `cvssv2_score` | banded as every score is: 9.0 or more critical, 7.0 high, 4.0 medium, below that low |
+| `cvssv2_severity`, where no v2 score is written | `HIGH`, `MEDIUM`, `LOW` to the band of the same name |
+| `severity`, for an advisory with no CVSS score | `critical`, `high`, `medium` and `moderate` to medium, `low`, `info` and `informational` to low |
+| the rule's summary, `medium severity - CVE-…` | the same words as `severity` |
+
+Sources: dependency-check's SARIF template,
+[`sarifReport.vsl`](https://github.com/dependency-check/DependencyCheck/blob/ae861fc07f84e3d0be75c2ed2e46b498bc03bcc1/core/src/main/resources/templates/sarifReport.vsl),
+which writes the properties on the rule (version 6 wrote them on the result), and
+[`ReportTool.java`](https://github.com/dependency-check/DependencyCheck/blob/ae861fc07f84e3d0be75c2ed2e46b498bc03bcc1/core/src/main/java/org/owasp/dependencycheck/reporting/ReportTool.java),
+whose `normalizeSeverity` gives the words and `buildShortDescription` the summary. The CVSS v3 words
+are the qualitative ratings of the
+[CVSS v3.1 specification](https://www.first.org/cvss/v3.1/specification-document), section 5.
+
+CVSS v2 defines no critical rating, so a v2 score of 9.0 or more is rated critical, the higher of the
+two readings, rather than the `HIGH` its `cvssv2_severity` says. `unknown` rates nothing. The
+evidence line names the property read, as in `cvssv3_baseSeverity medium`.
+
+### Snyk
+
+Snyk Open Source writes `security-severity` from an advisory's CVSS score, which is read first, and
+opens each rule's summary with its own rating: `High severity - Prototype Pollution vulnerability in
+lodash`. An advisory with no CVSS score, such as a license issue, is rated from that word:
+
+| Summary opens | severity |
+|---|---|
+| `Critical severity - ` | critical |
+| `High severity - ` | high |
+| `Medium severity - ` | medium |
+| `Low severity - ` | low |
+
+Source: Snyk's CLI,
+[`open-source-sarif-output.ts`](https://github.com/snyk/cli/blob/c8a6dc1b8b0df471b3f048c69b86a06d7eea4dd3/src/lib/formatters/open-source-sarif-output.ts)
+(`getRules`). The level Snyk writes is `error` for critical and high alike
+([`get-sarif-result.ts`](https://github.com/snyk/cli/blob/c8a6dc1b8b0df471b3f048c69b86a06d7eea4dd3/src/lib/formatters/get-sarif-result.ts),
+`getLevel`), so without the summary a critical advisory with no score ranks high.
+
+Snyk Code, `SnykCode` in the file, needs no table: its level is its rating, `error` high, `warning`
+medium and `note` low, as Snyk's own code reads it back (`SarifLevelToSeverity` in
+[`go-application-framework`](https://github.com/snyk/go-application-framework/blob/2362bfa6f85ae5b935bd49cb77e569c402c95516/pkg/utils/sarif/sarif.go)),
+and it has no critical rung. Its `priorityScore` is not read: Snyk publishes no mapping from it to a
+severity, and it adds things that are not how bad the flaw is, such as how often it occurs and
+whether fix examples exist.
+
+### A tool Draugr has no table for
+
+The import's `severity` names the result property the tool rates in and the severity each of its
+values means ([`components[].imports`](../../docs/reference/saga-schema.md#componentsimports)):
+
+```yaml
+imports:
+  - control: sast
+    file: reports/acme.sarif
+    severity:
+      property: acme-severity
+      values: {Blocker: critical, Major: high, Minor: medium, Info: low}
+```
+
+Values match regardless of case and space, and a number matches however it is written. A list, such
+as a rule's `tags`, takes the most severe value the mapping names. A value it does not name keeps the
+level. The mapping replaces Draugr's table for a tool it has one for. The evidence line reads
+`acme-severity Blocker`, and the provenance's `severity` field `acme-severity, mapped by the
+descriptor`.
 
 ## Commit
 

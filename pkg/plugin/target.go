@@ -1,10 +1,13 @@
 package plugin
 
 import (
+	"maps"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -435,6 +438,8 @@ type FileTarget struct {
 	// Repositories are the component's repositories, which the file has to describe: one that
 	// states the revision it scanned is held to the revision this run reads.
 	Repositories []RepositoryTarget
+	// Severity is the descriptor's mapping of the tool's own rating, nil where it gives none.
+	Severity *saga.ImportSeverity
 }
 
 // Kind returns TargetFile.
@@ -445,13 +450,20 @@ func (FileTarget) Kind() TargetKind { return TargetFile }
 func (t FileTarget) Identity() string { return t.Path }
 
 // CacheDetail is the file's content, so the same path holding different findings is a different
-// scan, and the repositories it is read against. What the import makes of a file depends on them,
-// the revision it is held to and the repository its findings are placed in, so two components that
-// import one file into different repositories are two scans rather than one shared answer.
+// scan; the repositories it is read against, because what the import makes of a file depends on
+// them, the revision it is held to and the repository its findings are placed in; and the
+// descriptor's mapping of its tool's rating where it gives one.
 func (t FileTarget) CacheDetail() string {
 	detail := "sha256=" + t.Digest
 	for _, r := range t.Repositories {
 		detail += " repo=" + r.Identity()
 	}
-	return detail
+	if t.Severity == nil {
+		return detail
+	}
+	values := make([]string, 0, len(t.Severity.Values))
+	for _, k := range slices.Sorted(maps.Keys(t.Severity.Values)) {
+		values = append(values, strconv.Quote(k)+"="+strconv.Quote(t.Severity.Values[k]))
+	}
+	return detail + " severity=" + strconv.Quote(t.Severity.Property) + ":" + strings.Join(values, ",")
 }

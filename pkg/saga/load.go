@@ -138,6 +138,7 @@ var sections = map[string]string{
 	"vexrepository":  "config.vexSources[].repository",
 	"component":      "components",
 	"import":         "components[].imports",
+	"importseverity": "components[].imports[].severity",
 	"repository":     "components[].repositories",
 	"image":          "components[].images",
 	"host":           "components[].hosts",

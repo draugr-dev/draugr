@@ -43,8 +43,8 @@ func TestSeverityFromScoreBands(t *testing.T) {
 		{3.9, SeverityLow}, {0.0, SeverityLow},
 	}
 	for _, tc := range cases {
-		if got := severityFromScore(tc.score); got != tc.want {
-			t.Errorf("severityFromScore(%.1f) = %q, want %q", tc.score, got, tc.want)
+		if got := SeverityFromScore(tc.score); got != tc.want {
+			t.Errorf("SeverityFromScore(%.1f) = %q, want %q", tc.score, got, tc.want)
 		}
 	}
 }

@@ -24,9 +24,14 @@ first import meets:
   only where its `versionControlProvenance` names the repository it scanned.
   [Merging with the control's scanners](../../internal/scanners/sarif-import.md#merging-with-the-controls-scanners)
   lists what stays apart, such as Bandit's rule beside Semgrep's on the same line.
-- **Severity comes from `security-severity`, written as a string or a number, or from the level.**
-  A file that states only levels never yields critical, and one that writes only `warning` ranks P2 at most,
-  below the default gate, unless KEV or EPSS raises a finding whose rule id is a CVE.
+- **Severity comes from `security-severity`, written as a string or a number, then from the tool's
+  own rating, then from the level.** Draugr reads the rating Bandit, gosec, CodeQL, Fortify Static
+  Code Analyzer, OWASP dependency-check and Snyk Open Source write
+  ([each tool's own rating](../../internal/scanners/sarif-import.md#each-tools-own-rating)). For
+  another tool, name the property it rates in with the import's
+  [`severity`](../reference/saga-schema.md#componentsimports). A file rated by level alone never
+  yields critical, and one that writes only `warning` ranks P2 at most, below the default gate,
+  unless KEV or EPSS raises a finding whose rule id is a CVE.
 - **A dependency finding's package and fix are read where the tool states them**, for Trivy's,
   Grype's and OSV-Scanner's files, so their findings in one package become one upgrade to the
   release that clears them. [Dependency findings](../../internal/scanners/sarif-import.md#dependency-findings)
