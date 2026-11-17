@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.182.0] - 2026-11-17
+
+### Added
+
+- **Import Trivy's and govulncheck's own JSON.** Set `format: trivy-json` or `format: govulncheck-json` on an import, and Draugr reads the file as its own run of that tool would, keeping each finding's package, fixed version and package URL. Bound with `commit:`, a govulncheck file's reachability verdicts apply; unbound, its unreachable verdicts lower nothing.
+
+- **Imported SARIF findings the tool itself suppressed now show in ACCEPTED, and `suppressions: count` counts them.** Each imported tool gets its own row, such as `imported bandit  2 findings the tool suppressed, not counted`. `--evidence` lists where each was recorded and why, or `no reason given`.
+
+### Fixed
+
+- **A `config.exclude` path copied with its line, such as `deploy/rbac.yaml:18`, is refused instead of matching nothing.** `draugr validate` and `draugr scan` name the file to write, and say it sets aside every finding of the entry's rules in that file, not only that line.
+
+- **A Dockerfile with no `USER` whose entrypoint script drops to another user now gets a `DS-0002` finding that names that line, instead of asking for `USER`.** This applies where every root start ends in `exec su-exec`, `gosu`, `setpriv`, `runuser -u`, `s6-setuidgid` or `chpst -u`. It is listed after the rest of its band; band and gate count are unchanged.
+
+- **The `config.exclude` entry under `TRY` now includes `paths` and `expires`, so copying it no longer excludes the rule everywhere.** Before, the entry carried only the rule, so a copy set aside every finding of that rule in every file, including ones added later.
+
 ## [0.181.1] - 2026-11-17
 
 ### Fixed
@@ -7327,7 +7343,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.181.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.182.0...HEAD
+[0.182.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.182.0
 [0.181.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.1
 [0.181.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.0
 [0.180.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.180.0

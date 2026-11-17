@@ -1,1 +1,0 @@
-- **An imported tool's suppressed findings are named in ACCEPTED, and an import can count them.** Each imported SARIF tool gets its own row, such as `imported bandit  2 findings the tool suppressed, not counted`, and `--evidence` lists where each was recorded and why, or `no reason given`. `suppressions: count` on an import counts them instead.

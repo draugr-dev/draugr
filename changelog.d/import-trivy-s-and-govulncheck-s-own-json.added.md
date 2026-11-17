@@ -1,1 +1,0 @@
-- **Import Trivy's and govulncheck's own JSON.** Set `format: trivy-json` or `format: govulncheck-json` on an import, and Draugr reads the file as its own run of that tool would, keeping each finding's package, fixed version and package URL. Bound with `commit:`, a govulncheck file's reachability verdicts apply; unbound, its unreachable verdicts lower nothing.

@@ -1,1 +1,0 @@
-- **A `config.exclude` path copied with its line, such as `deploy/rbac.yaml:18`, is refused instead of matching nothing.** `draugr validate` and `draugr scan` name the file to write, and say it sets aside every finding of the entry's rules in that file, not only that line.
