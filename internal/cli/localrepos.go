@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"path"
 	"strings"
 
@@ -37,6 +38,44 @@ func rootLocalRepositories(ctx context.Context, m *saga.Model) {
 			r.Ignore = under(rel, r.Ignore)
 		}
 	}
+}
+
+// exclusionTrees returns the trees `config.exclude` paths are matched against: the root of each
+// repository the descriptor names that is a directory on this machine, the root of its work tree
+// where it is in one, since a finding's path is relative to that root. Each once, in the order the
+// descriptor names them.
+//
+// A repository named by a remote URL adds nothing. Its tree exists only inside the scan's own
+// checkout, after the descriptor has been accepted, so its exclusions are checked by the scan's
+// report instead, which names one that matched nothing.
+func exclusionTrees(ctx context.Context, m *saga.Model) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, c := range m.Components {
+		for _, r := range c.Repositories {
+			root, _, ok := git.Subdirectory(ctx, r.URL)
+			if !ok {
+				if !git.IsLocalPath(r.URL) {
+					continue
+				}
+				root = r.URL
+			}
+			if !seen[root] {
+				seen[root] = true
+				out = append(out, root)
+			}
+		}
+	}
+	return out
+}
+
+// checkExclusionLines refuses an exclusion path that names a line in a file of one of the
+// descriptor's local repositories, for validate and scan alike.
+func checkExclusionLines(ctx context.Context, m *saga.Model) error {
+	if m == nil || len(m.Config.Exclude) == 0 {
+		return nil
+	}
+	return errors.Join(m.ExcludeLineErrors(exclusionTrees(ctx, m))...)
 }
 
 // under joins each entry to dir, keeping a trailing slash, which marks a directory pattern.

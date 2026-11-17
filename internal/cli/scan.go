@@ -274,6 +274,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		_, _ = io.WriteString(os.Stderr, zeroConfigNotice(model))
 	}
 	rootLocalRepositories(ctx, model)
+	// Refused before anything runs, as validate refuses it: an exclusion naming a line matches no
+	// finding, and a run that went ahead would count the finding its author believes is set aside.
+	if err := checkExclusionLines(ctx, model); err != nil {
+		return err
+	}
 	// Organization defaults are merged *underneath* the descriptor, so the engine sees one
 	// effective Saga and nothing downstream has to know there were two files. Merged after the
 	// descriptor has been validated on its own, so an error still names what the author wrote.

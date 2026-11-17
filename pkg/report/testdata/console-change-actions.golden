@@ -16,9 +16,11 @@ WHAT TO DO  2 actions clear 3 findings
       app.py:12 · semgrep: debug-enabled
 
 TRY
-  --view compact                       one line each, to see how much there is
-  --view findings                      the findings themselves, one row each
-  config.exclude                       set aside; findings stay, suppressed
+  --view compact                     one line each, to see how much there is
+  --view findings                    the findings themselves, one row each
+  config.exclude                     set aside; findings stay, suppressed
     - rules: [<full rule id>]
-      reason: <why it does not apply>
-  draugr explain <rule>                what a rule means and how to fix it, from .draugr/out
+      paths: [<file without :line>]
+      reason: <why it is set aside>
+      expires: <YYYY-MM-DD>
+  draugr explain <rule>              what a rule means and how to fix it, from .draugr/out

@@ -113,7 +113,9 @@ TRY
   --view actions                           the same findings as a list of things to do
   config.exclude                           set aside; findings stay, suppressed
     - rules: [<full rule id>]
-      reason: <why it does not apply>
+      paths: [<file without :line>]
+      reason: <why it is set aside>
+      expires: <YYYY-MM-DD>
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out
 draugr: policy verdict: fail
 ```
