@@ -488,6 +488,9 @@ type rankKeys struct {
 	// where the nearest is set aside, 2 where every one is under docs, examples or tests.
 	later    int
 	priority string
+	// dropped is the least droppedOrder among what it clears: 1 where the entrypoint of every image
+	// it is about starts the application as another user, 0 otherwise.
+	dropped int
 	// severity is the worst severity it clears, as the band was computed from it.
 	severity sarif.Severity
 	// reported is the worst severity it clears as the scanners reported it, before KEV, EPSS or
@@ -521,7 +524,7 @@ func rankByPackage(actions []action) {
 		g := a.group()
 		k, ok := keys[g]
 		if !ok {
-			k = &rankKeys{priority: a.priority, later: maxLaterRank}
+			k = &rankKeys{priority: a.priority, later: maxLaterRank, dropped: 1}
 			keys[g] = k
 		}
 		if moreUrgentBand(a.priority, k.priority) {
@@ -531,6 +534,7 @@ func rankByPackage(actions []action) {
 			if l := laterRank(f); l < k.later {
 				k.later = l
 			}
+			k.dropped = min(k.dropped, droppedOrder(f))
 			if s := rankedSeverity(f); s.Rank() > k.severity.Rank() {
 				k.severity = s
 			}
@@ -629,9 +633,10 @@ func commonComponent(fs []finding) string {
 // ones, because the change it asks for reaches what ships.
 //
 // Then priority, always. An action clearing one P1 outranks one clearing forty P4s, because a P1
-// is not something to trade away for volume. Inside a band, exploitation evidence comes next: a
-// flaw on KEV has been used against somebody, and EPSS estimates that it will be, which no rating
-// of how bad a flaw would be can say. Then severity, the rating the band was computed from. Count
+// is not something to trade away for volume. Inside a band, an action whose every finding is an
+// image its entrypoint already starts as another user comes after the rest, as sortFindings lists
+// those findings. Then exploitation evidence: a flaw on KEV has been used against somebody, and EPSS
+// estimates that it will be, which no rating of how bad a flaw would be can say. Then severity, the rating the band was computed from. Count
 // decides only between actions alike in all three, because a scanner that reports one finding per
 // package per advisory makes volume a measure of how it splits its output more than of urgency.
 func moreUrgent(a, b action) bool {
@@ -641,6 +646,9 @@ func moreUrgent(a, b action) bool {
 	}
 	if ra.priority != rb.priority {
 		return moreUrgentBand(ra.priority, rb.priority)
+	}
+	if ra.dropped != rb.dropped {
+		return ra.dropped < rb.dropped
 	}
 	if ra.signal != rb.signal {
 		return ra.signal > rb.signal
@@ -772,7 +780,11 @@ func actionFor(f finding) (key, title string, kind skald.ActionKind, byRule bool
 		return lineKeyOf(f), title, ruleKind(f), false
 
 	// The same rule in several places is one thing to understand and apply, whether that is a
-	// missing directive in three Dockerfiles or a credential committed to four files.
+	// missing directive in three Dockerfiles or a credential committed to four files. Except a
+	// Dockerfile whose entrypoint already drops root, which the findings list places after the rest
+	// of its band: grouped with one that runs as root, it would rank as that one does.
+	case f.privilegeDrop != nil:
+		return f.control + "\x00" + f.ruleID + "\x00dropped", titleFor(f), ruleKind(f), true
 	default:
 		return f.control + "\x00" + f.ruleID, titleFor(f), ruleKind(f), true
 	}

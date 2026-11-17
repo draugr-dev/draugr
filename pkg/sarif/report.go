@@ -252,6 +252,13 @@ type Result struct {
 	// repository holds and its maintainer can change, and Module says where in the module the
 	// setting is.
 	Module *Module `json:"module,omitempty"`
+	// PrivilegeDrop is where the entrypoint script of an image a finding says runs as root starts the
+	// application as another user instead. Nil wherever that was not read in the script, which is
+	// every finding but a Dockerfile's "image user should not be root".
+	//
+	// Evidence, never a verdict: the band and the counts stay as they are, and the finding is listed
+	// after the others in its band. Not part of Fingerprint, for the reason Escalation is not.
+	PrivilegeDrop *PrivilegeDrop `json:"privilegeDrop,omitempty"`
 	// Aliases are the other identifiers the scanner reported for this same finding, beside the one
 	// its rule id carries. retire.js names an advisory's CVEs and its GitHub advisory id together,
 	// and a rule id holds one of them; govulncheck names the Go advisory id beside the CVE or GitHub
@@ -434,6 +441,24 @@ type Module struct {
 	// File and Line are where in the module the finding is, the path relative to the module.
 	File string `json:"file,omitempty"`
 	Line int    `json:"line,omitempty"`
+}
+
+// PrivilegeDrop is the line of an image's entrypoint script that starts the application as a user
+// other than root, on every path a start as root takes through the script.
+//
+// It answers a check that reads only the Dockerfile. A Dockerfile without `USER` runs its entrypoint
+// as root, and a script that chowns a volume and then hands over with `exec su-exec app "$@"` needs
+// to start that way. The record says which line of which file hands over, so a reader can check it.
+type PrivilegeDrop struct {
+	// Command is the program that switches user: su-exec, gosu, setpriv, runuser, s6-setuidgid or
+	// chpst.
+	Command string `json:"command"`
+	// User is the user it switches to, as the script writes it with its quotes removed: `app`,
+	// `1000:1000` or `$PUID:$PGID`.
+	User string `json:"user"`
+	// File is the script, relative to the repository root, and Line the line of the switch.
+	File string `json:"file"`
+	Line int    `json:"line"`
 }
 
 // Package is the dependency a finding is about.

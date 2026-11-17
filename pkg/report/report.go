@@ -764,6 +764,10 @@ type finding struct {
 	reporter string
 	// module is the downloaded Terraform module the finding lies in, nil where it lies in none.
 	module *sarif.Module
+	// privilegeDrop is the line of the image's entrypoint script that starts the application as
+	// another user, on a finding saying the image runs as root. It lists the finding after the rest of
+	// its band and is shown beside the location; the band is unchanged.
+	privilegeDrop *sarif.PrivilegeDrop
 	// detail is the scanner's sentence about this occurrence, where the message is the rule's title.
 	detail                                             string
 	control, ruleID, tool, priority, location, message string
@@ -1127,6 +1131,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		builtUpstream:   res.BuiltUpstream,
 		pkg:             res.Package,
 		module:          res.Module,
+		privilegeDrop:   res.PrivilegeDrop,
 		operatingSystem: res.OperatingSystem,
 		upgradePolicy:   res.UpgradePolicy,
 		policyFrom:      res.UpgradePolicyFrom,
@@ -1165,6 +1170,27 @@ func laterRank(f finding) int {
 		return 1
 	}
 	return 0
+}
+
+// droppedOrder places a finding inside its band: 1 where the image's entrypoint script starts the
+// application as another user (sarif.Result.PrivilegeDrop), which lists it after the rest, and 0
+// otherwise. groupActions ranks an action by the least of its findings', so an action clearing one
+// finding without that evidence ranks as that finding does.
+func droppedOrder(f finding) int {
+	if f.privilegeDrop != nil {
+		return 1
+	}
+	return 0
+}
+
+// privilegeDropNote is the line under a finding naming the entrypoint line that starts the
+// application as another user, "entrypoint drops root: su-exec in entrypoint.sh:12", or "" for a
+// finding without one.
+func privilegeDropNote(d *sarif.PrivilegeDrop) string {
+	if d == nil {
+		return ""
+	}
+	return fmt.Sprintf("entrypoint drops root: %s in %s:%d", d.Command, d.File, d.Line)
 }
 
 // reachabilityOrder ranks what reachability analysis said of a finding, for ordering inside a band:
@@ -1223,6 +1249,16 @@ func rankOrder(a, b finding) int {
 	}
 	if ra, rb := prioritization.Priority(a.priority).Rank(), prioritization.Priority(b.priority).Rank(); ra != rb {
 		return firstIf(ra > rb)
+	}
+	// Within a band, a finding the image's own entrypoint already answers comes after the rest: a
+	// Dockerfile that sets no USER, whose entrypoint script starts the application as another user on
+	// every path a start as root takes.
+	//
+	// Not by changing the band, which is only the evidence of one script that Draugr read, and the
+	// finding is still counted where the scanner put it. Before every other key in the band, because
+	// a finding whose fix is already in place is not the one to start on, however its severity reads.
+	if da, db := droppedOrder(a), droppedOrder(b); da != db {
+		return firstIf(da < db)
 	}
 	// Within a band, what somebody can act on comes first.
 	//

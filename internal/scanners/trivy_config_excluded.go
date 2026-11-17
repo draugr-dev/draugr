@@ -28,7 +28,8 @@ const trivyConfigExclusionsArg = "--show-suppressed"
 
 // trivyConfigRun wraps the run of a misconfiguration scan. A command asking for what Trivy excluded
 // writes JSON, which is converted to SARIF with the exclusions added; any other command's output is
-// returned as it was. Either way the Terraform modules Trivy's log says it could not load or did not
+// returned as Trivy wrote it. Either way a DS-0002 finding whose entrypoint script drops root carries
+// that line (see withEntrypointDrops), and the Terraform modules Trivy's log says it could not load or did not
 // evaluate, and the Helm charts it could not render, are returned beside it (see
 // trivyUnloadedModules, trivyUnevaluatedModules and trivySkippedCharts).
 func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (stdout, stderr []byte, err error)) func(context.Context, string, []string) ([]byte, []sarif.Input, error) {
@@ -40,6 +41,10 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		unread := mergeUnread(slices.Concat(trivyUnloadedModules(stderr, dir), trivyUnevaluatedModules(stderr, dir),
 			trivySkippedCharts(stderr, dir)))
 		if !slices.Contains(argv, trivyConfigExclusionsArg) {
+			out, err = withEntrypointDrops(out, dir)
+			if err != nil {
+				return nil, nil, err
+			}
 			return out, unread, nil
 		}
 		report, excluded, err := trivyConfigReport(out)
@@ -72,6 +77,9 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		}
 		out, err = withTrivyMisconfigExclusions(sarifOut, excluded)
 		if err != nil {
+			return nil, nil, err
+		}
+		if out, err = withEntrypointDrops(out, dir); err != nil {
 			return nil, nil, err
 		}
 		return out, unread, nil

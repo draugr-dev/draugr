@@ -327,6 +327,10 @@ type findingReport struct {
 	// Undecided says the finding is a benchmark check the scanner referred to a person rather than
 	// decided, so nothing was seen to fail. Absent on every finding a scanner reached a verdict on.
 	Undecided bool `json:"undecided,omitempty"`
+	// PrivilegeDrop is the line of the image's entrypoint script that starts the application as
+	// another user, on a Dockerfile finding that says the image runs as root. Evidence that orders the
+	// finding after the rest of its band and leaves the band as it is. Absent on every other finding.
+	PrivilegeDrop *sarif.PrivilegeDrop `json:"privilegeDrop,omitempty"`
 	// Suppressed says a config.exclude rule set this finding aside, with the reason somebody gave.
 	//
 	// Kept in the list rather than filtered out of it, which is what "suppress, don't delete"
@@ -1403,6 +1407,7 @@ func toFinding(control string, res sarif.Result) findingReport {
 		Aside:         res.Aside,
 		Platforms:     res.Platforms,
 		Undecided:     res.Undecided,
+		PrivilegeDrop: res.PrivilegeDrop,
 	}
 }
 

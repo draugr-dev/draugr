@@ -113,7 +113,9 @@ show them.
 
 This is the order of `--view findings`. Priority decides it. Where two
 findings share a band, the one somebody can act on is listed first, a package with a fix, then a release that can be moved, then one with no published fix, and
-last the ones that belong to a provider.
+last the ones that belong to a provider. Before that, a Dockerfile finding whose
+[entrypoint already drops root](../../internal/scanners/trivy-config.md#images-whose-entrypoint-drops-root)
+comes after the rest of its band.
 
 A rule that fires many times is one decision, so its findings share one row, counted beside the
 rule as `G115 · 250 findings in 18 files`. The row shows the first finding's location, except that a
@@ -138,22 +140,25 @@ To order two rows in one list, compare them key by key from the top. The first k
 
 1. **Priority.** The highest band among the findings the action clears. An action clearing one P1
    outranks one clearing forty P4s, and an action with no band comes after every action with one.
-2. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities (KEV)
+2. **Root already dropped.** An action whose every finding is a Dockerfile whose
+   [entrypoint starts the application as another user](../../internal/scanners/trivy-config.md#images-whose-entrypoint-drops-root)
+   comes after the rest of its band. Its band and its count are unchanged.
+3. **Exploitation.** An action clearing a finding on CISA's Known Exploited Vulnerabilities (KEV)
    catalog comes first in its band, whether or not KEV raised that finding. Next comes an action
    clearing a finding that EPSS raised past its threshold. EPSS is a daily estimate of how likely a
    flaw is to be exploited in the next 30 days. Both apply only where
    [`config.exploitability`](prioritization.md#exploitability) turns them on.
-3. **Severity.** The highest severity among its findings, after adjustment:
+4. **Severity.** The highest severity among its findings, after adjustment:
    - the severity KEV or EPSS raised it to, where one did;
    - else the severity reachability analysis lowered it to, where the vulnerable code is never
      called;
    - else the scanner's own rating.
-4. **Count.** How many findings it clears.
-5. **The step within the policy.** Of the two steps of one package's upgrade, the one within the
+5. **Count.** How many findings it clears.
+6. **The step within the policy.** Of the two steps of one package's upgrade, the one within the
    component's [`fixes.upgrade`](../reference/saga-schema.md#configfixes) comes first, because the
    other presumes it. Both steps rank together, by what either clears, so they sit side by side.
 
-Where two rows match on all five, the one whose most urgent finding comes first in
+Where two rows match on all six, the one whose most urgent finding comes first in
 `--view findings` comes first, and that list ends on component, repository, location and rule. The
 same findings therefore produce the same list on every run.
 
@@ -165,8 +170,8 @@ image would outrank a single flaw on KEV.
 was ranked by: `priority`, `exploitation` with the CVE on KEV or the CVE EPSS raised, `severity`
 with `severityFrom` where an adjustment moved it, and `clears`. The band, the KEV listing as
 `exploited`, the escalation naming `kev` or `epss` with the date its data was fetched, and the
-severity with what adjusted it are also on each finding in `report.json` and `results.sarif`.
-`fixes.upgrade` is in the descriptor.
+severity with what adjusted it are also on each finding in `report.json` and `results.sarif`, and so
+is the entrypoint line that drops root, as `privilegeDrop`. `fixes.upgrade` is in the descriptor.
 
 ## Two descriptor fields change what is recommended
 
