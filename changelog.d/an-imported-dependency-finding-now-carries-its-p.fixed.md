@@ -1,1 +1,0 @@
-- **An imported dependency finding now carries its package and fixed version.** SARIF from Trivy, Grype or OSV-Scanner groups into one upgrade per package naming the release to move to, a CVE the file lists beside a GitHub or Go advisory id reaches KEV and EPSS, and Signals counts imported findings that name no CVE.

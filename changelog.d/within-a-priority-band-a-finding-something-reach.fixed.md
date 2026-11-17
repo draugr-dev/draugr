@@ -1,1 +1,0 @@
-- **Within a priority band, a finding something reaches now comes first.** A finding govulncheck shows a call path to is listed before one no analysis answered for, and both before one marked `↓ unreachable`. An unreachable finding could lead its band on its score from before the verdict. Bands are unchanged, in the findings list and the fix list.

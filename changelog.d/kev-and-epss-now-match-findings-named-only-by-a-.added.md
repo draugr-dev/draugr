@@ -1,1 +1,0 @@
-- **KEV and EPSS now match findings named only by a Go or GitHub advisory id.** With `--kev` or `--epss` reading the cache, a `GO-…` or `GHSA-…` finding with no CVE is matched on the CVE its Go vulnerability database record lists, shown as `cveLookup`. `draugr feeds update govulndb` fetches the database; without it, Signals counts the unchecked findings.

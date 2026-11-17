@@ -1,1 +1,0 @@
-- **Trivy findings now join their copies under other advisory ids.** A Trivy finding keyed on a CVE is counted once with another scanner's copy keyed on the same flaw's GitHub advisory id, and a govulncheck reachability verdict reported under that id now reaches Trivy's row and sets its priority.

@@ -1,1 +1,0 @@
-- **An imported SARIF finding is counted once with the same finding from the control's own scanner.** A dependency finding merges on advisory and package, a code finding on rule, file and line, keeping the higher rating and naming both scanners. In a component with several repositories, the file's `versionControlProvenance` must name the repository it scanned.
