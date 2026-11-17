@@ -1,1 +1,0 @@
-- **The `config.exclude` entry under `TRY` now shows `paths` and `expires`.** Copied as printed before, it set aside every finding of the rule in every file, including later ones.
