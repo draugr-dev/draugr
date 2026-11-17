@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.181.1] - 2026-11-17
+
+### Fixed
+
+- **A finding whose SARIF suppression was rejected or is under review now counts.** An imported file's suppression set its finding aside whatever its `status`; now a `rejected` or `underReview` entry leaves the finding counting and says so in its detail, and a finding is set aside only when every entry is `accepted` or has no status.
+
 ## [0.181.0] - 2026-11-17
 
 ### Added
@@ -7321,7 +7327,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.181.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.181.1...HEAD
+[0.181.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.1
 [0.181.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.0
 [0.180.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.180.0
 [0.179.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.179.0
