@@ -12,10 +12,10 @@ import (
 
 // nothingChanged is the line a diff with no changed finding prints in place of the table.
 //
-// A diff whose only news is findings that moved component has still compared something, and the
-// moved section follows, so it does not claim every finding was already where it was.
+// A diff whose only news is findings that moved component or changed band has still compared
+// something, and their sections follow, so it does not claim every finding was already where it was.
 func nothingChanged(r Result) string {
-	if len(r.Moved) > 0 {
+	if len(r.Moved) > 0 || len(r.Reranked) > 0 {
 		return "Nothing is new or fixed."
 	}
 	return "Nothing changed. Every finding was already there."

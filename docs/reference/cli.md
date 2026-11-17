@@ -1189,7 +1189,7 @@ A report holds only the rules its scan reported, so a rule the scan did not find
 ## `draugr diff [base.sarif] <head.sarif>`
 
 Compare two scans and classify every finding as **new**, **unaccepted**, **accepted**, **fixed**,
-**moved** or **unchanged**: the security delta of a change, typically a pull request's head against
+**moved**, **reranked** or **unchanged**: the security delta of a change, typically a pull request's head against
 its base branch. Inputs are the `results.sarif` files that
 [`draugr scan -o`](#draugr-scan-sagayaml--dir) writes, which are always complete regardless of
 `--min-priority`. Two reports of different [scope](#scoping-a-run) are refused, and so are two
@@ -1208,6 +1208,13 @@ component moves every finding it held. Moves are listed in a `MOVED` table, one 
 components, then a `PRIORITY CHANGED` table with a row for each finding whose priority changed with
 its component.
 
+**Reranked** is a finding counting in both scans, in the same component, whose priority band
+changed: a component that declared its exposure or criticality, or a new exploitation signal. A
+`RERANKED` table lists each with the band it had and the band it has (`P1 → P3`), raised ones
+first, and its heading counts how many were raised and how many lowered. A reranked finding is not
+counted as unchanged. A finding that changed component and band is moved, not reranked, and its
+band change is in `PRIORITY CHANGED`.
+
 New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, ranked by priority,
 with what happened to each finding in its own column. Within a band, what needs somebody comes
 before what does not.
@@ -1224,7 +1231,7 @@ the lines of code taking the same instruction, titled as `draugr scan --view act
 and listing every rule that flags those lines. A row names its component and repository when the actions span several.
 
 Above the `CHANGED` table, one strip per state counts the prioritized findings in `head` by band:
-new, unaccepted, accepted, moved, unchanged and still accepted. A strip with nothing in it is not drawn, and fixed has none,
+new, unaccepted, accepted, moved, reranked, unchanged and still accepted. A strip with nothing in it is not drawn, and fixed has none,
 because a fixed finding is not in `head`.
 
 ```console
@@ -1246,8 +1253,8 @@ CHANGED  4, by priority
 |------|---------|-------------|
 | `--format` | `console` | Output format: `console`, `json`, `markdown`, `sarif`. `sarif` emits the new findings only, for code scanning on a pull request |
 | `--view` | `findings` | Console: how much of each row to show. `findings` adds the finding's own sentence under the row, `compact` is one line each, `actions` groups by the thing to do |
-| `--top` | `0` | Console: how many changed findings to list (`0` = all), or how many actions under `--view actions`. Also caps the moved findings whose priority changed |
-| `--min-priority` | - | Report only new findings at or above this priority band (`P1`–`P4`), plus new findings with no priority; fixed and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
+| `--top` | `0` | Console: how many changed findings to list (`0` = all), or how many actions under `--view actions`. Also caps the moved findings whose priority changed, and the reranked findings |
+| `--min-priority` | - | Report only new findings at or above this priority band (`P1`–`P4`), plus new findings with no priority; fixed, moved, reranked and unchanged are unaffected. Narrows the diff, never the scans it was computed from |
 | `--repository` | - | Keep only new findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` | - | Fail if a new finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate). Without either, the diff exits 0 |
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
@@ -1259,8 +1266,8 @@ CHANGED  4, by priority
 `top` of `0` in the file keeps the default of every row. A diff has no evidence section, so
 `output.evidence` sets nothing here.
 
-The gate reads **new** only. Accepted, unaccepted and moved findings do not trip it, and each is
-reported.
+The gate reads **new** only. Accepted, unaccepted, moved and reranked findings do not trip it, and
+each is reported.
 
 **The gate in the descriptor.** Without `--fail-on-new`, the gate is
 [`config.gate.failOnNew`](saga-schema.md#configgate) in the descriptor `--saga` names, or in the
@@ -1301,8 +1308,8 @@ then by tool, rule, file, message, component and repository, then, for a finding
 objects failing a check such as a `kubernetes` one, by the same without the message, and then by
 each of those again without the component, which is how a moved finding is found. A check that
 gained an object is new; one that only kept or lost objects is unchanged, never fixed. The line number and the severity are
-never part of it, so a finding that moved within a file or was re-scored is unchanged rather than
-fixed and new. The [diff guide](../guides/pr-diff.md#what-counts-as-the-same-finding) has the
+never part of it, so a finding that moved within a file or was re-scored is unchanged, or reranked
+where its band changed, rather than fixed and new. The [diff guide](../guides/pr-diff.md#what-counts-as-the-same-finding) has the
 detail.
 
 ---

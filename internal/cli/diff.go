@@ -42,13 +42,16 @@ func newDiffCommand() *cobra.Command {
 	opts := &diffOptions{}
 	cmd := &cobra.Command{
 		Use:   "diff [base.sarif] <head.sarif>",
-		Short: "Compare two scans and classify findings as new, unaccepted, accepted, fixed or unchanged",
+		Short: "Compare two scans and classify findings as new, unaccepted, accepted, fixed, moved, reranked or unchanged",
 		Long: "Compare two Draugr SARIF results (the results.sarif that `draugr scan -o` writes)\n" +
-			"and classify every finding as new / unaccepted / accepted / fixed / unchanged, the\n" +
-			"security delta of a change, typically a PR's head vs its base branch.\n\n" +
+			"and classify every finding as new / unaccepted / accepted / fixed / moved / reranked /\n" +
+			"unchanged, the security delta of a change, typically a PR's head vs its base branch.\n\n" +
 			"Accepted is a finding somebody excused rather than fixed. Unaccepted is one whose\n" +
 			"exclusion was removed or reached its expiry date, so it counts again; nobody\n" +
 			"introduced it and nothing about it was ever fixed.\n\n" +
+			"Moved is a finding now reported under another component. Reranked is one counting\n" +
+			"in both scans whose priority band changed, as declaring a component's exposure or\n" +
+			"criticality changes it; it is listed with both bands and not counted as unchanged.\n\n" +
 			"With the head report alone every finding is new, because there is no base to compare\n" +
 			"against. It is the form for the pull request that adds a repository's first descriptor.\n\n" +
 			"--fail-on-new gates on findings the change introduces, not on the existing backlog,\n" +
@@ -104,7 +107,7 @@ func newDiffCommand() *cobra.Command {
 		"deprecated: write the band in --fail-on-new, which takes either vocabulary")
 	_ = cmd.Flags().MarkDeprecated("fail-on-new-priority",
 		"use --fail-on-new, which takes a band or a severity")
-	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed and unchanged are unaffected")
+	cmd.Flags().StringVar(&opts.minPriority, "min-priority", "", "report only new findings at or above this priority band (P1-P4); fixed, moved, reranked and unchanged are unaffected")
 	cmd.Flags().StringVar(&opts.repository, "repository", "",
 		"keep only new findings from this repository, plus those belonging to none (an image, a "+
 			"host). For a code-scanning upload, whose paths anchor to one checkout, a finding "+

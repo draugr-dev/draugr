@@ -1,0 +1,59 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {"driver": {"name": "Draugr"}},
+      "results": [
+        {
+          "ruleId": "CVE-2026-4800",
+          "level": "error",
+          "message": {"text": "lodash 4.17.20 → 4.18.0: Arbitrary code execution via untrusted input in template imports"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "worker/package-lock.json"}, "region": {"startLine": 73}}}],
+          "properties": {"security-severity": "9.8", "priority": "P2", "tool": "trivy", "control": "sca", "component": "worker", "repository": "https://github.com/draugr-dev/draugr-demo", "scanner": "trivy-fs"}
+        },
+        {
+          "ruleId": "CVE-2020-28500",
+          "level": "warning",
+          "message": {"text": "lodash 4.17.20 → 4.17.21: nodejs-lodash: ReDoS via the toNumber, trim and trimEnd functions"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "worker/package-lock.json"}, "region": {"startLine": 73}}}],
+          "properties": {"security-severity": "5.3", "priority": "P4", "tool": "trivy", "control": "sca", "component": "worker", "repository": "https://github.com/draugr-dev/draugr-demo", "scanner": "trivy-fs"}
+        },
+        {
+          "ruleId": "javascript.lang.security.audit.dangerous-spawn-shell.dangerous-spawn-shell",
+          "level": "warning",
+          "message": {"text": "Detected non-literal calls to spawn(). This could lead to a command injection vulnerability."},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "worker/reconcile.js"}, "region": {"startLine": 54}}}],
+          "properties": {"priority": "P4", "tool": "Semgrep OSS", "control": "sast", "component": "worker", "repository": "https://github.com/draugr-dev/draugr-demo", "scanner": "semgrep"}
+        },
+        {
+          "ruleId": "KSV-0014",
+          "level": "error",
+          "message": {"text": "Container 'api' of Pod 'demo-api' should set 'securityContext.readOnlyRootFilesystem' to true"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "deploy/pod.yaml"}, "region": {"startLine": 8}}}],
+          "properties": {"security-severity": "8", "priority": "P3", "title": "Root file system is not read-only", "tool": "Trivy", "control": "iac", "component": "platform", "repository": "https://github.com/draugr-dev/draugr-demo", "scanner": "trivy-config"}
+        },
+        {
+          "ruleId": "KSV-0110",
+          "level": "note",
+          "message": {"text": "pod demo-api in default namespace should set metadata.namespace to a non-default namespace"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "deploy/pod.yaml"}, "region": {"startLine": 4}}}],
+          "properties": {"security-severity": "2", "priority": "P4", "title": "Workloads in the default namespace", "tool": "Trivy", "control": "iac", "component": "platform", "repository": "https://github.com/draugr-dev/draugr-demo", "scanner": "trivy-config"}
+        },
+        {
+          "ruleId": "CVE-2026-109518",
+          "level": "error",
+          "message": {"text": "apt 2.6.1 → 2.6.2: Remote code execution via hard link reuse during package download retries"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "python:3.8-slim"}}}],
+          "properties": {"security-severity": "8.1", "priority": "P1", "tool": "trivy", "control": "images", "component": "api", "scanner": "trivy"}
+        },
+        {
+          "ruleId": "KSV-0110",
+          "level": "note",
+          "message": {"text": "pod demo-api in default namespace should set metadata.namespace to a non-default namespace"},
+          "locations": [{"physicalLocation": {"artifactLocation": {"uri": "deploy/pod.yaml"}, "region": {"startLine": 4}}}],
+          "properties": {"security-severity": "2", "priority": "P3", "title": "Workloads in the default namespace", "tool": "Trivy", "control": "iac", "component": "api", "repository": "https://github.com/draugr-dev/draugr-demo", "scanner": "trivy-config"}
+        }
+      ]
+    }
+  ]
+}

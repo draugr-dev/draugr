@@ -48,13 +48,20 @@ func TestLineDriftIsUnchanged(t *testing.T) {
 	}
 }
 
-// A re-scored finding (level change) is still the same underlying issue.
+// A re-scored finding (level change) is still the same underlying issue: unchanged where its band
+// stayed, reranked where the band moved with it, and never new and fixed.
 func TestLevelChangeIsUnchanged(t *testing.T) {
 	base := sarif.Report{Results: []sarif.Result{res("trivy", "CVE-9", sarif.LevelWarning, "img", 0, "P3")}}
-	head := sarif.Report{Results: []sarif.Result{res("trivy", "CVE-9", sarif.LevelError, "img", 0, "P1")}}
+	head := sarif.Report{Results: []sarif.Result{res("trivy", "CVE-9", sarif.LevelError, "img", 0, "P3")}}
 	d := Compare(base, head)
 	if len(d.Unchanged) != 1 {
 		t.Errorf("level re-score should be unchanged, got new=%d fixed=%d", len(d.New), len(d.Fixed))
+	}
+	head.Results[0].Priority = "P1"
+	d = Compare(base, head)
+	if len(d.Reranked) != 1 || len(d.New)+len(d.Fixed)+len(d.Unchanged) != 0 {
+		t.Errorf("a re-score that moved the band should be reranked, got new=%d fixed=%d unchanged=%d reranked=%d",
+			len(d.New), len(d.Fixed), len(d.Unchanged), len(d.Reranked))
 	}
 }
 

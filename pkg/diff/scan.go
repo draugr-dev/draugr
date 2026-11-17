@@ -39,20 +39,24 @@ func (v ScanView) States() fixlist.ChangeStates {
 		out.Moved = append(out.Moved, m.Result)
 		out.MovedFrom = append(out.MovedFrom, m.Was.Component)
 	}
+	for _, rr := range r.Reranked {
+		out.Reranked = append(out.Reranked, rr.Result)
+		out.RerankedFrom = append(out.RerankedFrom, rr.From)
+	}
 	return out
 }
 
 // WriteListing draws what changed in the view asked for, capped at top rows where top is
 // positive: the CHANGED table, one line each under compact, or WHAT TO DO under actions, then the
-// findings that moved. It writes nothing where nothing changed, which the scan's verdict line
-// already says, and reports whether it wrote.
+// findings that moved and the ones whose band changed. It writes nothing where nothing changed,
+// which the scan's verdict line already says, and reports whether it wrote.
 func (v ScanView) WriteListing(w io.Writer, view fixlist.View, top int) bool {
 	col := tui.For(w)
 	r := v.Result.Counted()
 	opts := Options{View: View(view), Top: top, upgradeTargets: true}
 	entries := r.Changed()
 	switch {
-	case len(entries) == 0 && len(r.Moved) == 0 && len(r.Objects) == 0:
+	case len(entries) == 0 && len(r.Moved) == 0 && len(r.Reranked) == 0 && len(r.Objects) == 0:
 		return false
 	case len(entries) == 0:
 	case opts.View == ViewActions:
@@ -62,6 +66,7 @@ func (v ScanView) WriteListing(w io.Writer, view fixlist.View, top int) bool {
 	}
 	writeObjects(w, col, r, opts, len(entries) == 0)
 	writeMoved(w, col, r, opts)
+	writeReranked(w, col, r, opts)
 	return true
 }
 

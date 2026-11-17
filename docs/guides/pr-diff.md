@@ -8,7 +8,7 @@ order: 30
 # Gate PRs on new findings
 
 `draugr diff` compares two scans and classifies every finding as **new**, **unaccepted**,
-**accepted**, **fixed**, **moved** or **unchanged**, the security delta of a change, typically a PR's head vs its base
+**accepted**, **fixed**, **moved**, **reranked** or **unchanged**, the security delta of a change, typically a PR's head vs its base
 branch. This lets you gate a PR only on the findings it *introduces*, not the pre-existing backlog,
 so the gate stays adoptable where a whole-backlog gate would block every PR.
 
@@ -114,7 +114,8 @@ Both rows are one credential, moved from `config.go` to `settings.go`, and a gat
 (`--fail-on-new`) fails on it, because at `head` the credential is still in the code.
 
 Whatever is in `head` and not in `base` is **new**; in `base` and not in `head` is **fixed**; in
-both is **unchanged**.
+both at the same priority band is **unchanged**, and in both at another band is
+[**reranked**](#reranked-findings).
 
 Three more, for the findings somebody decided about rather than changed:
 
@@ -296,6 +297,49 @@ TRY
 which declared `public`. `--top` caps the priority-changed rows; the pairs are always listed.
 `--format markdown` carries the same two tables under `### Moved` and `### Priority changed`, and
 `--format json` lists each move under `moved` with the component and priority it had in `base`.
+
+### Reranked findings
+
+A reranked finding is one counting in both scans, in the same component, whose priority band
+changed. The band is what a reader triages by, so a change to it changes their list even where no
+finding arrived or left. Declaring a component's `exposure` and `criticality`, a new exploitation
+signal and a reachability verdict all do it. The gate does not read reranked findings, since nobody
+introduced them, and they are not counted as unchanged, so a diff whose only change is a band never
+says that nothing changed.
+
+The `RERANKED` table lists each finding with the band it had and the band it has, raised ones
+first, and its heading counts how many went each way. Here the `worker` and `platform` components
+declared their context between the two scans:
+
+```console
+$ draugr diff out-base/results.sarif out-head/results.sarif --fail-on-new P1 --view compact
+DRAUGR DIFF  pass  5 reranked  2 unchanged
+
+ reranked   0 P1 1 P2 1 P3 3 P4
+ unchanged  1 P1 0 P2 1 P3 0 P4
+
+Gate: fails on any P1 this change introduces.
+
+Nothing is new or fixed.
+
+RERANKED  5 · 5 lowered
+  Priority  Severity  Rule                                                                        Scanner      Component  Location
+  P1 → P2   critical  CVE-2026-4800                                                               trivy        worker     worker/package-lock.json:73
+  P1 → P3   high      KSV-0014                                                                    Trivy        platform   deploy/pod.yaml:8
+  P2 → P4   medium    CVE-2020-28500                                                              trivy        worker     worker/package-lock.json:73
+  P2 → P4   medium    javascript.lang.security.audit.dangerous-spawn-shell.dangerous-spawn-shell  Semgrep OSS  worker     worker/reconcile.js:54
+  P3 → P4   low       KSV-0110                                                                    Trivy        platform   deploy/pod.yaml:4
+
+TRY
+  --format markdown  the comment a pull request gets
+```
+
+A finding that changed component and band is moved rather than reranked, because the component it
+moved to is why its band changed, and `PRIORITY CHANGED` lists it with both. `--top` caps the
+reranked rows and `--min-priority` leaves them alone, as it leaves moved ones. `--format markdown`
+carries the table under `### Reranked`, and `--format json` lists each finding under `reranked`
+with the band it had in `base` (`fromPriority`) and which way it went (`direction`), counted in the
+summary's `reranked`, `raised` and `lowered`.
 
 ### Where the base comes from
 

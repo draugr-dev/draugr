@@ -34,9 +34,14 @@ func statesData() report.Data {
 		"Information disclosure via improper caching of session data", nil)
 	added := changeResult("sca", "trivy", "CVE-2025-66418", "api", goldenAPIRepo, "requirements.txt", 6, "P2",
 		"Unbounded decompression chain leads to resource exhaustion", urllib3("2.6.0"))
+	// web declared more exposure, which raised this one a band.
+	reranked := changeResult("sast", "semgrep", "python.flask.security.audit.debug-enabled.debug-enabled",
+		"web", goldenWebRepo, "app/main.py", 9, "P3", "Detected Flask app with debug=True", nil)
+	raised := reranked
+	raised.Priority = "P2"
 
-	base := []sarif.Result{fixed, accepting, excused(unaccepting), unchanged, excused(still)}
-	head := []sarif.Result{excused(accepting), unaccepting, unchanged, excused(still), added}
+	base := []sarif.Result{fixed, accepting, excused(unaccepting), unchanged, excused(still), reranked}
+	head := []sarif.Result{excused(accepting), unaccepting, unchanged, excused(still), added, raised}
 	baseReport := sarif.Report{Results: base, Provenance: []sarif.Provenance{
 		{Tool: "trivy-fs", Fields: []sarif.Field{{Key: "repository", Value: goldenAPIRepo}, {Key: "revision", Value: "4f2a9c1e0b3d"}}},
 		{Tool: "trivy-fs", Fields: []sarif.Field{{Key: "repository", Value: goldenWebRepo}, {Key: "revision", Value: "9d8e7f6a5b4c"}}},
@@ -92,7 +97,8 @@ func renderAs(t *testing.T, format string, d report.Data) string {
 func TestADiffReportShowsEveryStateAgainstTheBase(t *testing.T) {
 	d := statesData()
 	if got := d.Change.States(); len(got.New) != 1 || len(got.Fixed) != 1 || len(got.Accepted) != 1 ||
-		len(got.Unaccepted) != 1 || len(got.Unchanged) != 1 || len(got.StillAccepted) != 1 || !got.Changed() {
+		len(got.Unaccepted) != 1 || len(got.Unchanged) != 1 || len(got.StillAccepted) != 1 ||
+		len(got.Reranked) != 1 || len(got.RerankedFrom) != 1 || got.RerankedFrom[0] != "P3" || !got.Changed() {
 		t.Fatalf("states = %+v, want one finding in each", got)
 	}
 
@@ -102,6 +108,7 @@ func TestADiffReportShowsEveryStateAgainstTheBase(t *testing.T) {
 		"| ! unaccepted | 1 | 1 P1 |",
 		"| ~ accepted | 1 | 1 P1 |",
 		"| - fixed | 1 | 1 P1 |",
+		"| ↕ reranked | 1 | 1 P2 |",
 		"| unchanged | 1 | 1 P2 |",
 		"| still accepted | 1 | 1 P3 |",
 		// The action that clears the unaccepted finding is part of what the change asks for.
@@ -131,6 +138,7 @@ func TestADiffReportShowsEveryStateAgainstTheBase(t *testing.T) {
 		`data-change="unaccepted"`,
 		`data-change="fixed"`,
 		`data-change="accepted"`,
+		`data-change="reranked"`,
 		// The definitions sit behind one mark, not beside each row.
 		`<dialog id="state-defs" class="defs">`,
 		// An accepted finding says why, for the reviewer asked to approve it.

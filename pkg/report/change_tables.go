@@ -21,6 +21,7 @@ const (
 	stateAccepted      = "accepted"
 	stateFixed         = "fixed"
 	stateMoved         = "moved"
+	stateReranked      = "reranked"
 	stateUnchanged     = "unchanged"
 	stateStillAccepted = "still accepted"
 )
@@ -33,7 +34,8 @@ var stateWhen = map[string]string{
 	stateAccepted:      "excused here and not in the base: somebody chose to live with it, which is not fixing it",
 	stateFixed:         "in the base and not in this run",
 	stateMoved:         "reported under another component than in the base, and otherwise the same",
-	stateUnchanged:     "in both, counting in both",
+	stateReranked:      "in both, counting in both, at a different priority band than in the base",
+	stateUnchanged:     "in both, counting in both, at the same priority band",
 	stateStillAccepted: "in both, excused in both",
 }
 
@@ -42,7 +44,7 @@ const stateGuide = "https://draugr.dev/docs/latest/guides/pr-diff/"
 
 // stateMarks is the sign each changed state wears in a listing, the one `draugr diff` prints.
 var stateMarks = map[string]string{
-	stateNew: "+", stateUnaccepted: "!", stateAccepted: "~", stateFixed: "-", stateMoved: "→",
+	stateNew: "+", stateUnaccepted: "!", stateAccepted: "~", stateFixed: "-", stateMoved: "→", stateReranked: "↕",
 }
 
 // statesOf is the run's findings sorted by what happened to each against the base. A caller that
@@ -67,7 +69,7 @@ func (c ChangeStates) inState() []struct {
 		fs  []sarif.Result
 	}{
 		{stateNew, c.New}, {stateUnaccepted, c.Unaccepted}, {stateAccepted, c.Accepted}, {stateFixed, c.Fixed},
-		{stateMoved, c.Moved}, {stateUnchanged, c.Unchanged}, {stateStillAccepted, c.StillAccepted},
+		{stateMoved, c.Moved}, {stateReranked, c.Reranked}, {stateUnchanged, c.Unchanged}, {stateStillAccepted, c.StillAccepted},
 	}
 }
 
