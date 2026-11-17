@@ -847,7 +847,7 @@ func htmlAcceptances(d Data, excluded []finding) ([]htmlFinding, []htmlDecision,
 	return rows, decs, strip
 }
 
-// htmlToolAside is how many findings one imported file's tool set aside, named as the console's
+// htmlToolAside is how many findings one imported file's tool suppressed, named as the console's
 // ACCEPTED row names it.
 type htmlToolAside struct {
 	Reporter string
@@ -2586,7 +2586,7 @@ lists the other fields.</p>
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
-{{- range .ToolAside}}{{.Reporter}}: {{plural .N "finding"}} set aside in the tool. {{end -}}
+{{- range .ToolAside}}{{.Reporter}}: {{plural .N "finding"}} the tool suppressed, not counted. {{end -}}
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
 {{- if not (or .Suppressed .Imported .Silenced .ToolAside)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
@@ -2663,7 +2663,8 @@ lists the other fields.</p>
     {{if .Full}}<details class="more"><summary class="rule">{{template "rule" .}}<span class="hint" aria-hidden="true">more</span></summary><p class="full">{{.Full}}</p></details>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
     <div class="sub"><span class="lbl">recorded in</span> {{.AcceptedVia}}<span class="faint"> · </span>{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}</div>
-    <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else if eq .Recorded "import"}}<span class="none">no reason given</span>{{else}}<span class="none">no reason recorded</span>{{end}}</div>
+    <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else if eq .Recorded "import"}}<span class="none">no reason given</span>{{else}}<span class="none">no reason recorded</span>{{end}}
+      {{- if eq .Recorded "import"}}<span class="faint"> · </span><span class="lbl">who</span> <span class="none">not recorded by the tool</span>{{end}}</div>
   </div>
 </div>{{end}}
 {{template "paging"}}

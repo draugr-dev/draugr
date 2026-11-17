@@ -968,8 +968,8 @@ type Import struct {
 	// the load, and the file is read unbound (CommitUnset): a descriptor written for CI still runs on
 	// a laptop, and nothing claims a commit it was not given.
 	Commit string `yaml:"commit,omitempty"`
-	// Suppressions says what a finding the file's tool set aside does here: honor, the default,
-	// sets it aside and names the tool, how and why; count counts it, with that in its detail.
+	// Suppressions says what a finding the file's tool suppressed does here: honor, the default,
+	// sets it aside and names the tool, where and why; count counts it, with that in its detail.
 	//
 	// Per import rather than once for the descriptor, because the files are not equally trusted. A
 	// team may accept the triage recorded in one tool's console and not the comments another tool
@@ -998,16 +998,16 @@ func (i Import) ReadFormat() string {
 	return i.Format
 }
 
-// ImportSuppressions is what an import does with the findings its file records as set aside.
+// ImportSuppressions is what an import does with the findings its file records as suppressed.
 type ImportSuppressions string
 
-// What an import does with a finding the file's tool set aside.
+// What an import does with a finding the file's tool suppressed.
 const (
 	// ImportSuppressionsHonor is the default: a finding whose every suppression is accepted, or
-	// states no status, is set aside, stays in the report, and names the tool, how and why.
+	// states no status, is set aside, stays in the report, and names the tool, where and why.
 	ImportSuppressionsHonor ImportSuppressions = "honor"
 	// ImportSuppressionsCount counts every finding in the file, so only the descriptor's own
-	// exclusions set any of them aside. Each one the tool set aside says so in its detail.
+	// exclusions set any of them aside. Each one the tool suppressed says so in its detail.
 	ImportSuppressionsCount ImportSuppressions = "count"
 )
 

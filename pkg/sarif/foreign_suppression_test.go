@@ -94,9 +94,9 @@ func TestAnImportedToolsSuppressionIsToldApart(t *testing.T) {
 			t.Errorf("%+v read as set aside by an imported file's tool", r)
 		}
 	}
-	for kind, want := range map[string]string{"inSource": "a comment in the code", "external": "the tool's own settings", "": "the tool's own settings"} {
-		if got := SetAsideIn(kind); got != want {
-			t.Errorf("SetAsideIn(%q) = %q, want %q", kind, got, want)
+	for kind, want := range map[string]string{"inSource": "in a comment in the code", "external": "in the tool's own settings", "": "in the tool's own settings"} {
+		if got := SuppressedIn(kind); got != want {
+			t.Errorf("SuppressedIn(%q) = %q, want %q", kind, got, want)
 		}
 	}
 	for why, want := range map[string]string{"": "no reason given", " ": "no reason given", "tests only": "reason: tests only"} {

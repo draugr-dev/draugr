@@ -33,39 +33,71 @@ func importedAsideData() Data {
 }
 
 // The console's ACCEPTED block names each imported tool on a row of its own, most first, apart from
-// the scanners Draugr ran, whose row counts only theirs. The rows are a count, and TRY offers the
-// evidence, which lists under each where the tool recorded it and why, or that it gave no reason.
+// the scanners Draugr ran, whose row counts only theirs. Each row says what the tool did and what
+// Draugr did with it, and where the reasons are: --evidence lists under it where the tool recorded
+// each and why, or that it gave no reason, and that the tool recorded nobody.
 func TestAcceptedNamesEachImportedToolApart(t *testing.T) {
 	d := importedAsideData()
 	out := renderWith(t, consoleReporter{}, d)
 	for _, want := range []string{
-		"imported bandit       2 findings set aside in the tool",
-		"imported Semgrep OSS  1 finding set aside in the tool",
+		"imported bandit       2 findings the tool suppressed, not counted · --evidence lists why",
+		"imported Semgrep OSS  1 finding the tool suppressed, not counted · --evidence lists why",
 		"scanner exclusions    1 finding suppressed",
-		"--evidence",
-		"why each imported tool set its findings aside",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "no reason given") {
-		t.Errorf("the reasons are printed without --evidence:\n%s", out)
+	if strings.Contains(out, "no reason given") || strings.Contains(out, "why each imported tool") {
+		t.Errorf("the reasons, or a second pointer to them, are printed without --evidence:\n%s", out)
 	}
 
 	d.Evidence = true
 	out = renderWith(t, consoleReporter{}, d)
 	for _, want := range []string{
-		"a comment in the code · no reason given · 1 finding · B105",
-		"the tool's own settings · reason: cache keys, not passwords · 1 finding · B303",
-		"a comment in the code · reason: vetted · 1 finding · python.lang.eval",
+		"imported bandit       2 findings the tool suppressed, not counted\n",
+		"who: not recorded by the tool\n",
+		"in a comment in the code · no reason given · 1 finding · B105",
+		"in the tool's own settings · reason: cache keys, not passwords · 1 finding · B303",
+		"in a comment in the code · reason: vetted · 1 finding · python.lang.eval",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "why each imported tool") {
-		t.Errorf("TRY offers --evidence to a run that has it:\n%s", out)
+	if n := strings.Count(out, "who: not recorded by the tool"); n != 2 {
+		t.Errorf("who is said %d times, want once under each tool:\n%s", n, out)
+	}
+}
+
+// A tool with a long name keeps its ACCEPTED rows within 100 columns: where the pointer to the
+// reasons does not fit on a row, it is the line under it rather than off the edge of the screen.
+func TestAnImportedToolsRowFitsWithALongName(t *testing.T) {
+	d := importedAsideData()
+	for i := range d.Run.Controls["sast"].Report.Results {
+		r := &d.Run.Controls["sast"].Report.Results[i]
+		if r.Tool == "bandit" {
+			r.Tool = "Fortify Static Code Analyzer"
+		}
+	}
+	out := renderWith(t, consoleReporter{}, d)
+	block := out[strings.Index(out, "ACCEPTED"):]
+	block = block[:strings.Index(block, "\n\n")]
+	for _, line := range strings.Split(block, "\n") {
+		if n := len([]rune(line)); n > 100 {
+			t.Errorf("%q is %d columns, over 100", line, n)
+		}
+	}
+	for _, want := range []string{
+		"imported Fortify Static Code Analyzer  2 findings the tool suppressed, not counted\n",
+		"--evidence lists why\n",
+	} {
+		if !strings.Contains(block, want) {
+			t.Errorf("ACCEPTED lacks %q:\n%s", want, block)
+		}
+	}
+	if strings.Count(block, "--evidence lists why") != 2 {
+		t.Errorf("want the pointer once per tool, under the long name's row and on the short one's:\n%s", block)
 	}
 }
 
@@ -85,19 +117,20 @@ func TestImportedRowsAndScannerExclusionsSumToTheEnginesCount(t *testing.T) {
 	}
 }
 
-// The HTML report says what each imported tool set aside beside the other authorities, offers the
+// The HTML report says what each imported tool suppressed beside the other authorities, offers the
 // imported tools under Recorded in, and each finding's row names the tool, where it recorded the
-// decision and why, or that it gave no reason.
+// suppression and why, or that it gave no reason, and that it recorded nobody.
 func TestHTMLNamesWhatEachImportedToolSetAside(t *testing.T) {
 	out := renderWith(t, htmlReporter{}, importedAsideData())
 	for _, want := range []string{
-		"imported bandit: 2 findings set aside in the tool.",
-		"imported Semgrep OSS: 1 finding set aside in the tool.",
+		"imported bandit: 2 findings the tool suppressed, not counted.",
+		"imported Semgrep OSS: 1 finding the tool suppressed, not counted.",
 		"Scanner exclusions: 1 finding suppressed.",
 		"imported tool",
-		"imported bandit, a comment in the code",
-		"imported bandit, the tool&#39;s own settings",
+		"imported bandit, suppressed in a comment in the code",
+		"imported bandit, suppressed in the tool&#39;s own settings",
 		"no reason given",
+		`<span class="lbl">who</span> <span class="none">not recorded by the tool</span>`,
 		"cache keys, not passwords",
 	} {
 		if !strings.Contains(out, want) {
@@ -113,12 +146,13 @@ func TestMarkdownListsWhereAndWhyEachImportedToolSetFindingsAside(t *testing.T) 
 	d.Run.Controls["sast"].Report.Results[1].Suppression.Justification = "keys | not passwords"
 	out := renderWith(t, markdownReporter{}, d)
 	for _, want := range []string{
-		"| imported bandit | 2 findings set aside in the tool |",
+		"| imported bandit | 2 findings the tool suppressed, not counted |",
 		"| scanner exclusions | 1 finding suppressed |",
 		"### Set aside by imported tools",
-		"| 1 | imported bandit | a comment in the code | no reason given |",
-		`| 1 | imported bandit | the tool's own settings | keys \| not passwords |`,
-		"| 1 | imported Semgrep OSS | a comment in the code | vetted |",
+		"| Findings | Tool | Suppressed | Reason | Who |",
+		"| 1 | imported bandit | in a comment in the code | no reason given | not recorded by the tool |",
+		`| 1 | imported bandit | in the tool's own settings | keys \| not passwords | not recorded by the tool |`,
+		"| 1 | imported Semgrep OSS | in a comment in the code | vetted | not recorded by the tool |",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("markdown lacks %q:\n%s", want, out)

@@ -63,7 +63,7 @@ func TestAnImportHonorsTheToolsSuppressionsByDefault(t *testing.T) {
 	}
 }
 
-// Counted, every finding counts and the gate judges all three. Each one the tool set aside says so in
+// Counted, every finding counts and the gate judges all three. Each one the tool suppressed says so in
 // its detail, which tool, where and why, so nothing the file recorded is lost.
 func TestAnImportCountsTheToolsSuppressionsWhenAsked(t *testing.T) {
 	ft := plugin.FileTarget{Path: writeFile(t, suppressedLog()), Component: "app", CountSuppressed: true,
@@ -77,8 +77,8 @@ func TestAnImportCountsTheToolsSuppressionsWhenAsked(t *testing.T) {
 	}
 	got := resultsByRule(rep)
 	for rule, want := range map[string]string{
-		"B105": "bandit set it aside in a comment in the code · no reason given · suppressions: count",
-		"B303": "bandit set it aside in the tool's own settings · reason: cache keys, not passwords · suppressions: count",
+		"B105": "bandit suppressed it in a comment in the code · no reason given · counted, as the import says suppressions: count",
+		"B303": "bandit suppressed it in the tool's own settings · reason: cache keys, not passwords · counted, as the import says suppressions: count",
 		"B608": "the file's suppression is rejected",
 	} {
 		r := got[rule]
@@ -99,6 +99,22 @@ func TestCountingSuppressionsIsPartOfTheCacheKey(t *testing.T) {
 	}
 }
 
+// A suppression a tool's own JSON already traced to a file, such as a .trivyignore line, keeps that
+// file as its source when honored, since it says more than the import's file does.
+func TestAnHonoredSuppressionKeepsTheFileTheToolNamed(t *testing.T) {
+	results := []sarif.Result{
+		{RuleID: "CVE-1", Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginScanner, Source: ".trivyignore"}},
+		{RuleID: "CVE-2", Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginScanner}},
+	}
+	toolsSuppressions(results, plugin.FileTarget{Path: "trivy.json"})
+	if got := results[0].Suppression.Source; got != ".trivyignore" {
+		t.Errorf("CVE-1 source = %q, want the ignore file Trivy named", got)
+	}
+	if got := results[1].Suppression.Source; got != "trivy.json" {
+		t.Errorf("CVE-2 source = %q, want the imported file", got)
+	}
+}
+
 // A tool that names itself nowhere is still named in a counted finding's detail, as the tool.
 func TestACountedSuppressionFromAnUnnamedTool(t *testing.T) {
 	doc := `{"version":"2.1.0","runs":[{"tool":{"driver":{}},"results":[{"ruleId":"R","message":{"text":"m"},
@@ -107,7 +123,7 @@ func TestACountedSuppressionFromAnUnnamedTool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d := rep.Results[0].Detail; d != "the tool set it aside in a comment in the code · no reason given · suppressions: count" {
+	if d := rep.Results[0].Detail; d != "the tool suppressed it in a comment in the code · no reason given · counted, as the import says suppressions: count" {
 		t.Errorf("detail = %q", d)
 	}
 }

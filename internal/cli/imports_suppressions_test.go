@@ -38,7 +38,7 @@ func toolFile(t *testing.T, tool, repository string, results ...[3]string) strin
 // One component of two repositories imports two files: bandit's, honored by default, placed in the
 // second repository, and acme-analyzer's, counted. Bandit's two standing suppressions are set aside
 // and named by the tool, where it recorded each and why, in the console's ACCEPTED block and in
-// report.json; its rejected one counts. Every acme-analyzer finding counts, and the one it set aside
+// report.json; its rejected one counts. Every acme-analyzer finding counts, and the one it suppressed
 // says so in its detail, so the two files' settings do not leak into each other.
 func TestImportsHonorOrCountTheirToolsSuppressions(t *testing.T) {
 	api, worker := t.TempDir(), t.TempDir()
@@ -122,9 +122,12 @@ components:
 	}
 	out := console.String()
 	for _, line := range []string{
-		"imported bandit  2 findings set aside in the tool",
-		"a comment in the code · no reason given · 1 finding · B105",
-		"the tool's own settings · reason: cache keys, not passwords · 1 finding · B303",
+		"imported bandit  2 findings the tool suppressed, not counted",
+		"who: not recorded by the tool",
+		"in a comment in the code · no reason given · 1 finding · B105",
+		"in the tool's own settings · reason: cache keys, not passwords · 1 finding · B303",
+		// The console keeps the end of a long detail, which is what the setting did.
+		"in a comment in the code · reason: reviewed · counted, as the import says suppressions: count\n",
 	} {
 		if !strings.Contains(out, line) {
 			t.Errorf("console lacks %q:\n%s", line, out)
@@ -135,7 +138,7 @@ components:
 	}
 }
 
-// The gate judges what the setting leaves counting: a file whose only finding its tool set aside
+// The gate judges what the setting leaves counting: a file whose only finding its tool suppressed
 // passes honored and fails counted.
 func TestTheGateFollowsAnImportsSuppressions(t *testing.T) {
 	file := toolFile(t, "bandit", "", [3]string{"B105", "app/config.py", `[{"kind":"inSource"}]`})

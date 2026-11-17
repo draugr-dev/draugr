@@ -2135,9 +2135,6 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	// A caveat row standing for several files names none of them; the evidence lists each.
 	if c, ok := foldedCaveat(d); ok && !d.Evidence {
 		row("--evidence", "each file behind a caveat row such as "+c.what)
-	} else if !d.Evidence && len(toolAsides(d)) > 0 {
-		// An imported tool's row counts what it set aside; the evidence says where and why.
-		row("--evidence", "why each imported tool set its findings aside")
 	}
 	if views && listing {
 		if d.View != ViewCompact {
@@ -2305,6 +2302,40 @@ type acceptedRow struct {
 	said  []string
 	lit   bool
 	notes []string
+	// hint ends the row where it fits on the line, and is the first line under it where it does
+	// not, so a long name in the first column never pushes it off the screen.
+	hint string
+}
+
+// acceptedWidth is the line the ACCEPTED rows are fitted to: the terminal, or 100 columns where
+// there is none or it is wider.
+const acceptedWidth = 100
+
+// placeHints puts each row's hint on its line where the line has room for it, and under it where it
+// has not, measured against the widest name in the first column, which sets where every row's
+// statement starts.
+func placeHints(w io.Writer, rows []acceptedRow) {
+	room := acceptedWidth
+	if cols := tui.Columns(w); cols > 0 {
+		room = min(room, cols)
+	}
+	first := 0
+	for _, r := range rows {
+		first = max(first, utf8.RuneCountInString(r.where))
+	}
+	for i := range rows {
+		r := &rows[i]
+		if r.hint == "" {
+			continue
+		}
+		line := 2 + first + 2 + utf8.RuneCountInString(strings.Join(append(r.said, r.hint), " · "))
+		if line <= room {
+			r.said = append(r.said, r.hint)
+		} else {
+			r.notes = append([]string{r.hint}, r.notes...)
+		}
+		r.hint = ""
+	}
 }
 
 func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
@@ -2348,15 +2379,18 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 		rows = append(rows, acceptedRow{where: r.where(), said: []string{r.said()}})
 	}
 
-	// What the tool that wrote an imported file set aside, a row per tool, because that tool is
+	// What the tool that wrote an imported file suppressed, a row per tool, because that tool is
 	// where a reader goes to see or undo it, and Draugr never ran it. Where and why it recorded
-	// each are under the row with the other decisions' reasons, under --evidence.
+	// each are under the row with the other decisions' reasons, under --evidence, and the row says
+	// so where they are not, which is also where TRY would have offered it.
 	for _, t := range toolAsides(d) {
-		var notes []string
+		r := acceptedRow{where: t.reporter, said: []string{t.said()}}
 		if full {
-			notes = t.notes()
+			r.notes = t.notes()
+		} else {
+			r.hint = evidenceHint
 		}
-		rows = append(rows, acceptedRow{where: t.reporter, said: []string{t.said()}, notes: notes})
+		rows = append(rows, r)
 	}
 
 	// A comment in the code. Without this a `nosem` is the one form of acceptance that leaves no
@@ -2402,6 +2436,7 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 		t.Render(w)
 		_, _ = fmt.Fprintln(w)
 	}
+	placeHints(w, rows)
 	draw("Accepted", rows)
 	writeDecisions(w, col, d, full)
 	draw("Unmatched", unmatched)

@@ -250,9 +250,9 @@ components:
         # The commit the tool scanned, for a tool that writes none into the file. Unset, as on a
         # laptop, the file is read unbound.
         commit: ${{ GITHUB_SHA }}
-        # A finding the tool set aside, by a comment in the code or in its own settings, is set
-        # aside here too and names the tool and its reason. count makes every finding count, so
-        # only config.exclude sets one aside.
+        # A finding the tool suppressed, in a comment in the code or in its own settings, is set
+        # aside here and names the tool and its reason. count makes every finding count, so only
+        # config.exclude sets one aside.
         suppressions: count
         severity:
           property: acme-severity

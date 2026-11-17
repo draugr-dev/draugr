@@ -1003,8 +1003,8 @@ func (r Result) SetAsideByScanner() bool {
 		(r.Suppression.Origin == OriginTool || r.Suppression.Origin == OriginScanner)
 }
 
-// SetAsideInImport reports whether the tool that wrote an imported SARIF file set this finding
-// aside, in a comment in the code or in its own settings.
+// SetAsideInImport reports whether Draugr set this finding aside because the tool that wrote an
+// imported SARIF file suppressed it, in a comment in the code or in its own settings.
 //
 // Apart from the scanners Draugr runs, because the reader's question is which tool to go and look
 // in, and for an imported finding that is a tool this run never started.
@@ -1012,19 +1012,24 @@ func (r Result) SetAsideInImport() bool {
 	return r.Scanner == ImportScanner && r.SetAsideByScanner()
 }
 
-// SetAsideIn says where a tool recorded that a finding is set aside, from the SARIF kind it wrote:
-// a comment in the code for inSource, and the tool's own settings for anything else, as scannersOwn
-// reads the kind.
-func SetAsideIn(kind string) string {
+// SuppressedIn says where a tool recorded that it suppressed a finding, from the SARIF kind it
+// wrote: in a comment in the code for inSource, and in the tool's own settings for anything else,
+// as scannersOwn reads the kind.
+func SuppressedIn(kind string) string {
 	if kind == "inSource" {
-		return "a comment in the code"
+		return "in a comment in the code"
 	}
-	return "the tool's own settings"
+	return "in the tool's own settings"
 }
 
-// GivenReason is a tool's justification for setting a finding aside as a reader is shown it, or
-// that it gave none. SARIF makes the justification optional, and a blank would read as a reason the
-// report failed to carry.
+// WhoNotRecorded is who suppressed a finding, as a reader is shown it where the tool recorded
+// nobody. A SARIF suppression has no field for a person, and saying so tells an unknown author apart
+// from a field the report left out.
+const WhoNotRecorded = "who: not recorded by the tool"
+
+// GivenReason is a tool's justification for suppressing a finding as a reader is shown it, or that
+// it gave none. SARIF makes the justification optional, and a blank would read as a reason the report
+// failed to carry.
 func GivenReason(justification string) string {
 	if strings.TrimSpace(justification) == "" {
 		return "no reason given"

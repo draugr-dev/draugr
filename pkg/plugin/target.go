@@ -449,7 +449,7 @@ type FileTarget struct {
 	CommitUnset string
 	// Format is what the file is, one of saga.ImportFormats. Empty is SARIF.
 	Format string
-	// CountSuppressed counts the findings the file's tool set aside, as the descriptor's
+	// CountSuppressed counts the findings the file's tool suppressed, as the descriptor's
 	// imports[].suppressions: count asks, rather than setting them aside.
 	CountSuppressed bool
 }

@@ -382,19 +382,19 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 		_, _ = fmt.Fprintln(w)
 	}
 
-	// Where and why each imported file's tool set its findings aside. Its own table, because these
-	// are no decision of this project's: the tool recorded them, in its own place, with a reason
-	// that SARIF leaves optional. The reason is the file's text, so it is kept to one line and its
-	// pipes cannot end the cell.
+	// Where and why each imported file's tool suppressed the findings Draugr set aside. Its own
+	// table, because these are no decision of this project's: the tool recorded them, in its own
+	// place, with a reason SARIF leaves optional and no field for who. The reason is the file's text,
+	// so it is kept to one line and its pipes cannot end the cell.
 	if len(asides) > 0 {
 		_, _ = fmt.Fprintln(w, "### Set aside by imported tools")
 		_, _ = fmt.Fprintln(w)
-		_, _ = fmt.Fprintln(w, "| Findings | Tool | Recorded in | Reason |")
-		_, _ = fmt.Fprintln(w, "|---:|---|---|---|")
+		_, _ = fmt.Fprintln(w, "| Findings | Tool | Suppressed | Reason | Who |")
+		_, _ = fmt.Fprintln(w, "|---:|---|---|---|---|")
 		for _, t := range asides {
 			for _, r := range t.reasons {
-				_, _ = fmt.Fprintf(w, "| %d | %s | %s | %s |\n", r.n, t.reporter, r.in,
-					strings.ReplaceAll(r.reason(), "|", `\|`))
+				_, _ = fmt.Fprintf(w, "| %d | %s | %s | %s | %s |\n", r.n, t.reporter, r.in,
+					strings.ReplaceAll(r.reason(), "|", `\|`), whoCell)
 			}
 		}
 		_, _ = fmt.Fprintln(w)

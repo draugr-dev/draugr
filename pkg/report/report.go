@@ -1588,16 +1588,17 @@ func nativeSilenced(d Data) int {
 	return max(n, 0)
 }
 
-// toolAside is what the tool that wrote an imported file set aside: the tool as the report names
-// its findings (sarif.Result.Reporter), how many, and each place and reason it recorded.
+// toolAside is what Draugr set aside because the tool that wrote an imported file suppressed it:
+// the tool as the report names its findings (sarif.Result.Reporter), how many, and each place and
+// reason the tool recorded.
 type toolAside struct {
 	reporter string
 	n        int
 	reasons  []toolReason
 }
 
-// toolReason is one place and reason a tool recorded for findings it set aside: in what
-// (sarif.SetAsideIn), the justification as the file wrote it, empty for none, how many, and the
+// toolReason is one place and reason a tool recorded for findings it suppressed: where
+// (sarif.SuppressedIn), the justification as the file wrote it, empty for none, how many, and the
 // rules.
 type toolReason struct {
 	in, why string
@@ -1613,14 +1614,25 @@ func (r toolReason) reason() string {
 	return findingSummary(r.why)
 }
 
-// said is the row's statement, in the words the other rows use.
+// said is the row's statement: what the tool did, and what Draugr did with it.
 func (t toolAside) said() string {
-	return english.Count(t.n, "finding") + " set aside in the tool"
+	return english.Count(t.n, "finding") + " the tool suppressed, not counted"
 }
 
-// notes are the row's reasons, one line each, as --evidence shows them under it.
+// evidenceHint ends the console's row where the reasons are not under it, saying where they are.
+const evidenceHint = "--evidence lists why"
+
+// whoCell is sarif.WhoNotRecorded under a column already headed Who.
+var whoCell = strings.TrimPrefix(sarif.WhoNotRecorded, "who: ")
+
+// notes are the row's reasons, one line each, as --evidence shows them under it, after a line
+// saying who suppressed them is unrecorded. Said rather than left out, because a SARIF suppression
+// has no field for a person, and a reader should not take a missing name for one the report
+// dropped. Once for the tool rather than on every line, since it holds for every finding the file
+// holds, and a reason line that carried it too would run past the edge of the screen.
 func (t toolAside) notes() []string {
-	out := make([]string, 0, len(t.reasons))
+	out := make([]string, 0, len(t.reasons)+1)
+	out = append(out, sarif.WhoNotRecorded)
 	for _, r := range t.reasons {
 		parts := []string{r.in, findingSummary(sarif.GivenReason(r.why)), english.Count(r.n, "finding")}
 		if rules := decisionRules(r.rules); rules != "" {
@@ -1631,7 +1643,7 @@ func (t toolAside) notes() []string {
 	return out
 }
 
-// toolAsides groups the findings an imported file's tool set aside by that tool, most first, then
+// toolAsides groups the findings an imported file's tool suppressed by that tool, most first, then
 // by name, and within a tool by where and why, most first.
 //
 // By tool, because the tool is where a reader goes to see or undo the decision, and two files the
@@ -1655,7 +1667,7 @@ func toolAsides(d Data) []toolAside {
 				order = append(order, row)
 			}
 			row.n++
-			k := at{sarif.SetAsideIn(res.Suppression.Kind), strings.TrimSpace(res.Suppression.Justification)}
+			k := at{sarif.SuppressedIn(res.Suppression.Kind), strings.TrimSpace(res.Suppression.Justification)}
 			r := reasons[who][k]
 			if r == nil {
 				r = &toolReason{in: k.in, why: k.why}
@@ -2215,9 +2227,9 @@ func acceptedVia(res sarif.Result) string {
 	case res.Imported():
 		return "VEX"
 	case res.SetAsideInImport():
-		// The tool that wrote the file and where it recorded the decision, which is where a
+		// The tool that wrote the file and where it recorded the suppression, which is where a
 		// reader goes to see or undo it.
-		return res.Reporter() + ", " + sarif.SetAsideIn(res.Suppression.Kind)
+		return res.Reporter() + ", suppressed " + sarif.SuppressedIn(res.Suppression.Kind)
 	case res.SilencedInSource():
 		return "source directive"
 	case res.SetAsideByScanner():

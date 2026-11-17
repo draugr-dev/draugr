@@ -493,10 +493,10 @@ func sagaFields() map[string]map[string]any {
 		},
 		"import.suppressions": {
 			"anyOf": vocab(saga.ImportSuppressionsValues,
-				valueDoc{"honor", "The default. A finding the tool set aside stays set aside, in the report with the tool, where it was recorded and why."},
+				valueDoc{"honor", "The default. A finding the tool suppressed is set aside, kept in the report with the tool, where it was suppressed and why."},
 				valueDoc{"count", "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."},
 			),
-			"description": "What a finding the file's tool set aside does here, by a comment in the code or in the tool's own " +
+			"description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own " +
 				"settings. A suppression the file marks rejected or underReview never sets a finding aside.",
 		},
 		"import.severity": {
