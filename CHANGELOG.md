@@ -18,15 +18,15 @@ _Nothing yet._
 
 - **Import Trivy's and govulncheck's own JSON.** Set `format: trivy-json` or `format: govulncheck-json` on an import, and Draugr reads the file as its own run of that tool would, keeping each finding's package, fixed version and package URL. Bound with `commit:`, a govulncheck file's reachability verdicts apply; unbound, its unreachable verdicts lower nothing.
 
-- **An imported tool's suppressed findings are named in ACCEPTED, and an import can count them.** Each imported SARIF tool gets its own row, such as `imported bandit  2 findings the tool suppressed, not counted`, and `--evidence` lists where each was recorded and why, or `no reason given`. `suppressions: count` on an import counts them instead.
+- **Imported SARIF findings the tool itself suppressed now show in ACCEPTED, and `suppressions: count` counts them.** Each imported tool gets its own row, such as `imported bandit  2 findings the tool suppressed, not counted`. `--evidence` lists where each was recorded and why, or `no reason given`.
 
 ### Fixed
 
 - **A `config.exclude` path copied with its line, such as `deploy/rbac.yaml:18`, is refused instead of matching nothing.** `draugr validate` and `draugr scan` name the file to write, and say it sets aside every finding of the entry's rules in that file, not only that line.
 
-- **A Dockerfile finding with no `USER` whose entrypoint script starts the application as another user is listed after the rest of its band.** Where every root start of the script ends in `exec su-exec`, `gosu`, `setpriv`, `runuser -u`, `s6-setuidgid` or `chpst -u`, the `DS-0002` finding names that line instead of asking for `USER`. Its band and gate count are unchanged.
+- **A Dockerfile with no `USER` whose entrypoint script drops to another user now gets a `DS-0002` finding that names that line, instead of asking for `USER`.** This applies where every root start ends in `exec su-exec`, `gosu`, `setpriv`, `runuser -u`, `s6-setuidgid` or `chpst -u`. It is listed after the rest of its band; band and gate count are unchanged.
 
-- **The `config.exclude` entry under `TRY` now shows `paths` and `expires`.** Copied as printed before, it set aside every finding of the rule in every file, including later ones.
+- **The `config.exclude` entry under `TRY` now includes `paths` and `expires`, so copying it no longer excludes the rule everywhere.** Before, the entry carried only the rule, so a copy set aside every finding of that rule in every file, including ones added later.
 
 ## [0.181.1] - 2026-11-17
 
