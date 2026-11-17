@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
@@ -82,39 +83,113 @@ func TestAnImportedTrivyJSONInTwoRepositoriesMergesWithNoNativeCopy(t *testing.T
 	}
 }
 
-// govulncheck's own JSON imported into sca beside trivy-fs: its verdict reaches trivy-fs's finding
-// of the same advisory in the same go.mod, as a govulncheck run's does, and the imported copy is
-// folded away; an advisory trivy-fs did not report keeps the imported finding with its verdict.
-func TestAnImportedGovulncheckVerdictReachesTrivyFSsFinding(t *testing.T) {
-	stream := copiedAt(t, mustRead(t, filepath.Join("testdata", "govulncheck-reachable.json")), time.Now())
-	res, _ := runBesideImport(t, controllers.NewSCA(), replayingTrivyFS(t), saga.ControllerSettings{"enabled": true},
-		map[string]importComponent{"api": {repos: []string{"api"}, file: stream, format: saga.ImportFormatGovulncheckJSON}})
+// beside is one run of sca over a public, critical component of one repository, trivy-fs replaying
+// trivy-fs-gomod.json beside an import of the govulncheck stream at stream, held to commit where it
+// names one. It returns the run and its sca findings by who reported them and the advisory, as
+// `trivy-fs CVE-…` and `sarif-import CVE-…`.
+func beside(t *testing.T, stream, commit string) (engine.Result, map[string]sarif.Result) {
+	t.Helper()
+	reg := engine.NewRegistry()
+	reg.RegisterController(controllers.NewSCA())
+	reg.RegisterScanner(replayingTrivyFS(t))
+	reg.RegisterScanner(boundImport())
+	model := saga.Model{
+		Config: saga.Config{Controls: map[string]saga.ControllerSettings{"sca": {"enabled": true}}},
+		Components: []saga.Component{{
+			Name: "api", Exposure: saga.ExposurePublic, Criticality: saga.CriticalityCritical,
+			Repositories: []saga.Repository{{URL: t.TempDir()}},
+			Imports:      []saga.Import{{Control: "sca", File: stream, Format: saga.ImportFormatGovulncheckJSON, Commit: commit}},
+		}},
+	}
+	res, err := engine.New(reg, engine.WithPrioritization(scanpolicy.PrioritizerWith(nil, nil))).Run(context.Background(), model)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(res.ScanErrors) > 0 {
 		t.Fatalf("errors: %v", res.ScanErrors)
 	}
-	var called, unreached *sarif.Result
-	results := res.Controls["sca"].Report.Results
-	for i, r := range results {
-		switch {
-		case r.RuleID == "CVE-2021-38561" && r.Scanner == plugin.ImportScanner:
-			t.Errorf("the imported copy of CVE-2021-38561 was kept beside trivy-fs's")
-		case r.RuleID == "CVE-2021-38561":
-			called = &results[i]
-		case r.RuleID == "CVE-2020-14040":
-			unreached = &results[i]
+	found := map[string]sarif.Result{}
+	for _, r := range res.Controls["sca"].Report.Results {
+		found[r.Scanner+" "+r.RuleID] = r
+	}
+	return res, found
+}
+
+// reachStream is govulncheck-reachable.json in a file of its own: CVE-2021-38561 called from main,
+// and CVE-2026-56852, which trivy-fs also reports, and CVE-2020-14040, which it does not, never
+// called.
+func reachStream(t *testing.T) string {
+	t.Helper()
+	return copiedAt(t, mustRead(t, filepath.Join("testdata", "govulncheck-reachable.json")), time.Now())
+}
+
+// nativeBands are the priorities trivy-fs's findings take with no verdict about them: beside a
+// govulncheck file bound to this run that found nothing.
+func nativeBands(t *testing.T) map[string]string {
+	t.Helper()
+	_, found := beside(t, copiedAt(t, []byte(`{"config":{"scan_level":"symbol"}}`), time.Now()), boundHead)
+	bands := map[string]string{}
+	for key, r := range found {
+		if r.Priority == "" {
+			t.Fatalf("%s has no priority", key)
+		}
+		bands[key] = r.Priority
+	}
+	return bands
+}
+
+// A govulncheck file bound to the commit this run reads moves its verdicts onto trivy-fs's findings
+// of the same advisories, as a govulncheck run does: the unreachable one lowers trivy-fs's finding
+// and the imported copy is folded into it, and the reachable one rides on trivy-fs's finding.
+func TestABoundGovulncheckFileLowersTrivyFSsUnreachableFinding(t *testing.T) {
+	native := nativeBands(t)
+	res, found := beside(t, reachStream(t), boundHead)
+	lowered := found["trivy-fs CVE-2026-56852"]
+	if r := lowered.Reachability; r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" ||
+		lowered.Priority == native["trivy-fs CVE-2026-56852"] {
+		t.Errorf("trivy-fs's CVE-2026-56852 at %s (native %s), reachability %+v, want govulncheck's unreachable verdict lowering it",
+			lowered.Priority, native["trivy-fs CVE-2026-56852"], lowered.Reachability)
+	}
+	for _, folded := range []string{"sarif-import CVE-2026-56852", "sarif-import CVE-2021-38561"} {
+		if _, kept := found[folded]; kept {
+			t.Errorf("%s was kept beside trivy-fs's copy", folded)
 		}
 	}
-	if called == nil || called.Reachability == nil || called.Reachability.State != sarif.ReachabilityReachable ||
-		called.Reachability.Analyzer != govulncheckScanner {
-		t.Fatalf("trivy-fs's CVE-2021-38561: %+v, want govulncheck's reachable verdict", called)
+	if r := found["trivy-fs CVE-2021-38561"].Reachability; r == nil || r.State != sarif.ReachabilityReachable || r.Analyzer != govulncheckScanner {
+		t.Errorf("trivy-fs's CVE-2021-38561 reachability %+v, want govulncheck's reachable verdict", r)
 	}
-	if unreached == nil || unreached.Scanner != plugin.ImportScanner || unreached.Reachability == nil ||
-		unreached.Reachability.State != sarif.ReachabilityUnreachable {
-		t.Errorf("CVE-2020-14040, which only the file reports: %+v", unreached)
+	if r := found["sarif-import CVE-2020-14040"].Reachability; r == nil || r.State != sarif.ReachabilityUnreachable {
+		t.Errorf("CVE-2020-14040, which only the file reports: %+v", r)
 	}
 	if !slices.ContainsFunc(res.Reachability.Analyzers, func(a engine.AnalyzerReachability) bool {
-		return a.Analyzer == govulncheckScanner && a.Reachable > 0
+		return a.Analyzer == govulncheckScanner && a.Reachable > 0 && a.Unreachable > 0
 	}) {
-		t.Errorf("reachability summary %+v names no verdict of govulncheck's", res.Reachability)
+		t.Errorf("reachability summary %+v", res.Reachability)
+	}
+}
+
+// A govulncheck file bound to no commit lowers nothing: nothing shows its run analyzed this code, so
+// trivy-fs's finding it calls unreachable keeps its native band, and so does the imported finding
+// only the file reports, each undetermined. Its reachable verdict still applies, since a call path
+// never makes a finding look safer.
+func TestAnUnboundGovulncheckFileLowersNothing(t *testing.T) {
+	native := nativeBands(t)
+	_, found := beside(t, reachStream(t), "")
+	kept := found["trivy-fs CVE-2026-56852"]
+	if kept.Priority != native["trivy-fs CVE-2026-56852"] || (kept.Reachability != nil &&
+		(kept.Reachability.State == sarif.ReachabilityUnreachable || kept.Reachability.RankedAs != "")) {
+		t.Errorf("trivy-fs's CVE-2026-56852 at %s, native %s, reachability %+v, want its native band",
+			kept.Priority, native["trivy-fs CVE-2026-56852"], kept.Reachability)
+	}
+	only, ok := found["sarif-import CVE-2020-14040"]
+	if !ok || only.Reachability == nil || only.Reachability.State != sarif.ReachabilityUnknown || only.Reachability.RankedAs != "" {
+		t.Errorf("CVE-2020-14040, which only the file reports: %+v, want it undetermined and unmoved", only.Reachability)
+	}
+	_, bound := beside(t, reachStream(t), boundHead)
+	if lowered := bound["sarif-import CVE-2020-14040"]; only.Priority == lowered.Priority {
+		t.Errorf("CVE-2020-14040 at %s unbound and %s bound, want the bound verdict alone to lower it", only.Priority, lowered.Priority)
+	}
+	if r := found["trivy-fs CVE-2021-38561"].Reachability; r == nil || r.State != sarif.ReachabilityReachable {
+		t.Errorf("trivy-fs's CVE-2021-38561 reachability %+v, want the unbound file's reachable verdict", r)
 	}
 }

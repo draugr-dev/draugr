@@ -284,7 +284,9 @@ What differs from a SARIF import:
 
 - **Severity is the native run's**: Trivy's CVSS score, else its own severity, and medium for
   govulncheck, whose database publishes none. The import takes no `severity` mapping.
-- **Only `commit` binds the file**, since neither tool writes a commit into its JSON.
+- **Only `commit` binds the file**, since neither tool writes a commit into its JSON. A govulncheck
+  file that is not bound lowers nothing: its unreachable verdicts are read as undetermined, and its
+  reachable ones still apply.
 - **The JSON names no repository.** In a component of several repositories, its findings merge with
   no native copy and are not scoped by `paths:` and `ignore:`, and `commit` cannot bind the file.
   Import it into a component of one repository.

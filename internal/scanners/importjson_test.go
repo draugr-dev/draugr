@@ -135,11 +135,15 @@ func TestAnImportedGovulncheckJSONIsTheFindingGovulncheckMakesOfIt(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Bound to the commit this run reads, so its verdicts are about this code.
 	ft := plugin.FileTarget{Path: copiedAt(t, data, at), Format: saga.ImportFormatGovulncheckJSON, Component: "app",
-		Repositories: []plugin.RepositoryTarget{{URL: dir}}}
-	rep, err := NewSARIFImport().Scan(context.Background(), ft, nil)
+		Repositories: []plugin.RepositoryTarget{{URL: dir}}, Commit: boundHead}
+	rep, err := boundImport().Scan(context.Background(), ft, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if field(t, rep, "commit") != boundHead[:12] {
+		t.Fatalf("commit = %q, want the file bound", field(t, rep, "commit"))
 	}
 	if len(rep.Results) == 0 || len(rep.Results) != len(native.Results) {
 		t.Fatalf("imported %d findings, native %d", len(rep.Results), len(native.Results))
@@ -177,6 +181,46 @@ func TestAnImportedGovulncheckJSONIsTheFindingGovulncheckMakesOfIt(t *testing.T)
 	}
 	if len(rep.PackageVerdicts) != 0 {
 		t.Errorf("package verdicts %+v: the not-built mark describes this machine's build, not the file's", rep.PackageVerdicts)
+	}
+}
+
+// boundHead is the commit boundImport says this run reads.
+const boundHead = "0123456789abcdef0123456789abcdef01234567"
+
+// boundImport is the import scanner reading every repository at boundHead.
+func boundImport() sarifImport {
+	return sarifImport{resolve: func(context.Context, string, string) (string, error) { return boundHead, nil }}
+}
+
+// An unbound govulncheck file's unreachable verdict is undetermined, since nothing shows its run
+// analyzed this code, and its message says why; a reachable verdict stays. Bound, the same file
+// keeps both, as TestAnImportedGovulncheckJSONIsTheFindingGovulncheckMakesOfIt shows.
+func TestAnUnboundGovulncheckFileDecidesNothingUnreachable(t *testing.T) {
+	path := copiedAt(t, mustRead(t, filepath.Join("testdata", "govulncheck-reachable.json")), time.Now())
+	for _, c := range []struct {
+		name   string
+		repos  []plugin.RepositoryTarget
+		commit string
+	}{
+		{"no commit", []plugin.RepositoryTarget{{URL: "https://github.com/acme/api"}}, ""},
+		{"two repositories", []plugin.RepositoryTarget{{URL: "https://github.com/acme/api"}, {URL: "https://github.com/acme/web"}}, boundHead},
+	} {
+		rep, err := boundImport().Scan(context.Background(),
+			plugin.FileTarget{Path: path, Format: saga.ImportFormatGovulncheckJSON, Repositories: c.repos, Commit: c.commit}, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		states := map[string]sarif.ReachabilityState{}
+		for _, r := range rep.Results {
+			states[r.RuleID] = r.Reachability.State
+			if r.RuleID == "CVE-2020-14040" &&
+				!strings.HasSuffix(r.Message, ", reachability not determined: the file is bound to no commit") {
+				t.Errorf("%s: message %q", c.name, r.Message)
+			}
+		}
+		if states["CVE-2020-14040"] != sarif.ReachabilityUnknown || states["CVE-2021-38561"] != sarif.ReachabilityReachable {
+			t.Errorf("%s: states %v, want the unreachable verdict undetermined and the reachable one kept", c.name, states)
+		}
 	}
 }
 

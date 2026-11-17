@@ -149,6 +149,13 @@ run makes of the same file.
   repository, as a native run's does, and the imported copy is then folded into it. It is dated by
   the file's modification time, and it is not narrowed to the call paths that start in the
   component's `paths:`.
+- **Only a bound file lowers a finding.** Unreachable lowers a finding's priority, so it is taken
+  only from a file held to the commit this run reads (see [Commit](#commit)). From an unbound file,
+  one with no `commit`, an unset variable, or a component of several repositories, an unreachable
+  verdict is read as undetermined: nothing shows its run analyzed this code, and an older commit can
+  lack a call this one makes. The finding keeps its band, and its message ends `reachability not
+  determined: the file is bound to no commit`. A reachable verdict applies either way, since a call
+  path never makes a finding look safer.
 - **The file names no commit or repository.** Only the import's `commit` binds it, and only in a
   component of one repository (see [Commit](#commit)). In a component of several, its findings are
   placed in none: they merge with no native copy, `paths:` and `ignore:` do not apply, and the file

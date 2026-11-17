@@ -167,6 +167,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if err != nil {
 		return sarif.Report{}, fmt.Errorf("%s: %w", plugin.ImportScanner, err)
 	}
+	if strings.HasPrefix(revision, notStated) {
+		undetermineAbsence(rep.Results)
+	}
 	placeImported(rep.Results, meta, ft.Repositories)
 	keep, scoped := scopeImported(rep.Results, read.outside, ft.Repositories)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
@@ -325,6 +328,30 @@ func unbound(ft plugin.FileTarget) string {
 		return notStated + ", the file names none or several of the component's repositories"
 	}
 	return notStated
+}
+
+// undetermineAbsence makes each unreachable verdict of a file bound to no commit undetermined, the
+// state of a dependency no analysis of this code covered.
+//
+// Unreachable lowers a finding's band, and nothing shows that an unbound file's run analyzed the code
+// this run reads: an older commit, or another repository, can lack a call this one makes. Lowering on
+// it would take the safer reading of code nobody checked. Undetermined rather than a state of its own
+// that moves nothing, because undetermined already says exactly that, and every count, band and
+// report reads it as an analyzer that did not decide. A reachable verdict stays: a call path found in
+// some revision never makes a finding look safer than it is.
+func undetermineAbsence(results []sarif.Result) {
+	for i := range results {
+		r := results[i].Reachability
+		if r == nil || r.State != sarif.ReachabilityUnreachable {
+			continue
+		}
+		undetermined := *r
+		undetermined.State = sarif.ReachabilityUnknown
+		results[i].Reachability = &undetermined
+		if msg, ok := strings.CutSuffix(results[i].Message, govulncheckNeverCalled); ok {
+			results[i].Message = msg + ", reachability not determined: the file is bound to no commit"
+		}
+	}
 }
 
 // toolJSON is the format of a file that is a tool's own JSON rather than SARIF, and "" for SARIF.
