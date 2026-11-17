@@ -3972,7 +3972,10 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 			}
 			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity}
 			for _, r := range comp.Repositories {
-				repo := plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree}
+				// With its paths and ignore, which decide which of the file's findings are this
+				// component's, as they decide which files its own scanners read.
+				repo := plugin.RepositoryTarget{URL: r.URL, Revision: r.Revision, WorkingTree: e.workingTree,
+					Paths: r.Paths, Ignore: r.Ignore}
 				// Resolved as a scanned repository's is, so the repository an imported finding is
 				// placed in is named as its native copy's is (sarif.Result.ImportedRepository).
 				if e.resolveRemote != nil && r.URL != "" {

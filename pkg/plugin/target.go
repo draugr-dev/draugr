@@ -436,7 +436,8 @@ type FileTarget struct {
 	// answered with what the old one said.
 	Digest string
 	// Repositories are the component's repositories, which the file has to describe: one that
-	// states the revision it scanned is held to the revision this run reads.
+	// states the revision it scanned is held to the revision this run reads. Each carries its paths
+	// and ignore, which leave out of the component a finding placed in it whose file they exclude.
 	Repositories []RepositoryTarget
 	// Severity is the descriptor's mapping of the tool's own rating, nil where it gives none.
 	Severity *saga.ImportSeverity
@@ -451,7 +452,8 @@ func (t FileTarget) Identity() string { return t.Path }
 
 // CacheDetail is the file's content, so the same path holding different findings is a different
 // scan; the repositories it is read against, because what the import makes of a file depends on
-// them, the revision it is held to and the repository its findings are placed in; and the
+// them, the revision it is held to, the repository its findings are placed in and the scope that
+// keeps or leaves out each one; and the
 // descriptor's mapping of its tool's rating where it gives one.
 func (t FileTarget) CacheDetail() string {
 	detail := "sha256=" + t.Digest

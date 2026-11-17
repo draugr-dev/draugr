@@ -8,6 +8,7 @@ import (
 	"io"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,6 +75,11 @@ type jsonReport struct {
 	// UnboundImports are the imported SARIF files that name no commit, per component. Their findings
 	// are in the report, and nothing in them shows they describe the code this run scanned.
 	UnboundImports []UnboundImport `json:"unboundImports,omitempty"`
+	// ScopedImports are the imported SARIF files a repository's paths: and ignore: narrowed, per
+	// component: how many findings they left out of it, and how many they could not be applied to. A
+	// finding left out is in no other count of this document, so without this its absence reads the
+	// same as a file that never reported it.
+	ScopedImports []ScopedImport `json:"scopedImports,omitempty"`
 	// Effects is which scanner effects the run accepted after --allow-effects, beside what the
 	// descriptor declared, and which effects its scanners had. Always present.
 	Effects effectsReport `json:"effects"`
@@ -407,6 +413,79 @@ type UnboundImport struct {
 	Controls []string `json:"controls,omitempty"`
 	// Reason is why, in the words the report prints.
 	Reason string `json:"reason"`
+}
+
+// ScopedImport is one imported SARIF file in one component whose repositories declare paths: or
+// ignore:, where the scope left a finding out or could not be applied to one.
+type ScopedImport struct {
+	// Component is the component that imported it.
+	Component string `json:"component,omitempty"`
+	// File is the imported file, as the descriptor names it.
+	File string `json:"file"`
+	// Controls are the controls that read it.
+	Controls []string `json:"controls,omitempty"`
+	// OutsidePaths counts the findings left out because their file is outside the paths: of the
+	// repository they were placed in.
+	OutsidePaths int `json:"outsidePaths,omitempty"`
+	// Ignored counts the findings left out because that repository's ignore: matches their file.
+	Ignored int `json:"ignored,omitempty"`
+	// NotScoped counts the findings kept whole because the file establishes no one repository of the
+	// component's, whose scope would apply. They are in the report and counted.
+	NotScoped int `json:"notScoped,omitempty"`
+}
+
+// scopedImportsOf reads, from the import scanner's provenance, the counts it recorded for each file
+// and component, once however many controls read the file: the same file read against the same
+// repositories is scoped the same way under each.
+func scopedImportsOf(run engine.Result) []ScopedImport {
+	var out []ScopedImport
+	type key struct{ component, file string }
+	at := map[key]int{}
+	for _, name := range sortedControlNames(run) {
+		for _, p := range run.Controls[name].Report.Provenance {
+			if p.Tool != sarif.ImportScanner || len(p.Detail) == 0 {
+				continue
+			}
+			var k key
+			for _, f := range p.Fields {
+				switch f.Key {
+				case "component":
+					k.component = f.Value
+				case "file":
+					k.file = f.Value
+				}
+			}
+			var s ScopedImport
+			for _, d := range p.Detail {
+				n, err := strconv.Atoi(d.Value)
+				if err != nil {
+					continue
+				}
+				switch d.Key {
+				case sarif.ImportOutsidePaths:
+					s.OutsidePaths = n
+				case sarif.ImportIgnored:
+					s.Ignored = n
+				case sarif.ImportNotScoped:
+					s.NotScoped = n
+				}
+			}
+			if s.OutsidePaths+s.Ignored+s.NotScoped == 0 {
+				continue
+			}
+			i, seen := at[k]
+			if !seen {
+				s.Component, s.File = k.component, k.file
+				i = len(out)
+				at[k] = i
+				out = append(out, s)
+			}
+			if !slices.Contains(out[i].Controls, name) {
+				out[i].Controls = append(out[i].Controls, name)
+			}
+		}
+	}
+	return out
 }
 
 // componentLabels is labels with an empty map in place of a component's nil one, so the document
@@ -1097,6 +1176,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		FailedCaveats:   prov.FailedCaveats,
 		NotChecked:      prov.NotChecked,
 		UnboundImports:  prov.UnboundImports,
+		ScopedImports:   scopedImportsOf(run),
 		ScannerData:     ScannerDataFrom(run.Stats.Data),
 		Stats: statsInfo{
 			Jobs:         run.Stats.Jobs,

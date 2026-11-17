@@ -397,8 +397,10 @@ components:
 | `file` | the SARIF 2.1.0 file, relative to where Draugr runs |
 | `severity` | optional: the result property the tool states its rating in, and the severity each of its values means |
 
-Every finding in the file belongs to this component, whatever the repository's `paths:` and
-`ignore:` say, and keeps the path the file wrote, so write paths relative to the repository's root.
+A finding in the file keeps the path the file wrote, so write paths relative to the repository's
+root, and belongs to this component where that path is inside the repository's
+[`paths:` and `ignore:`](#scoping-a-repository). The report counts the findings left out under
+**Measured against** and in `report.json`.
 Severity comes from each result's `security-severity`, a score written as a string such as `"7.5"`.
 A result without one is rated by its tool's own rating where Draugr has a table for the tool:
 Bandit, gosec, CodeQL, Fortify Static Code Analyzer, OWASP dependency-check and Snyk Open Source,
@@ -2023,6 +2025,10 @@ finding only when the path it names would have been checked out, by the rules ab
 the one the secret had in the commit that introduced it, so the finding belongs to the component
 whose `paths` held that path. The scope is applied after Gitleaks has reported every commit's
 findings, so `paths` and `ignore` do not lower the time or memory a history pass takes.
+
+**Imported findings follow the same scope.** An imported SARIF file is scoped by the same `paths`
+and `ignore`; [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the
+rules.
 
 **[`gosec`](../../internal/scanners/gosec.md) and [`govulncheck`](../../internal/scanners/govulncheck.md)
 analyze whole Go modules.** Both type-check packages, and a package does not type-check without the
