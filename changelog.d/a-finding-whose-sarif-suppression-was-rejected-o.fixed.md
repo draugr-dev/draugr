@@ -1,0 +1,1 @@
+- **A finding whose SARIF suppression was rejected or is under review now counts.** An imported file's suppression set its finding aside whatever its `status`; now a `rejected` or `underReview` entry leaves the finding counting and says so in its detail, and a finding is set aside only when every entry is `accepted` or has no status.
