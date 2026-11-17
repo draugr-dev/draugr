@@ -1208,10 +1208,10 @@ component moves every finding it held. Moves are listed in a `MOVED` table, one 
 components, then a `PRIORITY CHANGED` table with a row for each finding whose priority changed with
 its component.
 
-**Reranked** is a finding counting in both scans, in the same component, whose priority band
+**Reranked** is a finding in both scans and excused in neither, in the same component, whose priority band
 changed: a component that declared its exposure or criticality, or a new exploitation signal. A
 `RERANKED` table lists each with the band it had and the band it has (`P1 → P3`), raised ones
-first, and its heading counts how many were raised and how many lowered. A reranked finding is not
+first, and the headline counts how many were raised and how many lowered. A reranked finding is not
 counted as unchanged. A finding that changed component and band is moved, not reranked, and its
 band change is in `PRIORITY CHANGED`.
 

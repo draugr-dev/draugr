@@ -106,7 +106,7 @@ func TestTheConsoleListsRerankedFindings(t *testing.T) {
 	r.Reranked[0].Message = "a template injection in the router"
 	got := renderAs(t, "console", r, Options{})
 	for _, want := range []string{
-		"2 reranked  1 unchanged", "RERANKED  2 · 1 raised, 1 lowered", "Nothing is new or fixed.",
+		"2 reranked (1 raised, 1 lowered)  1 unchanged", "RERANKED  2 · 1 raised, 1 lowered", "Nothing is new or fixed.",
 		"a template injection in the router",
 	} {
 		if !strings.Contains(got, want) {
@@ -165,7 +165,7 @@ func TestTheCommentListsRerankedFindings(t *testing.T) {
 	for _, view := range []View{ViewFindings, ViewActions} {
 		got := renderAs(t, "markdown", r, Options{View: view})
 		for _, want := range []string{
-			"↕️ 2 reranked", "_reranked_ · **1 P1** · 0 P2 · **1 P3** · 0 P4", "Nothing is new or fixed.",
+			"↕️ 2 reranked (1 raised, 1 lowered)", "_reranked_ · **1 P1** · 0 P2 · **1 P3** · 0 P4", "Nothing is new or fixed.",
 			"### Reranked · 2 · 1 raised, 1 lowered",
 			"| P4 → P1 | high | [`CVE-1`](https://avd.example/cve-1) | trivy | api | api/go.mod:3 |",
 			"| P1 → P3 | high | [`CVE-2`](https://nvd.nist.gov/vuln/detail/CVE-2) | trivy | worker | worker/go.mod:5 |",
@@ -284,8 +284,8 @@ func TestDeclaringContextReportsTheFindingsItReranked(t *testing.T) {
 		t.Errorf("unchanged %d, new %d, fixed %d, moved %d; want 2, 0, 0, 0", len(r.Unchanged), len(r.New), len(r.Fixed), len(r.Moved))
 	}
 	got := renderAs(t, "console", r, Options{})
-	if strings.Contains(got, "Nothing changed") || !strings.Contains(got, "5 reranked  2 unchanged") ||
-		!strings.Contains(got, "RERANKED  5 · 5 lowered") {
+	if strings.Contains(got, "Nothing changed") || !strings.Contains(got, "5 reranked (5 lowered)  2 unchanged") ||
+		!strings.Contains(got, "RERANKED  5 · 5 lowered") || !strings.Contains(got, "Nothing is new or fixed. Only priorities changed.") {
 		t.Errorf("the diff should report the five reranked findings:\n%s", got)
 	}
 }

@@ -135,7 +135,7 @@ func headline(r Result, emoji bool) []string {
 		parts = append(parts, part)
 	}
 	if n := len(r.Reranked); n > 0 {
-		part := fmt.Sprintf("%d reranked", n)
+		part := fmt.Sprintf("%d reranked (%s)", n, directions(r.Reranked))
 		if emoji {
 			part = "↕️ " + part
 		}

@@ -300,27 +300,25 @@ which declared `public`. `--top` caps the priority-changed rows; the pairs are a
 
 ### Reranked findings
 
-A reranked finding is one counting in both scans, in the same component, whose priority band
-changed. The band is what a reader triages by, so a change to it changes their list even where no
-finding arrived or left. Declaring a component's `exposure` and `criticality`, a new exploitation
-signal and a reachability verdict all do it. The gate does not read reranked findings, since nobody
-introduced them, and they are not counted as unchanged, so a diff whose only change is a band never
-says that nothing changed.
+A reranked finding is one in both scans and excused in neither, in the same component, whose
+priority band changed. Declaring a component's `exposure` and `criticality`, a new exploitation
+signal and a reachability verdict all do it. Reranked findings are not counted as unchanged, and the
+gate does not read them, since nobody introduced them.
 
-The `RERANKED` table lists each finding with the band it had and the band it has, raised ones
-first, and its heading counts how many went each way. Here the `worker` and `platform` components
+The headline says how many were raised and how many lowered. The `RERANKED` table lists each finding
+with the band it had and the band it has, raised ones first. Here the `worker` and `platform` components
 declared their context between the two scans:
 
 ```console
 $ draugr diff out-base/results.sarif out-head/results.sarif --fail-on-new P1 --view compact
-DRAUGR DIFF  pass  5 reranked  2 unchanged
+DRAUGR DIFF  pass  5 reranked (5 lowered)  2 unchanged
 
  reranked   0 P1 1 P2 1 P3 3 P4
  unchanged  1 P1 0 P2 1 P3 0 P4
 
 Gate: fails on any P1 this change introduces.
 
-Nothing is new or fixed.
+Nothing is new or fixed. Only priorities changed.
 
 RERANKED  5 · 5 lowered
   Priority  Severity  Rule                                                                        Scanner      Component  Location

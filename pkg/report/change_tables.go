@@ -34,8 +34,8 @@ var stateWhen = map[string]string{
 	stateAccepted:      "excused here and not in the base: somebody chose to live with it, which is not fixing it",
 	stateFixed:         "in the base and not in this run",
 	stateMoved:         "reported under another component than in the base, and otherwise the same",
-	stateReranked:      "in both, counting in both, at a different priority band than in the base",
-	stateUnchanged:     "in both, counting in both, at the same priority band",
+	stateReranked:      "in both scans and excused in neither, at a different priority band (P1–P4) than in the base",
+	stateUnchanged:     "in both scans and excused in neither, at the same priority band",
 	stateStillAccepted: "in both, excused in both",
 }
 

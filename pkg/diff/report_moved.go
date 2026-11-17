@@ -15,6 +15,9 @@ import (
 // A diff whose only news is findings that moved component or changed band has still compared
 // something, and their sections follow, so it does not claim every finding was already where it was.
 func nothingChanged(r Result) string {
+	if len(r.Moved) == 0 && len(r.Reranked) > 0 {
+		return "Nothing is new or fixed. Only priorities changed."
+	}
 	if len(r.Moved) > 0 || len(r.Reranked) > 0 {
 		return "Nothing is new or fixed."
 	}
