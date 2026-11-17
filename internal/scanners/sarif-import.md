@@ -65,9 +65,10 @@ The file is read as SARIF 2.1.0:
     [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) `paths` and links to the
     line do not match it. A repository named by a remote address has no local directory, so write
     the file's paths relative to the repository root.
-- **Set aside an imported finding with `config.exclude`.** A repository's `paths:` and `ignore:`
-  narrow the scanners Draugr runs, not an imported file: every finding in it belongs to the
-  component.
+- **A repository's `paths:` and `ignore:` apply to the file's findings**, as they do to the tree
+  the component's own scanners read. A finding outside the component's scope is left out of it, and
+  the report counts it, as [Paths and ignore](#paths-and-ignore) describes. To set aside a finding
+  inside the scope, use `config.exclude`, which keeps it in the report, suppressed.
 - **Expect the file's own suppressions to hold.** A result with an entry in `suppressions` stays in
   the report, suppressed, whatever the entry's `status`.
 - **Expect KEV and EPSS only on a CVE.** They read a CVE in the rule id or among the identifiers the
@@ -148,6 +149,36 @@ These stay counted apart:
   be about any of them, so its findings stay counted apart rather than merging with a copy in a
   repository they may not be about.
 
+## Paths and ignore
+
+An imported finding belongs to the component only where its file is inside the
+[`paths:` and `ignore:`](../../docs/reference/saga-schema.md#scoping-a-repository) of the
+repository it is placed in, by the rules a checkout follows: a file outside `paths:`, or one
+`ignore:` matches, is left out of the component. A tool that scans a whole monorepo writes one file
+for all of it, and each component importing that file keeps the findings in its own subtrees, as a
+native scan of the repository would. A component that lists one repository several times, a subtree
+each, keeps a finding inside any of them.
+
+The repository is the one the import places the finding in, as
+[Merging with the control's scanners](#merging-with-the-controls-scanners) describes. Where the scope
+cannot be applied, the finding stays:
+
+- **No repository established.** In a component with several repositories, a file whose
+  `versionControlProvenance` names none of them, or more than one, could be about any of them, each
+  scoped differently. Its findings stay and are counted as not scoped.
+- **No location.** A finding that names no file is kept.
+- **A path outside every checkout.** It is kept as written and listed under `unread-files`.
+
+**Measured against** says what was left out, after `component`:
+
+```text
+component: web · left out: 2 findings outside paths, 1 matched by ignore
+```
+
+`report.json` lists the same counts under
+[`scopedImports[]`](../../docs/reference/report-schema.md#telling-a-partial-run-from-a-clean-one).
+A left-out finding is in no other count of the report, and `config.exclude` does not see it.
+
 ## What the report says about the file
 
 Draugr did not run the tool, so the report states what it knows about the file instead, under
@@ -161,6 +192,8 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5` |
 | `commit` | the commit the file was checked against, or `not stated` |
 | `component` | the component that imports it |
+| `left out` | how many findings the repository's `paths:` and `ignore:` left out of the component, as `3 findings outside paths, 1 matched by ignore`. Absent where none was left out |
+| `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file establishes no one repository of the component's. Absent where none was, and where the component's repositories declare no scope |
 | `sha256` | the file's content, so a run can be checked against the file it read |
 
 ## Each tool's own rating

@@ -46,6 +46,11 @@ first import meets:
   and [`config.exclude`](../reference/saga-schema.md#configexclude) paths and links to the line do
   not match it. A component whose `url` is a remote address has no local directory to compare
   against, so write the file's paths relative to the repository root.
+- **The repository's `paths:` and `ignore:` apply to the file.** A finding outside them is left out
+  of the component, so one file written for a whole monorepo splits between the components that
+  import it. **Measured against** counts what each left out, as `left out: 3 findings outside
+  paths`. A finding the import cannot place in one repository, or in the checkout at all, stays.
+  [Paths and ignore](../../internal/scanners/sarif-import.md#paths-and-ignore) has the rules.
 - **The file's own suppressions hold.** A result it suppresses stays in the report, suppressed.
 
 ## 1. Write the SARIF file
@@ -108,8 +113,9 @@ components:
         file: reports/bandit.sarif   # relative to where Draugr runs
 ```
 
-`control` names the control that reports the findings, such as `sast` or `sca`. Every finding in the file
-belongs to the component that imports it. A component can import several files, one entry each.
+`control` names the control that reports the findings, such as `sast` or `sca`. A finding in the
+file belongs to the component that imports it where its path is inside the `paths:` and `ignore:` of
+the component's repository. A component can import several files, one entry each.
 
 ## 4. Scan
 

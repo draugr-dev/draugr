@@ -762,6 +762,19 @@ type Observation struct {
 // the engine stamps as the Scanner of every finding read from one.
 const ImportScanner = "sarif-import"
 
+// The keys of the counts the import scanner records in its Provenance.Detail, each a decimal count of
+// one file's findings in one component, present only where it is above zero.
+const (
+	// ImportOutsidePaths counts the findings left out because their file is outside the paths: of
+	// the repository they were placed in.
+	ImportOutsidePaths = "outsidePaths"
+	// ImportIgnored counts the findings left out because the repository's ignore: matches their file.
+	ImportIgnored = "ignored"
+	// ImportNotScoped counts the findings kept whole in a component whose repositories declare paths:
+	// or ignore:, because the file establishes no one repository whose scope would apply.
+	ImportNotScoped = "notScoped"
+)
+
 // Reporter names who gave an account of a finding, for telling one flaw's copies apart: the tool,
 // and for a finding read from another tool's file, the tool marked as imported.
 //

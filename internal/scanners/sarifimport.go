@@ -12,9 +12,11 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -107,6 +109,8 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 		return sarif.Report{}, fmt.Errorf("%s: %w", plugin.ImportScanner, err)
 	}
 	placeImported(rep.Results, meta, ft.Repositories)
+	keep, scoped := scopeImported(rep.Results, outside, ft.Repositories)
+	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
 
 	sum := sha256.Sum256(data)
 	// What a reader needs first leads, and the digest, which a reader checks rather than reads,
@@ -121,8 +125,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if ft.Component != "" {
 		fields = append(fields, sarif.Field{Key: "component", Value: ft.Component})
 	}
+	fields = append(fields, scoped.fields()...)
 	fields = append(fields, sarif.Field{Key: "sha256", Value: hex.EncodeToString(sum[:])})
-	rep.Provenance = append(rep.Provenance, sarif.Provenance{Tool: plugin.ImportScanner, Fields: fields})
+	rep.Provenance = append(rep.Provenance, sarif.Provenance{Tool: plugin.ImportScanner, Fields: fields, Detail: scoped.detail()})
 	for _, p := range outside {
 		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: outsideCheckout})
 	}
@@ -225,6 +230,113 @@ func placeImported(results []sarif.Result, meta importLog, repos []plugin.Reposi
 			next++
 		}
 	}
+}
+
+// importScope counts what scopeImported did with one file's findings.
+type importScope struct {
+	// outsidePaths and ignored are the findings left out, by the half of the scope that left each out.
+	outsidePaths, ignored int
+	// notScoped are the findings kept whole because no one repository was established for them, in a
+	// component whose repositories declare a scope.
+	notScoped int
+}
+
+// fields are the provenance's statements of the counts, for a reader: none where nothing was left
+// out or kept unscoped, so a file in an unscoped component reads as it always did.
+func (s importScope) fields() []sarif.Field {
+	var out []sarif.Field
+	var left []string
+	if s.outsidePaths > 0 {
+		left = append(left, english.Count(s.outsidePaths, "finding")+" outside paths")
+	}
+	if s.ignored > 0 {
+		n := english.Count(s.ignored, "finding")
+		if len(left) > 0 {
+			n = strconv.Itoa(s.ignored)
+		}
+		left = append(left, n+" matched by ignore")
+	}
+	if len(left) > 0 {
+		out = append(out, sarif.Field{Key: "left out", Value: strings.Join(left, ", ")})
+	}
+	if s.notScoped > 0 {
+		out = append(out, sarif.Field{Key: "not scoped", Value: english.Count(s.notScoped, "finding") +
+			" the file places in no one repository, so paths and ignore were not applied"})
+	}
+	return out
+}
+
+// detail is the counts for a consumer, under the keys report.json reads them by.
+func (s importScope) detail() []sarif.Field {
+	var out []sarif.Field
+	for _, c := range []struct {
+		key string
+		n   int
+	}{{sarif.ImportOutsidePaths, s.outsidePaths}, {sarif.ImportIgnored, s.ignored}, {sarif.ImportNotScoped, s.notScoped}} {
+		if c.n > 0 {
+			out = append(out, sarif.Field{Key: c.key, Value: strconv.Itoa(c.n)})
+		}
+	}
+	return out
+}
+
+// scopeImported says which findings stay in the component: those inside the paths: and ignore: of
+// the repository placeImported placed each in. outside are the paths FromForeignSARIF could not place
+// in any checkout.
+//
+// The scope is read with git.Scope.Contains, the matcher a checkout and a history pass use, so an
+// imported finding belongs to a component exactly when the same file would be in the tree its own
+// scanners read. A tool that scans a whole monorepo writes one file for all of it, and without this
+// each component importing that file would count every other component's findings as its own.
+//
+// Where the scope cannot be applied, the finding stays. A finding with no location, or a path outside
+// every checkout, is somewhere nothing can place, and one with no placed repository could be in any
+// of the component's repositories, each scoped differently. Leaving either out would drop a flaw on a
+// guess. A component that lists one repository several times, a subtree each, keeps a finding inside
+// any of them, as its checkouts together hold it.
+func scopeImported(results []sarif.Result, outside []string, repos []plugin.RepositoryTarget) ([]bool, importScope) {
+	var s importScope
+	keep := make([]bool, len(results))
+	scoped := slices.ContainsFunc(repos, func(r plugin.RepositoryTarget) bool { return len(r.Paths) > 0 || len(r.Ignore) > 0 })
+	for i, r := range results {
+		keep[i] = true
+		uri := r.Location.URI
+		if !scoped || uri == "" || uri == "." || slices.Contains(outside, uri) {
+			continue
+		}
+		if r.ImportedRepository == "" {
+			s.notScoped++
+			continue
+		}
+		var scopes []git.Scope
+		for _, repo := range repos {
+			if repo.Source() == r.ImportedRepository {
+				scopes = append(scopes, git.Scope{Paths: repo.Paths, Ignore: repo.Ignore})
+			}
+		}
+		if len(scopes) == 0 || slices.ContainsFunc(scopes, func(sc git.Scope) bool { return sc.Empty() || sc.Contains(uri) }) {
+			continue
+		}
+		keep[i] = false
+		// Inside some entry's paths, so that entry's ignore is what removed it.
+		if slices.ContainsFunc(scopes, func(sc git.Scope) bool { return git.Scope{Paths: sc.Paths}.Contains(uri) }) {
+			s.ignored++
+		} else {
+			s.outsidePaths++
+		}
+	}
+	return keep, s
+}
+
+// keepOnly is the items whose keep entry is true, in order. An item past the end of keep is kept.
+func keepOnly[T any](items []T, keep []bool) []T {
+	out := items[:0:0]
+	for i, item := range items {
+		if i >= len(keep) || keep[i] {
+			out = append(out, item)
+		}
+	}
+	return out
 }
 
 // repositoryOf is the one repository a run is about: the component's only one, whatever the run
