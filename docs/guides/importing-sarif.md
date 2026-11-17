@@ -278,8 +278,6 @@ Draugr reads each file with the parser its own `trivy-fs` and `govulncheck` scan
 imported finding carries the package, the installed and fixed versions and, from govulncheck, the
 reachability verdict with its call path, as a native run's does. A govulncheck verdict moves the
 priority of the `trivy-fs` finding for the same advisory, as a native run's verdict does.
-`govulncheck -json` writes the same stream as `-format json`.
-
 What differs from a SARIF import:
 
 - **Severity is the native run's**: Trivy's CVSS score, else its own severity, and medium for

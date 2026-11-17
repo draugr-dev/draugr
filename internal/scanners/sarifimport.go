@@ -323,7 +323,7 @@ func unbound(ft plugin.FileTarget) string {
 		return notStated + ", ${{ " + ft.CommitUnset + " }} is not set"
 	case ft.Commit != "" && toolJSON(ft) != "":
 		// A tool's own JSON names no repository, so with several nothing says which one commit is in.
-		return notStated + ", " + toolJSON(ft) + " names no repository, and the component has several"
+		return notStated + ", " + toolJSON(ft) + " names no repository and the component has several"
 	case ft.Commit != "":
 		return notStated + ", the file names none or several of the component's repositories"
 	}
@@ -428,7 +428,7 @@ func (s importScope) fields() []sarif.Field {
 	if s.notScoped > 0 {
 		remedy := "Add versionControlProvenance to the file"
 		if s.ownJSON != "" {
-			remedy = "Import " + s.ownJSON + " in a component with one repository"
+			remedy = "Move the " + s.ownJSON + " import to a component with one repository"
 		}
 		out = append(out, sarif.Field{Key: "not scoped", Value: english.Count(s.notScoped, "finding") +
 			", not in any one repository, so paths and ignore were not applied. " + remedy})

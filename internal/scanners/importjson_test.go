@@ -280,7 +280,7 @@ func TestAnImportedToolJSONIsHeldToTheDescriptorsCommit(t *testing.T) {
 			{"no commit", one, "", notStated, false},
 			{"the commit this run reads", one, head[:10], "0123456789ab", false},
 			{"another commit", one, other, "scanned fedcba987654, this run reads 0123456789ab. Run the tool again", true},
-			{"two repositories", two, head, "not stated, " + f.format + " names no repository, and the component has several", false},
+			{"two repositories", two, head, "not stated, " + f.format + " names no repository and the component has several", false},
 		} {
 			ft := plugin.FileTarget{Path: f.path, Format: f.format, Component: "api", Repositories: c.repos, Commit: c.commit}
 			rep, err := scanner.Scan(context.Background(), ft, nil)
@@ -342,7 +342,7 @@ func TestAnImportedToolJSONIsPlacedAndScopedByTheComponentsRepositories(t *testi
 		}
 	}
 	want := "4 findings, not in any one repository, so paths and ignore were not applied. " +
-		"Import trivy-json in a component with one repository"
+		"Move the trivy-json import to a component with one repository"
 	if got := field(t, rep, "not scoped"); got != want {
 		t.Errorf("not scoped = %q, want %q", got, want)
 	}
@@ -375,7 +375,7 @@ func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
 		{"SARIF as Trivy JSON", saga.ImportFormatTrivyJSON, sarifLog, "not Trivy JSON. Write it with trivy fs --format json"},
 		{"not JSON as Trivy JSON", saga.ImportFormatTrivyJSON, "not json", "not Trivy JSON. Write it with trivy fs --format json"},
 		{"a mistyped Trivy JSON", saga.ImportFormatTrivyJSON, `{"SchemaVersion":2,"Results":"none"}`, "not Trivy JSON"},
-		{"another Trivy schema", saga.ImportFormatTrivyJSON, `{"SchemaVersion":3,"Results":[]}`, "schema 3 of Trivy JSON, and Draugr reads schema 2"},
+		{"another Trivy schema", saga.ImportFormatTrivyJSON, `{"SchemaVersion":3,"Results":[]}`, "schema 3 Trivy JSON; Draugr reads schema 2"},
 		{"SARIF as govulncheck JSON", saga.ImportFormatGovulncheckJSON, sarifLog, "not govulncheck JSON. Write it with govulncheck -format json"},
 		{"not JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, "{not json", "not govulncheck JSON"},
 		{"Trivy JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, `{"SchemaVersion":2,"Results":[]}`, "not govulncheck JSON"},

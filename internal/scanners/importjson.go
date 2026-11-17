@@ -52,7 +52,7 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 		return importRead{}, errNotTrivyJSON
 	}
 	if head.SchemaVersion != trivySchemaVersion {
-		return importRead{}, fmt.Errorf("schema %d of Trivy JSON, and Draugr reads schema %d", head.SchemaVersion, trivySchemaVersion)
+		return importRead{}, fmt.Errorf("schema %d Trivy JSON; Draugr reads schema %d", head.SchemaVersion, trivySchemaVersion)
 	}
 	doc, err := decodeTrivyVulns(data)
 	if err != nil {

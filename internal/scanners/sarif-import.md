@@ -149,13 +149,11 @@ run makes of the same file.
   repository, as a native run's does, and the imported copy is then folded into it. It is dated by
   the file's modification time, and it is not narrowed to the call paths that start in the
   component's `paths:`.
-- **Only a bound file lowers a finding.** Unreachable lowers a finding's priority, so it is taken
-  only from a file held to the commit this run reads (see [Commit](#commit)). From an unbound file,
-  one with no `commit`, an unset variable, or a component of several repositories, an unreachable
-  verdict is read as undetermined: nothing shows its run analyzed this code, and an older commit can
-  lack a call this one makes. The finding keeps its band, and its message ends `reachability not
-  determined: the file is bound to no commit`. A reachable verdict applies either way, since a call
-  path never makes a finding look safer.
+- **Bind a govulncheck file with `commit`, or its unreachable verdicts lower nothing.** Without a
+  binding (no `commit`, an unset variable, or a component of several repositories) an unreachable
+  verdict is read as undetermined and the finding keeps its band, its message ending `reachability
+  not determined: the file is bound to no commit`. A reachable verdict applies either way. See
+  [Commit](#commit).
 - **The file names no commit or repository.** Only the import's `commit` binds it, and only in a
   component of one repository (see [Commit](#commit)). In a component of several, its findings are
   placed in none: they merge with no native copy, `paths:` and `ignore:` do not apply, and the file
@@ -463,7 +461,7 @@ them, or more than one, stays unbound.
 
 A tool's own JSON states no commit and no repository, so the import's `commit` is the only binding,
 and with several distinct repositories the file stays unbound, `commit` reading `not stated,
-trivy-json names no repository, and the component has several`.
+trivy-json names no repository and the component has several`.
 
 ## Errors
 
@@ -486,7 +484,7 @@ that found nothing:
 
 - `not Trivy JSON. Write it with trivy fs --format json`, for a file with no `SchemaVersion`, such
   as a SARIF log or a CycloneDX document;
-- `schema 3 of Trivy JSON, and Draugr reads schema 2`, for a report in a schema Draugr does not read;
+- `schema 3 Trivy JSON; Draugr reads schema 2`, for a report in a schema Draugr does not read;
 - `not govulncheck JSON. Write it with govulncheck -format json`, for a stream whose runs do not
   each open with govulncheck's `config` message.
 
