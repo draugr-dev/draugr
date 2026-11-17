@@ -992,8 +992,8 @@ func TestValidateImportSeverity(t *testing.T) {
 		s    ImportSeverity
 		want string
 	}{
-		{"no property", ImportSeverity{Values: map[string]string{"Major": "high"}}, "imports[0].severity.property is required"},
-		{"no values", ImportSeverity{Property: "impact"}, "imports[0].severity.values is required"},
+		{"no property", ImportSeverity{Values: map[string]string{"Major": "high"}}, "imports[0].severity.property is empty"},
+		{"no values", ImportSeverity{Property: "impact"}, "imports[0].severity.values is empty"},
 		{"not a severity", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "severe"}},
 			`imports[0].severity.values["Major"]: "severe" is not a severity: use critical, high, medium, low`},
 		{"a level, not a severity", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "error"}},
@@ -1001,11 +1001,11 @@ func TestValidateImportSeverity(t *testing.T) {
 		{"a capitalized band", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "High"}},
 			`"High" is not a severity`},
 		{"one value twice", ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high", "major ": "low"}},
-			`"Major" and "major " name the same value`},
+			`"Major" and "major " match the same value`},
 		{"one number twice", ImportSeverity{Property: "impact", Values: map[string]string{"3": "high", "3.0": "low"}},
-			`"3" and "3.0" name the same value`},
+			`"3" and "3.0" match the same value`},
 		{"an empty value", ImportSeverity{Property: "impact", Values: map[string]string{" ": "high"}},
-			"an empty value names nothing"},
+			"remove the empty key"},
 	} {
 		if err := with(c.s); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err = %v, want %q", c.name, err, c.want)

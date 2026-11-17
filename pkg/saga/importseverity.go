@@ -43,20 +43,20 @@ func foldRatingValue(v string) string {
 func validateImportSeverity(s ImportSeverity, at string) []error {
 	var errs []error
 	if strings.TrimSpace(s.Property) == "" {
-		errs = append(errs, fmt.Errorf("%s.property is required, the result property holding the tool's rating", at))
+		errs = append(errs, fmt.Errorf("%s.property is empty: set it to the result property the tool writes its rating in, such as \"severity\"", at))
 	}
 	if len(s.Values) == 0 {
-		errs = append(errs, fmt.Errorf("%s.values is required, each value the tool writes and the severity it means", at))
+		errs = append(errs, fmt.Errorf("%s.values is empty: map each value the tool writes to critical, high, medium or low", at))
 	}
 	folded := map[string]string{}
 	for _, value := range slices.Sorted(maps.Keys(s.Values)) {
 		key := foldRatingValue(value)
 		switch first, seen := folded[key]; {
 		case key == "":
-			errs = append(errs, fmt.Errorf("%s.values: an empty value names nothing the tool writes", at))
+			errs = append(errs, fmt.Errorf("%s.values: remove the empty key, which matches no value the tool writes", at))
 		case seen:
-			errs = append(errs, fmt.Errorf("%s.values: %q and %q name the same value, since values match regardless "+
-				"of case and numbers by value", at, first, value))
+			errs = append(errs, fmt.Errorf("%s.values: %q and %q match the same value, because case, surrounding space and number "+
+				"formatting are ignored: keep one", at, first, value))
 		default:
 			folded[key] = value
 		}

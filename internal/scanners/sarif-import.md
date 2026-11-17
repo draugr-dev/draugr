@@ -268,7 +268,7 @@ likelihood = Accuracy × Confidence × Probability / 25
 Source: Fortify's own computation in fcli,
 [`VulnFinalizer.java`](https://github.com/fortify/fcli/blob/d3f24cc9763f8889a232a08167f0a1bde31a89da/fcli-core/fcli-common-fpr/src/main/java/com/fortify/cli/common/fpr/processor/VulnFinalizer.java)
 (`deriveFields`), whose four priorities, Critical, High, Medium and Low, are the severities of the
-same names. A value of exactly 2.5 counts as high, as Fortify counts it. A result missing any of the
+same names. A value of exactly 2.5 falls in the 2.5-or-more column, as Fortify counts it. A result missing any of the
 four values keeps its level: Fortify fills a missing one from category data the file does not carry.
 The evidence line reads `Impact 3.0 · likelihood 3.2`.
 
@@ -283,9 +283,9 @@ is read first. Otherwise the rating is the first of these the file states:
 | Read | severity |
 |---|---|
 | `cvssv3_baseSeverity` | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` to the band of the same name |
-| `cvssv2_score` | banded as every score is: 9.0 or more critical, 7.0 high, 4.0 medium, below that low |
+| `cvssv2_score` | banded as every score is: 9.0 or more critical, 7.0 or more high, 4.0 or more medium, below 4.0 low |
 | `cvssv2_severity`, where no v2 score is written | `HIGH`, `MEDIUM`, `LOW` to the band of the same name |
-| `severity`, for an advisory with no CVSS score | `critical`, `high`, `medium` and `moderate` to medium, `low`, `info` and `informational` to low |
+| `severity`, for an advisory with no CVSS score | `critical`, `high`, `medium` and `low` to the band of the same name; `moderate` to medium; `info` and `informational` to low |
 | the rule's summary, `medium severity - CVE-…` | the same words as `severity` |
 
 Sources: dependency-check's SARIF template,

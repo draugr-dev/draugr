@@ -421,19 +421,17 @@ imports:
 
 | field | meaning |
 |---|---|
-| `property` | the result property holding the rating. A result without it is read from its rule's property of the same name |
+| `property` | the name of the key in the result's `properties` that holds the rating, as the tool writes it. A result without it is read from its rule's `properties` |
 | `values` | each value the tool writes and the severity it means: `critical`, `high`, `medium` or `low` |
 
 - **Values match regardless of case and surrounding space**, and a number matches however it is
   written, so `3` names a value the file writes as `3.0`. Where the property holds a list, such as
   a rule's `tags`, the most severe value the mapping names decides.
-- **A value the mapping does not name keeps the SARIF level**, and a result with a numeric
-  `security-severity` keeps its score.
-- **The mapping replaces Draugr's table** for a tool it has one for, because it is the team's
-  statement about its own file.
-- **A word that is not a severity is refused** when the descriptor loads, as are two values that
-  differ only in case. A misspelled band rated silently would move the findings it names without
-  anyone being told.
+- **A value the mapping does not name, or a result with no such property, keeps the SARIF level**,
+  and a result with a numeric `security-severity` keeps its score.
+- **The mapping replaces Draugr's table** for a tool it has one for.
+- **A value that is not `critical`, `high`, `medium` or `low` is refused** when the descriptor
+  loads, as are two keys that differ only in case or number formatting.
 
 The report's `severity` field under **Measured against** then reads `acme-severity, mapped by the
 descriptor`, and each finding it rated prints the value, `acme-severity Blocker`.
