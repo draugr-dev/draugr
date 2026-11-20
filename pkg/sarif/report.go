@@ -814,6 +814,9 @@ const (
 	// ImportUnbound is, for an import of a service's alerts that nothing binds to the commit the
 	// run reads, the sentence its unbound-imports caveat says why in. Not a count.
 	ImportUnbound = "unbound"
+	// ImportFolded counts the findings that repeated another of the file's in every respect its
+	// fingerprint compares, and were counted once.
+	ImportFolded = "folded"
 )
 
 // ImportAnalysesElsewhere is the key of the import scanner's provenance field naming the code-scanning
@@ -1098,8 +1101,27 @@ func (r Result) Fingerprint() string {
 	if r.Module != nil {
 		parts = append(parts, r.Module.Source, r.Module.File, strconv.Itoa(r.Module.Line))
 	}
+	if pkg := r.ImportedPackage(); pkg != "" {
+		parts = append(parts, pkg)
+	}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(sum[:])
+}
+
+// ImportedPackage is the package, name and version, that a dependency finding read from an imported
+// file is about, and "" for any other finding, for an identity that has to tell two such findings
+// apart.
+//
+// A tool's file may place every dependency finding at one line, Trivy's SARIF at the manifest's first,
+// and name the package only in a message the import replaces with the advisory's title. One advisory
+// in two packages is then two results alike in rule, place and message, and the package is all that
+// tells them apart. Draugr's own scanners name the package in each dependency finding's message, so
+// only an imported finding takes the package, and no native finding's identity moves.
+func (r Result) ImportedPackage() string {
+	if r.Scanner != ImportScanner || r.Package == nil || r.Package.Name == "" {
+		return ""
+	}
+	return r.Package.Name + "@" + r.Package.Version
 }
 
 // Report is a set of findings, normalized to SARIF semantics. Tool names the primary

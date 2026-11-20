@@ -206,7 +206,10 @@ These stay counted apart:
 
 - **Another tool's rule on the same line.** Bandit's `B605` and a Semgrep rule about the same call
   are two rules, each the tool's own.
-- **The same rule on another line, or the same advisory in another package.**
+- **The same rule on another line, or the same advisory in another package.** Two packages stay two
+  findings at one line too: Trivy's SARIF places every Go dependency at `go.mod:1` and names the
+  package only in its message, and each keeps its own package and fixed version. Each keeps the
+  advisory's own title, so two rows can share a title and differ only in the package line.
 - **A rule reported more than once on one line.** Two copies on one line, at two columns, cannot be
   paired copy to copy.
 - **An imported finding whose repository the import cannot establish.** In a component that
@@ -260,6 +263,7 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `component` | the component that imports it |
 | `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |
 | `not scoped` | how many findings were kept without applying `paths:` and `ignore:`, because the file names none of the component's repositories, or more than one. Add `runs[].versionControlProvenance` naming the repository the tool scanned, as [In a component with several repositories](../../docs/guides/importing-sarif.md#in-a-component-with-several-repositories) shows, and they are scoped on the next run. Absent where none was, and where the component's repositories declare no scope |
+| `folded` | how many results repeated another of the file's exactly, with the same rule, place, message and package, and were counted once, as `1 finding repeating another of the file's exactly, counted once`. Absent where none did |
 | `sha256` | the file's content, so a run can be checked against the file it read |
 
 ## The tool's own suppressions
