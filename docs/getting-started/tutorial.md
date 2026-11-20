@@ -11,19 +11,19 @@ This tutorial runs Draugr on [draugr-demo](https://github.com/draugr-dev/draugr-
 vulnerable shop, in four steps:
 
 1. install Draugr and scan the demo with nothing declared;
-2. declare what each part of the demo is, scan again, and compare the two runs;
+2. declare what each part of the demo is, and compare a scan with those declarations to one without;
 3. open one finding in the HTML report;
-4. see how the demo's CI gates a pull request and keeps issues open.
+4. see how a pull request is gated, and run the same gate on your machine.
 
 Every block of output comes from Draugr 0.182.0 on demo commit `bb729745`, run on 2026-11-20. A
 newer release or commit prints different counts, and so can a later day, because the scanners read
 advisory databases that change over time. A line reading `…` stands for lines cut from the output.
 
-**Contents:** [Install and scan](#1-install-and-scan-with-nothing-declared) ·
-[Declare the components](#2-declare-what-each-part-is) · [HTML report](#3-read-one-finding-in-the-html-report) ·
-[Pull requests and issues](#4-gate-pull-requests-and-file-issues)
+**Contents:** [Scan with nothing declared](#1-scan-with-nothing-declared) ·
+[Declare what each part is](#2-declare-what-each-part-is) · [Read a finding](#3-read-a-finding) ·
+[Gate pull requests](#4-gate-pull-requests)
 
-## 1. Install and scan with nothing declared
+## 1. Scan with nothing declared
 
 Install Draugr 0.182.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
 the version.
@@ -32,7 +32,7 @@ the version.
 $ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.182.0 sh
 …
 $ draugr version
-draugr 0.182.0 (commit 56f18e91, built 2026-11-17T16:57:39Z, go1.27.4)
+draugr 0.182.0 (commit …)
 ```
 
 Clone the demo at the commit this page was written against.
@@ -44,23 +44,25 @@ git checkout bb729745becb4825ba9d3123c98ebb2ada5ce038
 ```
 
 The demo carries a descriptor, `draugr.saga.yaml`, that says what each part of the shop is. Move it
-aside to see what Draugr makes of a repository nobody has described, then install the scanners a
-scan of it runs.
+aside to see what Draugr makes of a repository nobody has described, and check that it moved.
 
-```bash
-mv draugr.saga.yaml draugr.saga.yaml.aside
-draugr tools install
+```console
+$ mv draugr.saga.yaml draugr.saga.yaml.aside
+$ git status --short
+ D draugr.saga.yaml
+?? draugr.saga.yaml.aside
 ```
 
-`draugr tools install` prints the scanners it will fetch, then installs each into `~/.draugr/bin`,
-pinned and checksum-verified. Two of them need a language runtime already on the machine, because
-govulncheck is built with Go and retire.js runs on Node 18 or newer with npm. Without Go or Node,
-the install leaves that scanner out and names what to install, and the scan runs without it. With no
-govulncheck, SIGNALS has no reachability row, so nothing lowers the Go findings it would have found
-unreachable. With no retire.js, nothing checks the copied jQuery files, and CAVEATS names the scanner
-that could not run.
+Install the scanners a scan of this tree runs. `--yes` installs them without asking first.
 
-Now scan the demo.
+```bash
+draugr tools install --yes
+```
+
+Two scanners need Go or Node.js on the machine. If either is missing, the install names what to add
+and the scan runs without that scanner.
+
+The demo is deliberately vulnerable, so this scan fails. That is the expected result.
 
 ```console
 $ draugr scan .
@@ -86,40 +88,39 @@ SIGNALS
 draugr: policy verdict: fail
 ```
 
-Three parts of the output say how much the scan knew:
+Two parts of the output say how much the scan knew:
 
 - **No component declares exposure or criticality.** Draugr reads every finding as if it sat on a
-  public, critical service, so the P1 to P4 bands follow the scanners' severity alone.
-- **`FOUND`**, cut above because its rows are wider than this page, lists each kind of file the
-  scan read and the scanners it turned on for it, such as sca, gosec and govulncheck for
-  `checkout/go.mod`. Its rows for the Dockerfile and the SARIF files end `images off` and
-  `imports off`, which a descriptor could turn on, and `draugr init` writes all of it into one.
-- **`KEV` and `EPSS` were not read.** KEV is CISA's catalog of flaws being exploited, and EPSS a daily
-  estimate of how likely a flaw is to be exploited in the next 30 days. A scan reads them only when
-  asked.
+  public, critical service, so the P1 to P4 bands follow the scanners' severity alone. Step 2
+  declares them.
+- **`KEV` and `EPSS` were not read.** They are the [signals](../concepts/prioritization.md#signals)
+  that raise a flaw being exploited, or likely to be, and a scan reads them only when asked.
 
 The last line is the verdict, and the command exits non-zero, so it fails a pipeline on its own. The
 [quickstart](quickstart.md#2-scan) reads every section of this report.
 
 ## 2. Declare what each part is
 
+Declaring what each part of an application is changes how its findings rank, and fixes nothing.
+This step scans the demo twice, once with those declarations removed and once with them, and
+compares the runs.
+
 Put the descriptor back. It turns on more controls than the tree alone suggests, so install what it
 adds, cosign and Syft here, and fetch the exploitation data it ranks with.
 
 ```bash
 mv draugr.saga.yaml.aside draugr.saga.yaml
-draugr tools install
+draugr tools install --yes
 draugr feeds update
 ```
 
 The descriptor sets `kev: cache` and `epss: cache`, which read the copy `draugr feeds update` keeps
 in `~/.draugr/feeds`, and a scan with nothing cached stops and names that command.
 
-The demo has four components. `api` and `storefront` are the shop's public services, `worker` is a
-nightly job behind the firewall, and `platform` holds the Kubernetes manifests. The first three are
-declared in `draugr.saga.yaml`, and `platform` in `.draugr/components/platform.saga-fragment.yaml`,
-a fragment the platform team owns. Here are their declarations from both files, with every other
-line cut.
+`api` and `storefront` are the shop's public services, `worker` is a nightly job behind the
+firewall, and `platform` holds the Kubernetes manifests. The first three are declared in
+`draugr.saga.yaml`, and `platform` in `.draugr/components/platform.saga-fragment.yaml`, a fragment
+the platform team owns. Here are their declarations from both files, with every other line cut.
 
 ```yaml
 components:
@@ -137,19 +138,31 @@ components:
     criticality: supporting
 ```
 
-`exposure` is how reachable the component is, and `criticality` is the business impact if it fails.
-[Prioritization](../concepts/prioritization.md#matrices) crosses the two into a tier and the tier
-with severity into the band.
+[Prioritization](../concepts/prioritization.md#matrices) says what each value means and how the two
+combine with a finding's severity into its band.
 
-### Scan without the declarations
+### Without the declarations
 
-To see what the declarations change, delete them and scan. `sed` keeps a copy of each file it edits,
-ending `.bak`.
+Delete the declarations. `sed` keeps a copy of each file it edits, ending `.bak`, and `git status`
+shows the two edits and the two copies.
 
-```bash
-sed -i.bak -e '/^ *exposure:/d' -e '/^ *criticality:/d' \
-  draugr.saga.yaml .draugr/components/platform.saga-fragment.yaml
+```console
+$ sed -i.bak -e '/^ *exposure:/d' -e '/^ *criticality:/d' \
+    draugr.saga.yaml .draugr/components/platform.saga-fragment.yaml
+$ git status --short
+ M .draugr/components/platform.saga-fragment.yaml
+ M draugr.saga.yaml
+?? .draugr/components/platform.saga-fragment.yaml.bak
+?? draugr.saga.yaml.bak
 ```
+
+Every scan of the demo with its descriptor opens and closes with a line too wide for this page, so
+the blocks below cut both. The first line is `config.gate.failOnNew is P1 and no --base names a scan
+to compare against, so no finding was judged as new.`, and step 4 makes that comparison with
+`draugr diff`. The last is `draugr: scan incomplete: 2 caveats fail it under
+config.gate.failOnCaveats (use --allow-scan-errors to accept partial results)`, and the command exits
+non-zero, because the demo's descriptor fails a run in which a scanner left files unread. The report
+is still written.
 
 ```console
 $ draugr scan --no-publish --report sarif -o before
@@ -160,6 +173,11 @@ DRAUGR  FAIL  draugr-demo 1.0  14.087s
  No component declares exposure or criticality, so every one is read as public and critical.
  These bands rank severity alone. `draugr classify` makes them describe this application.
 …
+CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
+…
+    uncommitted-files
+      4 uncommitted files  not in commit bb729745 · --working-tree reads them
+
 COMPONENTS
   api         ERROR  260 P1 702 P2 261 P3
   platform    FAIL   3 P1 7 P2 11 P3
@@ -168,18 +186,25 @@ COMPONENTS
 …
 ```
 
-A scan reads the descriptor and its fragments from disk, so the edit counts without a commit.
-`--no-publish` leaves out the demo's publishers, which write into `.draugr/out` and deliver to
-GitHub, and `--report sarif -o before` writes the findings to `before/results.sarif`.
+The uncommitted files are the ones `git status` listed, which the scanners did not read because they
+read the repository at its commit. The edit counts all the same, because Draugr loads the descriptor
+and its fragments from disk, apart from what the scanners read. `--no-publish` leaves out the demo's publishers, which write
+into `.draugr/out` and deliver to GitHub. `--report sarif -o before` writes the findings to `before/results.sarif`, in SARIF, a
+standard file format for scanner results.
 
-### Scan with them
+### With them
 
-Restore both files from the copies `sed` kept, and scan again.
+Restore both files from the copies `sed` kept. `git status` then shows only the new `before/`
+directory.
 
-```bash
-mv draugr.saga.yaml.bak draugr.saga.yaml
-mv .draugr/components/platform.saga-fragment.yaml.bak .draugr/components/platform.saga-fragment.yaml
+```console
+$ mv draugr.saga.yaml.bak draugr.saga.yaml
+$ mv .draugr/components/platform.saga-fragment.yaml.bak .draugr/components/platform.saga-fragment.yaml
+$ git status --short
+?? before/
 ```
+
+Scan again.
 
 ```console
 $ draugr scan --no-publish --report sarif -o after --top 1
@@ -187,6 +212,12 @@ $ draugr scan --no-publish --report sarif -o after --top 1
 DRAUGR  FAIL  draugr-demo 1.0  13.663s
 
  268 P1 704 P2 267 P3 20 P4
+…
+CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
+  ✗ unread-files · licenses · api
+      app/requirements.txt  records no licenses for 4 packages
+  ✗ unread-files · licenses · storefront
+      web/package-lock.json  records no license for 1 package
 …
 COMPONENTS
   api         ERROR  260 P1 702 P2 261 P3
@@ -212,12 +243,9 @@ FIX FIRST  1 of 1259 findings, by priority
 
 - **`COMPONENTS`** now gives `worker` and `platform` a pass, with nothing at P1. They hold the same
   findings as before, ranked lower because both are declared internal and supporting. `api` and
-  `storefront` end in `ERROR` because the demo's descriptor fails the run when a scanner leaves a
-  file unread ([`config.gate.failOnCaveats`](../reference/saga-schema.md#configgate)), and the
-  CAVEATS section names those files.
+  `storefront` end in `ERROR` because a scanner left files unread, and CAVEATS lists them.
 - **`↑ KEV`** marks a finding raised to critical because it is on CISA's Known Exploited
-  Vulnerabilities catalog. SIGNALS counts two such findings, the same jQuery 1.8.3 flaw in the
-  storefront's lockfile, shown here, and in a copy the api serves.
+  Vulnerabilities catalog, here a jQuery 1.8.3 flaw in the storefront's lockfile.
   [Signals](../concepts/prioritization.md#signals) lists every mark.
 
 `--top 1` keeps the list to its first row.
@@ -260,14 +288,15 @@ RERANKED  27 · 27 lowered
 ```
 
 Every finding is in both runs, so the declarations moved bands and fixed nothing. The worker's
-critical lodash flaw went from P1 to P2, its highs to P3 and its mediums to P4. The rows cut here are
-the platform's Kubernetes findings, which moved the same way. Both runs read KEV and EPSS, so the
-diff shows only what the declarations did. [Reranked
-findings](../guides/pr-diff.md#reranked-findings) covers the table, and [classify
-components](../guides/classify-components.md) helps you choose the two values for your own
-application.
+critical lodash flaw went from P1 to P2, its highs to P3 and its mediums to P4. The rows cut here
+are more worker and platform findings that moved the same way. The diff's unchanged count includes
+the two findings the descriptor accepts, which the scan's `1 of 1259` leaves out. Both runs read KEV
+and EPSS, so the diff shows only what the declarations did.
+[Reranked findings](../guides/pr-diff.md#reranked-findings) covers the table, and
+[classify components](../guides/classify-components.md) helps you choose the two values for your
+own application.
 
-## 3. Read one finding in the HTML report
+## 3. Read a finding
 
 Write the report as one HTML file.
 
@@ -283,56 +312,61 @@ Open `out/report.html` in a browser. It loads nothing from the network.
 [Read a finding in the HTML report](../guides/reading-the-html-report.md) follows the KEV-raised
 jQuery flaw through it, from where it ranks to what to change.
 
-## 4. Gate pull requests and file issues
+## 4. Gate pull requests
 
-Nothing in this step runs on your machine. It reads what the demo's CI does on GitHub, in
-`.github/workflows/draugr.yml`. Here it is with its comments cut, and `# …` where lines are cut.
+The demo's CI, `.github/workflows/draugr.yml`, runs the
+[GitHub Action](../guides/github-action.md). On a pull request it scans the base and the head,
+compares them as step 2 did, and posts the result as a comment. The descriptor's
+`config.gate.failOnNew: P1` fails the check on a P1 the pull request adds.
+[Pull request 37](https://github.com/draugr-dev/draugr-demo/pull/37), kept open on the demo for
+this, adds urllib3 2.0.7 to `app/requirements.txt` and fails its check.
 
-```yaml
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  # …
-permissions:
-  contents: read
-  security-events: write
-  issues: write
-  pull-requests: write
-jobs:
-  draugr:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      # … installs Go and govulncheck
-      - name: Draugr
-        id: draugr
-        # …
-        uses: draugr-dev/draugr@v0
-        with:
-          saga: draugr.saga.yaml
-          version: latest
-          tools: true
-          feeds: true
-          code-scanning: new
-          # …
+The comment is the diff in Markdown. Render it from the two runs of step 2.
+
+```console
+$ draugr diff before/results.sarif after/results.sarif --format markdown
+## Draugr diff
+
+✅ **pass** · ↕️ 27 reranked (27 lowered) · 1234 unchanged
+
+_reranked_ · 0 P1 · **1 P2** · **6 P3** · **20 P4**<br>
+_unchanged_ · **268 P1** · **703 P2** · **261 P3** · 0 P4<br>
+_still accepted_ · **2 P1** · 0 P2 · 0 P3 · 0 P4
+
+_Gate: fails on any P1 this change introduces._
+
+Nothing is new or fixed. Only priorities changed.
+…
 ```
 
-On a push to `main` the action scans the whole tree and uploads the findings to code scanning. On a
-pull request it scans the pull request's base and its head, compares them as `draugr diff` did in
-step 2, and posts the result as one comment, which it edits on each push. The descriptor's
-`config.gate.failOnNew: P1` fails the check on a P1 the pull request adds, and the backlog it
-inherits decides nothing. [Use in CI with the GitHub Action](../guides/github-action.md) lists every
-input.
+Run the gate itself, and read its exit code.
 
-[Pull request 37](https://github.com/draugr-dev/draugr-demo/pull/37) fails that gate by design. It
-adds urllib3 2.0.7 to `app/requirements.txt`, which brings six new P1 findings, and its comment lists
-each one with the upgrade that clears it.
+```console
+$ draugr diff before/results.sarif after/results.sarif --fail-on-new P1 --view compact --top 1
+DRAUGR DIFF  pass  27 reranked (27 lowered)  1234 unchanged
 
-The same descriptor keeps an issue open while part of the gate fails on `main`. This entry covers the
+ reranked        0 P1 1 P2 6 P3 20 P4
+ unchanged       268 P1 703 P2 261 P3 0 P4
+ still accepted  2 P1 0 P2 0 P3 0 P4
+
+Gate: fails on any P1 this change introduces.
+
+Nothing is new or fixed. Only priorities changed.
+
+RERANKED  top 1 of 27 · 27 lowered
+  Priority  Severity  Rule           Scanner  Location
+  P1 → P2   critical  CVE-2026-4800  trivy    worker/package-lock.json:73
+…
+$ echo $?
+0
+```
+
+Both runs hold hundreds of P1 findings, and the gate passes, because it judges only what is new
+between them. A pull request that adds a P1, as pull request 37 does, makes the same command exit
+non-zero.
+[Gate PRs on new findings](../guides/pr-diff.md) covers the comparison in any CI system.
+
+The descriptor also keeps an issue open while part of the gate fails on `main`. This entry covers the
 storefront, the component labeled `team: web`.
 
 ```yaml
@@ -345,13 +379,10 @@ config:
         labels: ["team:web"]
 ```
 
-A run on `main` opens the issue when the storefront fails, rewrites it when its findings change and
-closes it when the storefront passes, and a pull-request run leaves it alone. The workflow grants
-`issues: write` for it. [GitHub issues](../guides/reports-and-publishers.md#github-issues) covers
-every field, and the same page has the GitLab and Azure DevOps equivalents.
+[GitHub issues](../guides/reports-and-publishers.md#github-issues) says when a run opens, rewrites
+and closes the issue, and the same page has the GitLab and Azure DevOps equivalents.
 
 ## Next
 
 - [Write your first Saga](first-saga.md) describes your own application.
-- [Gate PRs on new findings](../guides/pr-diff.md) runs the comparison from step 2 in any CI system.
 - [What to fix first](../concepts/what-to-fix-first.md) turns findings into a list of changes.

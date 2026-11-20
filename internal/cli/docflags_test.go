@@ -81,6 +81,7 @@ var notOurs = map[string]string{
 	"--exclude-standard": "git ls-files'",
 	"--no-tags":          "git clone's",
 	"--detach":           "git checkout's",
+	"--short":            "git status', checking the tutorial's edits to the demo",
 	"--depth":            "git clone's",
 	"--ignore-scripts":   "npm's",
 	"--require-hashes":   "pip's",
