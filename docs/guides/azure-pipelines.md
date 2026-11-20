@@ -74,8 +74,12 @@ Bitbucket, which is why the key exists.)
 
 ### A sticky comment
 
-Add the publisher to the Saga and the Markdown report goes on the pull request, updated in place
-on each push rather than stacking a copy per run:
+The template posts one for you: `Gate on new findings` puts what the pull request introduced on it,
+updated in place on each push rather than stacking a copy per run. Its scans run with `--no-publish`
+on a pull-request build, so a publisher in the descriptor posts nothing there.
+
+In a pipeline you write yourself, add the publisher to the Saga and the Markdown report goes on the
+pull request:
 
 ```yaml
 config:
@@ -85,7 +89,7 @@ config:
 
 Everything else defaults from the pipeline environment, and off a pull request it does nothing, so
 the same descriptor works on push builds and on a laptop. `SYSTEM_ACCESSTOKEN` must be mapped into
-the step (the template does this); Azure does not expose it to scripts by default.
+the step; Azure does not expose it to scripts by default.
 
 `config.publishers` is what a destination delivers; `--report` is what gets written to disk. Different
 destinations, so the `markdown` entry above is what the comment needs regardless of `--report`.
@@ -103,10 +107,10 @@ thread. It is created active, like any other.
       target="${SYSTEM_PULLREQUEST_TARGETBRANCH#refs/heads/}"
 
       git checkout -q --detach "origin/$target"
-      draugr scan draugr.saga.yaml --no-gate --report sarif -o "$(Pipeline.Workspace)/base"
+      draugr scan draugr.saga.yaml --no-gate --no-publish --report sarif -o "$(Pipeline.Workspace)/base"
 
       git checkout -q --detach "$BUILD_SOURCEVERSION"
-      draugr scan draugr.saga.yaml --no-gate --report sarif -o "$(Pipeline.Workspace)/head"
+      draugr scan draugr.saga.yaml --no-gate --no-publish --report sarif -o "$(Pipeline.Workspace)/head"
 
       draugr diff "$(Pipeline.Workspace)/base/results.sarif" \
                   "$(Pipeline.Workspace)/head/results.sarif" \
@@ -122,12 +126,14 @@ do, so six advisories in one library are one upgrade; drop it for a row per find
 template takes it as `diffView`, which also handles an older pinned `version` that does not have
 the flag.
 
-Three details that are easy to get wrong:
+Four details that are easy to get wrong:
 
 - **`--no-gate` on both scans.** A scan exits non-zero on `FAIL`, which under `set -e` kills the
   step before the diff runs, and the base scan fails on any repository with a backlog. `--no-gate`
   suppresses the verdict's exit code only; a scan that could not *run* still fails. `|| true`
   cannot tell those apart.
+- **`--no-publish` on both scans.** Without it each scan runs the descriptor's publishers on code
+  that has not merged, beside the comment the diff posts.
 - **`$BUILD_SOURCEVERSION` to get back.** A pull-request build checks out `refs/pull/N/merge`,
   which is on no branch, so `git checkout -` cannot find its way home.
 - **Priority, not severity.** `--fail-on-new` takes a band, which folds in the component's exposure and
@@ -198,11 +204,12 @@ env:
   DRAUGR_API_TOKEN: $(DRAUGR_API_TOKEN)
 ```
 
-Put the address on that step with the token, rather than in a pipeline variable. A pipeline variable
-reaches every step, so the pull-request scans in `Gate on new findings` would have the address
-without the token, and a scan given one without the other fails. With both on `Scan` alone, those
-scans send nothing. `Scan` itself runs on every build in the default `auto` mode, a pull request's
-included, so each pull-request build sends a run too.
+Put the address on that step with the token, rather than in a pipeline variable: a pipeline variable
+reaches every step, and a scan that publishes with one and not the other fails.
+
+The template publishes from push builds only, as the GitHub Action and the GitLab template do. On a
+pull-request build every scan runs with `--no-publish`, so a pull request's run never reaches the
+server.
 
 Add the publisher to the descriptor, beside any it already has:
 

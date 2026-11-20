@@ -1,0 +1,1 @@
+- **The Azure Pipelines template no longer publishes from pull-request builds.** Its scans run with `--no-publish` there, as the GitHub Action's and the GitLab template's do, so a pull request's unmerged code no longer sends a run to a Draugr server or posts a second comment beside the diff's. Push builds publish as before, and the reports are still written.
