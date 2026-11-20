@@ -329,6 +329,14 @@ export DRAUGR_API_URL=https://draugr.acme.example
 export DRAUGR_API_TOKEN=drgr_ci_…      # write-only, scoped to one project
 ```
 
+Create the token on your server; the [GitHub Actions](github-action.md#server),
+[GitLab](gitlab-ci.md#server) and [Azure Pipelines](azure-pipelines.md#server) guides show where
+each CI system keeps it.
+
+The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by invitation for now,
+and you can [ask for one](https://draugr.dev/contact/?about=early-access). A server you run yourself issues
+its own tokens from its console's project Setup, and takes runs at its own `DRAUGR_API_URL`.
+
 **Named for the protocol, not for a product.** [Draugr Server](https://draugr.dev) implements it,
 hosted and as an install you run yourself, the same artifact either way, so `$DRAUGR_API_URL` points
 at either and nothing else changes. Anything else that implements the calls below works identically.

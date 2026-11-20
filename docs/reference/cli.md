@@ -1894,6 +1894,10 @@ issues in the OS keychain. `draugr doctor --policy` and the scan's
 [policy check](#the-organizations-policy) send it where `$DRAUGR_API_TOKEN` is not set, so
 checking a descriptor on your own machine needs no token in your shell.
 
+Log in when you check a descriptor at your own terminal. A pipeline sets `$DRAUGR_API_TOKEN` to the
+project's [ingest token](glossary.md#cross-cutting-terms) instead, because a login cannot publish a
+run and lives in a keychain a CI job does not read.
+
 ```console
 $ draugr login https://draugr.example
 LOGIN  https://draugr.example
