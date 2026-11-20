@@ -1,0 +1,1 @@
+- **A flaw two scanners found is one code-scanning alert.** The `github` publisher uploads only the finding the gate counts, whose `correlation.alsoFoundBy` names the other scanners, so the Security tab no longer shows one alert per scanner. GitLab's security and Code Quality reports list such a flaw once too. `results.sarif` still keeps every scanner's result.

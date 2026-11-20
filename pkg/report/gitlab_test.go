@@ -390,6 +390,47 @@ func TestGitLabReportsOmitSuppressedFindings(t *testing.T) {
 	}
 }
 
+// A flaw two scanners reported is one GitLab vulnerability, as the gate counts it, whether the
+// second account came from a scanner Draugr ran or from a file it imported.
+func TestGitLabReportsFileACorrelatedFlawOnce(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		copy sarif.Result
+	}{
+		{"native", sarif.Result{Tool: "grype"}},
+		{"imported", sarif.Result{Tool: "grype", Scanner: sarif.ImportScanner, ImportFormat: "sarif"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := gitlabData()
+			rep := d.Run.Controls["sca"].Report
+			copied := rep.Results[0]
+			copied.Tool, copied.Scanner, copied.ImportFormat = tc.copy.Tool, tc.copy.Scanner, tc.copy.ImportFormat
+			copied.RuleID = "GHSA-q2x7-8rv6-6q7h"
+			copied.Correlation = &sarif.Correlation{CountedUnder: rep.Results[0].Reporter()}
+			rep.Results[0].Correlation = &sarif.Correlation{AlsoFoundBy: []sarif.Observation{{Tool: copied.Reporter(), RuleID: copied.RuleID}}}
+			rep.Results = append(rep.Results, copied)
+			d.Run.Controls["sca"] = plugin.ControlResult{Control: "sca", Report: rep}
+
+			doc := decodeSecurity(t, renderGitLab(t, "gitlab-dependency-scanning", d))
+			if len(doc.Vulnerabilities) != 1 || doc.Vulnerabilities[0].Name != "CVE-2024-56201" {
+				t.Errorf("dependency scanning filed %+v, want the counted CVE-2024-56201 alone", doc.Vulnerabilities)
+			}
+			var cq []glCodeQuality
+			if err := json.Unmarshal(renderGitLab(t, "gitlab-codequality", d), &cq); err != nil {
+				t.Fatal(err)
+			}
+			if want := activeFindings(d); len(cq) != want {
+				t.Errorf("code quality carried %d findings, want the %d that are counted", len(cq), want)
+			}
+			for _, e := range cq {
+				if e.CheckName == copied.RuleID {
+					t.Errorf("code quality filed the copy counted under %s", rep.Results[0].Reporter())
+				}
+			}
+		})
+	}
+}
+
 func TestGitLabScanStatusSaysWhenAControlCouldNotRun(t *testing.T) {
 	// A control whose scanner never ran found nothing because it looked at nothing. A report that
 	// called that success would be a clean bill of health for a scan that did not happen.
@@ -590,12 +631,13 @@ func TestGitLabContainerScanningOmitsWhatItCannotFill(t *testing.T) {
 }
 
 // activeFindings counts what a report carrying everything should carry: every finding of every
-// control, less the suppressed ones, which are reported but never filed as open.
+// control, less the suppressed ones, which are reported but never filed as open, and the copies of a
+// flaw counted under another scanner's finding.
 func activeFindings(d Data) int {
 	n := 0
 	for _, c := range d.Run.Controls {
 		for _, r := range c.Report.Results {
-			if r.Suppression == nil {
+			if r.Suppression == nil && !r.Correlated() {
 				n++
 			}
 		}

@@ -167,6 +167,13 @@ func TestGithubPublisherRequiresSARIF(t *testing.T) {
 		!strings.Contains(err.Error(), "requires a 'sarif' report") {
 		t.Fatalf("expected sarif-required error, got %v", err)
 	}
+	// A sarif report that cannot be read is refused before anything is sent, rather than uploaded
+	// with copies the publisher could not find.
+	bad := report.Artifact{Format: "sarif", Bytes: []byte("not json")}
+	if err := p.Publish(context.Background(), []report.Artifact{bad}); err == nil ||
+		!strings.Contains(err.Error(), "could not read the report") {
+		t.Fatalf("expected an unreadable report refused, got %v", err)
+	}
 }
 
 func TestPublisherKinds(t *testing.T) {
