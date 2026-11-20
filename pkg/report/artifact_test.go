@@ -1,10 +1,13 @@
 package report
 
 import (
+	"io"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
 )
 
@@ -14,6 +17,7 @@ func TestBuildArtifact(t *testing.T) {
 	}{
 		{"json", "report.json", "application/json", `"verdict"`},
 		{"sarif", "results.sarif", "application/sarif+json", "runs"},
+		{CodeScanningFormat, "code-scanning.sarif", "application/sarif+json", "runs"},
 		{"markdown", "report.md", "text/markdown", "## Draugr"},
 		{"html", "report.html", "text/html; charset=utf-8", "<!doctype html>"},
 		{"junit", "report.junit.xml", "application/xml", "<testsuites"},
@@ -31,6 +35,43 @@ func TestBuildArtifact(t *testing.T) {
 				t.Errorf("%s bytes missing %q:\n%s", tc.format, tc.wantContains, a.Bytes)
 			}
 		})
+	}
+}
+
+// The code-scanning report a publisher or a workflow uploads carries no location code scanning
+// refuses, where the sarif report rendered from the same run keeps the image reference it locates a
+// finding on.
+func TestBuildCodeScanningHoldsLocationsToWhatCodeScanningAccepts(t *testing.T) {
+	refusedIn := func(format string) []string {
+		t.Helper()
+		a, err := Build(saga.ReportConfig{Format: format}, sampleData())
+		if err != nil {
+			t.Fatal(err)
+		}
+		refused, err := sarif.CodeScanningRefuses(a.Bytes)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return refused
+	}
+	if got := refusedIn(CodeScanningFormat); len(got) > 0 {
+		t.Errorf("code-scanning carries locations code scanning refuses: %q", got)
+	}
+	if got := refusedIn("sarif"); !slices.Contains(got, "alpine:1") {
+		t.Errorf("sarif refuses %q; the fixture no longer holds an image finding", got)
+	}
+	if err := StreamFormat(CodeScanningFormat); err == nil || !strings.Contains(err.Error(), "--report code-scanning") {
+		t.Errorf("--format code-scanning: %v, want it sent to --report", err)
+	}
+}
+
+func TestWriteCodeScanningPassesOnAFailedRender(t *testing.T) {
+	var b strings.Builder
+	if err := WriteCodeScanning(&b, func(io.Writer) error { return io.ErrUnexpectedEOF }); err != io.ErrUnexpectedEOF {
+		t.Errorf("err = %v, want the render's", err)
+	}
+	if err := WriteCodeScanning(&b, func(w io.Writer) error { _, err := w.Write([]byte("{")); return err }); err == nil {
+		t.Error("a render that is not SARIF was written")
 	}
 }
 

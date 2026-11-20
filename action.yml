@@ -59,7 +59,9 @@ inputs:
     required: false
     default: ""
   output:
-    description: Directory to write report.json and results.sarif (relative to working-directory).
+    description: >-
+      Directory to write report.json, results.sarif and code-scanning.sarif (relative to
+      working-directory).
     required: false
     default: draugr-out
   working-directory:
@@ -132,9 +134,10 @@ outputs:
   sarif:
     description: >-
       Path to the SARIF to upload. In diff mode with `code-scanning: new` (the default) this is
-      the findings the pull request introduced; otherwise the complete scan. `report` is always
-      the complete run.
-    value: ${{ steps.diff.outputs.sarif || steps.setup.outputs.sarif }}
+      the findings the pull request introduced; otherwise the complete scan, as
+      code-scanning.sarif, which holds every location to what code scanning accepts. `report` is
+      always the complete run.
+    value: ${{ steps.diff.outputs.sarif || steps.scan.outputs.sarif || steps.setup.outputs.sarif }}
   report:
     description: Path to the JSON report (report.json).
     value: ${{ steps.setup.outputs.report }}
@@ -204,6 +207,7 @@ runs:
         fi
         echo "sarif=${base}/results.sarif" >>"$GITHUB_OUTPUT"
         echo "report=${base}/report.json" >>"$GITHUB_OUTPUT"
+        echo "out=${base}" >>"$GITHUB_OUTPUT"
 
     - name: Install cosign
       if: inputs.verify == 'true'
@@ -283,12 +287,15 @@ runs:
         draugr feeds status
 
     - name: Run Draugr scan
+      id: scan
       if: steps.setup.outputs.mode == 'scan'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
         INPUT_SAGA: ${{ inputs.saga }}
         INPUT_OUTPUT: ${{ inputs.output }}
+        # Where `output` is from the repository's root, which is what the `sarif` output names.
+        OUTPUT_PATH: ${{ steps.setup.outputs.out }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_FAIL_ON_PRIORITY: ${{ inputs.fail-on-priority }}
         INPUT_MIN_PRIORITY: ${{ inputs.min-priority }}
@@ -325,7 +332,38 @@ runs:
         # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
         [ -n "$INPUT_ARGS" ]             && scan_args+=($INPUT_ARGS)
 
-        draugr scan "${scan_args[@]}"
+        # What the `sarif` output hands to code scanning. results.sarif locates a finding on an image
+        # by the image's reference, which code scanning refuses, and it refuses the whole upload with
+        # it. code-scanning.sarif is the same report in the form code scanning accepts, written beside
+        # it. Asked for, because `version` lets a caller pin a release that predates the format, and
+        # left alone when `args` names the reports itself.
+        case " $INPUT_ARGS " in
+          *" --report"*) ;;
+          *)
+            if draugr scan --help 2>&1 | grep -- '[( ]code-scanning[,)]' >/dev/null; then
+              scan_args+=(--report json,sarif,code-scanning)
+              # Written now, before the scan, so an `if: always()` upload step finds it when the
+              # gate fails the step.
+              echo "sarif=${OUTPUT_PATH}/code-scanning.sarif" >>"$GITHUB_OUTPUT"
+            fi ;;
+        esac
+
+        # The scan's stderr is read as well as shown, so a publisher that failed is named as an error
+        # annotation on the run. A step a workflow lets continue on error shows a green job, and the
+        # line saying code scanning refused the upload is then somewhere in a log nobody opens.
+        stderr_log=$(mktemp)
+        status=0
+        { draugr scan "${scan_args[@]}" 2>&1 1>&3 3>&- | tee "$stderr_log" >&2; } 3>&1 || status=$?
+        if [ "$status" -ne 0 ]; then
+          # The CLI names each destination that failed as `publisher "<kind>": <why>`, after the
+          # gate's own failure when there is one.
+          grep -o 'publisher "[^"]*": .*' "$stderr_log" | while IFS= read -r failed; do
+            failed=${failed//'%'/'%25'}
+            echo "::error title=Draugr could not publish::${failed}"
+          done || true
+        fi
+        rm -f "$stderr_log"
+        exit "$status"
 
     - name: Run Draugr diff
       id: diff
@@ -414,8 +452,21 @@ runs:
         # shellcheck disable=SC2206  # intentional word-splitting of the raw args escape hatch
         [ -n "$INPUT_ARGS" ] && scan_common+=($INPUT_ARGS)
 
+        # The head scan also writes code-scanning.sarif, the complete scan in the form code scanning
+        # accepts, for `code-scanning: all`. Asked for and left to `args`, as on a push.
+        code_scanning_report=""
+        head_reports=()
+        case " $INPUT_ARGS " in
+          *" --report"*) ;;
+          *)
+            if draugr scan --help 2>&1 | grep -- '[( ]code-scanning[,)]' >/dev/null; then
+              code_scanning_report=1
+              head_reports=(--report json,sarif,code-scanning)
+            fi ;;
+        esac
+
         # Head = current checkout (this step's working-directory).
-        draugr scan "$INPUT_SAGA" -o "$head_out" "${scan_common[@]}" || true
+        draugr scan "$INPUT_SAGA" -o "$head_out" "${scan_common[@]}" "${head_reports[@]}" || true
 
         # No descriptor at the head leaves no head report, from a pull request that deletes it or
         # from a saga input naming the wrong path. Said here, before the base is scanned, rather
@@ -544,5 +595,7 @@ runs:
             # to avoid, and silence would leave a reviewer wondering why the noise came back.
             echo "::warning::code-scanning=new needs a Draugr release with 'diff --format sarif'; this one is older, so code scanning receives the complete scan. Pin a newer version, or set code-scanning: all."
           fi
+        elif [ -n "$code_scanning_report" ]; then
+          echo "sarif=${head_out}/code-scanning.sarif" >>"$GITHUB_OUTPUT"
         fi
         exit "$gate"

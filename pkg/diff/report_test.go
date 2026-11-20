@@ -143,6 +143,33 @@ func TestDiffHeadlineNamesOnlyTheStatesThatHappened(t *testing.T) {
 	}
 }
 
+// TestRenderSARIFIsWhatCodeScanningAccepts holds the diff's SARIF, which the Action hands to code
+// scanning, to the locations code scanning accepts: a new finding on an image or a host keeps its
+// reference in its properties rather than as a location code scanning refuses the upload over.
+func TestRenderSARIFIsWhatCodeScanningAccepts(t *testing.T) {
+	r := Result{New: []sarif.Result{
+		{RuleID: "CVE-1", Level: sarif.LevelError, Message: "openssl", Location: sarif.Location{URI: "python:3.8-slim"}, Image: "python:3.8-slim"},
+		{RuleID: "TLS1", Level: sarif.LevelWarning, Message: "TLS 1.0", Location: sarif.Location{URI: "https://example.com/"}},
+		{RuleID: "G304", Level: sarif.LevelWarning, Message: "file inclusion", Location: sarif.Location{URI: "main.go", StartLine: 7}},
+	}}
+	var buf bytes.Buffer
+	if err := Render(&buf, "sarif", r, Options{}); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	refused, err := sarif.CodeScanningRefuses(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refused) > 0 {
+		t.Errorf("the diff's SARIF carries locations code scanning refuses: %q", refused)
+	}
+	for _, want := range []string{`"uri":"main.go"`, `"image":"python:3.8-slim"`, `"draugr/location":"https://example.com/"`} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("missing %s:\n%s", want, buf.String())
+		}
+	}
+}
+
 // The SARIF diff carries the new findings and only those.
 //
 // The fixture has all three kinds on purpose: with new findings alone, an implementation that

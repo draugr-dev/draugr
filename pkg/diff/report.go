@@ -60,6 +60,13 @@ func renderSARIF(w io.Writer, r Result) error {
 	if err != nil {
 		return err
 	}
+	// In the form code scanning accepts, since that is where this goes: code scanning refuses a whole
+	// upload over one location it cannot parse, and a new finding on an image carries the image's
+	// reference as its location. The head scan's results.sarif keeps it.
+	data, _, err = sarif.ForCodeScanning(data)
+	if err != nil {
+		return err
+	}
 	_, err = w.Write(data)
 	return err
 }

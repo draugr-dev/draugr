@@ -4,6 +4,7 @@
 package report
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"slices"
@@ -434,6 +435,8 @@ var formatSummaries = map[string]string{
 	"template": "Your own layout, from --template or --template-file.",
 	"vex":      "An OpenVEX document saying which vulnerabilities apply to this product.",
 
+	CodeScanningFormat: "The sarif report as GitHub code scanning accepts it, for an upload-sarif step: a finding with no file, such as an image's, has no location.",
+
 	"gitlab-codequality":         "GitLab Code Quality: every finding, in the merge request, on any tier.",
 	"gitlab-sast":                "GitLab's own security schema, for its Vulnerability Report. A build artifact rather than an upload.",
 	"gitlab-dependency-scanning": "The same, for vulnerable dependencies.",
@@ -457,6 +460,8 @@ var reporters = map[string]Reporter{
 	"json":     jsonReporter{},
 	"sarif":    sarifReporter{},
 	"vex":      vexReporter{},
+
+	CodeScanningFormat: codeScanningReporter{},
 
 	// GitLab's own schemas. Delivered as build artifacts the runner collects, which is why they are
 	// reporters and not a publisher. GitLab has no endpoint to upload to.
@@ -508,6 +513,8 @@ var documentFormats = map[string]bool{
 	"gitlab-container-scanning":  true,
 	"evidence":                   true,
 	"gitlab-cyclonedx":           true,
+	// Uploaded from a path. `--format sarif` is the SARIF to print.
+	CodeScanningFormat: true,
 }
 
 // StreamFormat reports whether a format may be written to stdout, and if not, why.
@@ -612,6 +619,37 @@ type sarifReporter struct{}
 func (sarifReporter) Format() string { return "sarif" }
 func (sarifReporter) Render(w io.Writer, d Data) error {
 	return skald.WriteSARIFNarrowed(w, FilterByPriority(d.Run, d.MinPriority), d.MinPriority, d.marshalOptions())
+}
+
+// codeScanningReporter writes the sarif report as GitHub code scanning accepts it, for a workflow that
+// uploads it with github/codeql-action/upload-sarif.
+//
+// A finding about something other than a file, an image or a host, carries that thing as its location
+// in the sarif report, and code scanning refuses a whole upload over one location it cannot parse.
+// The sarif report keeps it, because `draugr diff` and `draugr explain` take a finding's identity from
+// it; this one writes it into the finding's properties instead. See sarif.ForCodeScanning.
+type codeScanningReporter struct{}
+
+// CodeScanningFormat is the report a workflow uploads to GitHub code scanning itself.
+const CodeScanningFormat = "code-scanning"
+
+func (codeScanningReporter) Format() string { return CodeScanningFormat }
+func (codeScanningReporter) Render(w io.Writer, d Data) error {
+	return WriteCodeScanning(w, func(w io.Writer) error { return sarifReporter{}.Render(w, d) })
+}
+
+// WriteCodeScanning writes what render writes, a sarif report, as GitHub code scanning accepts it.
+func WriteCodeScanning(w io.Writer, render func(io.Writer) error) error {
+	var buf bytes.Buffer
+	if err := render(&buf); err != nil {
+		return err
+	}
+	doc, _, err := sarif.ForCodeScanning(buf.Bytes())
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(doc)
+	return err
 }
 
 // FilterByPriority drops findings below the requested band, returning a copy so the caller's run is
