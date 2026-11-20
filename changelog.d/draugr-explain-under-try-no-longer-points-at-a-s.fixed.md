@@ -1,1 +1,0 @@
-- **`draugr explain` under `TRY` no longer points at a SARIF file the scan did not write.** On a run with `-o` whose `--report` list leaves out `sarif`, `TRY` now gives the scan that writes it, keeping your formats and directory, above the `draugr explain` command that reads it.

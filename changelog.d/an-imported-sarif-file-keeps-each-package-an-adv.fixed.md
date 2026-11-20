@@ -1,1 +1,0 @@
-- **An imported SARIF file keeps each package an advisory reaches.** Trivy's SARIF places every Go dependency at `go.mod:1`, so one advisory in two packages was read as one finding and one package was lost. Each package is now a finding with its own fix. A result repeated exactly in one file counts once, shown as `folded`; nothing is lost.

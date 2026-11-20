@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.183.0] - 2026-11-20
+
+### Added
+
+- **Import a repository's GitHub code-scanning and Dependabot alerts.** With `source: github-code-scanning` or `github-dependabot` on an import, Draugr reads the alerts from GitHub with the token in `GITHUB_TOKEN` or the variable `tokenEnv` names, and ranks and gates them like your own findings. An alert a person dismissed is set aside, with who and why; a bot's or rule's dismissal still counts.
+
+- **Import Grype's own JSON.** Set `format: grype-json` on an import of what `grype dir:. -o json` writes. Its findings keep their package, fixed version and CVE, so KEV and EPSS reach them and they merge with another scanner's finding of that CVE. A scan of an image (`grype <image>`) is refused; scan the directory instead.
+
+### Fixed
+
+- **A flaw two scanners found is now one code-scanning alert.** The `github` publisher uploads one finding per flaw, the one the gate counts, and its `correlation.alsoFoundBy` names the other scanners, so the Security tab no longer shows one alert per scanner. GitLab's security and Code Quality reports also list it once. `results.sarif` still holds every scanner's result.
+
+- **An imported SARIF file keeps every package an advisory affects.** Trivy's SARIF puts every Go dependency at `go.mod:1`, so one advisory in two packages used to import as one finding. Each package is now its own finding with its own fix. A result repeated exactly in one file counts once and is marked `folded`; nothing is dropped.
+
+- **Diff mode compares a pull request against the commit it was merged onto.** If the event's base differs from the commit GitHub merged the pull request onto, the Action now diffs against that commit and prints a notice. Changes the base branch made on its own are no longer counted as the pull request's.
+
+- **`draugr explain` no longer points at a SARIF file the scan didn't write.** If you scan with `-o` and your `--report` list leaves out `sarif`, the `TRY` hint now shows a scan command that writes it, keeping your formats and directory, followed by the `draugr explain` command that reads it.
+
 ## [0.182.0] - 2026-11-17
 
 ### Added
@@ -7343,7 +7361,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.182.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.183.0...HEAD
+[0.183.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.183.0
 [0.182.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.182.0
 [0.181.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.1
 [0.181.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.181.0

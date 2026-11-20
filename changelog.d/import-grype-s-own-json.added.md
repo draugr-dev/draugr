@@ -1,1 +1,0 @@
-- **Import Grype's own JSON.** Set `format: grype-json` on an import of what `grype dir:. -o json` writes. Its findings keep their package, fixed version and CVE, so KEV and EPSS reach them and they merge with another scanner's finding of that CVE. An image scan is refused, since its findings are about the image rather than the repository.
