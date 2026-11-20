@@ -334,8 +334,8 @@ Create the token on your server; the [GitHub Actions](github-action.md#server),
 each CI system keeps it.
 
 The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by invitation for now,
-and you can [ask for one](https://draugr.dev/contact/?about=early-access). A server you run yourself
-issues its own tokens at its own `DRAUGR_API_URL`.
+and you can [ask for one](https://draugr.dev/contact/?about=early-access). A server you run yourself issues
+its own tokens from its console's project Setup, and takes runs at its own `DRAUGR_API_URL`.
 
 **Named for the protocol, not for a product.** [Draugr Server](https://draugr.dev) implements it,
 hosted and as an install you run yourself, the same artifact either way, so `$DRAUGR_API_URL` points
