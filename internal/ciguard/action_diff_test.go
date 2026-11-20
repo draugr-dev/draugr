@@ -13,7 +13,8 @@ import (
 // stubDraugr stands in for the binary the Action downloads. It records each diff it is asked for,
 // fails a diff when STUB_GATE_TRIPS is set, or when it is asked to publish and STUB_PUBLISH_FAILS is,
 // refuses to scan a descriptor that is not there, and to validate or scan one that sets acceptedBy,
-// as the real one does, and advertises a diff of the head alone unless STUB_OLD is set. Its help
+// as the real one does, and advertises a diff of the head alone unless STUB_OLD is set. Each commit
+// it scans goes to STUB_SCANS when that is set, so a test can read which base was scanned. Its help
 // runs past a pipe buffer, so a feature check that closes the pipe early fails here every time
 // rather than now and then.
 const stubDraugr = `#!/usr/bin/env bash
@@ -35,6 +36,7 @@ case "$1" in
     saga="$2"; shift 2; out=""
     while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done
     [ -e "$saga" ] || { echo "no descriptor at $saga" >&2; exit 1; }
+    [ -z "$STUB_SCANS" ] || git rev-parse HEAD >> "$STUB_SCANS"
     if grep acceptedBy "$saga" >/dev/null; then echo "acceptedBy was removed" >&2; exit 1; fi
     mkdir -p "$out"; echo '{"version":"2.1.0","runs":[]}' > "$out/results.sarif" ;;
   diff)
@@ -78,79 +80,108 @@ func actionDiffScript(t *testing.T) string {
 	return ""
 }
 
-// runActionDiff runs the diff step in a repository whose base commit holds baseFiles and whose
-// head holds headFiles, each a name or name=content, and returns what the step printed, the diffs
-// it asked for, and whether it succeeded.
-func runActionDiff(t *testing.T, baseFiles, headFiles []string, env ...string) (out, diffs string, ok bool) {
+// diffRepo is a scratch repository with the stub binary beside it, to run the diff step in.
+type diffRepo struct {
+	t                               *testing.T
+	root, dir, bin, tmp, log, scans string
+}
+
+func newDiffRepo(t *testing.T) *diffRepo {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not installed")
 	}
 	root := t.TempDir()
-	repo, bin, tmp := filepath.Join(root, "repo"), filepath.Join(root, "bin"), filepath.Join(root, "tmp")
-	for _, d := range []string{repo, bin, tmp} {
+	r := &diffRepo{t: t, root: root, dir: filepath.Join(root, "repo"), bin: filepath.Join(root, "bin"),
+		tmp: filepath.Join(root, "tmp"), log: filepath.Join(root, "diffs.log"), scans: filepath.Join(root, "scans.log")}
+	for _, d := range []string{r.dir, r.bin, r.tmp} {
 		if err := os.MkdirAll(d, 0o750); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// #nosec G306 -- the stub has to be executable to stand in for the binary
-	if err := os.WriteFile(filepath.Join(bin, "draugr"), []byte(stubDraugr), 0o700); err != nil {
+	if err := os.WriteFile(filepath.Join(r.bin, "draugr"), []byte(stubDraugr), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	git := func(args ...string) string {
-		t.Helper()
-		// #nosec G204 -- git with arguments this test writes, in a scratch repository
-		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t.invalid",
-			"-c", "commit.gpgsign=false"}, args...)...)
-		cmd.Dir = repo
-		b, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, b)
-		}
-		return strings.TrimSpace(string(b))
-	}
-	commit := func(files []string) string {
-		t.Helper()
-		git("rm", "-rq", "--cached", "--ignore-unmatch", ".")
-		entries, _ := os.ReadDir(repo)
-		for _, e := range entries {
-			if e.Name() != ".git" {
-				_ = os.RemoveAll(filepath.Join(repo, e.Name()))
-			}
-		}
-		for _, f := range append([]string{"README.md"}, files...) {
-			name, content, found := strings.Cut(f, "=")
-			if !found {
-				content = name
-			}
-			if err := os.WriteFile(filepath.Join(repo, name), []byte(content), 0o600); err != nil {
-				t.Fatal(err)
-			}
-		}
-		git("add", "-A")
-		git("commit", "-qm", "c")
-		return git("rev-parse", "HEAD")
-	}
-	git("init", "-q", "-b", "main")
-	base := commit(baseFiles)
-	commit(headFiles)
+	r.git("init", "-q", "-b", "main")
+	return r
+}
 
-	log := filepath.Join(root, "diffs.log")
+func (r *diffRepo) git(args ...string) string {
+	r.t.Helper()
+	// #nosec G204 -- git with arguments this test writes, in a scratch repository
+	cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t.invalid",
+		"-c", "commit.gpgsign=false"}, args...)...)
+	cmd.Dir = r.dir
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		r.t.Fatalf("git %v: %v\n%s", args, err, b)
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// commit replaces the tree with files, each a name or name=content, and returns the new commit.
+func (r *diffRepo) commit(files []string) string {
+	r.t.Helper()
+	r.git("rm", "-rq", "--cached", "--ignore-unmatch", ".")
+	entries, _ := os.ReadDir(r.dir)
+	for _, e := range entries {
+		if e.Name() != ".git" {
+			_ = os.RemoveAll(filepath.Join(r.dir, e.Name()))
+		}
+	}
+	for _, f := range append([]string{"README.md"}, files...) {
+		name, content, found := strings.Cut(f, "=")
+		if !found {
+			content = name
+		}
+		if err := os.WriteFile(filepath.Join(r.dir, name), []byte(content), 0o600); err != nil {
+			r.t.Fatal(err)
+		}
+	}
+	r.git("add", "-A")
+	r.git("commit", "-qm", "c")
+	return r.git("rev-parse", "HEAD")
+}
+
+// run runs the diff step at the repository's HEAD with base as BASE_SHA, and returns what the step
+// printed, the diffs it asked for, and whether it succeeded. The commits the stub scanned, head
+// first, are in r.scans.
+func (r *diffRepo) run(base string, env ...string) (out, diffs string, ok bool) {
+	r.t.Helper()
 	// #nosec G204 -- the Action's own checked-in script, run as GitHub runs it
-	cmd := exec.Command("bash", "-c", actionDiffScript(t))
-	cmd.Dir = repo
+	cmd := exec.Command("bash", "-c", actionDiffScript(r.t))
+	cmd.Dir = r.dir
 	cmd.Env = append(os.Environ(),
-		"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"STUB_LOG="+log, "BASE_SHA="+base, "RUNNER_TEMP="+tmp,
-		"INPUT_SAGA=draugr.saga.yaml", "INPUT_WORKING_DIRECTORY=", "INPUT_OUTPUT="+filepath.Join(root, "out"),
+		"PATH="+r.bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"STUB_LOG="+r.log, "STUB_SCANS="+r.scans, "BASE_SHA="+base, "PR_HEAD_SHA=", "RUNNER_TEMP="+r.tmp,
+		"INPUT_SAGA=draugr.saga.yaml", "INPUT_WORKING_DIRECTORY=", "INPUT_OUTPUT="+filepath.Join(r.root, "out"),
 		"INPUT_CACHE_DIR=", "CACHE_READ_ONLY=", "INPUT_ARGS=", "INPUT_FAIL_ON_NEW=P1",
 		"INPUT_FAIL_ON_NEW_PRIORITY=", "INPUT_DIFF_VIEW=", "INPUT_CODE_SCANNING=new",
-		"INPUT_CODE_SCANNING_MIN_PRIORITY=", "GITHUB_OUTPUT="+filepath.Join(root, "github-output"),
+		"INPUT_CODE_SCANNING_MIN_PRIORITY=", "GITHUB_OUTPUT="+filepath.Join(r.root, "github-output"),
 		"GITHUB_SERVER_URL=https://github.com", "GITHUB_REPOSITORY=acme/shop")
 	cmd.Env = append(cmd.Env, env...)
 	b, err := cmd.CombinedOutput()
-	d, _ := os.ReadFile(log) // #nosec G304 -- written by the stub under t.TempDir()
+	d, _ := os.ReadFile(r.log) // #nosec G304 -- written by the stub under t.TempDir()
 	return string(b), string(d), err == nil
+}
+
+// scanned returns the commits the stub scanned, in order.
+func (r *diffRepo) scanned() []string {
+	r.t.Helper()
+	b, _ := os.ReadFile(r.scans) // #nosec G304 -- written by the stub under t.TempDir()
+	return strings.Fields(string(b))
+}
+
+// runActionDiff runs the diff step in a repository whose base commit holds baseFiles and whose
+// head holds headFiles, each a name or name=content, and returns what the step printed, the diffs
+// it asked for, and whether it succeeded.
+func runActionDiff(t *testing.T, baseFiles, headFiles []string, env ...string) (out, diffs string, ok bool) {
+	t.Helper()
+	r := newDiffRepo(t)
+	base := r.commit(baseFiles)
+	r.commit(headFiles)
+	return r.run(base, env...)
 }
 
 // The pull request that adds the descriptor is gated like any other: the base has nothing to scan,
@@ -461,5 +492,114 @@ func TestTheActionTreatsOnlyAnotherRepositoryAsAFork(t *testing.T) {
 	}
 	if set == 0 {
 		t.Error("action.yml sets neither FORK_PR nor CACHE_READ_ONLY, so this test checks nothing")
+	}
+}
+
+// pullRequestHistory builds a pull request's history: main at oldMain, the pull request's head
+// branched from it, main moved on to newMain, and the head merged onto newMain, the shape of
+// GitHub's default pull_request checkout. HEAD is left at the merge.
+func pullRequestHistory(r *diffRepo) (oldMain, head, newMain string) {
+	r.t.Helper()
+	oldMain = r.commit([]string{"draugr.saga.yaml"})
+	r.git("checkout", "-q", "-b", "pr")
+	head = r.commit([]string{"draugr.saga.yaml", "app.js"})
+	r.git("checkout", "-q", "main")
+	newMain = r.commit([]string{"draugr.saga.yaml", "main.js"})
+	r.git("merge", "-q", "--no-ff", "-m", "merge", "pr")
+	return oldMain, head, newMain
+}
+
+// A pull request is compared against the commit its checkout is merged onto. When the event's base
+// is another commit, a diff against it would credit the pull request with whatever main changed in
+// between, so the step says which commit it uses and why. Every other checkout keeps the event's
+// base: the head itself, a merge queue entry, and a merge that is not this pull request's.
+func TestTheActionDiffsAPullRequestAgainstTheCommitItsCheckoutIsMergedOnto(t *testing.T) {
+	t.Parallel()
+	const notice = "::notice::The event names"
+	// Each commit is named by its role in pullRequestHistory: "old" and "new" main, the pull
+	// request's "head", "other" for a commit that is none of them, and "" for no commit.
+	cases := []struct {
+		name string
+		// base and prHead are the event's base and head, and want is the commit the base scan
+		// has to be. atHead checks out the head itself rather than the merge.
+		base, prHead, want string
+		atHead, wantNotice bool
+	}{
+		{name: "the event's base is older than the merge's", base: "old", prHead: "head", want: "new", wantNotice: true},
+		{name: "the event's base is the merge's", base: "new", prHead: "head", want: "new"},
+		{name: "the checkout is the head itself", base: "new", prHead: "head", want: "new", atHead: true},
+		// PR_HEAD_SHA is empty on every event but pull_request and pull_request_target, which
+		// TestTheActionReadsThePullRequestHeadOnlyOnPullRequestEvents holds.
+		{name: "a merge queue entry", base: "old", prHead: "", want: "old"},
+		{name: "the merge is not of this pull request's head", base: "old", prHead: "other", want: "old"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			r := newDiffRepo(t)
+			oldMain, head, newMain := pullRequestHistory(r)
+			commits := map[string]string{"old": oldMain, "new": newMain, "head": head,
+				"other": strings.Repeat("ab", 20), "": ""}
+			if c.atHead {
+				r.git("checkout", "-q", "--detach", head)
+			}
+			base, prHead, want := commits[c.base], commits[c.prHead], commits[c.want]
+			checkout := r.git("rev-parse", "HEAD")
+			out, _, ok := r.run(base, "PR_HEAD_SHA="+prHead)
+			if !ok {
+				t.Fatalf("the step failed:\n%s", out)
+			}
+			if got := r.scanned(); len(got) != 2 || got[0] != checkout || got[1] != want {
+				t.Errorf("scanned %v, want the checkout %s and then the base %s:\n%s", got, checkout, want, out)
+			}
+			if !c.wantNotice {
+				if strings.Contains(out, notice) {
+					t.Errorf("a notice about the base where the event's base is kept:\n%s", out)
+				}
+				return
+			}
+			if strings.Count(out, notice) != 1 {
+				t.Errorf("want one notice about the base, got:\n%s", out)
+			}
+			line := "::notice::The event names " + base + " as the pull request's base, but the checkout merges " +
+				"the pull request onto " + want + ". The diff compares against " + want
+			if !strings.Contains(out, line) {
+				t.Errorf("the notice does not name both commits; want %q in:\n%s", line, out)
+			}
+		})
+	}
+}
+
+// The step reads the pull request's head only on the two pull request events, so a merge queue
+// entry, or any other event, keeps the event's base. It reads it through the environment: a value
+// interpolated into the script would be run as shell.
+func TestTheActionReadsThePullRequestHeadOnlyOnPullRequestEvents(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile("../../action.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var action struct {
+		Runs struct {
+			Steps []queueJobStep `yaml:"steps"`
+		} `yaml:"runs"`
+	}
+	if err := yaml.Unmarshal(raw, &action); err != nil {
+		t.Fatal(err)
+	}
+	var env string
+	for _, step := range action.Runs.Steps {
+		if step.ID == "diff" {
+			env = step.Env["PR_HEAD_SHA"]
+		}
+	}
+	for _, want := range []string{"github.event_name == 'pull_request'", "github.event_name == 'pull_request_target'",
+		"github.event.pull_request.head.sha"} {
+		if !strings.Contains(env, want) {
+			t.Errorf("the diff step's PR_HEAD_SHA is %q, without %q", env, want)
+		}
+	}
+	if strings.Contains(actionDiffScript(t), "${{") {
+		t.Error("the diff step's script interpolates an expression; pass it in through env")
 	}
 }
