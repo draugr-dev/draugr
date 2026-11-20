@@ -167,6 +167,19 @@ into findings shaped as Draugr's dependency scanners shape theirs.
   `last_affected`, or by nothing, means no fix. The package URL loses the `source` qualifier
   OSV-Scanner adds, such as `?source=PUBLIC_REGISTRY`, so the finding meets another scanner's copy
   of the flaw in the same package.
+- **A vulnerability OSV-Scanner's configuration ignores never reaches Draugr.** OSV-Scanner leaves a
+  vulnerability listed under `[[IgnoredVulns]]` in its `osv-scanner.toml`, with its aliases, out of
+  the JSON altogether, and states the reason only on its standard error. With OSV-Scanner 2.7.1 ignoring
+  GHSA-29mw-wpgm-hmr9 for the reason `test`, it printed
+  `GHSA-29mw-wpgm-hmr9 and 1 alias have been filtered out because: test` and
+  `Filtered 1 vulnerability from output`, and the JSON held the other three groups. Draugr cannot
+  count, list or audit what is not in the file, so the decision appears nowhere in its report,
+  unlike an exclusion in the descriptor, which stays in the report as a suppressed finding with its
+  reason. OSV-Scanner's
+  [configuration documentation](https://google.github.io/osv-scanner/configuration/) names no
+  setting that writes ignored vulnerabilities into the output. To keep the decision on record, set
+  it aside in the descriptor's `config.exclude` instead. The import refuses `suppressions`, which
+  has nothing to apply to.
 - **The checkout is read only to place a finding.** Where the component has one repository and its
   `url` is a path, the parsers read that checkout as a native run reads its own: Trivy's for the
   line of a package's entry in its manifest, govulncheck's for the `go.mod` of each module, matched

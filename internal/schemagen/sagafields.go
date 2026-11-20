@@ -531,7 +531,8 @@ func sagaFields() map[string]map[string]any {
 			),
 			"description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own " +
 				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
-				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside.",
+				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
+				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

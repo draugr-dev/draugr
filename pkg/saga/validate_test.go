@@ -1069,6 +1069,9 @@ func TestValidateImportFormat(t *testing.T) {
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
 			"file is rated by the score and severity it states. Remove severity"},
+		{Import{Format: "osv-scanner-json", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has nothing to apply to, " +
+			"since OSV-Scanner leaves what its configuration ignores out of the file. Remove it"},
+		{Import{Format: "osv-scanner-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to apply to"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

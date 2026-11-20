@@ -316,6 +316,12 @@ What differs from a SARIF import:
   not the component's repositories, so it is refused.
 - **OSV-Scanner's file holds lockfiles and SBOMs**, each placed by its path in the repository. A
   container image's or a git repository's results are refused.
+- **What OSV-Scanner's `osv-scanner.toml` ignores is not in its file**, so Draugr never sees or
+  counts it, and nothing in Draugr's report records that it was ignored, by whom, or why. The
+  reason appears only on OSV-Scanner's standard error, as OSV-Scanner 2.7.1 printed it:
+  `GHSA-29mw-wpgm-hmr9 and 1 alias have been filtered out because: test`. To keep such a decision
+  in the report, with its reason, set the finding aside in the descriptor's `config.exclude`
+  instead. An `osv-scanner-json` import takes no `suppressions`.
 - **The JSON names no repository.** In a component of several repositories, its findings merge with
   no native copy and are not scoped by `paths:` and `ignore:`, and `commit` cannot bind the file.
   Import it into a component of one repository.
