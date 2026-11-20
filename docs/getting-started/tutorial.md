@@ -60,7 +60,9 @@ draugr tools install --yes
 ```
 
 Two scanners need Go or Node.js on the machine. If either is missing, the install names what to add
-and the scan runs without that scanner.
+and the scan runs without that scanner. Without cosign on the machine, trivy's line says it skipped
+its signature check. The download is still checked against the SHA-256 digest this release of Draugr
+pins, and step 2 installs cosign.
 
 The demo is deliberately vulnerable, so this scan fails. That is the expected result.
 
