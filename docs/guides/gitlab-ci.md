@@ -165,9 +165,10 @@ the verdict and the gate.
 
 Create an ingest token for the project on your server. It is write-only and scoped to that project.
 
-The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by invitation for now,
-and you can [ask for one](https://draugr.dev/contact/?about=early-access). A server you run yourself issues
-its own tokens from its console's project Setup, and takes runs at its own `DRAUGR_API_URL`.
+[Publish runs to a Draugr server](publish-to-a-draugr-server.md) goes from creating the token to the
+first run in the console. The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups
+by invitation for now, and you can [ask for one](https://draugr.dev/contact/?about=early-access). A
+server you run yourself works the same way at its own address.
 
 In *Settings → CI/CD → Variables*, add `DRAUGR_API_TOKEN` as a **masked** variable and
 `DRAUGR_API_URL` as a plain one holding the server's address. GitLab puts every CI/CD variable in

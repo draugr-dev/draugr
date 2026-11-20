@@ -190,9 +190,10 @@ the verdict and the gate.
 
 Create an ingest token for the project on your server. It is write-only and scoped to that project.
 
-The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by invitation for now,
-and you can [ask for one](https://draugr.dev/contact/?about=early-access). A server you run yourself issues
-its own tokens from its console's project Setup, and takes runs at its own `DRAUGR_API_URL`.
+[Publish runs to a Draugr server](publish-to-a-draugr-server.md) goes from creating the token to the
+first run in the console. The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups
+by invitation for now, and you can [ask for one](https://draugr.dev/contact/?about=early-access). A
+server you run yourself works the same way at its own address.
 
 Store it as an encrypted secret named `DRAUGR_API_TOKEN`, under *Settings → Secrets and variables →
 Actions*, and give it to the action's step in `env:` with the server's address. The action has no
