@@ -1,1 +1,0 @@
-- **Import a repository's GitHub code-scanning and Dependabot alerts.** An import's `source: github-code-scanning` or `github-dependabot` reads them from GitHub's API with the token `tokenEnv` names, and ranks and gates them with your own findings. An alert a person dismissed in GitHub is set aside, with who and why; one a bot or a GitHub rule dismissed still counts.

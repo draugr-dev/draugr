@@ -1,1 +1,0 @@
-- **Diff mode compares a pull request against the commit it was merged onto.** When the event names a different base from the commit GitHub merged the pull request onto, the Action now diffs against the merge's base and says so in a notice, rather than counting the base branch's own changes as the pull request's.
