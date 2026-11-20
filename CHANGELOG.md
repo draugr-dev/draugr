@@ -16,17 +16,17 @@ _Nothing yet._
 
 ### Added
 
-- **Import a tool Draugr has no reader for, through a converter you declare.** Set `format: draugr-converter` and `converter:` with its name, the contract version and which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A file naming another converter, setting anything not granted, or imported through a fragment is refused. `contrib/converters/npm-audit` is a worked example.
+- **Import a tool Draugr has no reader for, through a converter you declare.** Set `format: draugr-converter` and `converter:` with its name, its contract version and the properties it may set (`package`, `cwe`, `labels`, `reachable`, `raise`). Draugr refuses a file from another converter, a property not granted, and a converter import in a fragment. `contrib/converters/npm-audit` is a worked example.
 
-- **Import OSV-Scanner's own JSON.** Set `format: osv-scanner-json` on an import of what `osv-scanner scan --format json` writes. Each finding keeps its package, package URL, fixed version and CVSS score, and lists its CVE, so KEV and EPSS reach it and it merges with another scanner's finding of that CVE. A container image's results are refused.
+- **Import OSV-Scanner's own JSON.** Set `format: osv-scanner-json` on an import of what `osv-scanner scan --format json` writes. Each finding keeps its package, package URL, fixed version and CVSS score, and carries the advisory's CVE, so KEV and EPSS apply and it merges with another scanner's finding of that CVE. A file holding container-image or git results is refused.
 
 ### Fixed
 
-- **Code scanning accepts the upload when a finding is on a container image.** The `github` publisher, `draugr diff --format sarif` and the new `code-scanning` report (`code-scanning.sarif`, the Action's `sarif` output) leave such a finding without a location rather than the image reference GitHub refused, along with the whole upload. The Action annotates a failed publish as an error.
+- **Code scanning no longer refuses an upload holding a container-image finding.** The `github` publisher, `draugr diff --format sarif` and the new `code-scanning` report (`code-scanning.sarif`, the Action's `sarif` output) leave out the image reference GitHub refused, so the upload goes through. The Action now annotates a failed publish as an error.
 
-- **Code scanning shows findings inside container images.** A vulnerable package in an image now appears in the Security tab on the `image:` line of the descriptor or fragment that declares the image, the line you change to move to a newer one. `results.sarif` keeps the image reference as the finding's location.
+- **Code scanning shows findings inside container images.** A vulnerable package in an image appears in the Security tab on the `image:` line of the descriptor or fragment that declares the image. `results.sarif` still keeps the image reference as the finding's location.
 
-- **The Azure Pipelines template no longer publishes from pull-request builds.** Its scans run with `--no-publish` there, as the GitHub Action's and the GitLab template's do, so a pull request's unmerged code no longer sends a run to a Draugr server or posts a second comment beside the diff's. Push builds publish as before, and the reports are still written.
+- **The Azure Pipelines template no longer publishes from pull-request builds.** Its scans run with `--no-publish` there, so a pull request's unmerged code sends no run to a Draugr server and posts no second comment beside the diff's. Push builds publish as before, and the reports are still written.
 
 ## [0.183.0] - 2026-11-20
 
