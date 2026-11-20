@@ -96,12 +96,22 @@ steps:
   - ${{ if ne(parameters.mode, 'diff') }}:
       - script: |
           set -euo pipefail
-          draugr scan "${{ parameters.saga }}" --report junit,sarif,html \
+          # A pull request's code has not merged, so its build publishes nothing: the descriptor's
+          # publishers act on push builds, and the pull request's comment comes from the diff step.
+          # The reports are still written, for the Tests tab and the artifact. Build.Reason is read
+          # from the environment at run time, as the diff step reads the pull request's target branch.
+          publish=""
+          if [ "${BUILD_REASON:-}" = "PullRequest" ]; then
+            publish="--no-publish"
+          fi
+          # shellcheck disable=SC2086 # publish is a deliberate word-split, empty on a push build
+          draugr scan "${{ parameters.saga }}" --report junit,sarif,html $publish \
             -o "$(Build.ArtifactStagingDirectory)"
         displayName: Scan
         env:
           # Azure does not expose the build's own token to a script step unless it is mapped.
-          # Needed only by the azure-pr-comment publisher, and harmless otherwise.
+          # Needed only by the azure-work-item publisher, which this step runs on a push build, and
+          # harmless otherwise.
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
   - ${{ if ne(parameters.mode, 'scan') }}:
@@ -111,7 +121,8 @@ steps:
 
           # --no-gate on both: these two scans exist to produce reports, and the diff is the
           # gate. Without it the base scan's FAIL — which any repository with a backlog
-          # produces — takes the step down before the comparison runs.
+          # produces — takes the step down before the comparison runs. --no-publish on both, since
+          # the diff posts the one comment and nothing else publishes from a pull request.
           git checkout -q --detach "origin/$target"
           # A pull request that adds the descriptor has none at the base, and is compared against
           # no findings instead, so the first pull request that turns Draugr on is gated like any
@@ -139,14 +150,14 @@ steps:
               echo "##vso[task.logissue type=warning]This Draugr release refuses the target branch's ${{ parameters.saga }}, so the target branch is scanned with this pull request's copy. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
               git show "$BUILD_SOURCEVERSION:./${{ parameters.saga }}" > "${{ parameters.saga }}"
             fi
-            draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-base"
+            draugr scan "${{ parameters.saga }}" --no-gate --no-publish --report sarif -o "$(Pipeline.Workspace)/draugr-base"
             git checkout -q -- "${{ parameters.saga }}"
           fi
 
           # A pull-request build checks out refs/pull/N/merge, which is on no branch, so
           # `git checkout -` cannot find its way home.
           git checkout -q --detach "$BUILD_SOURCEVERSION"
-          draugr scan "${{ parameters.saga }}" --no-gate --report sarif -o "$(Pipeline.Workspace)/draugr-head"
+          draugr scan "${{ parameters.saga }}" --no-gate --no-publish --report sarif -o "$(Pipeline.Workspace)/draugr-head"
 
           gate=""
           if [ -n "${FAIL_ON_NEW_PRIORITY:-}" ]; then
