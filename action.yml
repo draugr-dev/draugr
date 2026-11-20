@@ -362,9 +362,13 @@ runs:
         INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
         INPUT_ARGS: ${{ inputs.args }}
         # The base is the pull request's base commit, or for a merge queue entry the commit the
-        # queue built the entry on; head is the current checkout. Requires the caller to check out
-        # with fetch-depth: 0 so the base commit is present.
+        # queue built the entry on; head is the current checkout. When the checkout is the pull
+        # request's merge commit, the step takes its first parent instead (see the run block).
+        # Requires the caller to check out with fetch-depth: 0 so the base commit is present.
         BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        # The pull request's head commit, on pull_request and pull_request_target only, so the step
+        # can tell whether the checkout is the pull request merged onto some commit, and which one.
+        PR_HEAD_SHA: ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.head.sha || '' }}
         # For the sticky PR comment (github-pr-comment publisher). Needs pull-requests: write.
         GITHUB_TOKEN: ${{ github.token }}
       run: |
@@ -373,6 +377,23 @@ runs:
 
         if [ -z "${BASE_SHA:-}" ]; then
           echo "::error::diff mode requires a pull_request or merge_group event (no base SHA in context)"; exit 1
+        fi
+
+        # A pull request's default checkout is the merge of its head onto a commit of the base
+        # branch, and that commit is the base the code under review meets. The event's base.sha is
+        # refreshed with it on some activity types and not necessarily on others, and a base other
+        # than the one the head was merged onto credits the pull request with whatever the base
+        # branch changed in between: findings fixed there read as fixed here, and findings added
+        # there read as new here, which can pass or fail the gate for the wrong change. So when the
+        # checkout is that merge, its first parent is the base. A checkout of the head itself, or a
+        # merge queue entry, keeps the event's base.
+        base_sha="$BASE_SHA"
+        if [ -n "${PR_HEAD_SHA:-}" ] && parents=$(git rev-list --parents -n 1 HEAD 2>/dev/null); then
+          read -r _ first_parent second_parent more_parents <<<"$parents"
+          if [ -z "${more_parents:-}" ] && [ "${second_parent:-}" = "$PR_HEAD_SHA" ] && [ "$first_parent" != "$BASE_SHA" ]; then
+            echo "::notice::The event names ${BASE_SHA} as the pull request's base, but the checkout merges the pull request onto ${first_parent}. The diff compares against ${first_parent}, the commit the code under review is merged with."
+            base_sha="$first_parent"
+          fi
         fi
 
         # The head scan describes the code under review, so it goes where `output` says and
@@ -405,13 +426,13 @@ runs:
         fi
 
         # Base = the PR target commit, scanned in a detached worktree.
-        git fetch --no-tags --depth 1 origin "$BASE_SHA" 2>/dev/null || true
+        git fetch --no-tags --depth 1 origin "$base_sha" 2>/dev/null || true
         # A runner that keeps its checkout between jobs keeps the worktree registration too, while
         # RUNNER_TEMP is emptied; a job canceled before the removal below leaves one pointing at a
         # directory that no longer exists, and `worktree add` refuses the path. Pruned first, so the
         # path is free whatever the last job on this machine did.
         git worktree prune
-        git worktree add --detach "$worktree" "$BASE_SHA"
+        git worktree add --detach "$worktree" "$base_sha"
         # The base as `draugr diff` reads it: a scan, or, for the pull request that adds the
         # descriptor, nothing to scan. Without the second, the first pull request that turns Draugr
         # on is the one place the gate cannot run, because there is no base report to open.

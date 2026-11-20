@@ -64,7 +64,7 @@ To scan an image before pushing it, see [Scanning an image before it is pushed](
 |---|---|---|---|
 | `auto` (default) | any | `diff` on `pull_request`, `scan` otherwise | both permissions below |
 | `scan` | push / schedule | full scan; the Saga's publishers deliver results (e.g. `github` → code scanning) | `security-events: write` |
-| `diff` | pull request, merge queue | scan base + head, post one sticky new/fixed comment (publishers suppressed). On `merge_group`: base is the commit the queue built the entry on, no comment | `pull-requests: write`, `fetch-depth: 0` |
+| `diff` | pull request, merge queue | scan base + head, post one sticky new/fixed comment (publishers suppressed). On a pull request, the base is the commit the pull request's merge is built on. On `merge_group`: base is the commit the queue built the entry on, no comment | `pull-requests: write`, `fetch-depth: 0` |
 
 **In a merge queue**, `auto` picks `scan` for a `merge_group` event, which gates the entry on
 everything in the tree, findings already on `main` included. To gate an entry on the findings it
