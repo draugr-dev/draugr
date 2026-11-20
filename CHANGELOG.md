@@ -16,19 +16,19 @@ _Nothing yet._
 
 ### Added
 
-- **Import a repository's GitHub code-scanning and Dependabot alerts.** An import's `source: github-code-scanning` or `github-dependabot` reads them from GitHub's API with the token `tokenEnv` names, and ranks and gates them with your own findings. An alert a person dismissed in GitHub is set aside, with who and why; one a bot or a GitHub rule dismissed still counts.
+- **Import a repository's GitHub code-scanning and Dependabot alerts.** With `source: github-code-scanning` or `github-dependabot` on an import, Draugr reads the alerts from GitHub's API with the token whose variable `tokenEnv` names, and ranks and gates them with your other findings. An alert a person dismissed is set aside, with who and why; a bot's or a rule's dismissal still counts.
 
-- **Import Grype's own JSON.** Set `format: grype-json` on an import of what `grype dir:. -o json` writes. Its findings keep their package, fixed version and CVE, so KEV and EPSS reach them and they merge with another scanner's finding of that CVE. An image scan is refused, since its findings are about the image rather than the repository.
+- **Import Grype's own JSON.** Set `format: grype-json` on an import of what `grype dir:. -o json` writes. Its findings keep their package, fixed version and CVE, so KEV and EPSS reach them and they merge with another scanner's finding of that CVE. A scan of an image (`grype <image>`) is refused; scan the directory instead.
 
 ### Fixed
 
-- **A flaw two scanners found is one code-scanning alert.** The `github` publisher uploads only the finding the gate counts, whose `correlation.alsoFoundBy` names the other scanners, so the Security tab no longer shows one alert per scanner. GitLab's security and Code Quality reports list such a flaw once too. `results.sarif` still keeps every scanner's result.
+- **A flaw two scanners found is now one code-scanning alert.** The `github` publisher uploads one finding per flaw, the one the gate counts, and its `correlation.alsoFoundBy` names the other scanners, so the Security tab no longer shows one alert per scanner. GitLab's security and Code Quality reports also list it once. `results.sarif` still holds every scanner's result.
 
-- **An imported SARIF file keeps each package an advisory reaches.** Trivy's SARIF places every Go dependency at `go.mod:1`, so one advisory in two packages was read as one finding and one package was lost. Each package is now a finding with its own fix. A result repeated exactly in one file counts once, shown as `folded`; nothing is lost.
+- **An imported SARIF file keeps every package an advisory affects.** Trivy's SARIF puts every Go dependency at `go.mod:1`, so one advisory in two packages used to import as one finding. Each package is now its own finding with its own fix. A result repeated exactly in one file counts once and is marked `folded`; nothing is dropped.
 
-- **Diff mode compares a pull request against the commit it was merged onto.** When the event names a different base from the commit GitHub merged the pull request onto, the Action now diffs against the merge's base and says so in a notice, rather than counting the base branch's own changes as the pull request's.
+- **Diff mode compares a pull request against the commit it was merged onto.** If the event's base differs from the commit GitHub merged the pull request onto, the Action now diffs against that commit and prints a notice. Changes the base branch made on its own are no longer counted as the pull request's.
 
-- **`draugr explain` under `TRY` no longer points at a SARIF file the scan did not write.** On a run with `-o` whose `--report` list leaves out `sarif`, `TRY` now gives the scan that writes it, keeping your formats and directory, above the `draugr explain` command that reads it.
+- **`draugr explain` no longer points at a SARIF file the scan didn't write.** If you scan with `-o` and your `--report` list leaves out `sarif`, the `TRY` hint now shows a scan command that writes it, keeping your formats and directory, followed by the `draugr explain` command that reads it.
 
 ## [0.182.0] - 2026-11-17
 
