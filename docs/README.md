@@ -30,6 +30,7 @@ not published. They live here for readers browsing the repo.
 - [See findings in your editor](guides/findings-in-your-editor.md), SARIF as inline diagnostics in VS Code and JetBrains.
 - [Use Draugr from an AI coding assistant](guides/ai-agents-mcp.md), the MCP server, and why it beats letting an assistant improvise.
 - [Reports & publishers](guides/reports-and-publishers.md), render many formats, deliver anywhere.
+- [Read a finding in the HTML report](guides/reading-the-html-report.md), from where it ranks to what to change.
 - [Configure Draugr for a machine or an organization](guides/configuration.md). `draugr.config.yaml`, what belongs there rather than in a Saga, and fleet-wide defaults.
 - [Caching & performance](guides/caching-and-performance.md), content-hash cache and parallelism.
 - [Handle scan artifacts that hold sensitive data](guides/handling-scan-artifacts.md), what each report, cache entry and publisher carries, and what never leaves the machine.

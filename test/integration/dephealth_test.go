@@ -4,8 +4,11 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -87,11 +90,61 @@ func TestDepsDevStillAnswersWhatWeParse(t *testing.T) {
 	}
 	// Strictly newer or nothing. jquery's recommendation is a major version ahead, so this also
 	// proves the comparison is not rejecting everything.
-	if pkg.Recommended == "" {
-		t.Error("no upgrade offered for a package the service recommends moving off")
-	} else if order, ok := versionorder.Compare("npm", "1.8.3", pkg.Recommended); !ok || order >= 0 {
-		t.Errorf("recommended %q is not newer than 1.8.3", pkg.Recommended)
+	if pkg.Recommended != "" {
+		if order, ok := versionorder.Compare("npm", "1.8.3", pkg.Recommended); !ok || order >= 0 {
+			t.Errorf("recommended %q is not newer than 1.8.3", pkg.Recommended)
+		}
+		return
 	}
+	// No upgrade offered is right only when the service offers none. It withholds a recommendation
+	// while the newest release is in its cooldown, so an empty list is an answer, and a missing key
+	// is the response shape moving, which is what this test is here to catch.
+	offered, present := serviceRecommendations(ctx, t, "NPM", "jquery", "1.8.3")
+	switch {
+	case !present:
+		t.Error("recommendedVersions is missing from the response; the field has moved or been renamed")
+	case offered > 0:
+		t.Errorf("the service recommends %d version(s), and none was read", offered)
+	default:
+		t.Logf("the service offers no upgrade for jquery 1.8.3 today, so none is offered")
+	}
+}
+
+// serviceRecommendations asks deps.dev directly how many versions it recommends for one package
+// version, and whether the response holds the field at all, so the test can tell an empty answer
+// from a field that has moved.
+func serviceRecommendations(ctx context.Context, t *testing.T, system, name, version string) (int, bool) {
+	t.Helper()
+	body := fmt.Sprintf(`{"requests":[{"versionKey":{"system":%q,"name":%q,"version":%q}}]}`, system, name, version)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.deps.dev/v3alpha/findingsbatch",
+		strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("building the request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	skipIfOffline(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	var got struct {
+		Responses []struct {
+			Findings map[string]json.RawMessage `json:"findings"`
+		} `json:"responses"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+		t.Fatalf("decoding deps.dev's answer (HTTP %d): %v", resp.StatusCode, err)
+	}
+	if len(got.Responses) != 1 {
+		t.Fatalf("deps.dev answered %d responses to one request", len(got.Responses))
+	}
+	raw, present := got.Responses[0].Findings["recommendedVersions"]
+	if !present {
+		return 0, false
+	}
+	var recs []json.RawMessage
+	if err := json.Unmarshal(raw, &recs); err != nil {
+		t.Fatalf("recommendedVersions is not a list: %v", err)
+	}
+	return len(recs), true
 }
 
 // The case that would have shipped bad advice, checked against the live service rather than a
