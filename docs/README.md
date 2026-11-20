@@ -7,6 +7,7 @@ not published. They live here for readers browsing the repo.
 ## Getting started
 - [Install](getting-started/install.md). Install Draugr and the scanners its controls need, and verify the download.
 - [Quickstart](getting-started/quickstart.md), from zero to a verdict: describe, scan, focus, discover.
+- [Tutorial](getting-started/tutorial.md), from install to gated pull requests on the demo repository, with the output of every step.
 - [Write your first Saga](getting-started/first-saga.md), a gentle walkthrough of authoring `draugr.saga.yaml`.
 
 ## Core concepts

@@ -2,7 +2,7 @@
 title: Write your first Saga
 description: A gentle walkthrough of authoring draugr.saga.yaml, release, controls, and components.
 section: Getting started
-order: 30
+order: 40
 ---
 
 # Write your first Saga
