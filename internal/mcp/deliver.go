@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/version"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -48,6 +49,9 @@ func deliver(
 		Generated: time.Now(),
 		Version:   strings.TrimPrefix(version.Version, "v"),
 		Commit:    buildCommit(),
+		// Where `draugr scan` reads it, so a code-scanning upload places a finding on an image on the
+		// line that declares it whichever of the two delivered it.
+		Declared: report.ImageDeclarations(model, git.RepositoryPaths(ctx, ".")),
 	}
 	if err := publish.Run(ctx, model.Config.Publishers, data); err != nil {
 		return nil, err

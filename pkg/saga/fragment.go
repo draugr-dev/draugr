@@ -139,6 +139,7 @@ func ResolveFile(path string, fetcher Fetcher) (*Resolved, error) {
 	r.seen[abs] = true
 	r.sources = append(r.sources, Source{Path: path, Root: true, Digest: digestFile(path)})
 	stampExclusions(model.Config.Exclude, path, path)
+	stampImageFiles(model.Components, path)
 	for _, c := range model.Components {
 		r.record(map[string][]string{c.Name: classificationFields(c)}, path)
 	}
@@ -234,6 +235,11 @@ func (r *resolver) mergeFrom(model *Model, ref FragmentRef, dir string, src Sour
 		named.Digest = digestFile(full)
 		r.sources = append(r.sources, named)
 		stampExclusions(frag.Config.Exclude, named.String(), full)
+		// An image a fragment from another repository declares is written in that repository, whose
+		// checkout is removed once it is merged, so it has no line in this one.
+		if !ref.Remote() {
+			stampImageFiles(frag.Components, full)
+		}
 		frag.Source = named.String()
 		r.record(merge(model, frag), frag.Source)
 
@@ -354,6 +360,7 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 			return Fragment{}, fmt.Errorf("parse fragment %q: %w", path, fragmentFieldHint(err))
 		}
 		stampExcludeLines(&root, f.Config.Exclude)
+		stampImageLines(&root, f.Components)
 		f.textWarnings = textWarnings(&root, reflect.TypeOf(Fragment{}), fmt.Sprintf("fragment %q: ", path))
 	}
 	if err := f.Validate(); err != nil {

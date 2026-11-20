@@ -38,15 +38,49 @@ const dismissalCommentLimit = 280
 
 // alertKey is what an alert and a SARIF result have in common: GitHub's alert listing carries no
 // fingerprint, so a result is matched on its rule and where it is.
+//
+// Several results can share one: every finding of one rule in one image is placed on the line that
+// declares the image, a vulnerability in two of its packages among them. Where code scanning lists
+// several alerts at one place, each is matched on its message as well, which names the package; see
+// suppressedResult.at.
 type alertKey struct {
 	rule, path string
 	line       int
 }
 
-// suppressedResult is a result as the follow-up needs it: whether it is suppressed, and why.
+// suppressedResult is a result as the follow-up needs it: whether it is suppressed, and why. Held per
+// place, combining every result there, and per message within the place.
 type suppressedResult struct {
 	suppressed bool
 	comment    string
+	// byMessage is the same, for the results at the place with each message.
+	byMessage map[string]suppressedResult
+}
+
+// combine folds the next result at a place into what is known of it: one result open there keeps the
+// place open, whichever order the results come in.
+func combine(prev suppressedResult, seen bool, next suppressedResult) suppressedResult {
+	if next.suppressed && seen && !prev.suppressed {
+		return prev
+	}
+	next.byMessage = prev.byMessage
+	return next
+}
+
+// at is what the follow-up does with one alert at the place: what the results with its message say,
+// where code scanning listed several alerts at the place and the message names results here, and what
+// every result at the place says otherwise.
+//
+// One alert at a place may stand for every result there, if code scanning took them for one, so it is
+// dismissed only when all of them are suppressed. Several alerts are results code scanning kept apart,
+// and the message tells each its own.
+func (s suppressedResult) at(message string, alertsHere int) suppressedResult {
+	if alertsHere > 1 {
+		if m, ok := s.byMessage[message]; ok {
+			return m
+		}
+	}
+	return s
 }
 
 // uploadedResults reads the results of the SARIF the publisher just uploaded, keyed as alerts are,
@@ -60,7 +94,10 @@ func uploadedResults(sarif []byte) (tool string, results map[alertKey]suppressed
 				} `json:"driver"`
 			} `json:"tool"`
 			Results []struct {
-				RuleID    string `json:"ruleId"`
+				RuleID  string `json:"ruleId"`
+				Message struct {
+					Text string `json:"text"`
+				} `json:"message"`
 				Locations []struct {
 					PhysicalLocation struct {
 						ArtifactLocation struct {
@@ -95,17 +132,19 @@ func uploadedResults(sarif []byte) (tool string, results map[alertKey]suppressed
 			}
 			loc := r.Locations[0].PhysicalLocation
 			key := alertKey{rule: r.RuleID, path: loc.ArtifactLocation.URI, line: loc.Region.StartLine}
-			if len(r.Suppressions) == 0 {
-				// One result unsuppressed at a place is enough to keep its alert open, whatever
-				// another result at the same rule and line says.
-				results[key] = suppressedResult{}
-				continue
+			var next suppressedResult
+			if len(r.Suppressions) > 0 {
+				s := r.Suppressions[0]
+				next = suppressedResult{suppressed: true, comment: dismissalComment(s.Justification, s.Properties.Source, s.Properties.Line)}
 			}
-			if prev, seen := results[key]; seen && !prev.suppressed {
-				continue
+			prev, seen := results[key]
+			place := combine(prev, seen, next)
+			if place.byMessage == nil {
+				place.byMessage = map[string]suppressedResult{}
 			}
-			s := r.Suppressions[0]
-			results[key] = suppressedResult{suppressed: true, comment: dismissalComment(s.Justification, s.Properties.Source, s.Properties.Line)}
+			was, seenMessage := place.byMessage[r.Message.Text]
+			place.byMessage[r.Message.Text] = combine(was, seenMessage, next)
+			results[key] = place
 		}
 	}
 	return tool, results, nil
@@ -146,6 +185,9 @@ type codeScanningAlert struct {
 			Path      string `json:"path"`
 			StartLine int    `json:"start_line"`
 		} `json:"location"`
+		Message struct {
+			Text string `json:"text"`
+		} `json:"message"`
 	} `json:"most_recent_instance"`
 }
 
@@ -162,29 +204,36 @@ func (g githubPublisher) syncSuppressions(ctx context.Context, uploadID string, 
 	if err := g.awaitProcessing(ctx, uploadID); err != nil {
 		return err
 	}
-	var failed []string
+	var listed []codeScanningAlert
 	for _, state := range []string{"open", "dismissed"} {
 		alerts, err := g.alerts(ctx, tool, state)
 		if err != nil {
 			return err
 		}
-		for _, a := range alerts {
-			r, ok := results[a.key()]
-			if !ok {
-				continue
-			}
-			var change map[string]string
-			switch {
-			case a.State == "open" && r.suppressed:
-				change = map[string]string{"state": "dismissed", "dismissed_reason": "won't fix", "dismissed_comment": r.comment}
-			case a.State == "dismissed" && !r.suppressed && strings.HasPrefix(a.DismissedComment, dismissedBy):
-				change = map[string]string{"state": "open"}
-			default:
-				continue
-			}
-			if err := g.call(ctx, http.MethodPatch, fmt.Sprintf("code-scanning/alerts/%d", a.Number), change, nil); err != nil {
-				failed = append(failed, fmt.Sprintf("alert %d (%s): %v", a.Number, a.Rule.ID, err))
-			}
+		listed = append(listed, alerts...)
+	}
+	alertsAt := map[alertKey]int{}
+	for _, a := range listed {
+		alertsAt[a.key()]++
+	}
+	var failed []string
+	for _, a := range listed {
+		place, ok := results[a.key()]
+		if !ok {
+			continue
+		}
+		r := place.at(a.Instance.Message.Text, alertsAt[a.key()])
+		var change map[string]string
+		switch {
+		case a.State == "open" && r.suppressed:
+			change = map[string]string{"state": "dismissed", "dismissed_reason": "won't fix", "dismissed_comment": r.comment}
+		case a.State == "dismissed" && !r.suppressed && strings.HasPrefix(a.DismissedComment, dismissedBy):
+			change = map[string]string{"state": "open"}
+		default:
+			continue
+		}
+		if err := g.call(ctx, http.MethodPatch, fmt.Sprintf("code-scanning/alerts/%d", a.Number), change, nil); err != nil {
+			failed = append(failed, fmt.Sprintf("alert %d (%s): %v", a.Number, a.Rule.ID, err))
 		}
 	}
 	if len(failed) > 0 {

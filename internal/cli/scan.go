@@ -639,6 +639,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		Generated: time.Now(),
 		Version:   reportVersion(),
 		Commit:    buildCommit(),
+		// The repository code scanning files the run under is the one Draugr runs in, so an image is
+		// placed only where a file in it declares the image.
+		Declared: report.ImageDeclarations(model, git.RepositoryPaths(ctx, ".")),
 	}
 	// A caveat of a kind the gate lists fails the run as an error does, and is accepted the way an
 	// error is. Decided once the report data exists, because a caveat is read off the same data the
@@ -973,7 +976,7 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 		case report.CodeScanningFormat:
 			// The same document, narrowed the same way, in the form code scanning accepts.
 			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
-				return report.WriteCodeScanning(w, func(w io.Writer) error {
+				return report.WriteCodeScanning(w, data.Declared, func(w io.Writer) error {
 					return skald.WriteSARIFNarrowed(w, report.FilterByPriority(run, declared), declared, data.SARIFOptions())
 				})
 			}); err != nil {

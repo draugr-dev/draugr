@@ -43,6 +43,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 			return nil, err
 		}
 		stampExcludeLines(&root, m.Config.Exclude)
+		stampImageLines(&root, m.Components)
 		m.textWarnings = textWarnings(&root, reflect.TypeOf(Model{}), "")
 	}
 	foldOlderSpellings(&m)

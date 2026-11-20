@@ -1249,6 +1249,15 @@ type Image struct {
 	// registry is its own needs nothing here; this is for the one image that came from somewhere
 	// else, or the one built by a pipeline the others are not.
 	SignedBy string `yaml:"signedBy,omitempty"`
+	// File and Line are where this image is declared: the descriptor or fragment on disk, as an
+	// absolute path where one could be made, and the line its `image:` key is on. Both are set by the
+	// loader rather than by the descriptor, and empty for an image built in code or found by a survey.
+	//
+	// A finding inside the image has no file of its own, and the line that names the image is the
+	// one a reader edits to move to a newer image, so the copy of a run that goes to code scanning
+	// places the finding there.
+	File string `yaml:"-" json:"-"`
+	Line int    `yaml:"-" json:"-"`
 }
 
 // PinnedRef names the image by its repository and digest, `<repository>@<digest>`, where `digest`

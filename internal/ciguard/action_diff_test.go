@@ -324,6 +324,16 @@ func TestTheActionNamesTheDescriptorToTheDiff(t *testing.T) {
 	if !strings.Contains(diffs, "--saga draugr.saga.yaml") {
 		t.Errorf("the diff was not given the descriptor:\n%s", diffs)
 	}
+	// The new-findings diff too, which places a finding on an image on the line of the descriptor
+	// that declares it.
+	if !strings.Contains(diffs, "--format sarif") {
+		t.Fatalf("no new-findings diff ran:\n%s", diffs)
+	}
+	for _, line := range strings.Split(diffs, "\n") {
+		if strings.Contains(line, "--format sarif") && !strings.Contains(line, "--saga draugr.saga.yaml") {
+			t.Errorf("the new-findings diff was not given the descriptor: %s", line)
+		}
+	}
 	out, diffs, ok = runActionDiff(t, base, head, "STUB_OLD=1")
 	if !ok {
 		t.Fatalf("the step failed on an older release:\n%s", out)

@@ -184,6 +184,11 @@ type Data struct {
 	// Change draws the run's comparison with its base, on a run the gate on new findings judged.
 	// Nil on any other run, and the console then prints the scan's own layout.
 	Change ChangeView
+	// Declared is where each image the run scanned is declared in the repository it ran in, as
+	// ImageDeclarations finds it. The copy of the report that goes to code scanning places a finding
+	// on an image there; every other report keeps the image reference as its location. Nil where the
+	// caller found none, and a finding on an image then goes to code scanning with no location.
+	Declared sarif.Declarations
 }
 
 // ToolBuild is the build of one external scanner, as this run found it.
@@ -435,7 +440,7 @@ var formatSummaries = map[string]string{
 	"template": "Your own layout, from --template or --template-file.",
 	"vex":      "An OpenVEX document saying which vulnerabilities apply to this product.",
 
-	CodeScanningFormat: "The sarif report as GitHub code scanning accepts it, for an upload-sarif step: a finding with no file, such as an image's, has no location.",
+	CodeScanningFormat: "The sarif report as GitHub code scanning accepts it, for an upload-sarif step: a finding on an image is on the line that declares it, and one with no file, such as a host's, has no location.",
 
 	"gitlab-codequality":         "GitLab Code Quality: every finding, in the merge request, on any tier.",
 	"gitlab-sast":                "GitLab's own security schema, for its Vulnerability Report. A build artifact rather than an upload.",
@@ -635,16 +640,17 @@ const CodeScanningFormat = "code-scanning"
 
 func (codeScanningReporter) Format() string { return CodeScanningFormat }
 func (codeScanningReporter) Render(w io.Writer, d Data) error {
-	return WriteCodeScanning(w, func(w io.Writer) error { return sarifReporter{}.Render(w, d) })
+	return WriteCodeScanning(w, d.Declared, func(w io.Writer) error { return sarifReporter{}.Render(w, d) })
 }
 
-// WriteCodeScanning writes what render writes, a sarif report, as GitHub code scanning accepts it.
-func WriteCodeScanning(w io.Writer, render func(io.Writer) error) error {
+// WriteCodeScanning writes what render writes, a sarif report, as GitHub code scanning accepts it,
+// with a finding on an image placed on the line declared names for it.
+func WriteCodeScanning(w io.Writer, declared sarif.Declarations, render func(io.Writer) error) error {
 	var buf bytes.Buffer
 	if err := render(&buf); err != nil {
 		return err
 	}
-	doc, _, err := sarif.ForCodeScanning(buf.Bytes())
+	doc, _, err := sarif.ForCodeScanning(buf.Bytes(), declared)
 	if err != nil {
 		return err
 	}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -36,6 +37,9 @@ type diffOptions struct {
 	// gate is that descriptor's gate block, read by the command before runDiff, and nil where no
 	// descriptor was read.
 	gate *saga.GateConfig
+	// declared is where that descriptor declares each image in this repository, read for the sarif
+	// format, and nil where no descriptor was read.
+	declared sarif.Declarations
 }
 
 func newDiffCommand() *cobra.Command {
@@ -77,10 +81,25 @@ func newDiffCommand() *cobra.Command {
 			// The descriptor is read only where it can decide something: a named one always, so a
 			// path that names nothing is an error, and the working directory's only where no
 			// threshold was typed.
-			if opts.saga != "" || (opts.failOnNew == "" && opts.failOnNewPriority == "") {
-				if opts.gate, err = diffDescriptorGate(opts.saga, cmd.ErrOrStderr()); err != nil {
+			var model *saga.Model
+			readGate := opts.saga != "" || (opts.failOnNew == "" && opts.failOnNewPriority == "")
+			if readGate {
+				if model, err = diffDescriptor(opts.saga, cmd.ErrOrStderr()); err != nil {
 					return err
 				}
+				if model != nil {
+					opts.gate = model.Config.Gate
+				}
+			}
+			// The sarif report goes to code scanning, which can show a new finding on an image on
+			// the line of the head's descriptor that declares the image. Read for that alone where
+			// the gate did not need it, and then a descriptor that cannot be read is said rather
+			// than failing a diff that asked for none.
+			if opts.format == "sarif" {
+				if !readGate {
+					model = placingDescriptor(cmd.ErrOrStderr())
+				}
+				opts.declared = report.ImageDeclarations(model, git.RepositoryPaths(cmd.Context(), "."))
 			}
 			if len(args) == 1 {
 				return runDiff(cmd.Context(), "", args[0], *opts, cmd.OutOrStdout())
@@ -102,7 +121,8 @@ func newDiffCommand() *cobra.Command {
 			"severity (critical, high, medium, low); overrides config.gate.failOnNew")
 	cmd.Flags().StringVar(&opts.saga, "saga", "",
 		"descriptor, or directory holding one, whose config.gate.failOnNew applies when "+
-			"--fail-on-new is not passed (default: the one in the working directory)")
+			"--fail-on-new is not passed, and on whose image: lines --format sarif places new "+
+			"findings on an image (default: the one in the working directory)")
 	cmd.Flags().StringVar(&opts.failOnNewPriority, "fail-on-new-priority", "",
 		"deprecated: write the band in --fail-on-new, which takes either vocabulary")
 	_ = cmd.Flags().MarkDeprecated("fail-on-new-priority",
@@ -189,7 +209,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	if err != nil {
 		return err
 	}
-	render := diff.Options{View: view, Top: opts.top}
+	render := diff.Options{View: view, Top: opts.top, Declared: opts.declared}
 	if err := diff.Render(w, opts.format, result, render); err != nil {
 		return err
 	}
@@ -283,15 +303,14 @@ func compareWithBase(baseName string, base sarif.Report, headName string, head s
 	return diff.Compare(base, head), nil
 }
 
-// diffDescriptorGate is the gate block of the descriptor whose config.gate.failOnNew a diff
-// applies: the one --saga names, or else the one in the working directory. Nil where there is
-// none to read.
+// diffDescriptor is the descriptor whose config.gate.failOnNew a diff applies: the one --saga
+// names, or else the one in the working directory. Nil where there is none to read.
 //
 // A named descriptor that cannot be found or read is an error, because somebody asked for it. In
 // the working directory, none is the diff of two reports with no descriptor beside them, which
 // gates nothing as it always has. Several is said on w and read as none: picking one by name
 // would apply a gate nobody chose, and refusing would stop a diff that asked for no gate at all.
-func diffDescriptorGate(sagaPath string, w io.Writer) (*saga.GateConfig, error) {
+func diffDescriptor(sagaPath string, w io.Writer) (*saga.Model, error) {
 	path := ""
 	if sagaPath != "" {
 		found := false
@@ -322,11 +341,32 @@ func diffDescriptorGate(sagaPath string, w io.Writer) (*saga.GateConfig, error) 
 			return nil, nil
 		}
 	}
-	model, err := loadSaga(path)
-	if err != nil {
-		return nil, err
+	return loadSaga(path)
+}
+
+// placingDescriptor is the descriptor alone in the working directory, read only to say where it
+// declares each image, for a diff that typed its threshold and so read no descriptor for the gate.
+// Nil where there is none, several, or one that cannot be read, each but the first said on w: the
+// diff's new findings on an image then go to code scanning with no location.
+func placingDescriptor(w io.Writer) *saga.Model {
+	const unplaced = "draugr diff: a new finding on an image goes to code scanning with no location: "
+	here, err := descriptorsIn(".")
+	switch {
+	case err != nil:
+		_, _ = fmt.Fprintf(w, "%s%v\n", unplaced, err)
+		return nil
+	case len(here) == 0:
+		return nil
+	case len(here) > 1:
+		_, _ = fmt.Fprintf(w, "%sthe working directory holds %d descriptors. Name one with --saga.\n", unplaced, len(here))
+		return nil
 	}
-	return model.Config.Gate, nil
+	model, err := loadSaga(here[0])
+	if err != nil {
+		_, _ = fmt.Fprintf(w, "%s%v\n", unplaced, err)
+		return nil
+	}
+	return model
 }
 
 // comparableScopes refuses to compare two reports that did not cover the same ground.
