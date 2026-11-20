@@ -174,7 +174,9 @@ the verdict and the gate.
 
 Create an ingest token for the project on your server. It is write-only and scoped to that project.
 
-On the hosted server, sign in at [app.draugr.dev](https://app.draugr.dev) to create one.
+The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by invitation for now,
+and you can [ask for one](https://draugr.dev/contact/?about=early-access). A server you run yourself
+issues its own tokens at its own `DRAUGR_API_URL`.
 
 Keep it as a secret variable named `DRAUGR_API_TOKEN`, on the pipeline or in a variable group under
 *Pipelines → Library*. A group reaches the pipeline once it is linked:
