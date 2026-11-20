@@ -386,6 +386,57 @@ type Result struct {
 	// is counted it names who else found it, and on the others it names the one they are counted
 	// under. Nil when only one scanner reported it.
 	Correlation *Correlation `json:"correlation,omitempty"`
+	// CWE are the CWE ids of the flaw, such as CWE-79, where a converter that may set them stated
+	// them. Empty on every other finding.
+	CWE []string `json:"cwe,omitempty"`
+	// Converter is set on every finding read from a converter's file, and says which converter wrote
+	// it, under which contract, from which file, and which of Draugr's properties it set. Nil on
+	// every other finding.
+	//
+	// A converter's properties are trusted because the descriptor declared it, and the stamp is what
+	// lets a reader see which properties rest on that trust rather than on a scanner's own output.
+	Converter *Converter `json:"converter,omitempty"`
+}
+
+// Converter records that a declared converter wrote a finding, and what it set on it.
+type Converter struct {
+	// Name is the converter's name, as the descriptor declares it and the file states it.
+	Name string `json:"name"`
+	// Version is the converter's own version, where the file states one.
+	Version string `json:"version,omitempty"`
+	// Contract is the contract version the file follows.
+	Contract int `json:"contract"`
+	// SHA256 is the SHA-256 of the file Draugr read.
+	SHA256 string `json:"sha256"`
+	// Set are the properties the converter set on this finding, such as package and cwe. Empty where
+	// it set none, and the finding is only what the tool reported.
+	Set []string `json:"set,omitempty"`
+	// Raise is the band the converter asked the finding be ranked at least at, nil where it asked
+	// none. The priority's floor says whether it moved the band.
+	Raise *Raise `json:"raise,omitempty"`
+}
+
+// RaiseNote is what a finding's PriorityFloor says where the converter's raise moved its band:
+// "raised to P1 by converter acme-deps, on the internal exploited list". Empty where it asked none.
+func (c *Converter) RaiseNote() string {
+	if c == nil || c.Raise == nil {
+		return ""
+	}
+	return "raised to " + c.Raise.Priority + " by converter " + c.Name + ", " + c.Raise.Reason
+}
+
+// RaisedByConverter reports whether the finding's band is where it is because a declared
+// converter's raise moved it, rather than a control's floor.
+func (r Result) RaisedByConverter() bool {
+	return r.PriorityFloor != "" && r.PriorityFloor == r.Converter.RaiseNote()
+}
+
+// Raise is a band a converter asked a finding be ranked at least at, and why.
+type Raise struct {
+	// Priority is the band, P1 to P4.
+	Priority string `json:"priority"`
+	// Reason is why, in the converter's words.
+	Reason string `json:"reason"`
 }
 
 // Remediation says who can resolve a finding and by what kind of action. It is the answer to

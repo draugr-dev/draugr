@@ -3,6 +3,7 @@ package schemagen
 import (
 	"slices"
 
+	"github.com/draugr-dev/draugr/pkg/converter"
 	"github.com/draugr-dev/draugr/pkg/publish"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -472,8 +473,8 @@ func sagaFields() map[string]map[string]any {
 			"description": "The control the file's findings belong to, such as sast or sca.",
 		},
 		"import.file": {
-			"description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names. " +
-				"Exactly one of file and source.",
+			"description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's " +
+				"file that format names. Exactly one of file and source.",
 			"minLength": 1,
 		},
 		"import.source": {
@@ -507,6 +508,8 @@ func sagaFields() map[string]map[string]any {
 					"with each finding's module, fixed version and reachability verdict."},
 				valueDoc{"grype-json", "The JSON grype dir:<path> -o json writes, read as Draugr's grype-fs reads it, with each " +
 					"finding's package, fixed versions, package URL and the advisory ids Grype relates to it, such as its CVE."},
+				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
+					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
@@ -525,6 +528,33 @@ func sagaFields() map[string]map[string]any {
 			"description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own " +
 				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside.",
+		},
+		"import.converter": {
+			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +
+				"set. Required for that format and refused for any other. Draugr runs no converter: a CI step runs it, " +
+				"and Draugr reads the file.",
+		},
+		"importConverter.name": {
+			"description": "The converter's name, which the file has to state as its converter.name.",
+			"pattern":     "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9][a-z0-9-]{0,63})$",
+		},
+		"importConverter.contract": {
+			"description": "The contract version the converter writes. Draugr reads version 1.",
+			"const":       1,
+		},
+		"importConverter.sets": {
+			"description": "The properties the converter may set, from a fixed list. Each adds evidence or raises a finding; " +
+				"nothing here can set a finding aside or lower it. Empty lets it set none.",
+			"uniqueItems": true,
+			"items": map[string]any{
+				"anyOf": vocab(converter.Properties,
+					valueDoc{"package", "The dependency a finding is about, with its version, fixed version and package URL."},
+					valueDoc{"cwe", "The CWE ids of the flaw."},
+					valueDoc{"labels", "Labels on the finding, beside the component's own, which win where a key is in both."},
+					valueDoc{"reachable", "A verdict that the project's code reaches the vulnerable code. Never that it does not."},
+					valueDoc{"raise", "A band the finding is ranked at least at, with a reason. Never a lower one."},
+				),
+			},
 		},
 		"import.severity": {
 			"description": "Where the file's tool states its own rating, for a tool Draugr has no table for. " +
@@ -1081,6 +1111,11 @@ func sagaDefinitions() map[string]map[string]any {
 		"importSeverity": {
 			"description": "The result property a tool states its rating in, and the severity each of its values means.",
 			"required":    []any{"property", "values"},
+		},
+		"importConverter": {
+			"description": "The converter an import's file comes from: its name, the contract version it writes, and which " +
+				"of Draugr's result properties it may set.",
+			"required": []any{"name", "contract"},
 		},
 		"issueItem": {
 			"description": "Metadata set on an issue or work item when it is created. A later run adds back a " +

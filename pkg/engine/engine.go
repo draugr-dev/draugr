@@ -2117,6 +2117,14 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 	if u, ok := pj.Job.Target.(plugin.UpstreamPublished); ok {
 		upstream = u.BuiltUpstream()
 	}
+	// Only the import of a file the descriptor declares a converter for carries a converter's stamp,
+	// and with it a raise the prioritizer below honors. A scanner parsing a tool's SARIF reads the
+	// property bag Draugr writes, and a tool naming the stamp's key would otherwise raise its own
+	// findings.
+	declared := false
+	if ft, ok := pj.Job.Target.(plugin.FileTarget); ok && ft.Converter != nil {
+		declared = true
+	}
 	out := report
 	out.Results = make([]sarif.Result, len(report.Results))
 	copy(out.Results, report.Results)
@@ -2138,7 +2146,10 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		// its arithmetic without the descriptor in hand.
 		out.Results[i].Exposure = string(pj.Exposure)
 		out.Results[i].Criticality = string(pj.Criticality)
-		out.Results[i].Labels = pj.Labels
+		if !declared {
+			out.Results[i].Converter = nil
+		}
+		out.Results[i].Labels = withLabels(pj.Labels, out.Results[i].Labels, out.Results[i].Converter)
 		// The policy the fix list splits this finding's upgrade by, recorded on the finding so a
 		// report read back without the descriptor, by `fix_list` or `draugr diff`, gives the same
 		// advice. Only on a finding about a package, which is the only kind an upgrade is for.
@@ -2158,6 +2169,20 @@ func (e *Engine) stampJobFields(report sarif.Report, pj PlannedJob) sarif.Report
 		}
 	}
 	return out
+}
+
+// withLabels are the labels a finding carries: its component's, and where a declared converter set
+// labels on it, those too. A key in both keeps the component's value, because the descriptor's
+// labels are the organization's own vocabulary and a converter adds to it rather than redefining it.
+// A new map, since the component's is shared by every finding of the job.
+func withLabels(component, own map[string]string, conv *sarif.Converter) map[string]string {
+	if conv == nil || len(own) == 0 {
+		return component
+	}
+	merged := make(map[string]string, len(own)+len(component))
+	maps.Copy(merged, own)
+	maps.Copy(merged, component)
+	return merged
 }
 
 func sortedControllerNames(m map[string]plugin.Controller) []string {
@@ -4044,7 +4069,7 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 			}
 			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Severity: imp.Severity,
 				Commit: imp.Commit, Format: imp.Format, CountSuppressed: !imp.Suppressions.Honored(),
-				Source: imp.Source, TokenEnv: imp.TokenEnv, Repository: imp.Repository}
+				Source: imp.Source, TokenEnv: imp.TokenEnv, Repository: imp.Repository, Converter: imp.Converter}
 			if imp.File != "" {
 				target.Digest = fileDigest(imp.File)
 			}

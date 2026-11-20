@@ -1012,6 +1012,8 @@ func TestValidateImportSources(t *testing.T) {
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Commit: "abc1234"}, "imports[0].commit is read only with file"},
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning,
 			Severity: &ImportSeverity{Property: "p", Values: map[string]string{"a": "high"}}}, "imports[0].severity is read only with file"},
+		{one, Import{Control: "sca", Source: ImportSourceGitHubDependabot,
+			Converter: &ImportConverter{Name: "npm-audit", Contract: 1}}, "imports[0].converter is read only with file"},
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme"}, `imports[0].repository "acme" is not owner/name`},
 		{one, Import{Control: "sast", File: "a.sarif", TokenEnv: "GH_TOKEN"}, "imports[0].tokenEnv is read only with source"},
 		{one, Import{Control: "sast", File: "a.sarif", Repository: "acme/api"}, "imports[0].repository is read only with source"},

@@ -386,7 +386,7 @@ func fragmentFieldHint(err error) error {
 // Validate checks a fragment on its own terms.
 func (f Fragment) Validate() error {
 	var errs []error
-	errs = append(errs, validateComponents(f.Components)...)
+	errs = append(errs, validateComponents(withoutConverterImports(f.Components))...)
 	errs = append(errs, validateFragmentComponents(f.Components)...)
 	errs = append(errs, validateExclusions(f.Config.Exclude, "config.exclude")...)
 	errs = append(errs, validateFragmentControls(f.Config.Controls)...)

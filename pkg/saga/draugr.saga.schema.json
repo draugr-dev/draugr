@@ -1685,7 +1685,7 @@
         "imports": {
           "description": "Files another tool wrote about this component, SARIF or the tool's own JSON, or GitHub's alerts for its repository, each read into a control and ranked and gated like the rest.",
           "items": {
-            "$ref": "#/$defs/import"
+            "$ref": "#/$defs/fragmentImport"
           },
           "type": "array"
         },
@@ -1837,6 +1837,106 @@
           "type": "object"
         }
       },
+      "type": "object"
+    },
+    "fragmentImport": {
+      "additionalProperties": false,
+      "description": "A file another tool wrote about this component, or a service's alerts for its repository, read into one of Draugr's controls.",
+      "oneOf": [
+        {
+          "required": [
+            "file"
+          ]
+        },
+        {
+          "required": [
+            "source"
+          ]
+        }
+      ],
+      "properties": {
+        "commit": {
+          "description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into versionControlProvenance. The run stops where it is not the commit this run reads, or not the one the file names. An unset variable leaves the file unbound.",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[0-9a-fA-F]{7,64})$",
+          "type": "string"
+        },
+        "control": {
+          "$ref": "#/$defs/controlName",
+          "description": "The control the file's findings belong to, such as sast or sca."
+        },
+        "file": {
+          "description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file that format names. Exactly one of file and source.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "const": "sarif",
+              "description": "A SARIF 2.1.0 log, from any tool (default)."
+            },
+            {
+              "const": "trivy-json",
+              "description": "The JSON trivy fs --format json writes, read as Draugr's trivy-fs reads it, with each finding's package, installed and fixed version, and package URL."
+            },
+            {
+              "const": "govulncheck-json",
+              "description": "The stream govulncheck -format json writes, read as Draugr's govulncheck reads it, with each finding's module, fixed version and reachability verdict."
+            },
+            {
+              "const": "grype-json",
+              "description": "The JSON grype dir:\u003cpath\u003e -o json writes, read as Draugr's grype-fs reads it, with each finding's package, fixed versions, package URL and the advisory ids Grype relates to it, such as its CVE."
+            }
+          ],
+          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
+          "type": "string"
+        },
+        "repository": {
+          "description": "The repository whose alerts a source reads, as owner/name. Required where the component declares several repositories, one import each. Source only.",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/importSeverity",
+          "description": "Where the file's tool states its own rating, for a tool Draugr has no table for. Replaces Draugr's table for a tool it knows. A result with a numeric security-severity keeps it. SARIF only."
+        },
+        "source": {
+          "anyOf": [
+            {
+              "const": "github-code-scanning",
+              "description": "The repository's GitHub code-scanning alerts, read from GitHub's REST API. Each carries a rule, a location and a severity bucket, and no score, package or fix."
+            },
+            {
+              "const": "github-dependabot",
+              "description": "The repository's Dependabot alerts, read from GitHub's REST API, which GitHub marks public preview and subject to change. Each carries the advisory, its CVE, a CVSS score, the package and the first patched version."
+            }
+          ],
+          "description": "A service whose alerts for the component's repository are read in place of a file. Exactly one of file and source.",
+          "type": "string"
+        },
+        "suppressions": {
+          "anyOf": [
+            {
+              "const": "honor",
+              "description": "The default. A finding the tool suppressed is set aside, kept in the report with the tool, where it was suppressed and why."
+            },
+            {
+              "const": "count",
+              "description": "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."
+            }
+          ],
+          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside.",
+          "type": "string"
+        },
+        "tokenEnv": {
+          "description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset. Any other name must be listed in $DRAUGR_TOKEN_ENVS. A classic token needs security_events, or public_repo for a public repository. Source only.",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "control"
+      ],
       "type": "object"
     },
     "fragmentRef": {
@@ -2233,8 +2333,12 @@
           "$ref": "#/$defs/controlName",
           "description": "The control the file's findings belong to, such as sast or sca."
         },
+        "converter": {
+          "$ref": "#/$defs/importConverter",
+          "description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may set. Required for that format and refused for any other. Draugr runs no converter: a CI step runs it, and Draugr reads the file."
+        },
         "file": {
-          "description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON that format names. Exactly one of file and source.",
+          "description": "The file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file that format names. Exactly one of file and source.",
           "minLength": 1,
           "type": "string"
         },
@@ -2255,6 +2359,10 @@
             {
               "const": "grype-json",
               "description": "The JSON grype dir:\u003cpath\u003e -o json writes, read as Draugr's grype-fs reads it, with each finding's package, fixed versions, package URL and the advisory ids Grype relates to it, such as its CVE."
+            },
+            {
+              "const": "draugr-converter",
+              "description": "The file a converter writes in Draugr's versioned contract, for a tool Draugr has no reader for. Needs converter."
             }
           ],
           "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
@@ -2305,6 +2413,57 @@
       },
       "required": [
         "control"
+      ],
+      "type": "object"
+    },
+    "importConverter": {
+      "additionalProperties": false,
+      "description": "The converter an import's file comes from: its name, the contract version it writes, and which of Draugr's result properties it may set.",
+      "properties": {
+        "contract": {
+          "const": 1,
+          "description": "The contract version the converter writes. Draugr reads version 1.",
+          "type": "integer"
+        },
+        "name": {
+          "description": "The converter's name, which the file has to state as its converter.name.",
+          "pattern": "^(.*\\$\\{\\{.*\\}\\}.*|[a-z0-9][a-z0-9-]{0,63})$",
+          "type": "string"
+        },
+        "sets": {
+          "description": "The properties the converter may set, from a fixed list. Each adds evidence or raises a finding; nothing here can set a finding aside or lower it. Empty lets it set none.",
+          "items": {
+            "anyOf": [
+              {
+                "const": "package",
+                "description": "The dependency a finding is about, with its version, fixed version and package URL."
+              },
+              {
+                "const": "cwe",
+                "description": "The CWE ids of the flaw."
+              },
+              {
+                "const": "labels",
+                "description": "Labels on the finding, beside the component's own, which win where a key is in both."
+              },
+              {
+                "const": "reachable",
+                "description": "A verdict that the project's code reaches the vulnerable code. Never that it does not."
+              },
+              {
+                "const": "raise",
+                "description": "A band the finding is ranked at least at, with a reason. Never a lower one."
+              }
+            ],
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "name",
+        "contract"
       ],
       "type": "object"
     },

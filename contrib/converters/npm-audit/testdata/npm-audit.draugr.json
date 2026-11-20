@@ -1,0 +1,114 @@
+{
+  "contract": "draugr-converter",
+  "version": 1,
+  "converter": {
+    "name": "npm-audit",
+    "version": "1.0.0"
+  },
+  "source": {
+    "tool": "npm audit",
+    "file": "testdata/npm-audit.json",
+    "sha256": "755488ba300713a6473d48514867c20c1e8ef21793122d0bfdbc84e56d81a734"
+  },
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "written": "2026-11-17T12:00:00Z",
+  "results": [
+    {
+      "ruleId": "GHSA-35jh-r3h4-6jhm",
+      "message": "Command Injection in lodash",
+      "severity": "high",
+      "score": 7.2,
+      "location": {
+        "path": "testdata/package-lock.json"
+      },
+      "package": {
+        "name": "lodash",
+        "version": "4.17.20",
+        "fixedVersion": "4.18.1",
+        "purl": "pkg:npm/lodash@4.17.20",
+        "ecosystem": "npm"
+      },
+      "cwe": [
+        "CWE-77",
+        "CWE-94"
+      ]
+    },
+    {
+      "ruleId": "GHSA-29mw-wpgm-hmr9",
+      "message": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "severity": "medium",
+      "score": 5.3,
+      "location": {
+        "path": "testdata/package-lock.json"
+      },
+      "package": {
+        "name": "lodash",
+        "version": "4.17.20",
+        "fixedVersion": "4.18.1",
+        "purl": "pkg:npm/lodash@4.17.20",
+        "ecosystem": "npm"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-1333"
+      ]
+    },
+    {
+      "ruleId": "GHSA-r5fr-rjxr-66jc",
+      "message": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "severity": "high",
+      "score": 8.1,
+      "location": {
+        "path": "testdata/package-lock.json"
+      },
+      "package": {
+        "name": "lodash",
+        "version": "4.17.20",
+        "fixedVersion": "4.18.1",
+        "purl": "pkg:npm/lodash@4.17.20",
+        "ecosystem": "npm"
+      },
+      "cwe": [
+        "CWE-94"
+      ]
+    },
+    {
+      "ruleId": "GHSA-xxjr-mmjv-4gpg",
+      "message": "Lodash has Prototype Pollution Vulnerability in `_.unset`, `_.omit`, and `_.pullAt` functions",
+      "severity": "medium",
+      "score": 6.5,
+      "location": {
+        "path": "testdata/package-lock.json"
+      },
+      "package": {
+        "name": "lodash",
+        "version": "4.17.20",
+        "fixedVersion": "4.18.1",
+        "purl": "pkg:npm/lodash@4.17.20",
+        "ecosystem": "npm"
+      },
+      "cwe": [
+        "CWE-1321"
+      ]
+    },
+    {
+      "ruleId": "GHSA-xvch-5gv4-984h",
+      "message": "Prototype Pollution in minimist",
+      "severity": "critical",
+      "score": 9.8,
+      "location": {
+        "path": "testdata/package-lock.json"
+      },
+      "package": {
+        "name": "minimist",
+        "version": "1.2.5",
+        "fixedVersion": "1.2.8",
+        "purl": "pkg:npm/minimist@1.2.5",
+        "ecosystem": "npm"
+      },
+      "cwe": [
+        "CWE-1321"
+      ]
+    }
+  ]
+}

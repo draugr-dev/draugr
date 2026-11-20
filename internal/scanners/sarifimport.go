@@ -130,6 +130,7 @@ var importReaders = map[string]importReader{
 	saga.ImportFormatTrivyJSON:       readTrivyImport,
 	saga.ImportFormatGovulncheckJSON: readGovulncheckImport,
 	saga.ImportFormatGrypeJSON:       readGrypeImport,
+	saga.ImportFormatConverter:       readConverterImport,
 }
 
 // readImport reads data as the format ft names.
@@ -137,7 +138,9 @@ func readImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 	format := cmp.Or(ft.Format, saga.ImportFormatSARIF)
 	read, ok := importReaders[format]
 	if !ok {
-		return importRead{}, fmt.Errorf("format %s is not one of %s", format, strings.Join(saga.ImportFormats, ", "))
+		// The list is left out, which the errors block could not hold whole: draugr validate refuses
+		// the format first, naming every one.
+		return importRead{}, fmt.Errorf("format %s is not one Draugr reads. draugr validate lists them", format)
 	}
 	return read(data, ft)
 }
@@ -196,8 +199,14 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	keep, scoped.folded = foldRepeats(rep.Results)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
 	ownJSON := toolJSON(ft)
+	// Beside the tool on every row that names who reported a finding: the format, or for a
+	// converter's file, the converter, which is whose account the row's properties are.
+	shown := ownJSON
+	if ft.Converter != nil && ownJSON == saga.ImportFormatConverter {
+		shown = "converter " + ft.Converter.Name
+	}
 	for i := range rep.Results {
-		rep.Results[i].ImportFormat = ownJSON
+		rep.Results[i].ImportFormat = shown
 	}
 
 	sum := sha256.Sum256(data)
@@ -207,6 +216,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	fields := []sarif.Field{{Key: "tool", Value: toolsOf(meta)}}
 	if ownJSON != "" {
 		fields = append(fields, sarif.Field{Key: "format", Value: ownJSON})
+	}
+	if ft.Converter != nil && ownJSON == saga.ImportFormatConverter {
+		fields = append(fields, sarif.Field{Key: "converter", Value: converterNote(data, ft)})
 	}
 	fields = append(fields,
 		sarif.Field{Key: "file", Value: ft.Path},

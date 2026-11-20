@@ -92,3 +92,6 @@ components:
           # The cloud control's live-test fixture: infrastructure code misconfigured on purpose,
           # applied to an empty project for a run and destroyed after it.
           - test/integration/testdata/cloud-fixture
+          # The npm audit converter's test input: a lockfile pinning vulnerable versions on purpose,
+          # so the converter has advisories to convert. Nothing installs from it.
+          - contrib/converters/npm-audit/testdata

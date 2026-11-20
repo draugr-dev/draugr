@@ -149,6 +149,14 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 		if res.Aside == sarif.AsidePinned && band.Rank() > prioritization.P3.Rank() {
 			band, capped = prioritization.P3, PinnedCap
 		}
+		// A declared converter's raise, last, so it is a floor under everything above: it moves a band
+		// up to the one it names and never down. The engine keeps a stamp only on a finding read from
+		// a file the descriptor declares a converter for.
+		if r := converterRaise(res); r != nil {
+			if want := prioritization.Priority(r.Priority); want.Rank() > band.Rank() {
+				band, floorReason = want, res.Converter.RaiseNote()
+			}
+		}
 		return engine.Priority{
 			Cap:           capped,
 			Band:          string(band),
@@ -160,6 +168,14 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 			SeverityFloor: held,
 		}
 	}
+}
+
+// converterRaise is the raise a converter asked for on res, nil where none did.
+func converterRaise(res sarif.Result) *sarif.Raise {
+	if res.Converter == nil {
+		return nil
+	}
+	return res.Converter.Raise
 }
 
 // GateThresholds converts a descriptor's gate block into the per-control map a Policy takes.

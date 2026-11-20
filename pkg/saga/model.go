@@ -993,6 +993,26 @@ type Import struct {
 	// team may accept the triage recorded in one tool's console and not the comments another tool
 	// reads from the code, and one switch would make them take both or neither.
 	Suppressions ImportSuppressions `yaml:"suppressions,omitempty"`
+	// Converter declares the converter that wrote a draugr-converter file, and is required for that
+	// format and refused for any other.
+	//
+	// In the descriptor rather than in the file, because the descriptor is what a team reviews. The
+	// file is written by a CI step on every run, and a file that granted itself properties could set
+	// whatever its writer liked. What a converter may set is the fixed list in pkg/converter, which
+	// Sets narrows and cannot widen.
+	Converter *ImportConverter `yaml:"converter,omitempty"`
+}
+
+// ImportConverter is the converter an import's file comes from: its name, the contract version it
+// writes, and which of Draugr's result properties it may set.
+type ImportConverter struct {
+	// Name is the converter's name, which the file has to state as its converter.name.
+	Name string `yaml:"name"`
+	// Contract is the contract version the converter writes, converter.Version.
+	Contract int `yaml:"contract"`
+	// Sets are the properties the converter may set, each one of converter.Properties. Empty lets it
+	// set none, so its findings are only what the tool reported.
+	Sets []string `yaml:"sets,omitempty"`
 }
 
 // The formats an import's Format names.
@@ -1005,10 +1025,14 @@ const (
 	ImportFormatGovulncheckJSON = "govulncheck-json"
 	// ImportFormatGrypeJSON is the JSON `grype dir:<path> -o json` writes.
 	ImportFormatGrypeJSON = "grype-json"
+	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
+	// pkg/converter reads.
+	ImportFormatConverter = "draugr-converter"
 )
 
 // ImportFormats are the values an import's format accepts.
-var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON}
+var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
+	ImportFormatConverter}
 
 // The services an import's Source names.
 const (

@@ -54,7 +54,7 @@ func validateImportSource(imp Import, repositories []Repository, at string) []er
 	for _, k := range []struct {
 		key string
 		set bool
-	}{{"format", imp.Format != ""}, {"severity", imp.Severity != nil}, {"commit", imp.Commit != ""}} {
+	}{{"format", imp.Format != ""}, {"severity", imp.Severity != nil}, {"commit", imp.Commit != ""}, {"converter", imp.Converter != nil}} {
 		if k.set {
 			errs = append(errs, fmt.Errorf("%s.%s is read only with file, and this import reads %s. Remove %s",
 				at, k.key, imp.Source, k.key))

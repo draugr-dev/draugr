@@ -381,6 +381,13 @@ type sarifProperties struct {
 	// one's rating. It survives the file because the gate on new findings reads the ranked severity
 	// back from here, and without it a floored finding is judged at the rating the run did not use.
 	SeverityFloor Severity `json:"severityFloor,omitempty"`
+	// CWE is Result.CWE, the CWE ids a converter stated for the flaw.
+	CWE []string `json:"cwe,omitempty"`
+	// Converter is Result.Converter: which converter wrote the finding and which properties it set.
+	// It survives the file for the reason Escalation does, since the properties it vouches for move a
+	// finding's band and its package, and a reader of the file should see whose word they are.
+	// Namespaced, as Rating is, because this bag is also read from other tools' files.
+	Converter *Converter `json:"draugr/converter,omitempty"`
 	// Tags are rule-level labels. Draugr tags each rule with "scanner:<name>" so consumers
 	// (e.g. GitHub code scanning) surface which underlying scanner produced a finding.
 	Tags []string `json:"tags,omitempty"`
@@ -591,7 +598,7 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 			res.Priority != "" || res.Image != "" || res.Correlation != nil ||
 			res.OperatingSystem != "" || res.Layer != nil || res.OSEndOfLife ||
 			res.ProviderOperated || res.BuiltUpstream || res.Historical || res.NonShipping != "" || res.Aside != "" || res.Scanner != "" || len(res.Platforms) > 0 || res.DetectSecretsBaseline || res.Undecided || len(res.Labels) > 0 || len(res.Objects) > 0 ||
-			res.Module != nil || res.PrivilegeDrop != nil {
+			res.Module != nil || res.PrivilegeDrop != nil || len(res.CWE) > 0 || res.Converter != nil {
 			sr.Properties = &sarifProperties{
 				Tool: tool, Control: res.Control, Priority: res.Priority, Component: res.Component, Detail: res.Detail,
 				Title:    title,
@@ -622,6 +629,8 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 				DetectSecretsBaseline: res.DetectSecretsBaseline,
 				Undecided:             res.Undecided,
 				Objects:               res.Objects,
+				CWE:                   res.CWE,
+				Converter:             res.Converter,
 			}
 			if res.HasScore {
 				sr.Properties.SecuritySeverity = strconv.FormatFloat(res.Score, 'f', -1, 64)
@@ -1014,6 +1023,8 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.PriorityFloor = sr.Properties.PriorityFloor
 		res.PriorityCap = sr.Properties.PriorityCap
 		res.SeverityFloor = sr.Properties.SeverityFloor
+		res.CWE = sr.Properties.CWE
+		res.Converter = sr.Properties.Converter
 	}
 	res.Suppression = readSuppression(sr.Suppressions)
 	return res

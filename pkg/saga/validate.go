@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/draugr-dev/draugr/pkg/converter"
 )
 
 // validDigest reports whether s is an OCI content digest of the form "algorithm:hex"
@@ -908,6 +910,59 @@ func validateImports(imports []Import, repositories []Repository, where string) 
 			errs = append(errs, validateImportSeverity(*imp.Severity, at+".severity")...)
 		}
 		errs = append(errs, validateImportCommit(imp, at)...)
+		errs = append(errs, validateImportConverter(imp, at)...)
+	}
+	return errs
+}
+
+// converterName is what a converter's name may be: lowercase letters, digits and hyphens, as the
+// contract's schema holds the file's converter.name to.
+var converterName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
+
+// validateImportConverter holds an import's converter to its format, to the contract version this
+// build reads, and to the fixed list of what a converter may set.
+//
+// A converter declared beside another format would be read by nobody, and a property outside the
+// list would read as granted in a reviewed descriptor while every file setting it was refused. A
+// property no converter may set is named as such, so whoever wrote it learns it was never on offer
+// rather than that it is misspelled.
+func validateImportConverter(imp Import, at string) []error {
+	c := imp.Converter
+	if imp.ReadFormat() != ImportFormatConverter {
+		if c != nil {
+			return []error{fmt.Errorf("%s.converter is set, and format %s reads no converter's file. Set format %s",
+				at, imp.ReadFormat(), ImportFormatConverter)}
+		}
+		return nil
+	}
+	if c == nil {
+		return []error{fmt.Errorf("%s: format %s needs converter, the converter that wrote the file", at, ImportFormatConverter)}
+	}
+	var errs []error
+	if !converterName.MatchString(c.Name) {
+		errs = append(errs, fmt.Errorf("%s.converter.name %q is not lowercase letters, digits and hyphens", at, c.Name))
+	}
+	switch {
+	case c.Contract == 0:
+		errs = append(errs, fmt.Errorf("%s.converter.contract is missing. Draugr reads contract version %d", at, converter.Version))
+	case c.Contract != converter.Version:
+		errs = append(errs, fmt.Errorf("%s.converter.contract is %d, and Draugr reads contract version %d", at, c.Contract, converter.Version))
+	}
+	seen := map[string]bool{}
+	for i, p := range c.Sets {
+		switch {
+		case converter.Forbidden(p):
+			errs = append(errs, fmt.Errorf("%s.converter.sets[%d] is %s, which no converter may set", at, i, p))
+		case !converter.Allowed(p):
+			errs = append(errs, fmt.Errorf("%s.converter.sets[%d] is %q, not %s", at, i, p, orList(converter.Properties)))
+		case seen[p]:
+			errs = append(errs, fmt.Errorf("%s.converter.sets lists %s twice", at, p))
+		}
+		seen[p] = true
+	}
+	// A converter's file has no suppressions to honor or count: the contract refuses them.
+	if imp.Suppressions != "" {
+		errs = append(errs, fmt.Errorf("%s.suppressions has nothing to apply to, since a converter's file records none. Remove it", at))
 	}
 	return errs
 }

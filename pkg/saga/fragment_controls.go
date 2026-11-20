@@ -245,6 +245,37 @@ func validateFragmentComponents(comps []Component) []error {
 		if len(c.Controllers) > 0 {
 			errs = append(errs, componentControlsRefused(where, "controllers"))
 		}
+		errs = append(errs, fragmentConverters(where, c.Imports)...)
+	}
+	return errs
+}
+
+// withoutConverterImports are comps with the imports fragmentConverters refuses left out, so the
+// import's own checks do not ask a fragment for the converter it may not declare.
+func withoutConverterImports(comps []Component) []Component {
+	out := make([]Component, len(comps))
+	for i, c := range comps {
+		c.Imports = slices.DeleteFunc(slices.Clone(c.Imports), func(imp Import) bool {
+			return imp.Converter != nil || imp.ReadFormat() == ImportFormatConverter
+		})
+		out[i] = c
+	}
+	return out
+}
+
+// fragmentConverters refuses a converter declared in a fragment, and an import of a converter's
+// file, which needs one.
+//
+// A converter's properties are trusted because the reviewed descriptor grants them, and a fragment
+// may come from another team. Its labels can steer where a finding is routed, through labelBy and
+// the issue publishers, so declaring it is the descriptor's decision. Worded to fit the errors
+// block, without a colon inside the reason; LoadFragment names the fragment before it.
+func fragmentConverters(where string, imports []Import) []error {
+	var errs []error
+	for j, imp := range imports {
+		if imp.Converter != nil || imp.ReadFormat() == ImportFormatConverter {
+			errs = append(errs, fmt.Errorf("%s imports[%d] has a converter. Declare it in the descriptor", where, j))
+		}
 	}
 	return errs
 }

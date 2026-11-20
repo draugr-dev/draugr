@@ -1,6 +1,6 @@
 ---
 title: "sarif-import"
-description: "Reads a SARIF file, Trivy's, govulncheck's or Grype's own JSON, or a repository's GitHub code-scanning or Dependabot alerts into one of Draugr's controls, so their findings are ranked and gated with the rest."
+description: "Reads a file another tool wrote, or a repository's GitHub alerts, into one of Draugr's controls, so their findings are ranked and gated with the rest."
 section: Scanners
 order: 90
 ---
@@ -9,7 +9,9 @@ order: 90
 
 - **Control:** the control each import names in [`components[].imports`](../../docs/reference/saga-schema.md#componentsimports)
 - **Tool:** none. Draugr reads a file; the tool that wrote it ran somewhere else.
-- **Target:** file (a SARIF 2.1.0 log, or a tool's own JSON as [A tool's own JSON](#a-tools-own-json) lists), or a repository's alerts on GitHub ([GitHub's alerts](#githubs-alerts))
+- **Target:** file (a SARIF 2.1.0 log, a tool's own JSON as [A tool's own JSON](#a-tools-own-json)
+  lists, or a converter's file as [A converter's file](#a-converters-file) describes), or a
+  repository's alerts on GitHub ([GitHub's alerts](#githubs-alerts))
 - **Effects:** none for a file. An import with `source` has a `network` effect: it asks GitHub's REST API for the repository's alerts with the import's token
 - **Status:** ✅ implemented
 
@@ -46,7 +48,8 @@ The file is read as SARIF 2.1.0 unless the import's `format` names a tool's own 
   have no effect in a file another tool wrote. The properties read are `security-severity`,
   `package` (an object), `purls`, `tags`, the rating properties each tool's table names and the
   one the import's mapping names, and a suppression's `kind`, `status` and `justification`, which make it
-  the tool's own.
+  the tool's own. A converter the descriptor declares may set some of Draugr's properties, in a file
+  of its own ([A converter's file](#a-converters-file)).
 - **The tool** is the file's own `tool.driver`, so a finding says which product found it.
 
 ## Before you import
@@ -132,6 +135,7 @@ run makes of the same file.
 | `trivy-json` | `trivy fs --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded |
 | `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
 | `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
+| `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
   for it, else by Trivy's own severity, `CRITICAL` and `HIGH` as high, `MEDIUM` as medium, `LOW` as
@@ -175,6 +179,24 @@ run makes of the same file.
 - **The report names the format beside the tool**, under **Measured against** as
   `tool: trivy 0.76.1 · format: trivy-json`, and on a merged finding as
   `also found by imported trivy (trivy-json)`.
+
+## A converter's file
+
+A tool Draugr has no reader for reaches a report through a converter: a program a CI step runs on
+the tool's output, writing a file in the [converter
+contract](../../docs/reference/converter-contract.md). Draugr never runs it. The import names it
+with `format: draugr-converter` and declares it under
+[`converter`](../../docs/reference/saga-schema.md#componentsimports), and [Write a
+converter](../../docs/guides/writing-a-converter.md) walks through one.
+
+- **The file names its commit**, and is held to it as a SARIF file's `versionControlProvenance` is
+  (see [Commit](#commit)). In a component with several repositories it names the one it is about
+  in `repository`, and is placed and bound there.
+- **Severity is the converter's**: its `score` where it gives one, else its `severity`. The
+  provenance's `severity` field reads `converter score` or `converter rating`.
+
+The [converter contract](../../docs/reference/converter-contract.md#what-a-converter-may-set) lists
+what a converter may and may never set, and the stamp each finding carries.
 
 ## Merging with the control's scanners
 
@@ -533,7 +555,11 @@ that found nothing:
 - `not Grype JSON. Write it with grype dir:. -o json`, for a file whose `descriptor` does not name
   Grype or that lists no `matches`;
 - `image scan; Draugr reads only directory scans. Run grype dir:. -o json`, for Grype's JSON of a
-  scan of anything but a directory.
+  scan of anything but a directory;
+- `not a converter file. A converter writes contract draugr-converter`, for a file read as a
+  converter's that is not one. The [converter
+  contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key
+  at fault.
 
 `draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor
 with the same message, and a file that passes reports how many results it holds, as

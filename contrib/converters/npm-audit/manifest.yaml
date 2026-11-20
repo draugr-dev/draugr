@@ -1,0 +1,11 @@
+# The import entry for this converter's file, to copy under a component's imports in
+# draugr.saga.yaml. The converter block is what lets the file set Draugr's properties: its name,
+# the contract version it writes, and the properties it sets, each one Draugr allows a converter.
+control: sca
+file: npm-audit.draugr.json
+format: draugr-converter
+commit: ${{ GITHUB_SHA }}
+converter:
+  name: npm-audit
+  contract: 1
+  sets: [package, cwe]

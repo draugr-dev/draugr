@@ -367,6 +367,9 @@ What to expect:
 [GitHub's alerts](../../internal/scanners/sarif-import.md#githubs-alerts) has how each alert is read,
 the binding to a commit, and every error.
 
+A tool that writes neither SARIF nor a JSON Draugr reads, such as `npm audit`, reaches a scan
+through a converter your pipeline runs on its output: [Write a converter](writing-a-converter.md).
+
 ## See also
 
 - [`components[].imports`](../reference/saga-schema.md#componentsimports) in the Saga reference.

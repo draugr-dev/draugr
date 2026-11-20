@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://draugr.dev/schema/draugr-converter.v1.schema.json",
+  "title": "Draugr converter file, contract version 1",
+  "description": "What a converter writes for Draugr to import with format: draugr-converter. A converter reads another tool's output in a CI step and writes this file; Draugr reads the file and runs nothing. Every object refuses a key it does not define.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "version", "converter", "source", "commit", "results"],
+  "properties": {
+    "contract": {
+      "description": "The contract's id, always draugr-converter.",
+      "const": "draugr-converter"
+    },
+    "version": {
+      "description": "The contract version the file follows. Draugr refuses any version but the one it reads.",
+      "const": 1
+    },
+    "converter": {
+      "$ref": "#/$defs/converter"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "commit": {
+      "description": "The commit the source tool scanned, 7 to 64 hexadecimal characters. Draugr holds the file to the commit its run reads.",
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{7,64}$"
+    },
+    "repository": {
+      "description": "The repository the source tool scanned, as a URL or a path. Required where the importing component has several repositories, and matched to one of them.",
+      "type": "string",
+      "minLength": 1
+    },
+    "written": {
+      "description": "When the converter wrote the file, as an RFC 3339 time in UTC.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$"
+    },
+    "results": {
+      "description": "The findings, one per flaw the source tool reported. An empty list is a clean scan.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/result"
+      }
+    }
+  },
+  "$defs": {
+    "converter": {
+      "description": "The converter that wrote the file. Its name has to be the one the importing descriptor declares.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The converter's name: lowercase letters, digits and hyphens.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+        },
+        "version": {
+          "description": "The converter's own version.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "source": {
+      "description": "The tool whose output the converter read, and the file it read.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool"],
+      "properties": {
+        "tool": {
+          "description": "The tool's name, as findings name it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "description": "The tool's version, where its output states one.",
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "description": "The file the converter read, as the CI step named it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "description": "The SHA-256 of that file, in lowercase hexadecimal.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "result": {
+      "description": "One finding. ruleId, message and severity are the finding as the tool reported it; package, cwe, labels, reachable and raise are Draugr's properties, which the importing descriptor's converter.sets has to list.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "message", "severity"],
+      "properties": {
+        "ruleId": {
+          "description": "The tool's id for the flaw, such as an advisory id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "description": "What the tool said about the flaw, in one line.",
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "description": "The tool's rating, in Draugr's words.",
+          "enum": ["critical", "high", "medium", "low"]
+        },
+        "score": {
+          "description": "A CVSS-style score from 0 to 10, which decides the severity where present.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "package": {
+          "$ref": "#/$defs/package"
+        },
+        "cwe": {
+          "description": "The CWE ids of the flaw, such as CWE-79. Needs cwe in converter.sets.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^CWE-[1-9][0-9]{0,5}$"
+          }
+        },
+        "labels": {
+          "description": "Labels for the finding. A key the component's own labels set keeps the component's value. Needs labels in converter.sets.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "reachable": {
+          "description": "A verdict that the project's code reaches the vulnerable code. Only true: no converter may say a finding is unreachable. Needs a package, and reachable in converter.sets.",
+          "const": true
+        },
+        "raise": {
+          "$ref": "#/$defs/raise"
+        }
+      }
+    },
+    "location": {
+      "description": "Where the finding is, relative to the repository's root.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "description": "The file, relative to the repository's root.",
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "description": "The line, counting from 1.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "package": {
+      "description": "The dependency the finding is about. Needs package in converter.sets.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "description": "The package as its ecosystem names it.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "description": "The version installed.",
+          "type": "string",
+          "minLength": 1
+        },
+        "fixedVersion": {
+          "description": "The first version that fixes the flaw.",
+          "type": "string",
+          "minLength": 1
+        },
+        "purl": {
+          "description": "The package URL, such as pkg:npm/lodash@4.17.20.",
+          "type": "string",
+          "pattern": "^pkg:[a-z][a-z0-9.+-]*/.+"
+        },
+        "ecosystem": {
+          "description": "The package manager, such as npm or pip.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "raise": {
+      "description": "A band the finding is ranked at least at. It never lowers one. Needs raise in converter.sets.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priority", "reason"],
+      "properties": {
+        "priority": {
+          "description": "The lowest band the finding may take.",
+          "enum": ["P1", "P2", "P3", "P4"]
+        },
+        "reason": {
+          "description": "Why, as the report prints it.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

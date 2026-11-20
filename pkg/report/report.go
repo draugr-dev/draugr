@@ -738,6 +738,13 @@ func scannerShown(res sarif.Result) string {
 	return res.Scanner
 }
 
+// controlFloor reports whether a control's context floor set the finding's band, which the `↑ floor`
+// mark and the Signals row count. A declared converter's raise is explained in the same field, and
+// is said under the row in the converter's own words instead.
+func (f finding) controlFloor() bool {
+	return f.priorityFloor != "" && f.priorityFloor != f.converter.RaiseNote()
+}
+
 // scannerName is the name the HTML report shows for the finding's scanner: scannerShown's, or the
 // tool's own where the finding records no scanner.
 func (f finding) scannerName() string {
@@ -812,6 +819,9 @@ type finding struct {
 	// priorityFloor is why this finding outranks what the component's classification alone would
 	// give it. Empty when the classification accounts for the band.
 	priorityFloor string
+	// converter is the declared converter that wrote the finding and what it set on it, nil for a
+	// finding no converter wrote.
+	converter *sarif.Converter
 	// severityFloor is the control's minimum severity where it raised the scanner's rating, and empty
 	// where the rating was at or above it.
 	severityFloor sarif.Severity
@@ -1063,7 +1073,9 @@ func summarize(d Data) summary {
 			if exploit.NeedsLookup(res) {
 				s.needsLookup++
 			}
-			if res.PriorityFloor != "" {
+			// A converter's raise explains its band in the same field and is no control's floor, which
+			// is what the Signals row counts.
+			if res.PriorityFloor != "" && !res.RaisedByConverter() {
 				s.floored++
 			}
 			if res.NonShipping != "" {
@@ -1118,6 +1130,7 @@ func findingOf(control string, rep sarif.Report, res sarif.Result) finding {
 		reachability:  res.Reachability,
 		alsoFoundBy:   alsoFoundBy(res),
 		priorityFloor: res.PriorityFloor,
+		converter:     res.Converter,
 		priorityCap:   res.PriorityCap,
 		severityFloor: res.SeverityFloor,
 		historical:    res.Historical,
