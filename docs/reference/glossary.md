@@ -222,3 +222,7 @@ outside the code being scanned, which is why no scanner can compute one. See
   actually exploitable in your context (used to cut false-positive noise).
 - **DevSecOps**, building security into the software delivery pipeline rather than bolting
   it on afterward.
+- **Ingest token**, a credential that lets a pipeline publish its runs to one project on a Draugr
+  server, set as `$DRAUGR_API_TOKEN`. It can write runs and ask for that project's policy verdict; it
+  cannot read runs or reach other projects. Its `drgr_ci_` prefix lets the `secrets` control flag
+  one committed to a repository.

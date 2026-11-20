@@ -182,6 +182,41 @@ Outputs: **`sarif`** (path to the SARIF to upload, the new-findings one in diff 
 **`report`** (path to `report.json`, always complete). Both point inside `output` and are written
 on pull requests too, so an `if: always()` upload step finds them whichever mode the action ran in.
 
+## Server
+
+The [`draugr-api` publisher](reports-and-publishers.md#a-server-that-keeps-your-runs) sends each run
+to a Draugr server, which keeps it with the runs before it. Without a server, the scan still decides
+the verdict and the gate.
+
+Create an ingest token for the project on your server. It is write-only and scoped to that project.
+
+On the hosted server, sign in at [app.draugr.dev](https://app.draugr.dev) to create one.
+
+Store it as an encrypted secret named `DRAUGR_API_TOKEN`, under *Settings → Secrets and variables →
+Actions*, and give it to the action's step in `env:` with the server's address. The action has no
+input for either, and the step's environment reaches the scan.
+
+```yaml
+- uses: draugr-dev/draugr@v0
+  with:
+    saga: draugr.saga.yaml
+  env:
+    DRAUGR_API_URL: https://draugr.acme.example
+    DRAUGR_API_TOKEN: ${{ secrets.DRAUGR_API_TOKEN }}
+```
+
+The action publishes only in `scan` mode, which `auto` picks on a push. A pull request runs `diff`
+mode, which scans with `--no-publish` and sends nothing.
+
+Add the publisher to the descriptor, beside any it already has:
+
+```yaml
+# draugr.saga.yaml
+config:
+  publishers:
+    - kind: draugr-api
+```
+
 ## Without the action
 
 If you already have `draugr` on the runner (e.g. `draugr tools install`, or a self-hosted image),

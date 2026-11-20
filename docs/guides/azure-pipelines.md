@@ -166,6 +166,51 @@ readable and commented; the two things worth knowing are that `install.sh` puts 
 `prependpath` on a hosted agent, and that `fetchDepth: 0` is required, since a diff needs the base
 branch's commit.
 
+## Server
+
+The [`draugr-api` publisher](reports-and-publishers.md#a-server-that-keeps-your-runs) sends each run
+to a Draugr server, which keeps it with the runs before it. Without a server, the scan still decides
+the verdict and the gate.
+
+Create an ingest token for the project on your server. It is write-only and scoped to that project.
+
+On the hosted server, sign in at [app.draugr.dev](https://app.draugr.dev) to create one.
+
+Keep it as a secret variable named `DRAUGR_API_TOKEN`, on the pipeline or in a variable group under
+*Pipelines → Library*. A group reaches the pipeline once it is linked:
+
+```yaml
+# azure-pipelines.yml
+variables:
+  - group: draugr-server   # holds DRAUGR_API_TOKEN, marked secret
+```
+
+Azure gives a script a secret variable only when the step maps it, so add both variables to the
+`Scan` step's `env:` in your copy of `.azure/draugr.yml`:
+
+```yaml
+# .azure/draugr.yml, the Scan step
+env:
+  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+  DRAUGR_API_URL: https://draugr.acme.example
+  DRAUGR_API_TOKEN: $(DRAUGR_API_TOKEN)
+```
+
+Put the address on that step with the token, rather than in a pipeline variable. A pipeline variable
+reaches every step, so the pull-request scans in `Gate on new findings` would have the address
+without the token, and a scan given one without the other fails. With both on `Scan` alone, those
+scans send nothing. `Scan` itself runs on every build in the default `auto` mode, a pull request's
+included, so each pull-request build sends a run too.
+
+Add the publisher to the descriptor, beside any it already has:
+
+```yaml
+# draugr.saga.yaml
+config:
+  publishers:
+    - kind: draugr-api
+```
+
 ## Several repositories
 
 A Saga's `url` takes a local path, so let the agent check them out. With more than one

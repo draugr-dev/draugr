@@ -157,6 +157,33 @@ Without `config.sbom` there is nothing to render: the format says so rather than
 document, because an SBOM report with no SBOM behind it is a clean-looking answer to a question
 nobody asked. Requires Syft, which `draugr tools install` provisions.
 
+## Server
+
+The [`draugr-api` publisher](reports-and-publishers.md#a-server-that-keeps-your-runs) sends each run
+to a Draugr server, which keeps it with the runs before it. Without a server, the scan still decides
+the verdict and the gate.
+
+Create an ingest token for the project on your server. It is write-only and scoped to that project.
+
+On the hosted server, sign in at [app.draugr.dev](https://app.draugr.dev) to create one.
+
+In *Settings → CI/CD → Variables*, add `DRAUGR_API_TOKEN` as a **masked** variable and
+`DRAUGR_API_URL` as a plain one holding the server's address. GitLab puts every CI/CD variable in
+each job's environment, so the template needs no change. Protect both or neither, because a pipeline
+that receives one without the other fails its scan.
+
+The template publishes from branch pipelines only, since a merge request's scans run with
+`--no-publish`.
+
+Add the publisher to the descriptor, beside any it already has:
+
+```yaml
+# draugr.saga.yaml
+config:
+  publishers:
+    - kind: draugr-api
+```
+
 ## Tune it
 
 Override any variable on the job:
