@@ -815,4 +815,36 @@ func TestTryOffersExplainWithTheReportItReads(t *testing.T) {
 	if !strings.Contains(elsewhere, "draugr explain <rule> -r out/results.sarif") {
 		t.Errorf("a run that wrote its report elsewhere offers explain without it:\n%s", elsewhere)
 	}
+	for _, d := range []Data{withReports(goldenFullData(), ".draugr/out", "json", "sarif"),
+		withReports(goldenFullData(), "out", "json", "sarif"), goldenFullData()} {
+		if got := renderConsole(t, d); strings.Contains(got, explainReadsSays) {
+			t.Errorf("a run with nothing to add to --report for explain is offered a run:\n%s", got)
+		}
+	}
+}
+
+// A run that wrote reports with -o but left sarif out of --report has no file for explain to read,
+// so TRY gives the run that writes it, keeping the formats and the directory the reader chose, ahead
+// of the explain row that reads it. Both where explain looks without -r and where it does not.
+func TestTryGivesTheRunExplainNeedsWhenTheReportsLeaveOutSarif(t *testing.T) {
+	for _, c := range []struct {
+		dir     string
+		formats []string
+		want    []string
+	}{
+		{"out", []string{"html"}, []string{
+			"--report html,sarif -o out " + explainReadsSays,
+			"draugr explain <rule> -r out/results.sarif what a rule means and how to fix it",
+		}},
+		{".draugr/out", []string{"json", "html"}, []string{
+			"--report json,html,sarif -o .draugr/out " + explainReadsSays,
+			"draugr explain <rule> what a rule means and how to fix it",
+		}},
+	} {
+		rows := tryRows(renderConsole(t, withReports(goldenFullData(), c.dir, c.formats...)))
+		i := slices.IndexFunc(rows, func(r string) bool { return strings.HasPrefix(r, "--report ") })
+		if i < 0 || i+len(c.want) > len(rows) || !slices.Equal(rows[i:i+len(c.want)], c.want) {
+			t.Errorf("-o %s --report %s: TRY = %q, want it to hold %q", c.dir, strings.Join(c.formats, ","), rows, c.want)
+		}
+	}
 }

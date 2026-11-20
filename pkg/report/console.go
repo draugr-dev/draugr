@@ -2162,7 +2162,11 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 				row(line, "")
 			}
 			// explain reads the run's report, so a run that wrote none says what it needs; offered
-			// bare, the next command the reader types fails with "no scan report here".
+			// bare, the next command the reader types fails with "no scan report here". A run that
+			// wrote reports without the SARIF explain reads is first given the run that writes it.
+			if flags, ok := sarifReportFlags(d); ok {
+				row(flags, explainReadsSays)
+			}
 			switch {
 			case d.ReportsDir == "":
 				row("draugr explain <rule>", "what a rule means and how to fix it, from "+defaultReportsDir)
@@ -2221,6 +2225,20 @@ func htmlReportFlags(d Data) string {
 		return "--report " + strings.Join(suggestedReports, ",") + " -o " + defaultReportsDir
 	}
 	return "--report " + strings.Join(append(slices.Clone(d.Reports), "html"), ",")
+}
+
+// explainReadsSays is what the TRY row writing the SARIF says it gives.
+const explainReadsSays = "the report draugr explain reads"
+
+// sarifReportFlags is what to type for the SARIF `draugr explain` reads, on a run that wrote reports
+// to -o but left sarif out of --report: the formats it already writes with sarif added, since
+// --report replaces the list it is given, and the same -o, so the explain row under it names the
+// file that run writes. ok is false where the run wrote no reports, or wrote the SARIF.
+func sarifReportFlags(d Data) (string, bool) {
+	if d.ReportsDir == "" || slices.Contains(d.Reports, "sarif") {
+		return "", false
+	}
+	return "--report " + strings.Join(append(slices.Clone(d.Reports), "sarif"), ",") + " -o " + d.ReportsDir, true
 }
 
 // foundNote is what the FOUND heading says about its rows, in every format.
