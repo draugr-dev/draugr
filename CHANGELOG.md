@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Added
 
-- **Import a repository's GitHub code-scanning and Dependabot alerts.** With `source: github-code-scanning` or `github-dependabot` on an import, Draugr reads the alerts from GitHub's API with the token whose variable `tokenEnv` names, and ranks and gates them with your other findings. An alert a person dismissed is set aside, with who and why; a bot's or a rule's dismissal still counts.
+- **Import a repository's GitHub code-scanning and Dependabot alerts.** With `source: github-code-scanning` or `github-dependabot` on an import, Draugr reads the alerts from GitHub with the token in `GITHUB_TOKEN` or the variable `tokenEnv` names, and ranks and gates them like your own findings. An alert a person dismissed is set aside, with who and why; a bot's or rule's dismissal still counts.
 
 - **Import Grype's own JSON.** Set `format: grype-json` on an import of what `grype dir:. -o json` writes. Its findings keep their package, fixed version and CVE, so KEV and EPSS reach them and they merge with another scanner's finding of that CVE. A scan of an image (`grype <image>`) is refused; scan the directory instead.
 
