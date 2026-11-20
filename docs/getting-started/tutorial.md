@@ -188,9 +188,9 @@ COMPONENTS
 
 The uncommitted files are the ones `git status` listed, which the scanners did not read because they
 read the repository at its commit. The edit counts all the same, because Draugr loads the descriptor
-and its fragments from disk, apart from what the scanners read. `--no-publish` leaves out the demo's publishers, which write
-into `.draugr/out` and deliver to GitHub. `--report sarif -o before` writes the findings to `before/results.sarif`, in SARIF, a
-standard file format for scanner results.
+and its fragments from disk, apart from what the scanners read. `--no-publish` leaves out the demo's
+publishers, which write into `.draugr/out` and deliver to GitHub. `--report sarif -o before` writes
+the findings to `before/results.sarif`, in SARIF, a standard file format for scanner results.
 
 ### With them
 
