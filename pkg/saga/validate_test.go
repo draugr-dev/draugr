@@ -1054,7 +1054,7 @@ func TestValidateImportFormat(t *testing.T) {
 	}
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
 	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
-		{Format: "sarif", Severity: mapping}} {
+		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -1063,8 +1063,15 @@ func TestValidateImportFormat(t *testing.T) {
 		imp  Import
 		want string
 	}{
-		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json`},
+		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, ` +
+			`draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
+		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
+		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
+			"file is rated by the score and severity it states. Remove severity"},
+		{Import{Format: "osv-scanner-json", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has nothing to apply to, " +
+			"since OSV-Scanner leaves what its configuration ignores out of the file. Remove it"},
+		{Import{Format: "osv-scanner-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to apply to"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

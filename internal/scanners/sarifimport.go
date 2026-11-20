@@ -130,6 +130,7 @@ var importReaders = map[string]importReader{
 	saga.ImportFormatTrivyJSON:       readTrivyImport,
 	saga.ImportFormatGovulncheckJSON: readGovulncheckImport,
 	saga.ImportFormatGrypeJSON:       readGrypeImport,
+	saga.ImportFormatOSVScannerJSON:  readOSVScannerImport,
 	saga.ImportFormatConverter:       readConverterImport,
 }
 

@@ -1025,6 +1025,8 @@ const (
 	ImportFormatGovulncheckJSON = "govulncheck-json"
 	// ImportFormatGrypeJSON is the JSON `grype dir:<path> -o json` writes.
 	ImportFormatGrypeJSON = "grype-json"
+	// ImportFormatOSVScannerJSON is the JSON `osv-scanner scan --format json` writes.
+	ImportFormatOSVScannerJSON = "osv-scanner-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1032,7 +1034,7 @@ const (
 
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
-	ImportFormatConverter}
+	ImportFormatOSVScannerJSON, ImportFormatConverter}
 
 // The services an import's Source names.
 const (

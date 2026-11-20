@@ -1,0 +1,1 @@
+- **Import OSV-Scanner's own JSON.** Set `format: osv-scanner-json` on an import of what `osv-scanner scan --format json` writes. Each finding keeps its package, package URL, fixed version and CVSS score, and lists its CVE, so KEV and EPSS reach it and it merges with another scanner's finding of that CVE. A container image's results are refused.

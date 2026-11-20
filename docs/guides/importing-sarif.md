@@ -11,8 +11,8 @@ A component can read a SARIF 2.1.0 file that another tool wrote. The file's find
 control the descriptor names: they take the component's exposure and criticality into their
 priority, count toward the gate, and appear in **Fix first** beside the findings of Draugr's own
 scanners. Draugr does not run the tool. It reads the file an earlier pipeline step left behind.
-Trivy's, govulncheck's and Grype's own JSON can be imported the same way, and keeps more than their
-SARIF does ([Import a tool's own JSON](#import-a-tools-own-json)).
+Trivy's, govulncheck's, Grype's and OSV-Scanner's own JSON can be imported the same way, and keeps
+more than their SARIF does ([Import a tool's own JSON](#import-a-tools-own-json)).
 A repository's GitHub code-scanning and Dependabot alerts can be read from GitHub with no
 file at all ([Import GitHub's alerts](#import-githubs-alerts)).
 
@@ -265,13 +265,14 @@ The import names `commit: ${{ GITHUB_SHA }}`, as in [step 2](#2-name-the-commit-
 ## Import a tool's own JSON
 
 Trivy's SARIF states each finding's package and fixed version only in prose, govulncheck's has no
-call path, and Grype's lists no CVE, so KEV and EPSS can't reach its findings. Their own JSON keeps
-all of it, so import that instead and name the format:
+call path, Grype's lists no CVE, so KEV and EPSS can't reach its findings, and OSV-Scanner's carries
+no score. Their own JSON keeps all of it, so import that instead and name the format:
 
 ```bash
 trivy fs --format json -o reports/trivy.json .
 govulncheck -format json ./... > reports/govulncheck.json
 grype dir:. -o json=reports/grype.json    # a directory scan; an image scan is refused
+osv-scanner scan --format json . > reports/osv-scanner.json    # an image scan is refused
 ```
 
 ```yaml
@@ -288,23 +289,39 @@ imports:
     file: reports/grype.json
     format: grype-json
     commit: ${{ GITHUB_SHA }}
+  - control: sca
+    file: reports/osv-scanner.json
+    format: osv-scanner-json
+    commit: ${{ GITHUB_SHA }}
 ```
 
 Draugr reads each file with the parser its own `trivy-fs`, `govulncheck` and `grype-fs` scanners
 use, so an imported finding carries the package, the installed and fixed versions and, from
-govulncheck, the reachability verdict with its call path, as a native run's does. A Grype finding
-carries its CVE, so it merges with another scanner's finding of that CVE. A govulncheck verdict moves the priority of the `trivy-fs`
-finding for the same advisory, as a native run's verdict does. What differs from a SARIF import:
+govulncheck, the reachability verdict with its call path, as a native run's does. Draugr does not
+run OSV-Scanner, and reads its file into findings of the same shape. A Grype or OSV-Scanner finding
+carries its CVE, so it merges with another scanner's finding of that CVE. A govulncheck verdict
+moves the priority of the `trivy-fs` finding for the same advisory, as a native run's verdict does.
+What differs from a SARIF import:
 
 - **Severity is the native run's**, and the import takes no `severity` mapping:
   - Trivy: the CVSS score, else Trivy's severity.
   - Grype: the CVSS score, else Grype's severity.
   - govulncheck: medium, since its database publishes none.
+  - OSV-Scanner: the CVSS score it gives the vulnerability, else the advisory's severity, else
+    medium.
 - **Only `commit` binds the file**, since none of the tools writes a commit into its JSON. A
   govulncheck file that is not bound lowers nothing: its unreachable verdicts are read as
   undetermined, and its reachable ones still apply.
 - **Grype's file is a scan of a directory**, `grype dir:<path>`. An image scan is about the image,
   not the component's repositories, so it is refused.
+- **OSV-Scanner's file holds lockfiles and SBOMs**, each placed by its path in the repository. A
+  container image's or a git repository's results are refused.
+- **What OSV-Scanner's `osv-scanner.toml` ignores is not in its file**, so Draugr never sees or
+  counts it, and nothing in Draugr's report records that it was ignored, by whom, or why. The
+  reason appears only on OSV-Scanner's standard error, as OSV-Scanner 2.7.1 printed it:
+  `GHSA-29mw-wpgm-hmr9 and 1 alias have been filtered out because: test`. To keep such a decision
+  in the report, with its reason, set the finding aside in the descriptor's `config.exclude`
+  instead. An `osv-scanner-json` import takes no `suppressions`.
 - **The JSON names no repository.** In a component of several repositories, its findings merge with
   no native copy and are not scoped by `paths:` and `ignore:`, and `commit` cannot bind the file.
   Import it into a component of one repository.
