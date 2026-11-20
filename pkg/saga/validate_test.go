@@ -966,13 +966,80 @@ func TestValidateImports(t *testing.T) {
 		want string
 	}{
 		{[]Import{{File: "a.sarif"}}, "control is required"},
-		{[]Import{{Control: "sast"}}, "file is required"},
+		{[]Import{{Control: "sast"}}, "file or source is required"},
 		{[]Import{{Control: "sast", File: "a.sarif"}, {Control: "sast", File: "a.sarif"}}, "a.sarif is imported into sast twice"},
 		{[]Import{{Control: "sast", File: "a.sarif", Suppressions: "ignore"}}, `imports[0]: suppressions "ignore" is not honor or count`},
 	} {
 		if err := with(c.imps...); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("err = %v, want %q", err, c.want)
 		}
+	}
+}
+
+// An import reads a file or a source, never both. A source is one Draugr reads, takes none of the keys
+// only a file reads, and in a component of several repositories names the one whose alerts it reads,
+// once per repository; a file takes none of the keys only a source reads.
+func TestValidateImportSources(t *testing.T) {
+	two := []Repository{{URL: "https://github.com/acme/api"}, {URL: "https://github.com/acme/web"}}
+	with := func(repos []Repository, imps ...Import) error {
+		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Repositories: repos, Imports: imps}}}).Validate()
+	}
+	one := []Repository{{URL: "https://github.com/acme/api"}, {URL: "https://github.com/acme/api", Paths: []string{"web/"}}}
+	for _, c := range []struct {
+		repos []Repository
+		imps  []Import
+	}{
+		{one, []Import{{Control: "sast", Source: ImportSourceGitHubCodeScanning}}},
+		{one, []Import{{Control: "sca", Source: ImportSourceGitHubDependabot, TokenEnv: "GH_TOKEN", Suppressions: ImportSuppressionsCount}}},
+		{two, []Import{{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/api"},
+			{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/web"}}},
+		{two, []Import{{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/api"},
+			{Control: "sast", File: "api.sarif"}}},
+	} {
+		if err := with(c.repos, c.imps...); err != nil {
+			t.Errorf("%+v refused: %v", c.imps, err)
+		}
+	}
+	for _, c := range []struct {
+		repos []Repository
+		imp   Import
+		want  string
+	}{
+		{one, Import{Control: "sast", File: "a.sarif", Source: ImportSourceGitHubCodeScanning}, "imports[0]: names both file and source"},
+		{one, Import{Control: "sast", Source: "gitlab-sast"}, `imports[0].source "gitlab-sast" is not one of github-code-scanning, github-dependabot`},
+		{one, Import{Control: "sast", Source: "GitHub-Code-Scanning"}, "imports[0].source"},
+		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Format: "sarif"}, "imports[0].format is read only with file"},
+		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Commit: "abc1234"}, "imports[0].commit is read only with file"},
+		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning,
+			Severity: &ImportSeverity{Property: "p", Values: map[string]string{"a": "high"}}}, "imports[0].severity is read only with file"},
+		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme"}, `imports[0].repository "acme" is not owner/name`},
+		{one, Import{Control: "sast", File: "a.sarif", TokenEnv: "GH_TOKEN"}, "imports[0].tokenEnv is read only with source"},
+		{one, Import{Control: "sast", File: "a.sarif", Repository: "acme/api"}, "imports[0].repository is read only with source"},
+		{two, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning}, "imports[0]: the component declares 2 repositories. " +
+			"Name the one whose alerts to read with repository: owner/name, one import per repository"},
+	} {
+		if err := with(c.repos, c.imp); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("err = %v, want %q", err, c.want)
+		}
+	}
+	twice := []Import{{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/api"},
+		{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "Acme/API"}}
+	if err := with(two, twice...); err == nil || !strings.Contains(err.Error(), "github-code-scanning Acme/API is imported into sast twice") {
+		t.Errorf("err = %v, want one source read twice into one control refused", err)
+	}
+}
+
+// Two descriptions naming one source for one repository describe one import, and a merge keeps one.
+func TestMergingKeepsOneImportOfASource(t *testing.T) {
+	imp := Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/api"}
+	other := imp
+	other.Repository = "acme/web"
+	got := unionImports([]Import{imp}, []Import{imp, other})
+	if len(got) != 2 || got[1].Repository != "acme/web" {
+		t.Errorf("merged %+v, want the source once per repository", got)
+	}
+	if n := (Import{Source: ImportSourceGitHubDependabot, Repository: "acme/api"}).Name(); n != "github-dependabot acme/api" {
+		t.Errorf("Name() = %q", n)
 	}
 }
 

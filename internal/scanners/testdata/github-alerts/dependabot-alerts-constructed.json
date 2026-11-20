@@ -1,0 +1,135 @@
+[
+  {
+    "number": 3,
+    "state": "open",
+    "dependency": {
+      "package": {"ecosystem": "maven", "name": "org.apache.logging.log4j:log4j-core"},
+      "manifest_path": "pom.xml",
+      "scope": "runtime",
+      "relationship": "direct"
+    },
+    "security_advisory": {
+      "ghsa_id": "GHSA-jfh8-c2jp-5v3q",
+      "cve_id": "CVE-2021-44228",
+      "summary": "Remote code injection in Log4j",
+      "severity": "critical",
+      "identifiers": [
+        {"value": "GHSA-jfh8-c2jp-5v3q", "type": "GHSA"},
+        {"value": "CVE-2021-44228", "type": "CVE"}
+      ],
+      "cvss_severities": {
+        "cvss_v3": {"vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H", "score": 10.0},
+        "cvss_v4": {"vector_string": null, "score": 0.0}
+      },
+      "epss": [{"percentage": 0.97, "percentile": "0.99"}],
+      "cwes": [{"cwe_id": "CWE-502", "name": "Deserialization of Untrusted Data"}]
+    },
+    "security_vulnerability": {
+      "package": {"ecosystem": "maven", "name": "org.apache.logging.log4j:log4j-core"},
+      "severity": "critical",
+      "vulnerable_version_range": ">= 2.0-beta9, < 2.15.0",
+      "first_patched_version": {"identifier": "2.15.0"}
+    },
+    "url": "https://api.github.com/repos/octo-org/octo-repo/dependabot/alerts/3",
+    "html_url": "https://github.com/octo-org/octo-repo/security/dependabot/3",
+    "created_at": "2026-11-01T10:00:00Z",
+    "updated_at": "2026-11-01T10:00:00Z",
+    "dismissed_at": null,
+    "dismissed_by": null,
+    "dismissed_reason": null,
+    "dismissed_comment": null,
+    "fixed_at": null,
+    "auto_dismissed_at": null
+  },
+  {
+    "number": 2,
+    "state": "dismissed",
+    "dependency": {
+      "package": {"ecosystem": "npm", "name": "lodash"},
+      "manifest_path": "web/package-lock.json",
+      "scope": "development",
+      "relationship": "transitive"
+    },
+    "security_advisory": {
+      "ghsa_id": "GHSA-35jh-r3h4-6jhm",
+      "cve_id": "CVE-2021-23337",
+      "summary": "Command Injection in lodash",
+      "severity": "high",
+      "identifiers": [
+        {"value": "GHSA-35jh-r3h4-6jhm", "type": "GHSA"},
+        {"value": "CVE-2021-23337", "type": "CVE"}
+      ],
+      "cvss_severities": {
+        "cvss_v3": {"vector_string": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H", "score": 7.2},
+        "cvss_v4": {"vector_string": null, "score": 0.0}
+      },
+      "epss": [{"percentage": 0.01, "percentile": "0.80"}],
+      "cwes": [{"cwe_id": "CWE-94", "name": "Improper Control of Generation of Code ('Code Injection')"}]
+    },
+    "security_vulnerability": {
+      "package": {"ecosystem": "npm", "name": "lodash"},
+      "severity": "high",
+      "vulnerable_version_range": "< 4.17.21",
+      "first_patched_version": {"identifier": "4.17.21"}
+    },
+    "url": "https://api.github.com/repos/octo-org/octo-repo/dependabot/alerts/2",
+    "html_url": "https://github.com/octo-org/octo-repo/security/dependabot/2",
+    "created_at": "2026-10-01T10:00:00Z",
+    "updated_at": "2026-10-02T10:00:00Z",
+    "dismissed_at": "2026-10-02T10:00:00Z",
+    "dismissed_by": {
+      "login": "octocat",
+      "id": 1,
+      "avatar_url": "https://github.com/images/error/octocat_happy.gif",
+      "html_url": "https://github.com/octocat",
+      "type": "User",
+      "site_admin": false
+    },
+    "dismissed_reason": "tolerable_risk",
+    "dismissed_comment": "Only the build uses this template helper",
+    "fixed_at": null,
+    "auto_dismissed_at": null
+  },
+  {
+    "number": 1,
+    "state": "auto_dismissed",
+    "dependency": {
+      "package": {"ecosystem": "npm", "name": "minimist"},
+      "manifest_path": "web/package-lock.json",
+      "scope": "development",
+      "relationship": "transitive"
+    },
+    "security_advisory": {
+      "ghsa_id": "GHSA-xvch-5gv4-984h",
+      "cve_id": "CVE-2021-44906",
+      "summary": "Prototype Pollution in minimist",
+      "severity": "critical",
+      "identifiers": [
+        {"value": "GHSA-xvch-5gv4-984h", "type": "GHSA"},
+        {"value": "CVE-2021-44906", "type": "CVE"}
+      ],
+      "cvss_severities": {
+        "cvss_v3": {"vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", "score": 9.8},
+        "cvss_v4": {"vector_string": null, "score": 0.0}
+      },
+      "epss": [{"percentage": 0.01, "percentile": "0.70"}],
+      "cwes": [{"cwe_id": "CWE-1321", "name": "Improperly Controlled Modification of Object Prototype Attributes ('Prototype Pollution')"}]
+    },
+    "security_vulnerability": {
+      "package": {"ecosystem": "npm", "name": "minimist"},
+      "severity": "critical",
+      "vulnerable_version_range": "< 0.2.4",
+      "first_patched_version": {"identifier": "0.2.4"}
+    },
+    "url": "https://api.github.com/repos/octo-org/octo-repo/dependabot/alerts/1",
+    "html_url": "https://github.com/octo-org/octo-repo/security/dependabot/1",
+    "created_at": "2026-09-01T10:00:00Z",
+    "updated_at": "2026-09-01T10:05:00Z",
+    "dismissed_at": null,
+    "dismissed_by": null,
+    "dismissed_reason": null,
+    "dismissed_comment": null,
+    "fixed_at": null,
+    "auto_dismissed_at": "2026-09-01T10:05:00Z"
+  }
+]

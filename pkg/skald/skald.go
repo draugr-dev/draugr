@@ -411,7 +411,8 @@ type NotChecked struct {
 type UnboundImport struct {
 	// Component is the component that imported it.
 	Component string `json:"component,omitempty"`
-	// File is the imported file, as the descriptor names it.
+	// File is the imported file, as the descriptor names it, or for a service's alerts the service,
+	// `Dependabot`.
 	File string `json:"file"`
 	// Controls are the controls that read it.
 	Controls []string `json:"controls,omitempty"`
@@ -455,7 +456,8 @@ func scopedImportsOf(run engine.Result) []ScopedImport {
 				switch f.Key {
 				case "component":
 					k.component = f.Value
-				case "file":
+				case "file", "source":
+					// A service's alerts are named by the source and repository in place of a file.
 					k.file = f.Value
 				}
 			}

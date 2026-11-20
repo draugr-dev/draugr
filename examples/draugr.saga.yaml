@@ -298,6 +298,17 @@ components:
           # With dast enabled, a spec also has injection payloads sent into every parameter of
           # the operations kept, so config.allowEffects has to list mutate. methods limits
           # which operations run, not what is sent.
+    # GitHub's alerts for a repository, read from GitHub's API in place of a file. With two
+    # repositories, each import names the one it reads. An alert a person dismissed in GitHub is
+    # set aside with who dismissed it and why; one Dependabot dismissed by its own rule counts.
+    imports:
+      - control: sast
+        source: github-code-scanning   # rule, location and severity; no score or package
+        repository: acme/api
+      - control: sca
+        source: github-dependabot      # advisory, CVE, CVSS, package and the first fixed version
+        repository: acme/api-client
+        tokenEnv: DEPENDABOT_TOKEN     # GITHUB_TOKEN when unset; listed in $DRAUGR_TOKEN_ENVS
 
   # A component that is entirely somebody else's software: a vendor console we run and do not
   # maintain. `builtBy` on the component covers every target under it, so a repository or image

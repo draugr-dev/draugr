@@ -513,6 +513,9 @@ type htmlFinding struct {
 	AcceptedVia string
 	// Justification is why the finding was set aside. Only set for suppressed findings.
 	Justification string
+	// DismissedBy is who dismissed an imported finding in the service it was read from, such as
+	// GitHub, empty where the tool recorded nobody.
+	DismissedBy string
 	// Recorded and Ends are a suppressed finding's values for the Accepted tab's Recorded in and
 	// Ends menus, and empty for an open one.
 	Recorded, Ends string
@@ -852,6 +855,8 @@ func htmlAcceptances(d Data, excluded []finding) ([]htmlFinding, []htmlDecision,
 type htmlToolAside struct {
 	Reporter string
 	N        int
+	// Said is the row's statement, as the console's says it.
+	Said string
 }
 
 // htmlToolAsides are the page's rows for toolAsides. Where and why each finding was set aside is
@@ -859,7 +864,7 @@ type htmlToolAside struct {
 func htmlToolAsides(d Data) []htmlToolAside {
 	var out []htmlToolAside
 	for _, t := range toolAsides(d) {
-		out = append(out, htmlToolAside{Reporter: t.reporter, N: t.n})
+		out = append(out, htmlToolAside{Reporter: t.reporter, N: t.n, Said: t.said()})
 	}
 	return out
 }
@@ -1133,6 +1138,7 @@ func toHTMLFinding(f finding) htmlFinding {
 		Signals:       strings.Join(signalKeys(f), " "),
 		AcceptedVia:   f.acceptedVia,
 		Justification: f.justification,
+		DismissedBy:   f.dismissedBy,
 		Package:       pkgLabel,
 		NonShipping:   f.nonShipping,
 		Aside:         asideNote(f.aside),
@@ -2591,7 +2597,7 @@ lists the other fields.</p>
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
-{{- range .ToolAside}}{{.Reporter}}: {{plural .N "finding"}} the tool suppressed, not counted. {{end -}}
+{{- range .ToolAside}}{{.Reporter}}: {{.Said}}. {{end -}}
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
 {{- if not (or .Suppressed .Imported .Silenced .ToolAside)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
@@ -2669,7 +2675,7 @@ lists the other fields.</p>
     {{- else}}<div class="rule">{{template "rule" .}}</div>{{end}}
     <div class="sub"><span class="lbl">recorded in</span> {{.AcceptedVia}}<span class="faint"> · </span>{{if .Component}}<span class="lbl">component</span> {{.Component}}<span class="faint"> · </span>{{end}}{{if .Location}}{{.Location}}<span class="faint"> · </span>{{end}}<span class="lbl">control</span> {{.Control}}</div>
     <div class="sub"><span class="lbl">reason</span> {{if .Justification}}{{.Justification}}{{else if eq .Recorded "import"}}<span class="none">no reason given</span>{{else}}<span class="none">no reason recorded</span>{{end}}
-      {{- if eq .Recorded "import"}}<span class="faint"> · </span><span class="lbl">who</span> <span class="none">not recorded by the tool</span>{{end}}</div>
+      {{- if eq .Recorded "import"}}<span class="faint"> · </span><span class="lbl">who</span> {{if .DismissedBy}}{{.DismissedBy}}{{else}}<span class="none">not recorded by the tool</span>{{end}}{{end}}</div>
   </div>
 </div>{{end}}
 {{template "paging"}}

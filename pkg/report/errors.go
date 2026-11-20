@@ -222,9 +222,14 @@ func caveats(d Data) []caveat {
 	// An imported file that names no revision: read, but nothing shows it describes the code this
 	// run scanned.
 	for _, u := range unboundImports(d) {
-		out = append(out, caveat{component: u.component, what: u.file,
-			detail: "names no commit, so nothing ties its findings to this code", key: saga.CaveatUnboundImports,
-			controls: u.controls, locations: []sarif.NotificationLocation{{URI: u.file}}})
+		c := caveat{component: u.component, what: u.file,
+			detail: cmp.Or(u.why, "names no commit, so nothing ties its findings to this code"), key: saga.CaveatUnboundImports,
+			controls: u.controls}
+		// A service's alerts are no file a location could point at.
+		if !u.source {
+			c.locations = []sarif.NotificationLocation{{URI: u.file}}
+		}
+		out = append(out, c)
 	}
 	out = append(out, uncommittedCaveats(d.Repositories)...)
 	for _, g := range unreadByComponent(d.Run.Inputs, d.Run.Targets) {
@@ -931,7 +936,12 @@ func namesOfKinds(kinds []saga.CaveatKind) []string {
 // unboundImport is an imported SARIF file that stated no commit, and the controls that read it.
 type unboundImport struct {
 	component, file string
-	controls        []string
+	// source marks an import of a service's alerts, whose file is the service and the repository.
+	source   bool
+	controls []string
+	// why is the sentence the import gave for being unbound (sarif.ImportUnbound), empty for a file,
+	// whose reason is always that it names no commit.
+	why string
 }
 
 // unboundImports reads them off the import scanner's provenance, which records the commit each
@@ -946,13 +956,18 @@ func unboundImports(d Data) []unboundImport {
 				continue
 			}
 			var k key
-			bound := true
+			bound, source := true, false
 			for _, f := range p.Fields {
 				switch f.Key {
 				case "component":
 					k.component = f.Value
 				case "file":
 					k.file = f.Value
+				case "source":
+					// The service alone, `Dependabot` of `Dependabot alerts for acme/api`: the row is
+					// under its component already, and the caveat's sentence needs the width.
+					k.file, _, _ = strings.Cut(f.Value, " alerts for ")
+					source = true
 				case "commit":
 					// "not stated", or "not stated, " and why a commit the descriptor named did not bind.
 					bound = !strings.HasPrefix(f.Value, "not stated")
@@ -965,7 +980,13 @@ func unboundImports(d Data) []unboundImport {
 			if !seen {
 				i = len(out)
 				at[k] = i
-				out = append(out, unboundImport{component: k.component, file: k.file})
+				u := unboundImport{component: k.component, file: k.file, source: source}
+				for _, f := range p.Detail {
+					if f.Key == sarif.ImportUnbound {
+						u.why = f.Value
+					}
+				}
+				out = append(out, u)
 			}
 			if !slices.Contains(out[i].controls, name) {
 				out[i].controls = append(out[i].controls, name)

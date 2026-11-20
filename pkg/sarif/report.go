@@ -124,6 +124,13 @@ type Result struct {
 	// Held for the run and never written, as ImportedRepository is: Reporter names it beside the tool,
 	// so a row that counts a native copy says which file the other copy came from.
 	ImportFormat string `json:"-"`
+	// ImportedTool is, on a finding read from GitHub's code-scanning alerts that Draugr itself
+	// uploaded, the tool the alert's rule names in the one `scanner:` tag Draugr's SARIF writes, such
+	// as gosec. Tool stays Draugr, the tool GitHub names. Empty on every other finding.
+	//
+	// Held for the run and never written. The engine reads it to find the native finding of that tool
+	// at the same line, whose suppression in the code at this commit then applies to the alert.
+	ImportedTool string `json:"-"`
 	// Platforms are the platforms, as GOOS/GOARCH, whose build alone holds the code a finding lies
 	// in, where a Go analyzer found it in a run for a platform beside the machine's own: a gosec
 	// finding in a file behind `//go:build windows`, read on Linux by a run for windows/amd64. Empty
@@ -804,7 +811,15 @@ const (
 	// ImportNotScoped counts the findings kept whole in a component whose repositories declare paths:
 	// or ignore:, because the file establishes no one repository whose scope would apply.
 	ImportNotScoped = "notScoped"
+	// ImportUnbound is, for an import of a service's alerts that nothing binds to the commit the
+	// run reads, the sentence its unbound-imports caveat says why in. Not a count.
+	ImportUnbound = "unbound"
 )
+
+// ImportAnalysesElsewhere is the key of the import scanner's provenance field naming the code-scanning
+// analyses GitHub last ran at another commit than the one the run reads. Reports show it only with
+// the evidence, since the commit field already counts them.
+const ImportAnalysesElsewhere = "analyses"
 
 // Reporter names who gave an account of a finding, for telling one flaw's copies apart: the tool,
 // and for a finding read from another tool's file, the tool marked as imported, with the format
@@ -886,6 +901,20 @@ type Suppression struct {
 	// not known. Source and Line together name the exclusion that set the finding aside, which is
 	// how report.json's descriptor.exclusions[] entry for it, and its git history, is found.
 	Line int `json:"line,omitempty"`
+	// Service is the service an imported finding was dismissed in, such as GitHub code scanning,
+	// where a person dismissed the alert there rather than a file recording a suppression. Author is
+	// then who dismissed it, Asserted when, and Source the alert. Empty for a suppression read from a
+	// file and for every one Draugr makes.
+	Service string `json:"service,omitempty"`
+}
+
+// Where says where a tool recorded that it suppressed a finding: dismissed in the service for one
+// dismissed there, and otherwise as SuppressedIn reads the kind.
+func (s Suppression) Where() string {
+	if s.Service != "" {
+		return "dismissed in " + s.Service
+	}
+	return "suppressed " + SuppressedIn(s.Kind)
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.

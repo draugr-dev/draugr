@@ -13,6 +13,8 @@ priority, count toward the gate, and appear in **Fix first** beside the findings
 scanners. Draugr does not run the tool. It reads the file an earlier pipeline step left behind.
 Trivy's, govulncheck's and Grype's own JSON can be imported the same way, and keeps more than their
 SARIF does ([Import a tool's own JSON](#import-a-tools-own-json)).
+A repository's GitHub code-scanning and Dependabot alerts can be read from GitHub with no
+file at all ([Import GitHub's alerts](#import-githubs-alerts)).
 
 The steps below use Bandit, which writes no commit into its SARIF, so they include binding the file
 to the commit it scanned. Another tool's file follows the same steps, with the limits
@@ -309,6 +311,61 @@ finding for the same advisory, as a native run's verdict does. What differs from
 
 [A tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json) lists what each format
 carries and what is left out.
+
+## Import GitHub's alerts
+
+Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts
+straight from GitHub's REST API, with no file and no step that writes one. Name the source in place
+of a file:
+
+```yaml
+components:
+  - name: api
+    repositories:
+      - url: https://github.com/acme/api
+    imports:
+      - control: sast
+        source: github-code-scanning
+      - control: sca
+        source: github-dependabot
+```
+
+Then scan with a token that can read the repository's security alerts in `GITHUB_TOKEN`: a classic
+token with `security_events`, or `public_repo` for a public repository. In GitHub Actions,
+`GITHUB_TOKEN` reads them where the workflow grants `permissions: security-events: read` for code
+scanning and `vulnerability-alerts: read` for Dependabot. A token in another variable is named
+with `tokenEnv`, and the pipeline lists that variable in `$DRAUGR_TOKEN_ENVS`:
+
+```bash
+DRAUGR_TOKEN_ENVS=GH_TOKEN GH_TOKEN=$(gh auth token) draugr scan
+```
+
+```yaml
+      - control: sca
+        source: github-dependabot
+        tokenEnv: GH_TOKEN
+```
+
+What to expect:
+
+- **A component of several repositories names one per import** with `repository: owner/name`.
+- **An alert a person dismissed in GitHub is set aside**, on an `ACCEPTED` row named for the service
+  and the tool, with who dismissed it and why. `suppressions: count` counts it instead.
+- **An alert a bot dismissed counts either way**, since a workflow is not a person's decision about
+  the finding, and so does one Dependabot dismissed by its own rules. Its detail names who dismissed
+  it and gives the `config.exclude` entry that sets it aside here.
+- **Code-scanning alerts are ranked from less than a score**: GitHub returns a severity bucket and no
+  score, package or fixed version. Dependabot alerts carry the CVE, a CVSS score, the package and
+  the first patched version, so they become upgrades and reach KEV and EPSS.
+- **Dependabot names no commit**, so its import is always listed under **Caveats** as
+  `unbound-imports`. A code-scanning analysis GitHub last ran at another commit, such as a weekly
+  Scorecard run, makes the import unbound too.
+- **GitHub's refusals stop the run**: a repository without GitHub Code Security, one with
+  Dependabot alerts off, a token GitHub refuses, or a repository it cannot see. None reads as a
+  repository with no alerts.
+
+[GitHub's alerts](../../internal/scanners/sarif-import.md#githubs-alerts) has how each alert is read,
+the binding to a commit, and every error.
 
 ## See also
 

@@ -91,20 +91,20 @@ func unionComponent(a, b Component) (Component, []string) {
 
 // unionImports keeps every SARIF file both descriptions import, once per control and file.
 //
-// A control and a file name one import, the identity validateImports refuses to see twice in one
-// list. Two descriptions naming the same pair describe the same import, so the second is dropped
-// rather than left for validation to refuse the merged descriptor over. The same file into a
-// different control is a different import and stays.
+// A control and a file, or a control, a source and a repository, name one import, the identity
+// validateImports refuses to see twice in one list. Two descriptions naming the same import describe
+// the same import, so the second is dropped rather than left for validation to refuse the merged
+// descriptor over. The same file into a different control is a different import and stays.
 func unionImports(a, b []Import) []Import {
 	if len(b) == 0 {
 		return a
 	}
-	seen := make(map[[2]string]bool, len(a))
+	seen := make(map[importKey]bool, len(a))
 	for _, imp := range a {
-		seen[[2]string{imp.Control, imp.File}] = true
+		seen[imp.key()] = true
 	}
 	for _, imp := range b {
-		key := [2]string{imp.Control, imp.File}
+		key := imp.key()
 		if seen[key] {
 			continue
 		}

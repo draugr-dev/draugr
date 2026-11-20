@@ -1,0 +1,367 @@
+[
+  {
+    "number": 690,
+    "created_at": "2026-11-17T02:36:46Z",
+    "updated_at": "2026-11-17T02:36:52Z",
+    "url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/690",
+    "html_url": "https://github.com/draugr-dev/draugr/security/code-scanning/690",
+    "state": "dismissed",
+    "fixed_at": null,
+    "dismissed_by": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "node_id": "MDM6Qm90NDE4OTgyODI=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-actions",
+      "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "dismissed_at": "2026-11-17T02:36:52Z",
+    "dismissed_reason": "won't fix",
+    "dismissed_comment": "Accepted in Draugr: a file under the tree being initialized",
+    "rule": {
+      "id": "G304",
+      "severity": "warning",
+      "description": "Potential file inclusion via variable",
+      "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+      "tags": [
+        "scanner:gosec"
+      ],
+      "full_description": "Potential file inclusion via variable",
+      "help": "Potential file inclusion via variable\nSeverity: MEDIUM\nConfidence: HIGH\n"
+    },
+    "tool": {
+      "name": "Draugr",
+      "guid": null,
+      "version": "0.181.1"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "analysis_key": "(default)",
+      "environment": "{}",
+      "category": "draugr",
+      "state": "dismissed",
+      "commit_sha": "cc4899689bce4932685ea19cf8a61ce69ac6db56",
+      "message": {
+        "text": "Potential file inclusion via variable"
+      },
+      "location": {
+        "path": "internal/inventory/sarif.go",
+        "start_line": 118,
+        "end_line": 118,
+        "start_column": 1,
+        "end_column": 0
+      },
+      "classifications": []
+    },
+    "instances_url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/690/instances",
+    "dismissal_approved_by": null,
+    "assignees": [],
+    "linked_pull_requests": [],
+    "linked_issues": []
+  },
+  {
+    "number": 689,
+    "created_at": "2026-11-17T02:36:46Z",
+    "updated_at": "2026-11-17T02:36:53Z",
+    "url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/689",
+    "html_url": "https://github.com/draugr-dev/draugr/security/code-scanning/689",
+    "state": "dismissed",
+    "fixed_at": null,
+    "dismissed_by": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "node_id": "MDM6Qm90NDE4OTgyODI=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-actions",
+      "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "dismissed_at": "2026-11-17T02:36:53Z",
+    "dismissed_reason": "won't fix",
+    "dismissed_comment": "Accepted in Draugr: a file under the tree being initialized",
+    "rule": {
+      "id": "G304",
+      "severity": "warning",
+      "description": "Potential file inclusion via variable",
+      "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+      "tags": [
+        "scanner:gosec"
+      ],
+      "full_description": "Potential file inclusion via variable",
+      "help": "Potential file inclusion via variable\nSeverity: MEDIUM\nConfidence: HIGH\n"
+    },
+    "tool": {
+      "name": "Draugr",
+      "guid": null,
+      "version": "0.181.1"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "analysis_key": "(default)",
+      "environment": "{}",
+      "category": "draugr",
+      "state": "dismissed",
+      "commit_sha": "cc4899689bce4932685ea19cf8a61ce69ac6db56",
+      "message": {
+        "text": "Potential file inclusion via variable"
+      },
+      "location": {
+        "path": "internal/inventory/sarif.go",
+        "start_line": 197,
+        "end_line": 197,
+        "start_column": 1,
+        "end_column": 0
+      },
+      "classifications": []
+    },
+    "instances_url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/689/instances",
+    "dismissal_approved_by": null,
+    "assignees": [],
+    "linked_pull_requests": [],
+    "linked_issues": []
+  },
+  {
+    "number": 688,
+    "created_at": "2026-11-17T00:13:35Z",
+    "updated_at": "2026-11-17T00:13:41Z",
+    "url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/688",
+    "html_url": "https://github.com/draugr-dev/draugr/security/code-scanning/688",
+    "state": "dismissed",
+    "fixed_at": null,
+    "dismissed_by": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "node_id": "MDM6Qm90NDE4OTgyODI=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-actions",
+      "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "dismissed_at": "2026-11-17T00:13:41Z",
+    "dismissed_reason": "won't fix",
+    "dismissed_comment": "Accepted in Draugr: target is inside a temp dir this function created, checked above",
+    "rule": {
+      "id": "G304",
+      "severity": "warning",
+      "description": "Potential file inclusion via variable",
+      "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+      "tags": [
+        "scanner:gosec"
+      ],
+      "full_description": "Potential file inclusion via variable",
+      "help": "Potential file inclusion via variable\nSeverity: MEDIUM\nConfidence: HIGH\n"
+    },
+    "tool": {
+      "name": "Draugr",
+      "guid": null,
+      "version": "0.181.1"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "analysis_key": "(default)",
+      "environment": "{}",
+      "category": "draugr",
+      "state": "dismissed",
+      "commit_sha": "cc4899689bce4932685ea19cf8a61ce69ac6db56",
+      "message": {
+        "text": "Potential file inclusion via variable"
+      },
+      "location": {
+        "path": "internal/feeds/govulndb.go",
+        "start_line": 84,
+        "end_line": 84,
+        "start_column": 1,
+        "end_column": 0
+      },
+      "classifications": []
+    },
+    "instances_url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/688/instances",
+    "dismissal_approved_by": null,
+    "assignees": [],
+    "linked_pull_requests": [],
+    "linked_issues": []
+  },
+  {
+    "number": 687,
+    "created_at": "2026-11-16T21:25:40Z",
+    "updated_at": "2026-11-16T21:25:46Z",
+    "url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/687",
+    "html_url": "https://github.com/draugr-dev/draugr/security/code-scanning/687",
+    "state": "dismissed",
+    "fixed_at": null,
+    "dismissed_by": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "node_id": "MDM6Qm90NDE4OTgyODI=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-actions",
+      "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "dismissed_at": "2026-11-16T21:25:46Z",
+    "dismissed_reason": "won't fix",
+    "dismissed_comment": "Accepted in Draugr: a go.mod inside the checkout",
+    "rule": {
+      "id": "G304",
+      "severity": "warning",
+      "description": "Potential file inclusion via variable",
+      "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+      "tags": [
+        "scanner:gosec"
+      ],
+      "full_description": "Potential file inclusion via variable",
+      "help": "Potential file inclusion via variable\nSeverity: MEDIUM\nConfidence: HIGH\n"
+    },
+    "tool": {
+      "name": "Draugr",
+      "guid": null,
+      "version": "0.181.1"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "analysis_key": "(default)",
+      "environment": "{}",
+      "category": "draugr",
+      "state": "dismissed",
+      "commit_sha": "cc4899689bce4932685ea19cf8a61ce69ac6db56",
+      "message": {
+        "text": "Potential file inclusion via variable"
+      },
+      "location": {
+        "path": "internal/scanners/govulncheck.go",
+        "start_line": 732,
+        "end_line": 732,
+        "start_column": 1,
+        "end_column": 0
+      },
+      "classifications": []
+    },
+    "instances_url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/687/instances",
+    "dismissal_approved_by": null,
+    "assignees": [],
+    "linked_pull_requests": [],
+    "linked_issues": []
+  },
+  {
+    "number": 686,
+    "created_at": "2026-11-16T21:25:40Z",
+    "updated_at": "2026-11-16T21:25:48Z",
+    "url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/686",
+    "html_url": "https://github.com/draugr-dev/draugr/security/code-scanning/686",
+    "state": "dismissed",
+    "fixed_at": null,
+    "dismissed_by": {
+      "login": "github-actions[bot]",
+      "id": 41898282,
+      "node_id": "MDM6Qm90NDE4OTgyODI=",
+      "avatar_url": "https://avatars.githubusercontent.com/in/15368?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/github-actions%5Bbot%5D",
+      "html_url": "https://github.com/apps/github-actions",
+      "followers_url": "https://api.github.com/users/github-actions%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/github-actions%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/github-actions%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/github-actions%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/github-actions%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/github-actions%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/github-actions%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/github-actions%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/github-actions%5Bbot%5D/received_events",
+      "type": "Bot",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "dismissed_at": "2026-11-16T21:25:48Z",
+    "dismissed_reason": "won't fix",
+    "dismissed_comment": "Accepted in Draugr: the go.work governing a module in the checkout, or the one GOWORK names",
+    "rule": {
+      "id": "G304",
+      "severity": "warning",
+      "description": "Potential file inclusion via variable",
+      "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+      "tags": [
+        "scanner:gosec"
+      ],
+      "full_description": "Potential file inclusion via variable",
+      "help": "Potential file inclusion via variable\nSeverity: MEDIUM\nConfidence: HIGH\n"
+    },
+    "tool": {
+      "name": "Draugr",
+      "guid": null,
+      "version": "0.181.1"
+    },
+    "most_recent_instance": {
+      "ref": "refs/heads/main",
+      "analysis_key": "(default)",
+      "environment": "{}",
+      "category": "draugr",
+      "state": "dismissed",
+      "commit_sha": "cc4899689bce4932685ea19cf8a61ce69ac6db56",
+      "message": {
+        "text": "Potential file inclusion via variable"
+      },
+      "location": {
+        "path": "internal/scanners/govulncheck.go",
+        "start_line": 746,
+        "end_line": 746,
+        "start_column": 1,
+        "end_column": 0
+      },
+      "classifications": []
+    },
+    "instances_url": "https://api.github.com/repos/draugr-dev/draugr/code-scanning/alerts/686/instances",
+    "dismissal_approved_by": null,
+    "assignees": [],
+    "linked_pull_requests": [],
+    "linked_issues": []
+  }
+]

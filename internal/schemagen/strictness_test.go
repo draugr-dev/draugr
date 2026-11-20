@@ -154,6 +154,7 @@ var openStrings = map[string]string{
 	// is the author's choice.
 	"$defs.hostAuth.properties.tokenEnv":        "the environment variable holding the credential",
 	"$defs.publisherConfig.properties.tokenEnv": "the environment variable holding the credential",
+	"$defs.import.properties.tokenEnv":          "the environment variable holding the credential",
 	"$defs.hostAuth.properties.header":          "a header name",
 
 	// The author's own taxonomy rather than ours: a reference is whatever document they keep.

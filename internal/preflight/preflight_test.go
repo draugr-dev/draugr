@@ -438,6 +438,38 @@ func TestDoctorChecksAnImportedFile(t *testing.T) {
 	}
 }
 
+// An import of GitHub's alerts is checked for the token it will send, once per source, repository
+// and variable, without reaching GitHub: the variable has to be one it may read, and set.
+func TestDoctorChecksASourcesToken(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "ghp_"+strings.Repeat("b", 36))
+	t.Setenv("DRAUGR_TOKEN_ENVS", "")
+	code := plugin.FileTarget{Source: "github-code-scanning", Repository: "acme/api"}
+	got := Run(context.Background(), []plugin.Target{
+		code, code,
+		plugin.FileTarget{Source: "github-dependabot", Repository: "acme/api", TokenEnv: "OTHER_TOKEN"},
+	}, Options{Offline: true})
+	if len(got) != 2 {
+		t.Fatalf("%d checks, want one per source and variable: %+v", len(got), got)
+	}
+	for _, c := range got {
+		switch c.Target {
+		case "github-code-scanning acme/api":
+			if c.Status != Passed || c.Detail != "token in $GITHUB_TOKEN, alerts read by the scan" {
+				t.Errorf("code scanning check %+v", c)
+			}
+		case "github-dependabot acme/api":
+			if c.Status != Failed || !strings.Contains(c.Detail, "$OTHER_TOKEN is not listed in $DRAUGR_TOKEN_ENVS") {
+				t.Errorf("dependabot check %+v", c)
+			}
+		default:
+			t.Errorf("unexpected check %+v", c)
+		}
+		if strings.Contains(c.Detail, "ghp_") {
+			t.Errorf("the token is in %+v", c)
+		}
+	}
+}
+
 // A tool's own JSON is checked by the reader its format names, once per file and format, so a file
 // imported as one format and read as another fails doctor as it would fail the scan.
 func TestDoctorChecksAnImportedFileAsItsFormat(t *testing.T) {

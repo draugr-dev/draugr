@@ -375,24 +375,33 @@ type Effect struct {
 	// OpenAPI document the scan takes its requests from. Read from the target rather than the
 	// scanner's Saga block, so EffectsFor, which sees only the block, never includes it.
 	Spec bool
+	// Source marks an effect a job has only where its target is an import that names this source, a
+	// service whose alerts are read in place of a file (FileTarget.Source). Read from the target, as
+	// Spec is, so EffectsFor never includes it, and an import of a file never has it.
+	Source string
 }
 
 // EffectsFor is the effects a job of the scanner described by info has under cfg: every effect
 // with no Option, and each one whose Option is true, as cfg sets it or as its Default leaves it,
-// less any Online effect when this process is offline. An effect marked Spec depends on the job's
-// target, which cfg does not hold, so it is left out; EffectsForJob includes it.
+// less any Online effect when this process is offline. An effect marked Spec or Source depends on
+// the job's target, which cfg does not hold, so it is left out; EffectsForJob includes it.
 func EffectsFor(info ScannerInfo, cfg Config) []Effect {
 	return EffectsForJob(info, ScanJob{Config: cfg})
 }
 
-// EffectsForJob is the effects job has, as EffectsFor gives them for its config, and each effect
-// marked Spec where the job's target is a host that declares spec.
+// EffectsForJob is the effects job has, as EffectsFor gives them for its config, each effect
+// marked Spec where the job's target is a host that declares spec, and each marked Source where it
+// is an import of that source.
 func EffectsForJob(info ScannerInfo, job ScanJob) []Effect {
 	cfg := job.Config
 	host, _ := job.Target.(HostTarget)
+	file, _ := job.Target.(FileTarget)
 	var out []Effect
 	for _, e := range info.Effects {
 		if e.Spec && host.Spec == nil {
+			continue
+		}
+		if e.Source != "" && file.Source != e.Source {
 			continue
 		}
 		if e.Option != "" {

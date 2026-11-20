@@ -396,11 +396,14 @@ components:
 | field | meaning |
 |---|---|
 | `control` | the control the file's findings belong to, such as `sast` or `sca` |
-| `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON `format` names |
-| `format` | optional: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, `govulncheck-json` for what `govulncheck -format json` writes, or `grype-json` for what `grype dir:<path> -o json` writes (directory scans only). A tool's JSON is read as Draugr's run of that tool reads it ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
-| `commit` | optional: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
+| `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON `format` names. Exactly one of `file` and `source` |
+| `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
+| `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
+| `repository` | `source` only: the repository whose alerts to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
+| `format` | optional, `file` only: `sarif` (the default), `trivy-json` for what `trivy fs --format json` writes, `govulncheck-json` for what `govulncheck -format json` writes, or `grype-json` for what `grype dir:<path> -o json` writes (directory scans only). A tool's JSON is read as Draugr's run of that tool reads it ([a tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json)) |
+| `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed; `count` counts them. Any other value is refused |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused |
 
 A finding in the file keeps the path the file wrote, so write paths relative to the repository's
 root, and belongs to this component where that path is inside the repository's
@@ -498,6 +501,44 @@ which [`config.gate.failOnCaveats`](#configgate) can make fail the run. A missin
 invalid file stops the run as a scanner that could not run does. The
 [`sarif-import`](../../internal/scanners/sarif-import.md) page has the details, and [Import another
 scanner's SARIF](../guides/importing-sarif.md) walks through a pipeline.
+
+#### GitHub's alerts
+
+**`source`** reads a repository's alerts from GitHub's REST API in place of a file:
+
+```yaml
+imports:
+  - control: sast
+    source: github-code-scanning   # the repository's code-scanning alerts
+  - control: sca
+    source: github-dependabot      # its Dependabot alerts
+    tokenEnv: GH_TOKEN             # listed in $DRAUGR_TOKEN_ENVS; GITHUB_TOKEN when unset
+```
+
+- **The repository** is the component's own, read from its `url`, or from the remote of a local
+  checkout. A component of several repositories names one with `repository: owner/name`, one
+  import per repository; validate refuses a source that leaves the choice open.
+- **The token** is read from `tokenEnv` when the scan runs, sent to GitHub's API and nowhere else,
+  and never written to a report or a log. A classic token needs `security_events`, or `public_repo`
+  for a public repository.
+- **Open and dismissed alerts are read**, and Dependabot's `auto_dismissed` ones. A fixed alert is
+  not.
+- **A person's dismissal is honored** under `suppressions: honor`, set aside with who dismissed it,
+  the reason and comment, or `no reason given`. `count` counts it, with the same in its detail.
+- **A bot's dismissal counts** under either value, since a workflow is not a person's decision about
+  the finding, and so does one by an account whose type GitHub does not state. Its detail names the
+  account and gives the `config.exclude` entry that sets it aside here.
+- **An alert Dependabot dismissed by its own rule counts** under either value, since nobody looked
+  at the finding, and its detail gives the `config.exclude` entry that sets it aside here.
+- **Reading the alerts is a `network` effect**, recorded in the report. It needs no
+  `allowEffects` entry: naming the source and the token in the descriptor is the decision.
+
+Code-scanning alerts carry a rule, a location and a severity bucket, and no score, package or fixed
+version, which the report's `severity` field says. Dependabot alerts carry the advisory, its CVE, a
+CVSS score, the package and the first patched version. GitHub marks Dependabot's alerts API "public
+preview and subject to change". The
+[`sarif-import`](../../internal/scanners/sarif-import.md#githubs-alerts) page has how each is read,
+bound to a commit, and the errors.
 
 ## `config.controls`
 
@@ -1807,7 +1848,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, a `go.mod` gosec found no Go package in, or an image whose operating system the scanner does not support |
 | `unread-checks` | a check the scan could not evaluate, or could evaluate only in part: a cloud check whose read was denied, a CIS Kubernetes check whose audit read nothing on the node `kube-bench-job` ran it on, or an HTTP header check on an endpoint that answered with a non-2xx status |
-| `unbound-imports` | an imported SARIF file that names no commit, so nothing ties its findings to the code being scanned |
+| `unbound-imports` | an imported SARIF file, or GitHub's alerts, that names no commit, so nothing ties its findings to the code being scanned |
 | `uncommitted-files` | a local repository with uncommitted changes the scan did not read, because it read the committed revision; [`--working-tree`](cli.md#--working-tree-for-the-loop-of-fixing-something) reads them. Draugr's own reports folder, `.draugr/out` or the run's `-o`, is not counted |
 
 ```yaml
@@ -2426,6 +2467,18 @@ ACCEPTED
 
 Where a long tool name leaves no room on the row, `--evidence lists why` is the line under it. The
 import's [`suppressions: count`](#componentsimports) counts these findings instead.
+
+An alert a person dismissed in GitHub, read by an import's [`source`](#githubs-alerts), is counted on
+a row named for the service and the tool, and names who dismissed it on its line; the line saying
+nobody is recorded is left out where every reason names someone. A bot's dismissal is not here: it
+counts.
+
+```console
+ACCEPTED
+  GitHub code scanning (CodeQL)  2 alerts dismissed in GitHub, not counted
+              dismissed in GitHub code scanning by octocat · reason: false positive (the path is a constant) · 1 finding · go/path-injection
+              dismissed in GitHub code scanning by monalisa · reason: won't fix · 1 finding · go/sql-injection
+```
 
 ## `config.exploitability`
 

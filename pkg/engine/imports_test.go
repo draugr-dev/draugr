@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -176,6 +177,48 @@ func TestAnImportsSuppressionsSettingReachesItsTarget(t *testing.T) {
 	for file, w := range want {
 		if counted[file] != w {
 			t.Errorf("%s counts its tool's suppressions: %v, want %v", file, counted[file], w)
+		}
+	}
+}
+
+// An import of a service's alerts reaches its target with the source, the token's variable and the
+// repository it names, and no file or digest. Two components of one repository each, both importing
+// the same source, are two jobs, each with its own repository. Its alerts are read on every run and
+// never answered from the cache, since what GitHub lists changes with nothing in the descriptor or
+// the tree changing.
+func TestAnImportOfASourceIsReadOnEveryRun(t *testing.T) {
+	reg := NewRegistry()
+	reg.RegisterController(repoController{scanner: "unused"})
+	stub := &importStub{}
+	reg.RegisterScanner(stub)
+	model := saga.Model{Release: saga.Release{Version: "1"}, Components: []saga.Component{
+		{Name: "api", Repositories: []saga.Repository{{URL: "https://github.com/acme/api"}},
+			Imports: []saga.Import{{Control: "sast", Source: saga.ImportSourceGitHubDependabot, TokenEnv: "GH_TOKEN"}}},
+		{Name: "web", Repositories: []saga.Repository{{URL: "https://github.com/acme/web"}},
+			Imports: []saga.Import{{Control: "sast", Source: saga.ImportSourceGitHubDependabot, Repository: "acme/web"}}},
+	}}
+	e := New(reg, WithCache(cache.NewMemory()))
+	for range 2 {
+		if _, err := e.Run(context.Background(), model); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(stub.targets) != 4 {
+		t.Fatalf("read %d times, want each source on both runs", len(stub.targets))
+	}
+	for _, ft := range stub.targets {
+		if ft.Source != saga.ImportSourceGitHubDependabot || ft.Path != "" || ft.Digest != "" || len(ft.Repositories) != 1 {
+			t.Errorf("target %+v, want the source, no file and the component's repository", ft)
+		}
+		switch ft.Component {
+		case "api":
+			if ft.TokenEnv != "GH_TOKEN" || ft.Repositories[0].URL != "https://github.com/acme/api" {
+				t.Errorf("api's target %+v", ft)
+			}
+		case "web":
+			if ft.Repository != "acme/web" || ft.Identity() != "github-dependabot acme/web" {
+				t.Errorf("web's target %+v", ft)
+			}
 		}
 	}
 }

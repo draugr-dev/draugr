@@ -156,6 +156,18 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 				return []Check{accountCheck(ctx, p, provider, id, opts.Offline)}
 			})
 		case plugin.FileTarget:
+			if t.Source != "" {
+				// A service's alerts: whether the token is there to send. The alerts themselves are
+				// read by the scan, which names what GitHub refused.
+				key := "source:" + t.Identity() + ":" + t.TokenEnv
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				target := t
+				units = append(units, func(context.Context) []Check { return []Check{sourceCheck(target)} })
+				continue
+			}
 			// A file read in place: present and readable is the question, and it needs no network.
 			// Once per file and format, as one file imported twice is read by each import's reader.
 			key := "file:" + t.Format + ":" + t.Path
@@ -476,6 +488,19 @@ func reason(err error, rawURL string) string {
 	}
 	line, _, _ := strings.Cut(strings.TrimSpace(msg), "\n")
 	return strings.TrimPrefix(line, "fatal: ")
+}
+
+// sourceCheck is whether an import of a service's alerts has a token to send: the variable it names is
+// one it may read, and is set. The scan stops on either, so the preflight says so first.
+func sourceCheck(t plugin.FileTarget) Check {
+	// "alerts" rather than the target's kind, file: what is read is a service's alerts, not a file.
+	c := Check{Kind: "alerts", Target: t.Identity()}
+	detail, ok := scanners.SourceCheck(t)
+	c.Status, c.Detail = Failed, detail
+	if ok {
+		c.Status = Passed
+	}
+	return c
 }
 
 // fileCheck is whether an imported file is there to read, and whether it is the format the import

@@ -1878,6 +1878,8 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	correlated, alsoSuppressed := applyCorrelation(res.Controls)
 	res.Correlated = correlated
 	res.Suppressed += alsoSuppressed
+	// After correlation, which already gives a paired import its native copy's suppression.
+	res.Suppressed += applyInSourceSuppressions(res.Controls)
 	res.Reachability = recountReachability(res.Controls, res.Reachability)
 	// After correlation, so a check two scanners report is listed once.
 	res.Suppressed -= setUnsettledApart(res.Controls)
@@ -3275,6 +3277,65 @@ func codeGroups(results []sarif.Result, rules map[string]sarif.Rule) [][]int {
 	return groups
 }
 
+// applyInSourceSuppressions sets aside a counting imported code finding where a native scanner's
+// finding of the same rule at the same line was suppressed in the code it read, and returns how many
+// it set aside.
+//
+// A repository's own GitHub code-scanning alerts are often what Draugr uploaded of its own runs, so
+// an alert names Draugr as its tool and does not pair with the native finding (codeGroups keys on
+// the tool). Where the native scanner read a `#nosec` or `nosemgrep` at that line in this commit's
+// code, the alert is the same flaw, and counting it would bring back every suppression the code
+// carries. That is evidence from the code being scanned, so the alert takes the native finding's
+// suppression, origin and justification as they are.
+//
+// It runs one way only. An imported finding never sets a native one aside, and two findings that
+// both count are left to correlation, which this does not change. The tool the import names is the
+// one Draugr's upload tagged its rule with (sarif.Result.ImportedTool), else its own; the rule is
+// matched as codeGroups matches it (sameRuleAt).
+func applyInSourceSuppressions(controls map[string]plugin.ControlResult) int {
+	n := 0
+	for name, cr := range controls {
+		results := cr.Report.Results
+		silenced := map[codeKey][]int{}
+		for i, res := range results {
+			if res.Scanner == plugin.ImportScanner || !res.SilencedInSource() {
+				continue
+			}
+			if key, ok := codeKeyOf(res, cr.Report.Rules); ok {
+				silenced[key] = append(silenced[key], i)
+			}
+		}
+		if len(silenced) == 0 {
+			continue
+		}
+		for i := range results {
+			res := &results[i]
+			if res.Scanner != plugin.ImportScanner || res.Suppressed() {
+				continue
+			}
+			key, ok := codeKeyOf(*res, cr.Report.Rules)
+			if !ok {
+				continue
+			}
+			if res.ImportedTool != "" {
+				key.product = toolProduct(res.ImportedTool)
+			}
+			j, ok := sameRuleAt(results, i, silenced[key], key.product)
+			if !ok {
+				continue
+			}
+			taken := *results[j].Suppression
+			res.Suppression = &taken
+			// The import's detail ends saying the finding counts, where something else dismissed or
+			// suppressed it; that end is no longer true, and what it said before it still is.
+			res.Detail, _, _ = strings.Cut(res.Detail, " · counted")
+			n++
+		}
+		controls[name] = cr
+	}
+	return n
+}
+
 // codeKeyOf is the line a code finding is keyed on, and false for a finding that is not about a line
 // of code or names no rule: one about a package, which includes every finding correlationKeyOf keys,
 // one of a benchmark check, or one with no file, line or tool.
@@ -3843,6 +3904,12 @@ func suppressionIn(results []sarif.Result, idxs []int) *sarif.Suppression {
 // Everything that is not a repository answers ("", true): an image is named by its digest or its
 // tag, a host by its URL, and their identities already say exactly what was read.
 func (e *Engine) commitOf(ctx context.Context, t plugin.Target) (string, bool) {
+	if file, ok := t.(plugin.FileTarget); ok && file.Source != "" {
+		// A service's alerts change with nothing in the descriptor or the tree changing: somebody
+		// dismisses one, or the service analyzes a new commit. Nothing names what was read, so it is
+		// read again on every run.
+		return "", false
+	}
 	repo, ok := t.(plugin.RepositoryTarget)
 	if !ok {
 		return "", true
@@ -3951,8 +4018,8 @@ func (e *Engine) applyDependencyHealth(ctx context.Context, controls map[string]
 	return true
 }
 
-// planImports plans a job for each SARIF file a component imports, under the control the
-// descriptor names.
+// planImports plans a job for each file, or each service's alerts, a component imports, under the
+// control the descriptor names.
 //
 // Planned here rather than by a controller, because an import is no controller's decision: the
 // descriptor said which control the findings belong to, and the control's own planning would only
@@ -3972,11 +4039,15 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 			}
 			if _, ok := e.reg.controllers[imp.Control]; !ok {
 				errs = append(errs, fmt.Errorf("plan import %s for %s: %q is not a control this build provides",
-					imp.File, comp.Name, imp.Control))
+					imp.Name(), comp.Name, imp.Control))
 				continue
 			}
-			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Digest: fileDigest(imp.File), Severity: imp.Severity,
-				Commit: imp.Commit, Format: imp.Format, CountSuppressed: !imp.Suppressions.Honored()}
+			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Severity: imp.Severity,
+				Commit: imp.Commit, Format: imp.Format, CountSuppressed: !imp.Suppressions.Honored(),
+				Source: imp.Source, TokenEnv: imp.TokenEnv, Repository: imp.Repository}
+			if imp.File != "" {
+				target.Digest = fileDigest(imp.File)
+			}
 			if unset := imp.CommitUnset(); unset != "" {
 				target.Commit, target.CommitUnset = "", unset
 			}
