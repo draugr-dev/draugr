@@ -436,6 +436,7 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatTrivyJSON:       "Trivy JSON",
 	saga.ImportFormatGovulncheckJSON: "govulncheck JSON",
 	saga.ImportFormatGrypeJSON:       "Grype JSON",
+	saga.ImportFormatOSVScannerJSON:  "OSV-Scanner JSON",
 	saga.ImportFormatConverter:       "converter file",
 }
 

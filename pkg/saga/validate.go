@@ -858,7 +858,8 @@ func validateCaveatKinds(kinds []CaveatKind, field string) []error {
 
 // validateImportFormat refuses a format Draugr has no reader for, and a severity mapping on a format
 // it does not apply to. The mapping names a SARIF result property, and a tool's own JSON is rated as
-// Draugr's run of the tool rates it, so a mapping there would be ignored without a word.
+// Draugr's run of the tool rates it, or by what OSV-Scanner's file states, so a mapping there would
+// be ignored without a word.
 func validateImportFormat(imp Import, at string) []error {
 	switch {
 	case imp.Format == "" || slices.Contains(ImportFormats, imp.Format):
@@ -866,6 +867,11 @@ func validateImportFormat(imp Import, at string) []error {
 		return []error{lowercaseOnly(at+".format", imp.Format)}
 	default:
 		return []error{fmt.Errorf("%s.format %q is not one of %s", at, imp.Format, strings.Join(ImportFormats, ", "))}
+	}
+	if imp.Severity != nil && imp.ReadFormat() == ImportFormatOSVScannerJSON {
+		// Draugr runs no OSV-Scanner of its own, so its file is rated by what the file states.
+		return []error{fmt.Errorf("%s.severity maps a SARIF property, and an %s file is rated by the score and "+
+			"severity it states. Remove severity", at, imp.Format)}
 	}
 	if imp.Severity != nil && imp.ReadFormat() != ImportFormatSARIF {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated as Draugr's own run "+

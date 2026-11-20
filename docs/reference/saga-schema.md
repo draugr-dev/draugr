@@ -412,6 +412,8 @@ components:
 - **`trivy-json`**: what `trivy fs --format json` writes.
 - **`govulncheck-json`**: what `govulncheck -format json` writes.
 - **`grype-json`**: what `grype dir:<path> -o json` writes, for a directory scan only.
+- **`osv-scanner-json`**: what `osv-scanner scan --format json` writes, for lockfiles and SBOMs
+  only. Draugr does not run OSV-Scanner, so the file is read by the score and fix it states.
 - **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
   with `converter` declaring the converter.
 

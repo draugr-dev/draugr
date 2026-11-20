@@ -270,6 +270,7 @@ func TestAnImportedToolJSONIsHeldToTheDescriptorsCommit(t *testing.T) {
 		{saga.ImportFormatTrivyJSON, filepath.Join("testdata", "sarif-import", "trivy-fs-gomod.json")},
 		{saga.ImportFormatGovulncheckJSON, govulncheck},
 		{saga.ImportFormatGrypeJSON, grypeLodash},
+		{saga.ImportFormatOSVScannerJSON, osvLodash},
 	} {
 		for _, c := range []struct {
 			name   string
@@ -381,6 +382,7 @@ func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
 		{"not JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, "{not json", "not govulncheck JSON"},
 		{"Trivy JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, `{"SchemaVersion":2,"Results":[]}`, "not govulncheck JSON"},
 		{"SARIF as Grype JSON", saga.ImportFormatGrypeJSON, sarifLog, "not Grype JSON. Write it with grype dir:. -o json"},
+		{"SARIF as OSV-Scanner JSON", saga.ImportFormatOSVScannerJSON, sarifLog, "not OSV-Scanner JSON. Write it with osv-scanner scan --format json"},
 		{"an unknown format", "sarif-2.0", sarifLog, "format sarif-2.0 is not one Draugr reads. draugr validate lists them"},
 		{"no converter declared", saga.ImportFormatConverter, sarifLog, "declares no converter. Add converter to the import"},
 	} {
@@ -434,6 +436,7 @@ func TestDescribeImportReadsEachFormat(t *testing.T) {
 		{saga.ImportFormatTrivyJSON, importTestdata(t, "trivy-fs-gomod.json"), "Trivy JSON, 4 findings"},
 		{saga.ImportFormatGovulncheckJSON, govulncheck, "govulncheck JSON, "},
 		{saga.ImportFormatGrypeJSON, importTestdata(t, "grype-dir-lodash.json"), "Grype JSON, 4 findings"},
+		{saga.ImportFormatOSVScannerJSON, importTestdata(t, "osv-scanner-lodash.json"), "OSV-Scanner JSON, 4 findings"},
 	} {
 		got, err := DescribeImport(c.data, c.format)
 		if err != nil || !strings.HasPrefix(got, c.want) {

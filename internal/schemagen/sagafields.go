@@ -508,11 +508,15 @@ func sagaFields() map[string]map[string]any {
 					"with each finding's module, fixed version and reachability verdict."},
 				valueDoc{"grype-json", "The JSON grype dir:<path> -o json writes, read as Draugr's grype-fs reads it, with each " +
 					"finding's package, fixed versions, package URL and the advisory ids Grype relates to it, such as its CVE."},
+				valueDoc{"osv-scanner-json", "The JSON osv-scanner scan --format json writes for lockfiles and SBOMs, with each " +
+					"finding's package, fixed version, package URL and every advisory id OSV-Scanner groups with it, such as its CVE, " +
+					"rated by the CVSS score it states."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
-				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it.",
+				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, " +
+				"or for OSV-Scanner by the score the file states.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
