@@ -50,6 +50,7 @@ Scan results render through a pluggable **Reporter**, selected on the CLI with
 | `junit` | JUnit XML, surfaces findings in CI test panels (GitLab, Jenkins, Azure DevOps…) |
 | `json` | machine-readable report |
 | `sarif` | SARIF 2.1.0 for code-scanning dashboards |
+| `code-scanning` | the `sarif` report as GitHub code scanning accepts it, written as `code-scanning.sarif` for an `upload-sarif` step. A finding with no file in the repository, such as an image's, has no location. See [code scanning](code-scanning.md#findings-with-no-file) |
 | `vex` | [OpenVEX](vex.md), which of these vulnerabilities actually affect your product, for the people who consume your SBOM |
 | `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report. Written as a build artifact, not uploaded. GitLab has no endpoint. See [below](#gitlabs-own-report-formats) |
 | `gitlab-dependency-scanning` | the same, for vulnerable dependencies, each with the package and version GitLab requires |

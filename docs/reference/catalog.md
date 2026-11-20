@@ -114,6 +114,7 @@ Scan results render in any of these formats, selected with `draugr scan --format
 | `junit` | One failed test per finding, or per new finding that met a gate on new findings, and one test in error per control with a scan error, for a CI test panel. |
 | `json` | The whole run as one document, for a platform or a script. |
 | `sarif` | SARIF 2.1.0, which code scanning and editors read. |
+| `code-scanning` | The sarif report as GitHub code scanning accepts it, for an upload-sarif step: a finding with no file, such as an image's, has no location. |
 | `vex` | An OpenVEX document saying which vulnerabilities apply to this product. |
 | `gitlab-sast` | GitLab's own security schema, for its Vulnerability Report. A build artifact rather than an upload. |
 | `gitlab-dependency-scanning` | The same, for vulnerable dependencies. |

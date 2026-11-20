@@ -13,8 +13,10 @@ import (
 // stubDraugr stands in for the binary the Action downloads. It records each diff it is asked for,
 // fails a diff when STUB_GATE_TRIPS is set, or when it is asked to publish and STUB_PUBLISH_FAILS is,
 // refuses to scan a descriptor that is not there, and to validate or scan one that sets acceptedBy,
-// as the real one does, and advertises a diff of the head alone unless STUB_OLD is set. Each commit
-// it scans goes to STUB_SCANS when that is set, so a test can read which base was scanned. Its help
+// as the real one does, and advertises a diff of the head alone unless STUB_OLD is set, and the
+// code-scanning report unless STUB_NO_CODE_SCANNING is. Each commit it scans goes to STUB_SCANS, and
+// the arguments of each scan to STUB_SCAN_ARGS, when those are set, so a test can read which base was
+// scanned and what was asked of it. Its help
 // runs past a pipe buffer, so a feature check that closes the pipe early fails here every time
 // rather than now and then.
 const stubDraugr = `#!/usr/bin/env bash
@@ -33,6 +35,11 @@ case "$1" in
       echo "draugr: parse saga: config.exclude.acceptedBy was removed: delete the line" >&2; exit 1
     fi ;;
   scan)
+    if [ "$2" = "--help" ]; then
+      [ -n "$STUB_NO_CODE_SCANNING" ] || echo "  --report strings   formats to write into -o (code-scanning, console, json, sarif); default json,sarif"
+      exit 0
+    fi
+    [ -z "$STUB_SCAN_ARGS" ] || echo "${*:2}" >> "$STUB_SCAN_ARGS"
     saga="$2"; shift 2; out=""
     while [ $# -gt 0 ]; do [ "$1" = "-o" ] && out="$2"; shift; done
     [ -e "$saga" ] || { echo "no descriptor at $saga" >&2; exit 1; }

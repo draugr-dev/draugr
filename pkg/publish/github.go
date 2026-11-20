@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // githubPublisher uploads the SARIF report to GitHub code scanning (the Security → Code
@@ -80,25 +82,38 @@ func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 func (githubPublisher) Kind() string { return "github" }
 
 func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifact) error {
-	var sarif []byte
+	var doc []byte
 	for _, a := range artifacts {
 		if a.Format == "sarif" {
-			sarif = a.Bytes
+			doc = a.Bytes
 			break
 		}
 	}
-	if sarif == nil {
+	if doc == nil {
 		return fmt.Errorf("github publisher requires a 'sarif' report")
 	}
 	// What is uploaded, and what the dismissal pass reads, is the report less the copies of flaws
 	// another scanner's finding is counted under. The artifact itself is left as rendered, because
 	// it is shared with every other destination that asked for the sarif report.
-	sarif, err := countedOnly(sarif)
+	doc, err := countedOnly(doc)
 	if err != nil {
 		return err
 	}
+	// And less the locations code scanning refuses, which would cost the whole upload: an image's
+	// reference, a host's URL. The findings stay in the upload without them.
+	doc, unplaced, err := sarif.ForCodeScanning(doc)
+	if err != nil {
+		return fmt.Errorf("github code scanning: could not read the report to hold its locations to what code scanning accepts: %w", err)
+	}
+	if unplaced > 0 {
+		// Said, because GitHub documents that it displays no result without a location, so these are in
+		// the upload and not in the Security tab.
+		slog.Info("code scanning shows no alert for a finding with no file in the repository",
+			"findings", unplaced, "examples", "an image's, a host's",
+			"where", "results.sarif and report.json list them")
+	}
 
-	encoded, err := gzipBase64(sarif)
+	encoded, err := gzipBase64(doc)
 	if err != nil {
 		return err
 	}
@@ -136,7 +151,7 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&accepted); err != nil || accepted.ID == "" {
 		return fmt.Errorf("github code scanning accepted the upload and returned no upload id, so no accepted finding's alert was dismissed. Re-run the publish")
 	}
-	return g.syncSuppressions(ctx, accepted.ID, sarif)
+	return g.syncSuppressions(ctx, accepted.ID, doc)
 }
 
 // countedOnly returns a SARIF document holding one result per counted finding: the results whose

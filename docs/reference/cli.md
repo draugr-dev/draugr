@@ -624,7 +624,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 |------|---------|-------------|
 | `--format` | `console` | What to print: `console`, `markdown`, `json`, `sarif`, `vex`, `template` |
 | `-o, --output` | - | Directory to write reports into: `report.json` and `results.sarif` unless `--report` says otherwise, and one SBOM per target when [`config.sbom`](saga-schema.md#sbom-generation) is set |
-| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `evidence`, `html`, `json`, `junit`, `markdown`, `sarif`, `vex`, and the `gitlab-*` reports. Replaces the default rather than adding to it. See [below](#--format-prints---report-writes) |
+| `--report` | `json,sarif` | Formats to write into `-o`: `console`, `evidence`, `html`, `json`, `junit`, `markdown`, `sarif`, `code-scanning` (the `sarif` report as GitHub code scanning accepts it), `vex`, and the `gitlab-*` reports. Replaces the default rather than adding to it. See [below](#--format-prints---report-writes) |
 | `--view` | `findings` | What the report shows: `findings`, `actions` or `compact` |
 | `--group` | - | Deprecated. `--group action` is `--view actions`, `--group none` is `--view findings` |
 | `--evidence` | `false` | Console: also print what stands behind the verdict: tool provenance, what each control measured against, the scanned revision, and what the run cost. `--report evidence` writes the same content to a file |

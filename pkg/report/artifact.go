@@ -38,6 +38,9 @@ var formatMeta = map[string]struct{ filename, contentType string }{
 	"gitlab-codequality":         {"gl-code-quality-report.json", "application/json"},
 	// gl-sbom-* is the pattern GitLab's own analyzers write and its docs glob for.
 	"gitlab-cyclonedx": {"gl-sbom-draugr.cdx.json", "application/vnd.cyclonedx+json"},
+
+	// Its own name, so a workflow uploading it cannot pick up results.sarif by mistake.
+	CodeScanningFormat: {"code-scanning.sarif", "application/sarif+json"},
 }
 
 // Filename is what a format is written as, whether a publisher delivers it or `-o` writes it.

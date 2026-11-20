@@ -3399,6 +3399,10 @@
         "format": {
           "anyOf": [
             {
+              "const": "code-scanning",
+              "description": "The sarif report as GitHub code scanning accepts it, for an upload-sarif step: a finding with no file, such as an image's, has no location."
+            },
+            {
               "const": "console",
               "description": "The terminal report, for a run somebody is watching."
             },

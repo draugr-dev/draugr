@@ -178,7 +178,8 @@ A narrowed SARIF records the band inside itself, so nothing reading it later mis
 complete scan. The complete report is still written to `output`, and `outputs.report` still names
 it, only `outputs.sarif` follows the setting.
 
-Outputs: **`sarif`** (path to the SARIF to upload, the new-findings one in diff mode) and
+Outputs: **`sarif`** (path to the SARIF to upload: the new-findings one in diff mode, otherwise
+`code-scanning.sarif`, the complete scan in the form code scanning accepts) and
 **`report`** (path to `report.json`, always complete). Both point inside `output` and are written
 on pull requests too, so an `if: always()` upload step finds them whichever mode the action ran in.
 
@@ -227,12 +228,16 @@ run it directly. The exit code is the gate:
 
 ```yaml
 - name: Draugr scan
-  run: draugr scan draugr.saga.yaml -o draugr-out
+  run: draugr scan draugr.saga.yaml -o draugr-out --report json,sarif,code-scanning
 - name: Upload SARIF to code scanning
   if: always()
   uses: github/codeql-action/upload-sarif@v3
   with:
-    sarif_file: draugr-out/results.sarif
+    sarif_file: draugr-out/code-scanning.sarif
 ```
+
+Upload `code-scanning.sarif` rather than `results.sarif`: code scanning refuses a whole upload over a
+finding located on an image or a host, and this file leaves those findings without a location. See
+[findings with no file](code-scanning.md#findings-with-no-file).
 
 See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every `scan` flag.

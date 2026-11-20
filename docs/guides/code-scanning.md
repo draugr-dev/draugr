@@ -118,6 +118,39 @@ as the finding the gate counts, so it is one alert, and that result's `correlati
 property names the other scanner and what it called the flaw, while `results.sarif` keeps both
 scanners' results.
 
+### Findings with no file
+
+A finding on a container image, a host or a cluster is about something that is not a file in the
+repository, and Draugr locates it by the thing itself: `python:3.8-slim`, `https://shop.example.com/`.
+Code scanning reads every location as a file, refuses a URI with a scheme it does not know, and reads
+`python:3.8-slim` as one with the scheme `python`. One such location costs the whole upload, the
+findings on files included.
+
+So what goes to code scanning holds every location to a path in the repository or a `file:` URI:
+
+- The publisher uploads such a finding with no location. Its rule, message and priority go up with
+  it, the image reference stays in the result's `image` property, and any other reference moves to
+  `draugr/location`.
+- The publish says how many findings went up that way. GitHub's
+  [SARIF documentation](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/sarif-support-for-code-scanning)
+  says code scanning needs a location to display a result, so these findings are not in the Security
+  tab. `report.json`, `results.sarif` and the console list them.
+- `results.sarif` keeps the reference as the finding's location, because `draugr diff` and
+  `draugr explain` read a finding's identity from it.
+
+To upload with `github/codeql-action/upload-sarif` instead of the publisher, upload
+`code-scanning.sarif`, which `--report code-scanning` writes beside `results.sarif`:
+
+```bash
+draugr scan draugr.saga.yaml -o draugr-out --report json,sarif,code-scanning
+```
+
+The [GitHub Action](github-action.md) asks for it, and its `sarif` output names it. `draugr diff
+--format sarif`, the new findings the Action uploads on a pull request, takes the same form.
+
+A rejected upload fails the publish, and the Action prints it as an error annotation on the run, so
+a workflow that lets the scan step continue on error still shows it.
+
 ### Caveats
 
 The uploaded file carries the run's caveats and scan errors as SARIF

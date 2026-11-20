@@ -970,6 +970,15 @@ func writeArtifacts(dir string, formats []string, data report.Data, release saga
 			}); err != nil {
 				return err
 			}
+		case report.CodeScanningFormat:
+			// The same document, narrowed the same way, in the form code scanning accepts.
+			if err := writeTo(filepath.Join(dir, name), func(w io.Writer) error {
+				return report.WriteCodeScanning(w, func(w io.Writer) error {
+					return skald.WriteSARIFNarrowed(w, report.FilterByPriority(run, declared), declared, data.SARIFOptions())
+				})
+			}); err != nil {
+				return err
+			}
 		default:
 			r, err := report.For(format)
 			if err != nil {
