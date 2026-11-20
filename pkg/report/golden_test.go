@@ -113,6 +113,7 @@ func goldenPastesSteps() string {
 		"     pasted, and pinned by TestEveryPasteOfTheConsoleIsTracked:\n" +
 		"       docs/concepts/verdict-and-gating.md,\n" +
 		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
+		"       docs/getting-started/tutorial.md,\n" +
 		"       docs/guides/importing-sarif.md, docs/guides/monorepos.md,\n" +
 		"       docs/reference/cli.md,\n" +
 		"       internal/controllers/iac.md, internal/controllers/cloud.md,\n" +
@@ -522,6 +523,7 @@ var pastesConsoleOutput = map[string]bool{
 	"docs/concepts/verdict-and-gating.md": true,
 	"docs/getting-started/first-saga.md":  true,
 	"docs/getting-started/quickstart.md":  true,
+	"docs/getting-started/tutorial.md":    true,
 	"docs/guides/importing-sarif.md":      true,
 	"docs/guides/monorepos.md":            true,
 	"docs/guides/provenance.md":           true,
