@@ -1265,7 +1265,7 @@ CHANGED  4, by priority
 | `--repository` | - | Keep only new findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` | - | Fail if a new finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate). Without either, the diff exits 0 |
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
-| `--saga` | - | The descriptor, or a directory holding one, whose `config.gate.failOnNew` applies when `--fail-on-new` is not passed. Without it, the descriptor in the working directory |
+| `--saga` | - | The descriptor, or a directory holding one, whose `config.gate.failOnNew` applies when `--fail-on-new` is not passed, and on whose `image:` lines `--format sarif` places new findings on an image. Without it, the descriptor in the working directory |
 | `--publish` | `false` | Post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
 `--view` and `--top` have counterparts in [`draugr.config.yaml`](#draugr-config), `output.view` and

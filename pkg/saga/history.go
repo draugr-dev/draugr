@@ -2,6 +2,7 @@ package saga
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
@@ -72,6 +73,46 @@ func stampExcludeLines(root *yaml.Node, rules []ExcludeRule) {
 	for i, item := range exclude.Content {
 		item = resolveAlias(item)
 		rules[i].Line = item.Line
+	}
+}
+
+// stampImageLines records the line each component's `image:` key is on, read from the parsed
+// document the components were decoded from, for the same reason stampExcludeLines reads it there.
+//
+// A component or an image list the tree does not hold entry for entry, such as one a YAML merge key
+// supplied, is left without lines rather than given another entry's.
+func stampImageLines(root *yaml.Node, comps []Component) {
+	doc := root
+	if doc != nil && doc.Kind == yaml.DocumentNode && len(doc.Content) > 0 {
+		doc = doc.Content[0]
+	}
+	list := resolveAlias(mappingValue(resolveAlias(doc), "components"))
+	if list == nil || list.Kind != yaml.SequenceNode || len(list.Content) != len(comps) {
+		return
+	}
+	for ci := range comps {
+		comp := &comps[ci]
+		images := resolveAlias(mappingValue(resolveAlias(list.Content[ci]), "images"))
+		if images == nil || images.Kind != yaml.SequenceNode || len(images.Content) != len(comp.Images) {
+			continue
+		}
+		for ii := range comp.Images {
+			if key := mappingKey(resolveAlias(images.Content[ii]), "image"); key != nil {
+				comp.Images[ii].Line = key.Line
+			}
+		}
+	}
+}
+
+// stampImageFiles records the file each component's images were declared in.
+func stampImageFiles(comps []Component, file string) {
+	if abs, err := filepath.Abs(file); err == nil {
+		file = abs
+	}
+	for ci := range comps {
+		for ii := range comps[ci].Images {
+			comps[ci].Images[ii].File = file
+		}
 	}
 }
 

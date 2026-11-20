@@ -569,6 +569,12 @@ runs:
             # above deliberately run complete whatever this is set to.
             new_args=("${base_report[@]}" "$head_out/results.sarif" --format sarif)
             [ -n "$INPUT_CODE_SCANNING_MIN_PRIORITY" ] && new_args+=(--min-priority "$INPUT_CODE_SCANNING_MIN_PRIORITY")
+            # The descriptor the head was scanned with, as the diff above is given it: a new finding
+            # on an image goes on the line of it that declares the image, which code scanning can
+            # show, and the gate this diff applies is the one above. Asked for, as there.
+            if printf '%s' "$diff_help" | grep -- '--saga' >/dev/null; then
+              new_args+=(--saga "$INPUT_SAGA")
+            fi
             # Only what this repository's checkout can anchor. A Saga may describe several
             # repositories, its own components, or ones a `fragments:` entry contributes from
             # another project, and their paths are relative to themselves. Uploaded here, a

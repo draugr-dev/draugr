@@ -288,6 +288,68 @@ func TestUploadedResultsKeepAPlaceOpenIfAnyResultIsOpen(t *testing.T) {
 	}
 }
 
+// Findings of one rule in one image share the line that declares the image. Where code scanning lists
+// an alert for each, the accepted one is dismissed and the other left open, told apart by the message
+// that names its package. Where it lists one alert at the line, that alert may stand for both, and it
+// stays open while either is.
+func TestGithubPublisherTellsApartFindingsOnOneImageLine(t *testing.T) {
+	const accepted, open = "libssl3 3.0.11: openssl flaw", "openssl 3.0.11: openssl flaw"
+	inPackage := func(message string, s *sarif.Suppression) sarif.Result {
+		return sarif.Result{RuleID: "CVE-2024-0001", Level: sarif.LevelError, Priority: "P2", Tool: "trivy",
+			Control: "images", Component: "api", Message: message, Location: sarif.Location{URI: "debian:11"},
+			Image: "debian:11", Suppression: s}
+	}
+	data := report.Data{Release: saga.Release{Version: "1.0"}, Verdict: norn.Result{Verdict: norn.Fail},
+		Run: engine.Result{Controls: map[string]plugin.ControlResult{
+			"images": {Control: "images", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+				inPackage(accepted, &sarif.Suppression{Kind: "external", Justification: "not in the shipped path"}),
+				inPackage(open, nil),
+			}}},
+		}},
+		Declared: sarif.Declarations{{Component: "api", Ref: "debian:11"}: {Path: "draugr.saga.yaml", Line: 14}},
+	}
+	withMessage := func(n int, message string) codeScanningAlert {
+		a := alert(n, "open", "CVE-2024-0001", "draugr.saga.yaml", 14, "")
+		a.Instance.Message.Text = message
+		return a
+	}
+	publish := func(t *testing.T, fake *fakeCodeScanning) {
+		t.Helper()
+		srv := httptest.NewServer(fake)
+		t.Cleanup(srv.Close)
+		ghEnv(t, srv.URL)
+		p, err := For(saga.PublisherConfig{Kind: "github"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		g := p.(githubPublisher)
+		g.processingPoll, g.processingWait = time.Millisecond, time.Second
+		art, err := report.Build(saga.ReportConfig{Format: "sarif"}, data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := g.PublishRun(context.Background(), data, []report.Artifact{art}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("an alert each", func(t *testing.T) {
+		fake := &fakeCodeScanning{t: t, open: []codeScanningAlert{withMessage(1, accepted), withMessage(2, open)}}
+		publish(t, fake)
+		if len(fake.patches) != 1 || fake.patches[1]["state"] != "dismissed" ||
+			fake.patches[1]["dismissed_comment"] != "Accepted in Draugr: not in the shipped path" {
+			t.Errorf("patched %v, want alert 1 dismissed alone", fake.patches)
+		}
+	})
+	t.Run("one alert for both", func(t *testing.T) {
+		fake := &fakeCodeScanning{t: t, open: []codeScanningAlert{withMessage(1, accepted)}}
+		publish(t, fake)
+		if len(fake.patches) != 0 {
+			t.Errorf("patched %v, want the one alert left open while a finding it may stand for is", fake.patches)
+		}
+	})
+}
+
 // A run canceled while GitHub is still processing stops waiting.
 func TestAwaitProcessingStopsWhenCanceled(t *testing.T) {
 	fake := &fakeCodeScanning{t: t, statuses: []string{"pending"}}

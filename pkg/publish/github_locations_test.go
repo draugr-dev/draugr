@@ -80,6 +80,46 @@ func TestGithubPublisherUploadsNoLocationCodeScanningRefuses(t *testing.T) {
 	}
 }
 
+// A run that knows where its images are declared uploads a finding on one on that line, so code
+// scanning can show it, and still uploads no location code scanning refuses. A finding on an image the
+// run does not know a line for, and the host's, go up with none.
+func TestGithubPublisherPlacesAnImageFindingOnItsDeclaration(t *testing.T) {
+	var logs bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	fake := &fakeCodeScanning{t: t}
+	ghEnv(t, startFake(t, fake))
+	finding := func(control, image, uri string) sarif.Result {
+		return sarif.Result{RuleID: "R-" + uri, Level: sarif.LevelError, Priority: "P2", Tool: "trivy",
+			Control: control, Component: "api", Message: "m", Location: sarif.Location{URI: uri}, Image: image}
+	}
+	run := engine.Result{Controls: map[string]plugin.ControlResult{
+		"images": {Control: "images", Report: sarif.Report{Tool: "trivy", Results: []sarif.Result{
+			finding("images", "debian:11", "debian:11"),
+			finding("images", "nginx:1.25", "nginx:1.25"),
+		}}},
+		"tls": {Control: "tls", Report: sarif.Report{Tool: "testssl", Results: []sarif.Result{
+			finding("tls", "", "https://example.com/login"),
+		}}},
+	}}
+	data := report.Data{Release: saga.Release{Version: "1.0"}, Run: run, Verdict: norn.Result{Verdict: norn.Fail},
+		Declared: sarif.Declarations{{Component: "api", Ref: "debian:11"}: {Path: "deploy/draugr.saga.yaml", Line: 14}}}
+	if err := Run(context.Background(), []saga.PublisherConfig{{Kind: "github"}}, data); err != nil {
+		t.Fatal(err)
+	}
+	if refused, _ := sarif.CodeScanningRefuses(fake.uploaded); len(refused) > 0 {
+		t.Errorf("the upload carries locations code scanning refuses: %q", refused)
+	}
+	if !strings.Contains(string(fake.uploaded), `"artifactLocation":{"uri":"deploy/draugr.saga.yaml","uriBaseId":"%SRCROOT%"},"region":{"startLine":14}`) {
+		t.Errorf("the finding on debian:11 is not on its declaration:\n%s", fake.uploaded)
+	}
+	if !strings.Contains(logs.String(), "findings=2") {
+		t.Errorf("the publish should count the undeclared image's finding and the host's:\n%s", logs.String())
+	}
+}
+
 // The copy refuses a report it cannot read rather than uploading it unchanged.
 func TestGithubPublisherRefusesAReportItCannotHold(t *testing.T) {
 	fake := &fakeCodeScanning{t: t}

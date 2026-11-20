@@ -103,6 +103,9 @@ alert itself once GitHub has processed the upload.
 - An alert Draugr dismissed is reopened when its finding is no longer accepted, such as when an
   exclusion expires.
 - An alert a person dismissed stays as they left it.
+- Findings of one rule on one line, such as a vulnerability in two packages of one image, are told
+  apart by their message, which names the package. An alert that may stand for more than one of them
+  stays open until every one is accepted.
 - The publish waits up to five minutes for GitHub to process the upload. Past that, or when GitHub
   refuses a dismissal, the publish fails and names what was not updated. Re-run it once the token
   has `security-events: write` or GitHub has finished processing.
@@ -128,15 +131,30 @@ findings on files included.
 
 So what goes to code scanning holds every location to a path in the repository or a `file:` URI:
 
-- The publisher uploads such a finding with no location. Its rule, message and priority go up with
-  it, the image reference stays in the result's `image` property, and any other reference moves to
-  `draugr/location`.
-- The publish says how many findings went up that way. GitHub's
+- A finding on an image appears on the line that declares the image: the `image:` line in the
+  descriptor, or in the fragment that declares it. That is the line you change to move to a newer
+  image. The image reference stays in the result's `image` property.
+- Any other such finding goes up with no location. Its rule, message and priority go up with it, and
+  its reference moves to `draugr/location`. So does a finding on an image no file in the repository
+  declares: one a survey found, one a fragment from another repository declares, or one in a
+  descriptor outside the repository Draugr runs in.
+- The publish says how many findings went up with no location. GitHub's
   [SARIF documentation](https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/sarif-support-for-code-scanning)
   says code scanning needs a location to display a result, so these findings are not in the Security
   tab. `report.json`, `results.sarif` and the console list them.
-- `results.sarif` keeps the reference as the finding's location, because `draugr diff` and
+- `results.sarif` keeps the image reference as the finding's location, because `draugr diff` and
   `draugr explain` read a finding's identity from it.
+
+For example, with this descriptor at the root of the repository:
+
+```yaml
+components:
+  - name: api
+    images:
+      - image: python:3.8-slim
+```
+
+a vulnerable package in `python:3.8-slim` is an alert on `draugr.saga.yaml`, line 4.
 
 To upload with `github/codeql-action/upload-sarif` instead of the publisher, upload
 `code-scanning.sarif`, which `--report code-scanning` writes beside `results.sarif`:
@@ -146,7 +164,9 @@ draugr scan draugr.saga.yaml -o draugr-out --report json,sarif,code-scanning
 ```
 
 The [GitHub Action](github-action.md) asks for it, and its `sarif` output names it. `draugr diff
---format sarif`, the new findings the Action uploads on a pull request, takes the same form.
+--format sarif`, the new findings the Action uploads on a pull request, takes the same form, and
+places a new finding on an image on a line of the descriptor `--saga` names, or of the one in the
+working directory.
 
 A rejected upload fails the publish, and the Action prints it as an error annotation on the run, so
 a workflow that lets the scan step continue on error still shows it.

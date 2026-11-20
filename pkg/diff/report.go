@@ -29,7 +29,7 @@ func Render(w io.Writer, format string, r Result, opts Options) error {
 	case "json":
 		return renderJSON(w, r.Counted())
 	case "sarif":
-		return renderSARIF(w, r)
+		return renderSARIF(w, r, opts.Declared)
 	default:
 		return fmt.Errorf("unknown diff format %q (available: %v)", format, Formats())
 	}
@@ -45,7 +45,7 @@ func Render(w io.Writer, format string, r Result, opts Options) error {
 // Fixed and unchanged are deliberately absent rather than empty. A fixed finding is no longer
 // there to annotate, and an unchanged one is the pre-existing noise this exists to remove; a
 // consumer wanting the whole picture has the head scan's own report.
-func renderSARIF(w io.Writer, r Result) error {
+func renderSARIF(w io.Writer, r Result, declared sarif.Declarations) error {
 	// With the rules those findings cite. Without them a code-scanning alert arrives as a bare
 	// identifier: no description, and whatever link can be guessed from the id's shape rather than
 	// the advisory the scanner actually named.
@@ -62,8 +62,9 @@ func renderSARIF(w io.Writer, r Result) error {
 	}
 	// In the form code scanning accepts, since that is where this goes: code scanning refuses a whole
 	// upload over one location it cannot parse, and a new finding on an image carries the image's
-	// reference as its location. The head scan's results.sarif keeps it.
-	data, _, err = sarif.ForCodeScanning(data)
+	// reference as its location. The head scan's results.sarif keeps it. A new finding on an image the
+	// head's descriptor declares goes on the line that declares it.
+	data, _, err = sarif.ForCodeScanning(data, declared)
 	if err != nil {
 		return err
 	}
@@ -92,6 +93,9 @@ type Options struct {
 	// a diff is already narrowed to what one change did, and hiding part of that removes the thing
 	// the command exists to show. The flag is for the dependency bump that introduces forty.
 	Top int
+	// Declared is where the head's descriptor declares each image, for the sarif format, which places
+	// a new finding on an image on that line. Nil leaves such a finding with no location.
+	Declared sarif.Declarations
 	// upgradeTargets names the release an upgrade action moves to. Set where a scan draws its change,
 	// whose actions then name the release that scan's own fix list names.
 	upgradeTargets bool

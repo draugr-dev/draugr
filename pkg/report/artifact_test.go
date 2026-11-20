@@ -67,10 +67,10 @@ func TestBuildCodeScanningHoldsLocationsToWhatCodeScanningAccepts(t *testing.T) 
 
 func TestWriteCodeScanningPassesOnAFailedRender(t *testing.T) {
 	var b strings.Builder
-	if err := WriteCodeScanning(&b, func(io.Writer) error { return io.ErrUnexpectedEOF }); err != io.ErrUnexpectedEOF {
+	if err := WriteCodeScanning(&b, nil, func(io.Writer) error { return io.ErrUnexpectedEOF }); err != io.ErrUnexpectedEOF {
 		t.Errorf("err = %v, want the render's", err)
 	}
-	if err := WriteCodeScanning(&b, func(w io.Writer) error { _, err := w.Write([]byte("{")); return err }); err == nil {
+	if err := WriteCodeScanning(&b, nil, func(w io.Writer) error { _, err := w.Write([]byte("{")); return err }); err == nil {
 		t.Error("a render that is not SARIF was written")
 	}
 }

@@ -81,7 +81,19 @@ func newGithubPublisher(cfg saga.PublisherConfig) (Publisher, error) {
 
 func (githubPublisher) Kind() string { return "github" }
 
+// PublishRun is Publish, with a finding on an image placed on the line of the descriptor that
+// declares the image, which the run knows and the rendered report does not carry.
+func (g githubPublisher) PublishRun(ctx context.Context, data report.Data, artifacts []report.Artifact) error {
+	return g.publish(ctx, artifacts, data.Declared)
+}
+
+// Publish uploads the sarif report with a finding on an image left with no location, since without
+// the run there is nothing to say where the image is declared.
 func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifact) error {
+	return g.publish(ctx, artifacts, nil)
+}
+
+func (g githubPublisher) publish(ctx context.Context, artifacts []report.Artifact, declared sarif.Declarations) error {
 	var doc []byte
 	for _, a := range artifacts {
 		if a.Format == "sarif" {
@@ -100,8 +112,9 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 		return err
 	}
 	// And less the locations code scanning refuses, which would cost the whole upload: an image's
-	// reference, a host's URL. The findings stay in the upload without them.
-	doc, unplaced, err := sarif.ForCodeScanning(doc)
+	// reference, a host's URL. The findings stay in the upload without them, and a finding on an image
+	// the descriptor declares goes on the line that declares it.
+	doc, unplaced, err := sarif.ForCodeScanning(doc, declared)
 	if err != nil {
 		return fmt.Errorf("github code scanning: could not read the report to hold its locations to what code scanning accepts: %w", err)
 	}
@@ -109,7 +122,7 @@ func (g githubPublisher) Publish(ctx context.Context, artifacts []report.Artifac
 		// Said, because GitHub documents that it displays no result without a location, so these are in
 		// the upload and not in the Security tab.
 		slog.Info("code scanning shows no alert for a finding with no file in the repository",
-			"findings", unplaced, "examples", "an image's, a host's",
+			"findings", unplaced, "examples", "a host's, or an image's that no file in this repository declares",
 			"where", "results.sarif and report.json list them")
 	}
 

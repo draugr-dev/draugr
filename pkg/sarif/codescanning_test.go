@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -59,7 +60,7 @@ func TestTheCodeScanningCopyCarriesNoLocationCodeScanningRefuses(t *testing.T) {
 		t.Fatalf("the report refuses %q; the fixture no longer holds the reference code scanning refuses", before)
 	}
 
-	out, unplaced, err := ForCodeScanning(doc)
+	out, unplaced, err := ForCodeScanning(doc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,6 +177,134 @@ func TestTheCodeScanningCopyCarriesNoLocationCodeScanningRefuses(t *testing.T) {
 	}
 }
 
+// A finding on an image goes to code scanning on the line that declares the image, in the component
+// that declares it, matched by the reference the finding carries. One the declarations do not name,
+// or name on a line code scanning cannot take, keeps no location.
+func TestACodeScanningCopyPlacesAnImageFindingOnItsDeclaration(t *testing.T) {
+	pinned := "ghcr.io/acme/api:1.2@sha256:" + strings.Repeat("a", 64)
+	img := func(component, ref string) Result {
+		return Result{Tool: "trivy", RuleID: "CVE-2024-0001", Level: LevelError, Message: "openssl",
+			Control: "images", Component: component, Location: Location{URI: ref}, Image: ref}
+	}
+	rep := Report{Tool: "draugr", Results: []Result{
+		img("api", "python:3.8-slim"),
+		img("api", pinned),
+		// Declared, but by another component.
+		img("worker", "python:3.8-slim"),
+		// Found by a survey, so declared nowhere.
+		img("api", "nginx:1.25"),
+		// Declared on a line code scanning could not take.
+		img("api", "redis:7"),
+		// A signature check names the image as its location and carries no image property.
+		{Tool: "cosign", RuleID: "unsigned", Level: LevelError, Message: "not signed", Control: "provenance",
+			Component: "api", Location: Location{URI: "python:3.8-slim"}},
+		// A finding on a file stays on its file.
+		{Tool: "semgrep", RuleID: "go.sqli", Level: LevelError, Message: "SQL built from input",
+			Control: "sast", Component: "api", Location: Location{URI: "src/app.go", StartLine: 3}},
+	}}
+	declared := Declarations{
+		{Component: "api", Ref: "python:3.8-slim"}: {Path: "draugr.saga.yaml", Line: 14},
+		{Component: "api", Ref: pinned}:            {Path: "saga/api.saga.yaml", Line: 6},
+		{Component: "worker", Ref: "alpine:3"}:     {Path: "draugr.saga.yaml", Line: 30},
+		{Component: "api", Ref: "redis:7"}:         {Path: "C:/saga.yaml", Line: 2},
+	}
+	doc, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, unplaced, err := ForCodeScanning(doc, declared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused, _ := CodeScanningRefuses(out); len(refused) > 0 {
+		t.Errorf("refused: %q", refused)
+	}
+	if unplaced != 3 {
+		t.Errorf("unplaced = %d, want 3: the other component's, the survey's and the one on a path code scanning refuses", unplaced)
+	}
+	var got sarifLog
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"draugr.saga.yaml:14", "saga/api.saga.yaml:6", "", "", "", "draugr.saga.yaml:14", "src/app.go:3"}
+	for i, r := range got.Runs[0].Results {
+		at := ""
+		if len(r.Locations) > 0 {
+			p := r.Locations[0].PhysicalLocation
+			if p.ArtifactLocation.URIBaseID != uriBaseID {
+				t.Errorf("result %d: base %q, want %s", i, p.ArtifactLocation.URIBaseID, uriBaseID)
+			}
+			at = p.ArtifactLocation.URI
+			if p.Region != nil {
+				at += ":" + strconv.Itoa(p.Region.StartLine)
+			}
+		}
+		if at != want[i] {
+			t.Errorf("result %d (%s %s): placed at %q, want %q", i, rep.Results[i].Component, rep.Results[i].Location.URI, at, want[i])
+		}
+		if src := rep.Results[i]; src.Image != "" && (r.Properties == nil || r.Properties.Image != src.Image) {
+			t.Errorf("result %d: the image reference is not kept in the result's properties", i)
+		}
+	}
+	// The signature finding keeps the reference it was located by where a reader of the copy finds it.
+	if !strings.Contains(string(out), `"draugr/location":"python:3.8-slim"`) {
+		t.Errorf("the signature finding's reference is not kept:\n%s", out)
+	}
+	if _, ok := got.Runs[0].OriginalURIBaseIDs[uriBaseID]; !ok {
+		t.Error("the copy declares no %SRCROOT% for the lines it placed")
+	}
+}
+
+// Two findings of one rule in one image, in two of its packages, share the line that declares the
+// image, and go to code scanning with different partial fingerprints, each the finding's own identity,
+// so they stay two alerts. A result that already carries fingerprints keeps them.
+func TestPlacedImageFindingsKeepTheirOwnFingerprints(t *testing.T) {
+	inPackage := func(name, version string) Result {
+		return Result{Tool: "trivy", RuleID: "CVE-2024-0001", Level: LevelError, Control: "images", Component: "api",
+			Message: name + " " + version + ": openssl flaw", Location: Location{URI: "debian:11"}, Image: "debian:11",
+			Package: &Package{Name: name, Version: version}}
+	}
+	given := inPackage("libssl3", "3.0.11")
+	given.PartialFingerprints = map[string]string{"scannerHash/v1": "abc"}
+	rep := Report{Tool: "draugr", Results: []Result{inPackage("openssl", "3.0.11"), inPackage("libssl3", "3.0.11"), given}}
+	doc, err := rep.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared := Declarations{{Component: "api", Ref: "debian:11"}: {Path: "draugr.saga.yaml", Line: 14}}
+	out, _, err := ForCodeScanning(doc, declared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got sarifLog
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	results := got.Runs[0].Results
+	for i, r := range results[:2] {
+		if len(r.Locations) == 0 || r.Locations[0].PhysicalLocation.ArtifactLocation.URI != "draugr.saga.yaml" {
+			t.Fatalf("result %d is not on the declaration: %+v", i, r.Locations)
+		}
+		if want := rep.Results[i].Fingerprint(); r.PartialFingerprints[FindingHashKey] != want || len(r.PartialFingerprints) != 1 {
+			t.Errorf("result %d: partialFingerprints = %v, want %s: %s alone", i, r.PartialFingerprints, FindingHashKey, want)
+		}
+	}
+	if results[0].PartialFingerprints[FindingHashKey] == results[1].PartialFingerprints[FindingHashKey] {
+		t.Error("two packages' findings share a fingerprint on one line")
+	}
+	if fp := results[2].PartialFingerprints; len(fp) != 1 || fp["scannerHash/v1"] != "abc" {
+		t.Errorf("a result's own fingerprints became %v", fp)
+	}
+	// With nothing placed, nothing is added.
+	plain, _, err := ForCodeScanning(doc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(plain), FindingHashKey) {
+		t.Errorf("an unplaced result was given %s:\n%s", FindingHashKey, plain)
+	}
+}
+
 // TestACodeScanningCopyWithNothingToChangeIsTheDocument keeps the bytes of a report whose locations
 // are all files, so the copy of such a run is the report itself.
 func TestACodeScanningCopyWithNothingToChangeIsTheDocument(t *testing.T) {
@@ -187,7 +316,7 @@ func TestACodeScanningCopyWithNothingToChangeIsTheDocument(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, unplaced, err := ForCodeScanning(doc)
+	out, unplaced, err := ForCodeScanning(doc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +330,7 @@ func TestACodeScanningCopyWithNothingToChangeIsTheDocument(t *testing.T) {
 func TestACodeScanningCopyDeclaresTheBaseItAdds(t *testing.T) {
 	doc := []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"x"}},"results":[` +
 		`{"ruleId":"r","message":{"text":"m"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"a.go"},"region":{"startLine":12345678901}}}]}]}]}`)
-	out, _, err := ForCodeScanning(doc)
+	out, _, err := ForCodeScanning(doc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,7 +353,7 @@ func TestACodeScanningCopyPassesOverWhatIsNotALocation(t *testing.T) {
 	doc := []byte(`{"version":"2.1.0","runs":[1,{"results":[1,{"ruleId":"r","locations":[1,` +
 		`{"physicalLocation":{"artifactLocation":{}}},{"physicalLocation":{"artifactLocation":{"uri":"x:y"}}}],"properties":7}],` +
 		`"invocations":[1,{"toolExecutionNotifications":[1,{"locations":[{"physicalLocation":{"artifactLocation":{"uri":"x:y"}}}]}]}]}]}`)
-	out, unplaced, err := ForCodeScanning(doc)
+	out, unplaced, err := ForCodeScanning(doc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +372,7 @@ func TestACodeScanningCopyPassesOverWhatIsNotALocation(t *testing.T) {
 }
 
 func TestACodeScanningCopyOfSomethingElseFails(t *testing.T) {
-	if _, _, err := ForCodeScanning([]byte("not json")); !errors.Is(err, ErrNotSARIF) {
+	if _, _, err := ForCodeScanning([]byte("not json"), nil); !errors.Is(err, ErrNotSARIF) {
 		t.Errorf("err = %v, want ErrNotSARIF", err)
 	}
 	if _, err := CodeScanningRefuses([]byte("not json")); !errors.Is(err, ErrNotSARIF) {

@@ -26,7 +26,7 @@ func TestTheCodeScanningCopyIsValidSARIF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, _, err := sarif.ForCodeScanning(doc)
+	out, _, err := sarif.ForCodeScanning(doc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

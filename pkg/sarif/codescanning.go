@@ -14,6 +14,25 @@ import (
 // property already holds it.
 const CodeScanningLocationKey = "draugr/location"
 
+// Declaration is a line in the scanned repository that declares what a finding is about.
+type Declaration struct {
+	// Path is the file, relative to the repository's root and slash-separated.
+	Path string
+	// Line is the line in Path, counted from 1.
+	Line int
+}
+
+// DeclaredImage names an image the way a finding on it does: the component it belongs to, and the
+// reference the finding carries, in its `image` property or as its location.
+type DeclaredImage struct {
+	Component, Ref string
+}
+
+// Declarations is where each image a run scanned is declared in the repository, for the images
+// declared there. An image a survey found, or one declared in a file outside the repository, has no
+// entry.
+type Declarations map[DeclaredImage]Declaration
+
 // ForCodeScanning returns doc, a SARIF log, with every location GitHub code scanning refuses taken
 // out, and the number of results that were left with no location at all.
 //
@@ -29,7 +48,14 @@ const CodeScanningLocationKey = "draugr/location"
 //   - a `file:` URI is kept, and an absolute path is written as one;
 //   - anything else is removed, the result's image reference included when it was written as a path,
 //     and kept in the result's properties: under `image` where it is the image, which is already
-//     there, and under CodeScanningLocationKey otherwise.
+//     there, and under CodeScanningLocationKey otherwise;
+//   - a result left with no location, whose component declared the image it is about on a line
+//     declared lists, is placed on that line. Matched on the result's `image` property, or on the
+//     location removed from it where it has none. A placed result with no partialFingerprints is
+//     given its own fingerprint under FindingHashKey, which tells apart the findings sharing the line.
+//
+// The line that names an image is the one a reader changes to move to a newer image, and it is in
+// the repository, so code scanning can show the finding there.
 //
 // A result left with no location is still uploaded, with its rule, message and properties. GitHub
 // documents that it needs a location to display a result, which is why the count is returned: the
@@ -43,7 +69,7 @@ const CodeScanningLocationKey = "draugr/location"
 // The file Draugr writes for itself, results.sarif, keeps the reference as the finding's location,
 // because `draugr diff`, `draugr explain` and the platforms that read it take a finding's identity
 // from it. This is for the copy that goes to code scanning.
-func ForCodeScanning(doc []byte) (out []byte, unplaced int, err error) {
+func ForCodeScanning(doc []byte, declared Declarations) (out []byte, unplaced int, err error) {
 	var log map[string]any
 	dec := json.NewDecoder(bytes.NewReader(doc))
 	// Numbers stay as written: a fingerprint, a line or a score read into a float64 and written back
@@ -66,7 +92,7 @@ func ForCodeScanning(doc []byte) (out []byte, unplaced int, err error) {
 			if !ok {
 				continue
 			}
-			c, rel, none := placeResult(result)
+			c, rel, none := placeResult(result, declared)
 			changed = changed || c
 			relative = relative || rel
 			if none {
@@ -122,10 +148,11 @@ func ForCodeScanning(doc []byte) (out []byte, unplaced int, err error) {
 	return out, unplaced, nil
 }
 
-// placeResult holds one result's locations to what code scanning accepts. It reports whether it
-// changed anything, whether a kept location is relative, and whether the result had a location and
-// now has none.
-func placeResult(result map[string]any) (changed, relative, none bool) {
+// placeResult holds one result's locations to what code scanning accepts, placing a result left
+// with none on the line declared names for its image. It reports whether it changed anything,
+// whether a kept or placed location is relative, and whether the result had a location and now has
+// none.
+func placeResult(result map[string]any, declared Declarations) (changed, relative, none bool) {
 	locations, _ := result["locations"].([]any)
 	if len(locations) == 0 {
 		return false, false, false
@@ -136,11 +163,26 @@ func placeResult(result map[string]any) (changed, relative, none bool) {
 	if !changed {
 		return false, relative, false
 	}
-	if len(kept) == 0 {
+	switch d, ok := declaredFor(props, image, dropped, declared); {
+	case len(kept) > 0:
+		result["locations"] = kept
+	case ok:
+		result["locations"] = []any{map[string]any{"physicalLocation": map[string]any{
+			"artifactLocation": map[string]any{"uri": d.Path, "uriBaseId": uriBaseID},
+			"region":           map[string]any{"startLine": d.Line},
+		}}}
+		relative = true
+		// Every finding of one rule in the image now shares this line, and nothing else in the result
+		// tells code scanning they are different findings; the finding's own identity does. A result
+		// that already carries fingerprints keeps them.
+		if fp, _ := props["fingerprint"].(string); fp != "" {
+			if _, has := result["partialFingerprints"]; !has {
+				result["partialFingerprints"] = map[string]any{FindingHashKey: fp}
+			}
+		}
+	default:
 		delete(result, "locations")
 		none = true
-	} else {
-		result["locations"] = kept
 	}
 	for _, uri := range dropped {
 		if uri == image {
@@ -156,6 +198,27 @@ func placeResult(result map[string]any) (changed, relative, none bool) {
 		}
 	}
 	return true, relative, none
+}
+
+// declaredFor returns the line declared names for the image a result is about: the one in its
+// `image` property, or else the first location removed from it, which is how a finding that carries
+// no image property names its image. Matched within the result's component, since two components
+// can declare one image on two lines. A declaration whose path code scanning would refuse, or with
+// no line, is not one.
+func declaredFor(props map[string]any, image string, dropped []string, declared Declarations) (Declaration, bool) {
+	if len(declared) == 0 {
+		return Declaration{}, false
+	}
+	ref := image
+	if ref == "" && len(dropped) > 0 {
+		ref = dropped[0]
+	}
+	component, _ := props["component"].(string)
+	d, ok := declared[DeclaredImage{Component: component, Ref: ref}]
+	if !ok || ref == "" || d.Line < 1 || !isRelativeURI(d.Path) || d.Path == "" {
+		return Declaration{}, false
+	}
+	return d, true
 }
 
 // placeLocations returns the locations code scanning accepts, rewritten where they need it, whether

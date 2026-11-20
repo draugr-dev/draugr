@@ -2,6 +2,7 @@ package saga
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -56,6 +57,105 @@ config:
 	// The remote one is named by its repository and read from the checkout, two different paths.
 	if rules[3].Source == rules[3].File {
 		t.Errorf("a fetched fragment's source should name its repository, not the checkout: %q", rules[3].Source)
+	}
+}
+
+// Each image knows the file and the line of its `image:` key, whether the descriptor or a local
+// fragment declares it, and with a digest written beside it or into it. An image a fragment from
+// another repository declares has a line and no file: that file is not in this repository.
+func TestResolveRecordsWhereEachImageIsDeclared(t *testing.T) {
+	dir := t.TempDir()
+	root := write(t, dir, "draugr.saga.yaml", rootHeader+`components:
+  - name: api
+    images:
+      - image: registry.example.com/api:1.2
+        digest: sha256:`+strings.Repeat("a", 64)+`
+
+      - builtBy: upstream
+        image: postgres:16
+fragments:
+  - path: "saga/*.saga-fragment.yaml"
+  - url: https://github.com/acme/platform.git
+    revision: v2.4.0
+    path: "shared.saga-fragment.yaml"
+`)
+	local := write(t, dir, "saga/worker.saga-fragment.yaml", `# the worker
+components:
+  - name: worker
+    images: [{ image: "debian@sha256:`+strings.Repeat("b", 64)+`" }]
+  - name: api
+    images:
+      - image: postgres:16
+      - image: redis:7
+`)
+	remote := t.TempDir()
+	write(t, remote, "shared.saga-fragment.yaml", "components:\n  - name: cache\n    images:\n      - image: memcached:1.6\n")
+
+	res, err := ResolveFile(root, &fakeFetcher{dir: remote, resolved: "a1b3f9c0d2e4f6a8b0c2"})
+	if err != nil {
+		t.Fatalf("ResolveFile: %v", err)
+	}
+	type at struct {
+		file string
+		line int
+	}
+	want := map[string]map[string]at{
+		// postgres:16 is declared in the root first, and the fragment's second mention adds nothing.
+		"api":    {"registry.example.com/api:1.2": {root, 6}, "postgres:16": {root, 10}, "redis:7": {local, 8}},
+		"worker": {"debian@sha256:" + strings.Repeat("b", 64): {local, 4}},
+		"cache":  {"memcached:1.6": {"", 4}},
+	}
+	for _, c := range res.Model.Components {
+		for _, img := range c.Images {
+			w, ok := want[c.Name][img.Image]
+			if !ok {
+				t.Errorf("%s: unexpected image %q", c.Name, img.Image)
+				continue
+			}
+			if filepath.Clean(img.File) != filepath.Clean(w.file) || img.Line != w.line {
+				t.Errorf("%s %s: declared at %s:%d, want %s:%d", c.Name, img.Image, img.File, img.Line, w.file, w.line)
+			}
+			delete(want[c.Name], img.Image)
+		}
+	}
+	for comp, left := range want {
+		for ref := range left {
+			t.Errorf("%s: image %q missing", comp, ref)
+		}
+	}
+	if !filepath.IsAbs(res.Model.Components[0].Images[0].File) {
+		t.Errorf("file %q: want an absolute path, which a later change of directory does not move", res.Model.Components[0].Images[0].File)
+	}
+}
+
+// Images that do not line up one to one with the document's entries, such as a list a merge key
+// supplied, are left without lines rather than given another entry's.
+func TestStampImageLinesLeavesAMismatchAlone(t *testing.T) {
+	stampImageLines(nil, nil)
+	parse := func(doc string) *yaml.Node {
+		t.Helper()
+		var root yaml.Node
+		if err := yaml.Unmarshal([]byte(doc), &root); err != nil {
+			t.Fatal(err)
+		}
+		return &root
+	}
+	one := parse("components:\n  - name: web\n    images: [{ image: a }]\n")
+
+	extra := []Component{{Name: "web", Images: []Image{{Image: "a"}, {Image: "built in code"}}}}
+	stampImageLines(one, extra)
+	if extra[0].Images[0].Line != 0 || extra[0].Images[1].Line != 0 {
+		t.Errorf("an image list longer than the document's: lines = %d, %d, want none", extra[0].Images[0].Line, extra[0].Images[1].Line)
+	}
+	two := []Component{{Name: "web", Images: []Image{{Image: "a"}}}, {Name: "built in code"}}
+	stampImageLines(one, two)
+	if two[0].Images[0].Line != 0 {
+		t.Errorf("a component list longer than the document's: line = %d, want none", two[0].Images[0].Line)
+	}
+	merged := []Component{{Name: "web", Images: []Image{{Image: "a"}}}}
+	stampImageLines(parse("base: &base\n  images: [{ image: a }]\ncomponents:\n  - name: web\n    <<: *base\n"), merged)
+	if merged[0].Images[0].Line != 0 {
+		t.Errorf("a list a merge key supplied: line = %d, want none", merged[0].Images[0].Line)
 	}
 }
 

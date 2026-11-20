@@ -16,6 +16,16 @@ import (
 // suffix changes if the algorithm does, and consumers compare like with like.
 const LineHashKey = "primaryLocationLineHash/v1"
 
+// FindingHashKey is the partial-fingerprint name for a finding's own identity, Result.Fingerprint, on
+// a result placed on a line that is not the text it is about.
+//
+// A finding inside an image goes to code scanning on the line that declares the image (see
+// ForCodeScanning), and every finding of one rule in that image shares the line, a vulnerability in
+// two of its packages among them. A hash of the line's text would be the same for all of them, so
+// the identity Draugr already gives each finding is written instead, under a name of Draugr's own,
+// versioned as LineHashKey is, so no consumer reads it as a hash of the line.
+const FindingHashKey = "draugrFindingHash/v1"
+
 // fingerprintContext is how many lines either side of the finding go into the hash.
 //
 // Two. Zero would make every occurrence of a common line, a bare `}`, an import, collide, and a

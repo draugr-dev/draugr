@@ -170,6 +170,24 @@ func TestRenderSARIFIsWhatCodeScanningAccepts(t *testing.T) {
 	}
 }
 
+// A new finding on an image the head's descriptor declares goes to code scanning on the line that
+// declares it.
+func TestRenderSARIFPlacesANewImageFindingOnItsDeclaration(t *testing.T) {
+	r := Result{New: []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError, Message: "openssl", Component: "api",
+		Location: sarif.Location{URI: "python:3.8-slim"}, Image: "python:3.8-slim"}}}
+	var buf bytes.Buffer
+	opts := Options{Declared: sarif.Declarations{{Component: "api", Ref: "python:3.8-slim"}: {Path: "draugr.saga.yaml", Line: 9}}}
+	if err := Render(&buf, "sarif", r, opts); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if refused, _ := sarif.CodeScanningRefuses(buf.Bytes()); len(refused) > 0 {
+		t.Errorf("refused: %q", refused)
+	}
+	if !strings.Contains(buf.String(), `{"uri":"draugr.saga.yaml","uriBaseId":"%SRCROOT%"},"region":{"startLine":9}`) {
+		t.Errorf("the finding is not on its declaration:\n%s", buf.String())
+	}
+}
+
 // The SARIF diff carries the new findings and only those.
 //
 // The fixture has all three kinds on purpose: with new findings alone, an implementation that

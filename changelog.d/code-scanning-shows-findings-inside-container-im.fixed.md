@@ -1,0 +1,1 @@
+- **Code scanning shows findings inside container images.** A vulnerable package in an image now appears in the Security tab on the `image:` line of the descriptor or fragment that declares the image, the line you change to move to a newer one. `results.sarif` keeps the image reference as the finding's location.
