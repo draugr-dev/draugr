@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.185.0] - 2026-11-21
+
+### Added
+
+- **Install tools somewhere other than `~/.draugr`.** Set `DRAUGR_HOME` to an absolute path, such as a CI runner's shared tool cache. `draugr tools install` then writes there, every command looks there before `PATH`, and `draugr doctor` names the directory it used.
+
+### Changed
+
+- **`draugr validate` refuses a `references` entry missing `type` or `link`.** The schema already required both. Add the missing field, or remove the entry.
+
+- **Scans no longer limit each tool's threads by default.** Each tool sizes itself to the machine, which roughly halves a scan of a large Go repository. If a tool is killed for memory, rerun with `--limit-tool-threads`, or set `scan.limitToolThreads` to true in `draugr.config.yaml`. `--share-workers` turns the limit on too.
+
+### Fixed
+
+- **An assistant's scan now follows your `draugr.config.yaml`.** The MCP `scan` tool reads `scan.jobs`, `scan.limitToolThreads` and the new `scan.shareWorkers`, so a limit you set for `draugr scan` also applies when an assistant starts the scan.
+
+- **Your editor flags the import and publisher settings Draugr refuses.** The Saga schema now marks a `converter`, `severity`, `suppressions`, `tokenEnv` or `repository` on an import that cannot take it, a missing `converter` on `draugr-converter`, an empty exclusion or `select`, a VEX source naming two places, and an incomplete signer.
+
 ## [0.184.0] - 2026-11-20
 
 ### Added
@@ -7377,7 +7395,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.184.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.185.0...HEAD
+[0.185.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.185.0
 [0.184.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.184.0
 [0.183.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.183.0
 [0.182.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.182.0

@@ -1,1 +1,0 @@
-- **A scan runs at full speed by default.** Draugr no longer gives each tool a `GOMAXPROCS` or Go `-p`, so each tool sizes itself to the machine. On a machine with many cores and little memory per core, `--limit-tool-threads` or `scan.limitToolThreads: true` restores the previous limit, and `--share-workers` now implies it.
