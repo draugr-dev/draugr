@@ -28,13 +28,35 @@ const commit = "0123456789abcdef0123456789abcdef01234567"
 // package-lock.json pinning lodash 4.17.20 and minimist 1.2.5, and holds the file it writes to the
 // one checked in, which the contract accepts with the properties manifest.yaml declares.
 func TestConvertsARecordedAudit(t *testing.T) {
+	golden, err := filepath.Abs(filepath.Join("testdata", "npm-audit.draugr.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The lockfile is checked in as package-lock.json.fixture, so that a tool reading the repository
+	// for its dependencies does not take these deliberately vulnerable pins for the project's own. The
+	// test puts it back under its real name, beside the audit, at the root of a checkout of its own.
+	audit, err := os.ReadFile(filepath.Join("testdata", "npm-audit.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock, err := os.ReadFile(filepath.Join("testdata", "package-lock.json.fixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("npm-audit.json", audit, 0o600); err != nil { // #nosec G703 -- a fixed name in the test's own temporary directory
+		t.Fatal(err)
+	}
+	if err := os.WriteFile("package-lock.json", lock, 0o600); err != nil { // #nosec G703 -- a fixed name in the test's own temporary directory
+		t.Fatal(err)
+	}
+
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-audit", "testdata/npm-audit.json", "-lock", "testdata/package-lock.json", "-commit", commit},
+	code := run([]string{"-audit", "npm-audit.json", "-lock", "package-lock.json", "-commit", commit},
 		&stdout, &stderr, fixedClock)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	golden := filepath.Join("testdata", "npm-audit.draugr.json")
 	if *update {
 		if err := os.WriteFile(golden, stdout.Bytes(), 0o600); err != nil {
 			t.Fatal(err)
@@ -66,7 +88,7 @@ func TestConvertsARecordedAudit(t *testing.T) {
 	if p == nil || p.Version != "4.17.20" || p.FixedVersion != "4.18.1" || p.PURL != "pkg:npm/lodash@4.17.20" || p.Ecosystem != "npm" {
 		t.Errorf("package %+v, want lodash 4.17.20 from the lockfile, fixed in 4.18.1", p)
 	}
-	if first.Location == nil || first.Location.Path != "testdata/package-lock.json" {
+	if first.Location == nil || first.Location.Path != "package-lock.json" {
 		t.Errorf("location %+v, want the lockfile", first.Location)
 	}
 	last := doc.Results[4]

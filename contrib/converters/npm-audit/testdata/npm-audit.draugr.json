@@ -7,7 +7,7 @@
   },
   "source": {
     "tool": "npm audit",
-    "file": "testdata/npm-audit.json",
+    "file": "npm-audit.json",
     "sha256": "755488ba300713a6473d48514867c20c1e8ef21793122d0bfdbc84e56d81a734"
   },
   "commit": "0123456789abcdef0123456789abcdef01234567",
@@ -19,7 +19,7 @@
       "severity": "high",
       "score": 7.2,
       "location": {
-        "path": "testdata/package-lock.json"
+        "path": "package-lock.json"
       },
       "package": {
         "name": "lodash",
@@ -39,7 +39,7 @@
       "severity": "medium",
       "score": 5.3,
       "location": {
-        "path": "testdata/package-lock.json"
+        "path": "package-lock.json"
       },
       "package": {
         "name": "lodash",
@@ -59,7 +59,7 @@
       "severity": "high",
       "score": 8.1,
       "location": {
-        "path": "testdata/package-lock.json"
+        "path": "package-lock.json"
       },
       "package": {
         "name": "lodash",
@@ -78,7 +78,7 @@
       "severity": "medium",
       "score": 6.5,
       "location": {
-        "path": "testdata/package-lock.json"
+        "path": "package-lock.json"
       },
       "package": {
         "name": "lodash",
@@ -97,7 +97,7 @@
       "severity": "critical",
       "score": 9.8,
       "location": {
-        "path": "testdata/package-lock.json"
+        "path": "package-lock.json"
       },
       "package": {
         "name": "minimist",

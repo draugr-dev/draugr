@@ -2,8 +2,9 @@ Third-party content in this directory
 
 npm-audit.json
 
-  Written by npm 11.16.0's `npm audit --json` for package.json and
-  package-lock.json in this directory. The advisory titles, identifiers, CWE
+  Written by npm 11.16.0's `npm audit --json` for package.json.fixture and
+  package-lock.json.fixture in this directory, under their real names. The
+  advisory titles, identifiers, CWE
   ids and CVSS scores in it come from the GitHub Advisory Database,
   https://github.com/github/advisory-database, licensed under the Creative
   Commons Attribution 4.0 International license,
