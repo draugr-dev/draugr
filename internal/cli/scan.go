@@ -22,7 +22,6 @@ import (
 	"github.com/draugr-dev/draugr/internal/preflight"
 	"github.com/draugr-dev/draugr/internal/registry"
 	sbomgen "github.com/draugr-dev/draugr/internal/sbom"
-	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/internal/vexload"
@@ -69,13 +68,8 @@ type scanOptions struct {
 	// defaults for the same settings, and a flag with a non-zero default. --epss-threshold is
 	// 0.5, cannot be told apart from an unset one by its value.
 	setFlags map[string]bool
-	jobs     int
-	// limitToolThreads holds every tool run to its job's share of the parallelism bound
-	// (toolexec.WithThreadLimit).
-	limitToolThreads bool
-	// shareWorkers holds Semgrep and Trivy to their job's share of the parallelism bound
-	// (toolexec.WithSharedWorkers), and implies limitToolThreads.
-	shareWorkers  bool
+	// limits are --jobs, --limit-tool-threads and --share-workers, with scan.* folded under them.
+	limits        scanpolicy.Limits
 	format        string
 	template      string
 	templateFile  string
@@ -202,16 +196,16 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.kevFile, "kev", "", "CISA KEV catalog: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE on it is escalated to critical")
 	cmd.Flags().StringVar(&opts.epssFile, "epss", "", "FIRST EPSS scores: a file path, or `auto`/`cache` to read ~/.draugr/feeds. A CVE at/above --epss-threshold is bumped one level")
 	cmd.Flags().Float64Var(&opts.epssThreshold, "epss-threshold", exploitdata.DefaultThreshold, "EPSS probability (0-1) that triggers a severity bump")
-	cmd.Flags().IntVarP(&opts.jobs, "jobs", "j", 0,
+	cmd.Flags().IntVarP(&opts.limits.Jobs, scanpolicy.JobsFlag, "j", 0,
 		"max scan jobs to run in parallel (0 = auto, one per CPU or per 2 GiB of memory, whichever is fewer); reported as stats.concurrency (also scan.jobs in draugr.config.yaml)")
-	cmd.Flags().BoolVar(&opts.limitToolThreads, "limit-tool-threads", false,
+	cmd.Flags().BoolVar(&opts.limits.LimitToolThreads, scanpolicy.LimitToolThreadsFlag, false,
 		"hold each tool's threads and Go build processes to its job's share of the parallelism bound "+
 			"(half the CPUs or one per 4 GiB of memory, whichever is fewer), for less memory and a slower run; "+
 			"each tool otherwise sizes itself to the machine (also scan.limitToolThreads in draugr.config.yaml)")
-	cmd.Flags().BoolVar(&opts.shareWorkers, "share-workers", false,
+	cmd.Flags().BoolVar(&opts.limits.ShareWorkers, scanpolicy.ShareWorkersFlag, false,
 		"hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound, "+
 			"for less memory and CPU and a slower run where a long Semgrep job starts beside many short ones; "+
-			"implies --limit-tool-threads")
+			"implies --limit-tool-threads (also scan.shareWorkers in draugr.config.yaml)")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
 	// Built from the registry, not restated. --format already does this; --report listed its
@@ -301,7 +295,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	cacheOptionsFrom(&opts, cfg.Cache)
 	outputOptionsFrom(&opts, cfg.Output)
-	scanSettingsFrom(&opts, cfg.Scan)
+	opts.limits.Configure(cfg.Scan, opts.setFlags)
 	// After the defaults are merged, so a deprecated setting the configuration file supplied is named
 	// as well as one the descriptor wrote.
 	writeDescriptorWarnings(os.Stderr, reg, model)
@@ -430,7 +424,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 	feedProv := enrichment.Feeds
 
-	if opts.jobs < 0 {
+	if opts.limits.Jobs < 0 {
 		return fmt.Errorf("--jobs must be >= 0 (0 = auto)")
 	}
 	if opts.top < 0 {
@@ -485,9 +479,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		}
 		eopts = append(eopts, engine.WithCache(c))
 	}
-	if opts.jobs > 0 {
-		eopts = append(eopts, engine.WithConcurrency(opts.jobs))
-	}
+	eopts = append(eopts, opts.limits.Options()...)
 	// Drawn on stderr so a report on stdout stays a report, and only for somebody watching one.
 	progress := newProgressLine(os.Stderr, opts)
 	if progress != nil {
@@ -509,7 +501,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// declares which jobs will read each one, so each is removed when the last of them is done.
 	pool := git.NewPool()
 	defer pool.Close()
-	ctx = opts.toolLimits(git.WithPool(ctx, pool))
+	ctx = opts.limits.Context(git.WithPool(ctx, pool))
 
 	// The error is deliberately not logged here. Every failure it joins is also recorded against a
 	// control in run.ScanErrors, a planning failure against a pseudo-control precisely so it has
@@ -1311,36 +1303,6 @@ func (o *scanOptions) tipsOff() bool {
 		return o.noTips
 	}
 	return tipsDisabled() || o.noTips
-}
-
-// toolLimits is ctx, marked so the tools the run starts are held to their job's share of the
-// parallelism bound where --limit-tool-threads asks for it, and hold their own worker pools to that
-// share too where --share-workers does.
-//
-// --share-workers implies the thread limit. It holds a tool's own pool to the same share the limit
-// gives every tool's threads, so it is the stricter of the two, and a run that asks Semgrep's
-// processes to share the machine while each Go tool takes all of it saves the smaller part of the
-// memory it asked to save.
-func (o *scanOptions) toolLimits(ctx context.Context) context.Context {
-	if o.limitToolThreads || o.shareWorkers {
-		ctx = toolexec.WithThreadLimit(ctx)
-	}
-	if o.shareWorkers {
-		ctx = toolexec.WithSharedWorkers(ctx)
-	}
-	return ctx
-}
-
-// scanSettingsFrom folds scan.* under the flags of the same name, by the rule outputOptionsFrom
-// follows: a typed flag wins whatever its value, so `--jobs 0` asks for the automatic default over
-// a configured cap, and `--limit-tool-threads=false` runs without the limit a file turned on.
-func scanSettingsFrom(opts *scanOptions, cfg config.ScanSettings) {
-	if cfg.Jobs != nil && !opts.setFlags["jobs"] {
-		opts.jobs = *cfg.Jobs
-	}
-	if cfg.LimitToolThreads != nil && !opts.setFlags["limit-tool-threads"] {
-		opts.limitToolThreads = *cfg.LimitToolThreads
-	}
 }
 
 // configuredOutput is what output.* sets for the rendering flags a command was not given. Each

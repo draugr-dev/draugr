@@ -815,9 +815,14 @@ func scanTool(reg *engine.Registry, mode ScanMode, cfg ConfigLoader) mcp.ToolHan
 		// The configuration merged in before the plan, so the consent below describes the scan that
 		// will run: a controller default can enable a control, or a scanner with an effect, that the
 		// descriptor alone does not.
-		if err := cfg.apply(ctx, model); err != nil {
+		settings, err := cfg.apply(ctx, model)
+		if err != nil {
 			return nil, ScanOutput{}, err
 		}
+		// The job count and the tool limits as `draugr scan` takes them from the same files. MCP has
+		// no flags, so scan.* decides each one it sets.
+		var limits scanpolicy.Limits
+		limits.Configure(settings, nil)
 		plan, err := planScan(reg, model)
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("plan %s: %w", in.Path, err)
@@ -851,13 +856,13 @@ func scanTool(reg *engine.Registry, mode ScanMode, cfg ConfigLoader) mcp.ToolHan
 		// clones of one repository either.
 		pool := git.NewPool()
 		defer pool.Close()
-		ctx = git.WithPool(ctx, pool)
-		run, runErr := engine.New(reg, append(enrichment.Options,
+		ctx = limits.Context(git.WithPool(ctx, pool))
+		run, runErr := engine.New(reg, slices.Concat(enrichment.Options, []engine.Option{
 			engine.WithRevisionResolver(git.ResolveRevision),
 			engine.WithTreeResolver(git.ResolveTree),
 			engine.WithModuleResolver(git.ModuleRoots),
 			engine.WithRegistryCredentials(registry.HasCredential),
-		)...).Run(ctx, *model)
+		}, limits.Options())...).Run(ctx, *model)
 		if runErr != nil {
 			// Say so rather than swallowing it: a partial scan that reads as complete is worse
 			// than an error, because the agent will report "no findings" with confidence.
@@ -1066,7 +1071,7 @@ func checkToolsTool(reg *engine.Registry, cfg ConfigLoader) mcp.ToolHandlerFor[C
 			if err != nil {
 				return nil, CheckToolsOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
 			}
-			if err := cfg.apply(ctx, model); err != nil {
+			if _, err := cfg.apply(ctx, model); err != nil {
 				return nil, CheckToolsOutput{}, err
 			}
 			required = needs.Tools(reg, model)

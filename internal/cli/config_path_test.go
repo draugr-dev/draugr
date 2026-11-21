@@ -50,7 +50,7 @@ func TestEveryKindOfKeyIsASetting(t *testing.T) {
 		"output.evidence": true, "output.offerInstall": true, "output.top": true,
 		"output.view": true, "cache.ttl": true, "cache.readOnly": true, "output.nope": false,
 		"output.tips": true, "scan.jobs": true, "log.level": true, "log.format": true, "offline": true,
-		"log.nope": false, "scan.limitToolThreads": true,
+		"log.nope": false, "scan.limitToolThreads": true, "scan.shareWorkers": true,
 	} {
 		if got := isSetting(key); got != want {
 			t.Errorf("isSetting(%q) = %v, want %v", key, got, want)

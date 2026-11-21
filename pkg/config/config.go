@@ -107,6 +107,10 @@ type ScanSettings struct {
 	// machine, as --limit-tool-threads does. Off by default, when each tool sizes itself to the
 	// machine. A pointer, so a more specific file's `false` turns off a less specific file's `true`.
 	LimitToolThreads *bool `yaml:"limitToolThreads,omitempty"`
+	// ShareWorkers holds Semgrep's analysis processes and Trivy's files in flight to each job's
+	// share of the machine, as --share-workers does, and turns on LimitToolThreads with it. Off by
+	// default. A pointer, so a more specific file's `false` turns off a less specific file's `true`.
+	ShareWorkers *bool `yaml:"shareWorkers,omitempty"`
 }
 
 // LogSettings configures the log Draugr writes to stderr. Each has a `--log-*` flag that
@@ -444,6 +448,9 @@ func merge(a, b File) File {
 	}
 	if b.Scan.LimitToolThreads != nil {
 		out.Scan.LimitToolThreads = b.Scan.LimitToolThreads
+	}
+	if b.Scan.ShareWorkers != nil {
+		out.Scan.ShareWorkers = b.Scan.ShareWorkers
 	}
 
 	out.Log = a.Log

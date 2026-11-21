@@ -4,20 +4,24 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	draugrmcp "github.com/draugr-dev/draugr/internal/mcp"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -264,5 +268,89 @@ func TestCheckToolsAndDoctorReadTheConfiguration(t *testing.T) {
 	}
 	if !slices.Equal(doctor.listed, served.listed) {
 		t.Errorf("required tools: doctor %v, check_tools %v", doctor.listed, served.listed)
+	}
+}
+
+// limitsScanner records what each job's context tells its tools about the machine.
+type limitsScanner struct {
+	mu   *sync.Mutex
+	seen *[]string
+}
+
+func (limitsScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: "fake"} }
+
+func (s limitsScanner) Scan(ctx context.Context, _ plugin.Target, _ plugin.Config) (sarif.Report, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	*s.seen = append(*s.seen, fmt.Sprintf("threads limited %t, workers shared %t",
+		toolexec.LimitsThreads(ctx), toolexec.SharesWorkers(ctx)))
+	return sarif.Report{Tool: "fake"}, nil
+}
+
+// limitsOf is what a run's jobs were told, and the concurrency its report.json records.
+func limitsOf(t *testing.T, seen []string, reportJSON []byte) string {
+	t.Helper()
+	var doc struct {
+		Stats struct {
+			Concurrency int `json:"concurrency"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(reportJSON, &doc); err != nil {
+		t.Fatalf("%v\n%s", err, reportJSON)
+	}
+	slices.Sort(seen)
+	return fmt.Sprintf("concurrency %d; %s", doc.Stats.Concurrency, strings.Join(seen, "; "))
+}
+
+// The scan.* keys reach an assistant's scan as they reach `draugr scan` in the same directory: the
+// same job count, and the same limits on every job's tools. Without them both run at the defaults.
+func TestAnMCPScanTakesTheScanSettingsDraugrScanTakes(t *testing.T) {
+	// Two jobs, one per component, each told the same thing.
+	ran := func(concurrency int, limited, shared bool) string {
+		job := fmt.Sprintf("threads limited %t, workers shared %t", limited, shared)
+		return fmt.Sprintf("concurrency %d; %s; %s", concurrency, job, job)
+	}
+	auto := toolexec.DefaultJobs()
+	for name, tc := range map[string]struct{ body, want string }{
+		"none":                  {"", ran(auto, false, false)},
+		"scan.jobs":             {"scan:\n  jobs: 1\n", ran(1, false, false)},
+		"scan.limitToolThreads": {"scan:\n  limitToolThreads: true\n", ran(auto, true, false)},
+		"scan.shareWorkers":     {"scan:\n  shareWorkers: true\n", ran(auto, true, true)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			projectDir(t, "controllers:\n  images:\n    enabled: true\n"+tc.body)
+			var mu sync.Mutex
+			var seen []string
+			reg := engine.NewRegistry()
+			reg.RegisterController(fakeController{})
+			reg.RegisterScanner(limitsScanner{mu: &mu, seen: &seen})
+			out := t.TempDir()
+			path := writeSaga(t, sagaImagesFromConfig+
+				"config:\n  publishers:\n    - kind: file\n      dir: "+out+"\n      reports:\n        - format: json\n")
+
+			var buf bytes.Buffer
+			if err := runScan(context.Background(), path,
+				scanOptions{format: "json", noPublish: true, setFlags: map[string]bool{}}, reg, &buf); err != nil {
+				t.Fatalf("draugr scan: %v", err)
+			}
+			cli := limitsOf(t, seen, buf.Bytes())
+			if cli != tc.want {
+				t.Errorf("draugr scan ran with\n  %s\nwant\n  %s", cli, tc.want)
+			}
+
+			seen = nil
+			var res draugrmcp.ScanOutput
+			if msg := callTool(t, servedSession(t, draugrmcp.ScanAlways, reg), "scan",
+				map[string]any{"path": path}, &res); msg != "" {
+				t.Fatalf("scan: %s", msg)
+			}
+			data, err := os.ReadFile(filepath.Join(out, "report.json")) // #nosec G304 -- this test's own temp file
+			if err != nil {
+				t.Fatal(err)
+			}
+			if served := limitsOf(t, seen, data); served != cli {
+				t.Errorf("the MCP scan ran with\n  %s\ndraugr scan with\n  %s", served, cli)
+			}
+		})
 	}
 }

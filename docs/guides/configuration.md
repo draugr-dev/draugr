@@ -197,6 +197,7 @@ output:
 scan:
   jobs: 4            # scan jobs run at once; 0 is the automatic default
   limitToolThreads: true  # hold each tool to its job's share of the machine, as --limit-tool-threads does
+  shareWorkers: true      # hold Semgrep's and Trivy's own pools to that share too, as --share-workers does
 ```
 
 `jobs` is the default for `--jobs` on every scan the machine runs. A project's `jobs: 0` restores
@@ -206,6 +207,10 @@ for choosing a number.
 `limitToolThreads` is the default for `--limit-tool-threads`. Off, each tool sizes itself to the
 machine, which is fastest; on, the tools use less memory and the scan takes longer, which suits a
 machine with many cores and little memory per core. A project's `false` turns off a machine's `true`.
+
+`shareWorkers` is the default for `--share-workers`, and turns on `limitToolThreads` with it. On,
+Semgrep's analysis processes and Trivy's files in flight are held to each job's share as well, which
+saves more memory and can make a long run slower. A project's `false` turns off a machine's `true`.
 
 ### `log`
 

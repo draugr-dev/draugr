@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -369,7 +370,7 @@ func TestRunScanRefusesAnUnknownAllowedEffect(t *testing.T) {
 
 func TestRunScanNegativeJobs(t *testing.T) {
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
-		scanOptions{failOn: "error", jobs: -3}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
+		scanOptions{failOn: "error", limits: scanpolicy.Limits{Jobs: -3}}, fakeRegistry(sarif.LevelNote), &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "--jobs must be >= 0") {
 		t.Fatalf("expected --jobs validation error, got %v", err)
 	}
@@ -378,7 +379,7 @@ func TestRunScanNegativeJobs(t *testing.T) {
 func TestRunScanJobsSetsConcurrency(t *testing.T) {
 	var buf bytes.Buffer
 	err := runScan(context.Background(), writeSaga(t, sagaWithImage),
-		scanOptions{failOn: "error", jobs: 2, format: "json"}, fakeRegistry(sarif.LevelNote), &buf)
+		scanOptions{failOn: "error", limits: scanpolicy.Limits{Jobs: 2}, format: "json"}, fakeRegistry(sarif.LevelNote), &buf)
 	if err != nil {
 		t.Fatal(err)
 	}

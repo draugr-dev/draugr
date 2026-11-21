@@ -1232,6 +1232,10 @@
         "limitToolThreads": {
           "description": "Whether each tool's threads and Go build processes are held to its job's share of half the CPUs or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool sizes itself to the machine. Overridden by `--limit-tool-threads`.",
           "type": "boolean"
+        },
+        "shareWorkers": {
+          "description": "Whether Semgrep's analysis processes and Trivy's files in flight are held to each job's share of the bound `limitToolThreads` applies, for less memory and CPU and a slower scan, and turns that limit on. Unset means each tool sizes its own pool. Overridden by `--share-workers`.",
+          "type": "boolean"
         }
       },
       "type": "object"

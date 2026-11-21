@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -26,7 +27,7 @@ func writeDescriptor(t *testing.T, body string) string {
 // enabling is a loader whose configuration sets one key under a control, as a controller default
 // in draugr.config.yaml does.
 func enabling(control, key string, value any) ConfigLoader {
-	return func(_ context.Context, m *saga.Model) error {
+	return func(_ context.Context, m *saga.Model) (config.ScanSettings, error) {
 		if m.Config.Controls == nil {
 			m.Config.Controls = map[string]saga.ControllerSettings{}
 		}
@@ -36,7 +37,7 @@ func enabling(control, key string, value any) ConfigLoader {
 		}
 		settings[key] = value
 		m.Config.Controls[control] = settings
-		return nil
+		return config.ScanSettings{}, nil
 	}
 }
 
@@ -108,7 +109,7 @@ func TestCheckToolsReadsTheConfiguration(t *testing.T) {
 // detects a tool or plans a scan.
 func TestAConfigurationTheLoaderRefusesStopsBothTools(t *testing.T) {
 	refused := errors.New("draugr.config.yaml: controllers: \"imagez\" is not a control")
-	loader := func(context.Context, *saga.Model) error { return refused }
+	loader := func(context.Context, *saga.Model) (config.ScanSettings, error) { return config.ScanSettings{}, refused }
 	path := writeDescriptor(t, semgrepTwoServices)
 
 	if _, _, err := checkToolsTool(builtins.Registry(), loader)(context.Background(), nil,

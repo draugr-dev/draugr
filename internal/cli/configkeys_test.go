@@ -177,6 +177,9 @@ func TestEveryConfigKeyDefaultIsTheOneTheCodeApplies(t *testing.T) {
 		"scan.limitToolThreads": func(d string) bool {
 			return d == flagDefault(t, scan, "limit-tool-threads") && d == strconv.FormatBool(toolexec.LimitsThreads(context.Background()))
 		},
+		"scan.shareWorkers": func(d string) bool {
+			return d == flagDefault(t, scan, "share-workers") && d == strconv.FormatBool(toolexec.SharesWorkers(context.Background()))
+		},
 		// Each tool's own pin, which the rows named per tool below hold.
 		"tools.<tool>.version": func(d string) bool { return d == "Draugr's pin" },
 	}

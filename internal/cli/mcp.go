@@ -9,6 +9,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	draugrmcp "github.com/draugr-dev/draugr/internal/mcp"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -69,9 +70,9 @@ func mcpOptions(mode draugrmcp.ScanMode) draugrmcp.Options {
 		Scan:      mode,
 		Registry:  builtins.Registry(),
 		Surveyors: builtins.SurveyorRegistry(),
-		Config: func(ctx context.Context, model *saga.Model) error {
-			_, _, err := applyConfigDefaults(ctx, model)
-			return err
+		Config: func(ctx context.Context, model *saga.Model) (config.ScanSettings, error) {
+			cfg, _, err := applyConfigDefaults(ctx, model)
+			return cfg.Scan, err
 		},
 	}
 }

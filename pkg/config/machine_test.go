@@ -138,6 +138,32 @@ func TestLimitToolThreadsLayersTheProjectOverTheUser(t *testing.T) {
 	}
 }
 
+// scan.shareWorkers layers as scan.limitToolThreads does: the project's false turns off the user's
+// true, and a project that leaves it out keeps the user's.
+func TestShareWorkersLayersTheProjectOverTheUser(t *testing.T) {
+	for name, tc := range map[string]struct {
+		user, project string
+		want          *bool
+	}{
+		"neither":             {"", "", nil},
+		"the user's true":     {"scan:\n  shareWorkers: true\n", "scan:\n  jobs: 2\n", new(true)},
+		"the project's false": {"scan:\n  shareWorkers: true\n", "scan:\n  shareWorkers: false\n", new(false)},
+		"the project's true":  {"", "scan:\n  shareWorkers: true\n", new(true)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir, _, _ := machineFiles(t, tc.user, tc.project)
+			res, err := Load("", dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := res.File.Scan.ShareWorkers
+			if (got == nil) != (tc.want == nil) || got != nil && *got != *tc.want {
+				t.Errorf("scan.shareWorkers = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestOneWayKeysNamesEverySettingThatOnlyTurnsOn(t *testing.T) {
 	if got, want := OneWayKeys(), []string{"cache.readOnly", "cache.requireDigest", "offline"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("OneWayKeys() = %v, want %v", got, want)
