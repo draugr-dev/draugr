@@ -24,9 +24,10 @@ The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by i
 you can [ask for one](https://draugr.dev/contact/?about=early-access). The invitation is an email with
 a code and a link.
 
-Open the link. It opens **Create an organization** with the code filled in. Give the organization a
-name, your name, the address the invitation went to and a password, and press **Create
-organization**. You are signed in to the new organization.
+Open the link. It opens **Create an organization**, and the code travels in the link, so the page
+does not ask for it. Give the organization a name, your name, the address the invitation went to and
+a password, and press **Create organization**. You are signed in to the new organization at once,
+with no confirmation email to wait for.
 
 On a server you run yourself, ask whoever runs it for a code. Where it is open to sign-ups, the same
 page asks for none.
@@ -85,9 +86,9 @@ one keeps it.
 ## 5. Find the run in the console
 
 Sign in at [app.draugr.dev](https://app.draugr.dev), or your own server's address, and choose the
-project from the project list.
-The run is listed with its verdict, and its findings carry the
-priorities P1 to P4 the scan gave them.
+project from the project list. The project's **Runs** list has a row for the run, with its verdict as
+an icon. Open the row: the run's page says the verdict in words, lists each control that failed the
+gate, and counts its findings by the priorities P1 to P4 the scan gave them.
 
 If the run is not there, the scan's output says why: a server that refuses a run answers with an
 error code and a reason, and Draugr prints both.
