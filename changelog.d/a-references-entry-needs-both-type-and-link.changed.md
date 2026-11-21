@@ -1,1 +1,1 @@
-- **A `references` entry needs both `type` and `link`.** `draugr validate` refuses one missing either, as the schema already did, since a reference without a link points at nothing and one without a type does not say what the document is.
+- **A `references` entry needs both `type` and `link`.** `draugr validate` refuses one missing either, as the schema already did.
