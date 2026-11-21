@@ -14,6 +14,9 @@ import (
 func TestMain(m *testing.M) {
 	loginStore = func() login.Store { return &memoryLogins{} }
 	inPipeline = func() bool { return false }
+	// A test that isolates Draugr's directory by setting HOME reads the temporary home it set, not a
+	// directory the developer's shell exported. A test about DRAUGR_HOME sets it itself.
+	_ = os.Unsetenv("DRAUGR_HOME")
 	os.Exit(m.Run())
 }
 
