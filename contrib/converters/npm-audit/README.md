@@ -67,7 +67,9 @@ one the import accepts.
 
 `go test ./contrib/converters/npm-audit/` converts `testdata/npm-audit.json`, what npm 11.16.0's
 `npm audit --json` wrote for a lockfile pinning lodash 4.17.20 and minimist 1.2.5, and compares the
-result with `testdata/npm-audit.draugr.json`.
+result with `testdata/npm-audit.draugr.json`. The lockfile and its `package.json` are checked in with
+a `.fixture` suffix, so that a tool reading this repository's dependencies does not count their
+vulnerable pins as Draugr's own; the test copies the lockfile back under its real name.
 
 [Write a converter](../../../docs/guides/writing-a-converter.md) says how to write one for another
 tool, and the [converter contract](../../../docs/reference/converter-contract.md) lists every key.
