@@ -68,8 +68,9 @@ func NewGosec() plugin.Scanner {
 			TargetKinds:    []plugin.TargetKind{plugin.TargetRepository},
 			ConfigSchema:   json.RawMessage(gosecConfigSchema),
 			ModuleManifest: "go.mod",
-			// gosec loads a module's packages with `go`, whose compile processes fill the bound
-			// each tool runs under, so it takes its turn with every other Go package load.
+			// gosec loads a module's packages with `go`, whose compile processes fill the machine,
+			// or the bound each tool runs under where the run limits tool threads, so it takes its
+			// turn with every other Go package load.
 			Exclusive: plugin.ExclusiveGoPackageLoad,
 		},
 		// gosec reads every file of the module, so where an analysis starts (the target's Entry)
@@ -370,18 +371,19 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 }
 
 // gosecLoads is how many packages gosec loads and analyzes at once, its `-concurrency`, before the
-// bound lowers it (toolexec.Divide).
+// parallelism it divides lowers it (toolexec.Divide).
 //
 // In gosec 2.30.0 (analyzer.go, Analyzer.Process) `-concurrency` is the number of workers, each
 // taking one package at a time: it loads the package with go/packages, which runs one
 // `go list -export` that compiles whatever of the package's dependencies the build cache lacks,
 // and then analyzes it. The same number also limits how many of gosec's SSA analyzers run at once
-// over one package. Its default is GOMAXPROCS, which Draugr sets to the whole bound, and each of
-// those `go list` commands builds with the whole bound as its -p, so one gosec run could start the
-// bound's square in compile processes.
+// over one package. Its default is GOMAXPROCS, every CPU unless the run limits tool threads, and
+// each of those `go list` commands builds with as many as its -p, so one gosec run could start
+// the square of the CPUs in compile processes.
 //
-// Two workers, each with half the bound as its -p, keep the compile processes within the bound
-// and divide it as evenly as two can, leaving at most one unit unused. The first loads compile
+// Two workers, each with half the parallelism Divide shares as its -p, keep the compile processes
+// within what one build would run and divide it as evenly as two can, leaving at most one unused.
+// That parallelism is the CPUs, or the job's bound under the limit. The first loads compile
 // most of the module's dependencies, and a larger -p is what shortens those; later loads find
 // them cached and spend their time in analysis, which the second worker overlaps with the first's
 // load. Each worker also holds its package's syntax, types and SSA in memory while it analyzes,
@@ -393,10 +395,11 @@ func onGosecModule(run func(ctx context.Context, root string, argv []string) ([]
 // load no package with a Go toolchain Draugr supports.
 const gosecLoads = 2
 
-// gosecBounded runs gosec with the job's bound divided among the packages it loads at once, as
-// toolexec.Divide gives it: -concurrency at how many it loads, and GOFLAGS with -p at the bound over
-// that many, layered over the caller's environment. Here rather than in gosecArgs because the
-// job's bound is a share of the machine that only the job's context knows.
+// gosecBounded runs gosec with a build's parallelism divided among the packages it loads at once,
+// as toolexec.Divide gives it: -concurrency at how many it loads, and GOFLAGS with -p at the
+// parallelism over that many, layered over the caller's environment. Here rather than in gosecArgs
+// because whether the run limits tool threads, and the job's share of the machine where it does,
+// only the job's context knows.
 func gosecBounded(run func(ctx context.Context, dir string, argv, env []string) ([]byte, error)) func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 	return func(ctx context.Context, dir string, argv []string) ([]byte, error) {
 		loads, env := toolexec.Divide(ctx, gosecLoads)

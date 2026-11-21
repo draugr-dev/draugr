@@ -51,21 +51,22 @@ type configKey struct {
 // internal/schemagen refuses one that configFields does not describe. TestEveryConfigKeyDefaultIs
 // TheOneTheCodeApplies holds each default to the flag or the code that applies it.
 var machineKeys = map[string]struct{ accepts, def string }{
-	"cache.dir":            {"a directory", "none, caching off"},
-	"cache.readOnly":       {acceptsBool, "false"},
-	"cache.requireDigest":  {acceptsBool, "false"},
-	"cache.ttl":            {acceptsDuration + "; 0s, no expiry", "24h"},
-	"log.format":           {list(observability.Formats), "console"},
-	"log.level":            {list(observability.Levels), "info"},
-	"offline":              {acceptsBool, "false"},
-	"output.evidence":      {acceptsBool, "false"},
-	"output.offerInstall":  {acceptsBool, "true"},
-	"output.tips":          {acceptsBool, "true"},
-	"output.top":           {acceptsCount, "10 for scan, every row for diff"},
-	"output.view":          {list(viewNames()), "findings"},
-	"publish.apiUrl":       {"a URL", "none"},
-	"scan.jobs":            {acceptsCount + "; 0, sized to the machine", "0"},
-	"tools.<tool>.version": {"a release, such as 0.69.3", "Draugr's pin"},
+	"cache.dir":             {"a directory", "none, caching off"},
+	"cache.readOnly":        {acceptsBool, "false"},
+	"cache.requireDigest":   {acceptsBool, "false"},
+	"cache.ttl":             {acceptsDuration + "; 0s, no expiry", "24h"},
+	"log.format":            {list(observability.Formats), "console"},
+	"log.level":             {list(observability.Levels), "info"},
+	"offline":               {acceptsBool, "false"},
+	"output.evidence":       {acceptsBool, "false"},
+	"output.offerInstall":   {acceptsBool, "true"},
+	"output.tips":           {acceptsBool, "true"},
+	"output.top":            {acceptsCount, "10 for scan, every row for diff"},
+	"output.view":           {list(viewNames()), "findings"},
+	"publish.apiUrl":        {"a URL", "none"},
+	"scan.jobs":             {acceptsCount + "; 0, sized to the machine", "0"},
+	"scan.limitToolThreads": {acceptsBool, "false"},
+	"tools.<tool>.version":  {"a release, such as 0.69.3", "Draugr's pin"},
 }
 
 // viewNames is every value output.view takes.

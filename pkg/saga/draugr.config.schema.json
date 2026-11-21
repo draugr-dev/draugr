@@ -1228,6 +1228,10 @@
           "description": "How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`.",
           "minimum": 0,
           "type": "integer"
+        },
+        "limitToolThreads": {
+          "description": "Whether each tool's threads and Go build processes are held to its job's share of half the CPUs or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool sizes itself to the machine. Overridden by `--limit-tool-threads`.",
+          "type": "boolean"
         }
       },
       "type": "object"

@@ -1064,6 +1064,37 @@ func missingTool(err error) string {
 	return ""
 }
 
+// limitAdvice is what a scan whose tool was killed adds where the run did not limit its tools'
+// threads. No ": " inside it, so a report that shows a failure's last clause as its reason keeps
+// the kill and the advice together.
+const limitAdvice = "Rerun with `--limit-tool-threads`, or set `scan.limitToolThreads` to true, " +
+	"to bound each tool's threads and memory."
+
+// adviseOnKill is err, with limitAdvice after it where a tool of the job was killed
+// (toolexec.ErrKilled) and the run gave its tools the whole machine. The kernel kills the process
+// using the most memory when memory runs out, and a run without the limit lets each job's tool size
+// itself to every core, which is what the limit takes back. A run already under the limit is told
+// nothing new: the limit it would name is the one it ran with.
+func adviseOnKill(ctx context.Context, err error) error {
+	if !errors.Is(err, toolexec.ErrKilled) || toolexec.LimitsThreads(ctx) {
+		return err
+	}
+	return advisedError{err: err, advice: limitAdvice}
+}
+
+// advisedError is an error followed by a sentence saying what to do about it. It is the error it
+// carries, to errors.Is and errors.As.
+type advisedError struct {
+	err    error
+	advice string
+}
+
+func (e advisedError) Error() string {
+	return strings.TrimSuffix(e.err.Error(), ".") + ". " + e.advice
+}
+
+func (e advisedError) Unwrap() error { return e.err }
+
 // missingTools pairs each control's missing-tool failures with the message recorded for them.
 func missingTools(found []MissingTool) []MissingTool {
 	seen := map[string]bool{}
@@ -1440,8 +1471,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	for _, pj := range planned {
 		unfinished[pj.Job.Scanner]++
 	}
-	// The jobs not yet finished, for toolexec.WithJobs: a job's tools get the bound divided among the
-	// jobs that can run beside it, and the last of a run's jobs gets it whole. Jobs whose scanners
+	// The jobs not yet finished, for toolexec.WithJobs: where the run limits tool threads
+	// (toolexec.WithThreadLimit) or shares worker pools, a job's tools get the bound divided among
+	// the jobs that can run beside it, and the last of a run's jobs gets it whole. Jobs whose scanners
 	// take turns at a resource (ScannerInfo.Exclusive) count once per resource, since only one of
 	// them runs at a time.
 	remaining := newUnfinishedJobs(e.reg, planned)
@@ -1667,6 +1699,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 			})
 			failedOut, _ := out.(scanOutcome)
 			if scanErr != nil {
+				scanErr = adviseOnKill(jobCtx, scanErr)
 				span.RecordError(scanErr)
 				span.SetStatus(codes.Error, "scan failed")
 				mu.Lock()

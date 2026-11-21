@@ -254,9 +254,10 @@ affects. Two things it cannot cover:
 
 By default Draugr runs one scan job per CPU or one per 2 GiB of memory, whichever is fewer. The CPUs
 and the memory are the ones Draugr may use, so a container's CPU and memory limits lower the default
-rather than the host's size deciding it. The jobs running at once also share each tool's own thread
-bound rather than each taking all of it. On a busy machine, lower it with `-j`. On a big CI runner
-you can raise it.
+rather than the host's size deciding it. Each tool sizes its own threads to the machine, which is
+the fastest a scan runs. On a busy machine, lower the job count with `-j`. On a big CI runner you can
+raise it. On a machine with many cores and little memory per core, `--limit-tool-threads` holds the
+tools of the jobs running at once to a share of the machine, for less memory and a slower run.
 
 ```bash
 draugr scan draugr.saga.yaml -j 4      # cap parallelism
@@ -266,9 +267,11 @@ draugr scan draugr.saga.yaml -j 1      # serial: deterministic output, handy for
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer) |
+| `--limit-tool-threads` | `false` | Hold each tool's threads and Go build processes to its job's share of the machine |
 
-`scan.jobs` in [`draugr.config.yaml`](configuration.md#scan) sets the same cap for every scan on a
-machine, and a typed `-j` wins over it.
+`scan.jobs` and `scan.limitToolThreads` in [`draugr.config.yaml`](configuration.md#scan) set the same
+for every scan on a machine, and a typed flag wins over them. The [CLI
+reference](../reference/cli.md) describes the limit under *Each tool's own parallelism*.
 
 The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total jobs),
 `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence. See the

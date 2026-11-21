@@ -103,6 +103,10 @@ type ScanSettings struct {
 	// per CPU or per 2 GiB of memory, whichever is fewer. A pointer, so a more specific file's `0` restores the default over a less specific
 	// file's cap.
 	Jobs *int `yaml:"jobs,omitempty"`
+	// LimitToolThreads holds each tool's threads and Go build processes to its job's share of the
+	// machine, as --limit-tool-threads does. Off by default, when each tool sizes itself to the
+	// machine. A pointer, so a more specific file's `false` turns off a less specific file's `true`.
+	LimitToolThreads *bool `yaml:"limitToolThreads,omitempty"`
 }
 
 // LogSettings configures the log Draugr writes to stderr. Each has a `--log-*` flag that
@@ -437,6 +441,9 @@ func merge(a, b File) File {
 	out.Scan = a.Scan
 	if b.Scan.Jobs != nil {
 		out.Scan.Jobs = b.Scan.Jobs
+	}
+	if b.Scan.LimitToolThreads != nil {
+		out.Scan.LimitToolThreads = b.Scan.LimitToolThreads
 	}
 
 	out.Log = a.Log

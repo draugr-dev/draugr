@@ -196,11 +196,16 @@ output:
 ```yaml
 scan:
   jobs: 4            # scan jobs run at once; 0 is the automatic default
+  limitToolThreads: true  # hold each tool to its job's share of the machine, as --limit-tool-threads does
 ```
 
 `jobs` is the default for `--jobs` on every scan the machine runs. A project's `jobs: 0` restores
 the automatic default over the machine's cap. See [tuning parallelism](caching-and-performance.md#tuning-parallelism)
 for choosing a number.
+
+`limitToolThreads` is the default for `--limit-tool-threads`. Off, each tool sizes itself to the
+machine, which is fastest; on, the tools use less memory and the scan takes longer, which suits a
+machine with many cores and little memory per core. A project's `false` turns off a machine's `true`.
 
 ### `log`
 
