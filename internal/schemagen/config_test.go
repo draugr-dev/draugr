@@ -149,7 +149,7 @@ func TestTheConfigSchemaIsHeldToTheSameRule(t *testing.T) {
 					"with the reason it cannot be closed.", path)
 			}
 		}
-		if isObject(n) && !narrows(path) {
+		if isObject(n) && !narrows(path, n) {
 			if ap, ok := n["additionalProperties"].(bool); ok && !ap {
 				return
 			}

@@ -945,6 +945,15 @@ func sagaFields() map[string]map[string]any {
 	}
 }
 
+// nonEmpty is the schema of a definition whose key is written with at least one entry, by limit:
+// minItems for a list, minProperties for a mapping. The loader counts an empty list as absent.
+func nonEmpty(key, limit string) map[string]any {
+	return map[string]any{
+		"properties": map[string]any{key: map[string]any{limit: 1}},
+		"required":   []any{key},
+	}
+}
+
 // sagaDefinitions carries what each definition says about itself: its description, the keys it
 // requires, and any rule across its keys. Every definition generation writes needs an entry here,
 // and an entry for a definition it no longer writes fails generation.
@@ -1054,6 +1063,8 @@ func sagaDefinitions() map[string]map[string]any {
 		"excludeRule": {
 			"description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
 			"required":    []any{"reason"},
+			// An exclusion with neither would match every finding in the project.
+			"anyOf": []any{nonEmpty("paths", "minItems"), nonEmpty("rules", "minItems")},
 		},
 		"exploitabilityConfig": {
 			"description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited " +
@@ -1097,6 +1108,14 @@ func sagaDefinitions() map[string]map[string]any {
 				"which against an application that requires a login tests the login page and reports a " +
 				"pass about everything behind it.",
 			"required": []any{"type", "tokenEnv"},
+			// type header sends the header named here, and bearer always sends Authorization.
+			"allOf": []any{map[string]any{
+				"if":   map[string]any{"properties": map[string]any{"type": map[string]any{"const": saga.HostAuthHeader}}, "required": []any{"type"}},
+				"then": map[string]any{"required": []any{"header"}},
+			}, map[string]any{
+				"if":   map[string]any{"properties": map[string]any{"type": map[string]any{"const": saga.HostAuthBearer}}, "required": []any{"type"}},
+				"then": map[string]any{"properties": map[string]any{"header": false}},
+			}},
 		},
 		"hostSpec": {
 			"description": "Drive the dynamic scan from an OpenAPI document instead of crawling. An API usually has " +
@@ -1112,6 +1131,7 @@ func sagaDefinitions() map[string]map[string]any {
 				"read into one of Draugr's controls.",
 			"required": []any{"control"},
 			"oneOf":    []any{map[string]any{"required": []any{"file"}}, map[string]any{"required": []any{"source"}}},
+			"allOf":    importRules(true),
 		},
 		"importSeverity": {
 			"description": "The result property a tool states its rating in, and the severity each of its values means.",
@@ -1129,8 +1149,34 @@ func sagaDefinitions() map[string]map[string]any {
 		"publisherConfig": {
 			// Which item keys each issue kind reads. The rules in the same allOf marked
 			// publisherRuleMark are written by publisherRules from pkg/publish; these two are held to
-			// the CLI's own table by TestTheEditorHoldsItemFieldsToTheKind.
+			// the CLI's own table by TestTheEditorHoldsItemFieldsToTheKind. The first three hold
+			// children to the keys around it, as PublisherConfig.validateChildren does: maxChildren
+			// caps children a publisher with none does not have, an item of a split by control
+			// already covers one control, and a GitLab task has no children.
 			"allOf": []any{map[string]any{
+				"if": map[string]any{"required": []any{"maxChildren"}},
+				"then": map[string]any{
+					"properties": map[string]any{"children": map[string]any{"not": map[string]any{"const": saga.ChildrenNone}}},
+					"required":   []any{"children"},
+				},
+			}, map[string]any{
+				"not": map[string]any{
+					"properties": map[string]any{
+						"children": map[string]any{"const": saga.ChildrenControls},
+						"split":    map[string]any{"const": saga.SplitControl},
+					},
+					"required": []any{"children", "split"},
+				},
+			}, map[string]any{
+				"not": map[string]any{
+					"properties": map[string]any{
+						"kind":     map[string]any{"const": "gitlab-issue"},
+						"item":     map[string]any{"properties": map[string]any{"type": map[string]any{"const": "task"}}, "required": []any{"type"}},
+						"children": map[string]any{"not": map[string]any{"const": saga.ChildrenNone}},
+					},
+					"required": []any{"kind", "item", "children"},
+				},
+			}, map[string]any{
 				"else": map[string]any{
 					"properties": map[string]any{
 						"item": map[string]any{
@@ -1215,6 +1261,8 @@ func sagaDefinitions() map[string]map[string]any {
 			"description": "The part of a run an issue entry covers, with the meaning of --components, --labels and " +
 				"--controls. A list matches any of its values, every label must match, and the keys " +
 				"together narrow.",
+			// An empty select covers the whole run, which leaving it out already says.
+			"anyOf": []any{nonEmpty("components", "minItems"), nonEmpty("labels", "minProperties"), nonEmpty("controls", "minItems")},
 		},
 		"reachabilityConfig": {
 			"description": "Rank a dependency finding down when this project's code cannot reach the vulnerable part " +
@@ -1258,6 +1306,11 @@ func sagaDefinitions() map[string]map[string]any {
 			"description": "Where one supplier's VEX document comes from. Exactly one of path, url or repository. " +
 				"Naming a source is how you accept its claims, and the report names their author on every " +
 				"finding they excused.",
+			"oneOf": []any{
+				map[string]any{"required": []any{"path"}},
+				map[string]any{"required": []any{"url"}},
+				map[string]any{"required": []any{"repository"}},
+			},
 		},
 	}
 }

@@ -1,0 +1,1 @@
+- **A `references` entry needs both `type` and `link`.** `draugr validate` refuses one missing either, as the schema already did.

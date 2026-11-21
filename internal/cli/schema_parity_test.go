@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -26,6 +29,16 @@ var parityExceptions = map[string]string{
 	`^components\.\d+\.cloud\.\d+\.account$`:             "a name the same descriptor declares under accounts:, which a schema cannot cross-reference",
 	`^components\.\d+\.images\.\d+\.signedBy$`:           "a signer the same descriptor declares under controls.provenance.signers, which a schema cannot cross-reference",
 	`^config\.publishers\.\d+\.select\.components\.\d+$`: "a component the same descriptor declares, which a schema cannot cross-reference",
+}
+
+// dropExceptions are the keys whose deletion `draugr validate` refuses and the JSON Schema accepts,
+// each for a reason no schema can express. Apart from parityExceptions because they hold only for a
+// deleted key: every other change to the same key is still compared.
+var dropExceptions = map[string]string{
+	`^(accounts|clusters)(\.[^.]+)?$`:                  "an account or a cluster a component names, which a schema cannot cross-reference",
+	`^config(\.controls(\.provenance(\.signers)?)?)?$`: "the signers an image's signedBy names, which a schema cannot cross-reference",
+	`^components$`: "the components a publisher's select.components names, which a schema cannot cross-reference",
+	`^components\.\d+\.imports\.\d+\.repository$`: "required where the component declares several distinct repository addresses, which a schema cannot count",
 }
 
 // referencedNames are the names testdata/parity/fields.saga.yaml declares and then refers to, so
@@ -123,14 +136,16 @@ func TestTheEditorAndDraugrAgreeOnEveryField(t *testing.T) {
 		}
 		for _, m := range sagatest.Mutations(base) {
 			d, e := draugrAccepts(m.Doc), editorAccepts(m.Doc)
-			if d == e || excepted(m.Path) {
+			if d == e || excepted(m.Kind, m.Path) {
 				continue
 			}
 			if _, ok := referencedNames[m.Path]; ok && doc.name == "testdata/parity/fields.saga.yaml" {
 				continue
 			}
-			t.Errorf("%s: %s %s: draugr validate accepts=%v, the schema accepts=%v; make them agree",
-				doc.name, m.Kind, m.Path, d, e)
+			// The file still holds this mutation, so the loader's own words say what it refuses.
+			_, loadErr := loadAndWarn(doc.load)
+			t.Errorf("%s: %s %s: draugr validate accepts=%v, the schema accepts=%v; make them agree\n  validate: %v",
+				doc.name, m.Kind, m.Path, d, e, loadErr)
 		}
 		// Put the document back, so a fragment changed last does not break the next descriptor
 		// that collects it.
@@ -154,8 +169,16 @@ func draugrObjects(path string) bool {
 	return err != nil || len(res.Model.TextWarnings()) > 0
 }
 
-func excepted(path string) bool {
+func excepted(kind, path string) bool {
 	for p := range parityExceptions {
+		if regexp.MustCompile(p).MatchString(path) {
+			return true
+		}
+	}
+	if kind != "drop" {
+		return false
+	}
+	for p := range dropExceptions {
 		if regexp.MustCompile(p).MatchString(path) {
 			return true
 		}
@@ -390,54 +413,7 @@ func TestEveryFieldIsHeldToBothReaders(t *testing.T) {
 	fields(reflect.TypeOf(saga.Model{}))
 	fields(reflect.TypeOf(saga.Fragment{}))
 
-	written := map[string]bool{}
-	var walk func(any, reflect.Type)
-	walk = func(v any, tp reflect.Type) {
-		for tp.Kind() == reflect.Pointer {
-			tp = tp.Elem()
-		}
-		switch tp.Kind() {
-		case reflect.Struct:
-			m, ok := v.(map[string]any)
-			if !ok {
-				return
-			}
-			for i := range tp.NumField() {
-				key, _, _ := strings.Cut(tp.Field(i).Tag.Get("yaml"), ",")
-				if val, ok := m[key]; ok && key != "" && key != "-" {
-					written[tp.String()+"."+key] = true
-					walk(val, tp.Field(i).Type)
-				}
-			}
-		case reflect.Slice:
-			if list, ok := v.([]any); ok {
-				for _, e := range list {
-					walk(e, tp.Elem())
-				}
-			}
-		case reflect.Map:
-			if m, ok := v.(map[string]any); ok {
-				for _, e := range m {
-					walk(e, tp.Elem())
-				}
-			}
-		}
-	}
-	for _, doc := range parityCorpus(t, t.TempDir()) {
-		raw, err := os.ReadFile(doc.edit) // #nosec G304 -- a copy of a file in this repository
-		if err != nil {
-			t.Fatal(err)
-		}
-		var v any
-		if err := yaml.Unmarshal(raw, &v); err != nil {
-			t.Fatal(err)
-		}
-		if doc.fragment {
-			walk(v, reflect.TypeOf(saga.Fragment{}))
-		} else {
-			walk(v, reflect.TypeOf(saga.Model{}))
-		}
-	}
+	written := corpusFields(t).written
 
 	var missing []string
 	for f := range all {
@@ -455,5 +431,127 @@ func TestEveryFieldIsHeldToBothReaders(t *testing.T) {
 		t.Errorf("no document the parity test changes writes these fields as a live key: %s\n"+
 			"Write each in testdata/parity/fields.saga.yaml (or a fragment beside it), so the schema "+
 			"and draugr validate are compared on it.", strings.Join(missing, ", "))
+	}
+}
+
+// corpus is what the parity corpus writes: each field as a live key, by struct and yaml key, and
+// each text value a field takes, with the most siblings any item writing it has.
+type corpus struct {
+	written map[string]bool
+	values  map[string]map[string]int
+}
+
+// corpusFields walks every document the parity test changes against the model's types.
+func corpusFields(t *testing.T) corpus {
+	t.Helper()
+	c := corpus{written: map[string]bool{}, values: map[string]map[string]int{}}
+	var walk func(v any, tp reflect.Type, siblings int)
+	walk = func(v any, tp reflect.Type, siblings int) {
+		for tp.Kind() == reflect.Pointer {
+			tp = tp.Elem()
+		}
+		switch tp.Kind() {
+		case reflect.Struct:
+			m, ok := v.(map[string]any)
+			if !ok {
+				return
+			}
+			for i := range tp.NumField() {
+				key, _, _ := strings.Cut(tp.Field(i).Tag.Get("yaml"), ",")
+				val, ok := m[key]
+				if !ok || key == "" || key == "-" {
+					continue
+				}
+				field := tp.String() + "." + key
+				c.written[field] = true
+				if s, isText := val.(string); isText {
+					if c.values[field] == nil {
+						c.values[field] = map[string]int{}
+					}
+					c.values[field][s] = max(c.values[field][s], siblings)
+				}
+				walk(val, tp.Field(i).Type, 1)
+			}
+		case reflect.Slice:
+			if list, ok := v.([]any); ok {
+				for _, e := range list {
+					walk(e, tp.Elem(), len(list))
+				}
+			}
+		case reflect.Map:
+			if m, ok := v.(map[string]any); ok {
+				for _, e := range m {
+					walk(e, tp.Elem(), len(m))
+				}
+			}
+		}
+	}
+	for _, doc := range parityCorpus(t, t.TempDir()) {
+		raw, err := os.ReadFile(doc.edit) // #nosec G304 -- a copy of a file in this repository
+		if err != nil {
+			t.Fatal(err)
+		}
+		var v any
+		if err := yaml.Unmarshal(raw, &v); err != nil {
+			t.Fatal(err)
+		}
+		if doc.fragment {
+			walk(v, reflect.TypeOf(saga.Fragment{}), 1)
+		} else {
+			walk(v, reflect.TypeOf(saga.Model{}), 1)
+		}
+	}
+	return c
+}
+
+// variantSelectors are the fields whose value decides which of their siblings' keys the loader
+// accepts, each with the definition and the property in the Saga schema that lists its values.
+var variantSelectors = map[string][2]string{
+	"saga.Import.format":            {"import", "format"},
+	"saga.Import.source":            {"import", "source"},
+	"saga.PublisherConfig.kind":     {"publisherConfig", "kind"},
+	"saga.PublisherConfig.children": {"publisherConfig", "children"},
+	"saga.PublisherConfig.split":    {"publisherConfig", "split"},
+	"saga.Account.provider":         {"account", "provider"},
+}
+
+// TestEveryVariantIsInTheCorpus requires each value of a field in variantSelectors, as the Saga
+// schema lists them, on an item of the parity corpus that has a sibling.
+//
+// A rule tying one key to another is reached by TestTheEditorAndDraugrAgreeOnEveryField only by
+// copying a key from one item onto its sibling, so a value no item writes, or one written on an item
+// with no sibling, is a variant whose rules nothing compares. Read from the schema, so a new format,
+// kind or provider fails here until the corpus writes it.
+func TestEveryVariantIsInTheCorpus(t *testing.T) {
+	var schema struct {
+		Defs map[string]struct {
+			Properties map[string]struct {
+				AnyOf []struct {
+					Const any `json:"const"`
+				} `json:"anyOf"`
+			} `json:"properties"`
+		} `json:"$defs"`
+	}
+	if err := json.Unmarshal(saga.SchemaJSON, &schema); err != nil {
+		t.Fatal(err)
+	}
+	found := corpusFields(t).values
+	for _, field := range slices.Sorted(maps.Keys(variantSelectors)) {
+		at := variantSelectors[field]
+		variants := schema.Defs[at[0]].Properties[at[1]].AnyOf
+		if len(variants) == 0 {
+			t.Errorf("%s: the schema lists no values at $defs.%s.properties.%s", field, at[0], at[1])
+		}
+		for _, v := range variants {
+			value := fmt.Sprint(v.Const)
+			switch n, ok := found[field][value]; {
+			case !ok:
+				t.Errorf("%s: no document in the parity corpus writes %s. Write it in testdata/parity, "+
+					"beside an item whose %s differs, so its rules are compared", field, value, at[1])
+			case n < 2:
+				t.Errorf("%s: %s is written only on an item with no sibling, so no key is copied onto it. "+
+					"Write it beside an item whose %s differs", field, value, at[1])
+			}
+		}
 	}
 }

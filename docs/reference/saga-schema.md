@@ -404,7 +404,7 @@ components:
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import, whose file leaves out what OSV-Scanner's configuration ignores |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores) or a `draugr-converter` import (its file records none) |
 
 #### Import formats
 
@@ -2880,7 +2880,8 @@ draugr validate azure.saga.yaml --resolved   # the merged descriptor, with sourc
 
 ## `references`
 
-Links to manual or human-performed controls (threat model, architecture diagram, …):
+Links to manual or human-performed controls (threat model, architecture diagram, …). Each entry
+needs both `type` and `link`:
 
 ```yaml
 references:

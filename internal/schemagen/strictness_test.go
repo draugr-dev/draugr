@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -192,20 +193,27 @@ func isObject(n map[string]any) bool {
 	return has
 }
 
-// narrows reports whether path is inside an `if`, `then`, `else` or `not`.
+// narrows reports whether the node n at path is inside an `if`, `then`, `else` or `not`, or is a
+// branch of an `anyOf`, `oneOf` or `allOf` that declares no type of its own.
 //
 // Those subschemas apply beside the object they sit in and constrain keys it already declares, so
 // the object's own `additionalProperties: false` still closes it. Closing one of them as well would
-// refuse every key it does not repeat.
-func narrows(path string) bool {
-	for _, seg := range strings.Split(path, ".") {
+// refuse every key it does not repeat. A branch with a type is a shape of its own rather than a
+// constraint on its parent's, and is held to the rule.
+func narrows(path string, n map[string]any) bool {
+	segs := strings.Split(path, ".")
+	for _, seg := range segs {
 		switch seg {
 		case "if", "then", "else", "not":
 			return true
 		}
 	}
-	return false
+	_, typed := n["type"]
+	return !typed && combinatorBranch.MatchString(segs[len(segs)-1])
 }
+
+// combinatorBranch matches the path segment walkSchema names a branch of an anyOf, oneOf or allOf.
+var combinatorBranch = regexp.MustCompile(`^(anyOf|oneOf|allOf)\[\d+\]$`)
 
 // isString reports whether a node accepts a string, alone or beside a number.
 //
@@ -343,7 +351,7 @@ func TestEveryStringIsClosedOrSaysWhyNot(t *testing.T) {
 func TestEveryObjectIsClosedOrSaysWhyNot(t *testing.T) {
 	var open []string
 	walkSchema(loadSchema(t), "", func(path string, n map[string]any) {
-		if !isObject(n) || narrows(path) {
+		if !isObject(n) || narrows(path, n) {
 			return
 		}
 		switch ap := n["additionalProperties"].(type) {

@@ -476,9 +476,35 @@
           "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
           "items": {
             "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "keyless"
+                ]
+              },
+              {
+                "required": [
+                  "github"
+                ]
+              },
+              {
+                "required": [
+                  "x509"
+                ]
+              }
+            ],
             "properties": {
               "github": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "required": [
+                      "repository",
+                      "workflow",
+                      "ref"
+                    ]
+                  }
+                ],
                 "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
                 "properties": {
                   "ref": {
@@ -505,7 +531,26 @@
               },
               "keyless": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "required": [
+                      "issuer"
+                    ]
+                  }
+                ],
                 "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+                "oneOf": [
+                  {
+                    "required": [
+                      "identity"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "identityRegexp"
+                    ]
+                  }
+                ],
                 "properties": {
                   "identity": {
                     "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif.",
@@ -528,6 +573,14 @@
               },
               "x509": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "required": [
+                      "trustStore",
+                      "subject"
+                    ]
+                  }
+                ],
                 "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
                 "properties": {
                   "subject": {
