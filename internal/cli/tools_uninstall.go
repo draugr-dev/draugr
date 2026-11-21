@@ -26,11 +26,11 @@ func newToolsUninstallCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uninstall [tool...]",
 		Short: "Remove tools `draugr tools install` put in ~/.draugr",
-		Long: "Remove the named tools, or with --all every tool Draugr installed, from ~/.draugr: the\n" +
-			"binary, its Python or Node environment, and the data Draugr keeps for it. A copy of a\n" +
-			"tool installed any other way is left alone. Each tool's own cache, such as Trivy's\n" +
-			"database, stays unless --caches is given. Prints the plan first; when run\n" +
-			"interactively it asks for confirmation.",
+		Long: "Remove the named tools, or with --all every tool Draugr installed, from ~/.draugr, or\n" +
+			"from DRAUGR_HOME when it is set: the binary, its Python or Node environment, and the\n" +
+			"data Draugr keeps for it. A copy of a tool installed any other way is left alone.\n" +
+			"Each tool's own cache, such as Trivy's database, stays unless --caches is given.\n" +
+			"Prints the plan first; when run interactively it asks for confirmation.",
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir, err := tools.BinDir()

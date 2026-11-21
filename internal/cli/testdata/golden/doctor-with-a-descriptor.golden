@@ -2,7 +2,7 @@ Draugr      dev  (latest: v9.9.9. Run 'draugr self-update')
 
 Descriptor  ✓ valid (<path>)
 
-TOOLS
+TOOLS  looked for in ~/.draugr/bin, then on PATH
 Tool      Status   Version  Notes
 git       ✓ found  2.55.0   /somewhere/git
 gitleaks  ✓ found  8.30.1   /somewhere/gitleaks

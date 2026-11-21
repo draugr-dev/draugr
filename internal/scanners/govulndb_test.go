@@ -33,6 +33,9 @@ func TestMain(m *testing.M) {
 	sharedTrivyVersion = &trivyVersionProbe{run: func(context.Context, []string) ([]byte, error) {
 		return nil, errors.New("no test reads the machine's Trivy")
 	}}
+	// Nor a tool directory the developer's shell exported: a test that isolates Draugr's directory
+	// by setting HOME reads the temporary home it set. A test about DRAUGR_HOME sets it itself.
+	_ = os.Unsetenv("DRAUGR_HOME")
 	os.Exit(m.Run())
 }
 

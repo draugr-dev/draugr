@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/draugr-dev/draugr/internal/draugrhome"
 )
 
 // Name identifies a feed.
@@ -127,13 +129,16 @@ func (r Record) Stale(now time.Time, maxAge time.Duration) bool {
 // manifestName records what has been fetched, alongside the feeds themselves.
 const manifestName = ".draugr-feeds.json"
 
-// Dir is the feed cache, ~/.draugr/feeds.
+// Dir is the feed cache: feeds/ under $DRAUGR_HOME when it is set, and ~/.draugr/feeds otherwise.
+// Beside the tools rather than apart from them, because a machine that moves where Draugr writes,
+// a container whose home is read-only or a runner with one shared cache, needs the datasets moved
+// with the scanners that read them.
 func Dir() (string, error) {
-	home, err := os.UserHomeDir()
+	root, err := draugrhome.Dir()
 	if err != nil {
-		return "", fmt.Errorf("locate home directory: %w", err)
+		return "", err
 	}
-	return filepath.Join(home, ".draugr", "feeds"), nil
+	return filepath.Join(root, "feeds"), nil
 }
 
 // Path is where a feed's data lives inside dir, decompressed and ready to parse.

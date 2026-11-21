@@ -1,6 +1,6 @@
 Draugr      dev  (latest: v9.9.9. Run 'draugr self-update')
 
-TOOLS
+TOOLS  looked for in ~/.draugr/bin, then on PATH
 Tool         Status   Version  Notes
 cosign       ✓ found  3.1.4    /somewhere/cosign
 git          ✓ found  2.55.0   /somewhere/git

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/draugr-dev/draugr/internal/draugrhome"
 )
 
 // serve stands in for an upstream feed, returning body at the KEV and EPSS paths. The EPSS
@@ -175,12 +177,30 @@ func TestDescribeAndURL(t *testing.T) {
 
 func TestDir(t *testing.T) {
 	t.Setenv("HOME", "/tmp/draugr-feeds-home-test")
+	t.Setenv(draugrhome.EnvVar, "")
 	dir, err := Dir()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := filepath.Join("/tmp/draugr-feeds-home-test", ".draugr", "feeds"); dir != want {
 		t.Errorf("Dir() = %q, want %q", dir, want)
+	}
+}
+
+// DRAUGR_HOME moves the feeds with the tools, and a relative one is refused here as everywhere.
+func TestDirFollowsDraugrHome(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(draugrhome.EnvVar, root)
+	dir, err := Dir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(root, "feeds"); dir != want {
+		t.Errorf("Dir() = %q, want %q", dir, want)
+	}
+	t.Setenv(draugrhome.EnvVar, "relative")
+	if _, err := Dir(); err == nil || !strings.Contains(err.Error(), "absolute") {
+		t.Errorf("Dir() with a relative DRAUGR_HOME = %v", err)
 	}
 }
 

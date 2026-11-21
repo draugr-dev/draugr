@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel"
 
+	"github.com/draugr-dev/draugr/internal/draugrhome"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
 	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/internal/tools"
@@ -202,8 +203,17 @@ func execute(ctx context.Context, args []string) int {
 	ctx, span := otel.Tracer("draugr").Start(ctx, "cli.execute")
 	defer span.End()
 
-	// Make tools provisioned by `draugr tools install` (~/.draugr/bin) discoverable to the
-	// scanners we spawn and to `doctor`, without the user editing their shell. Best-effort.
+	// A DRAUGR_HOME that cannot be used stops every command, not only the ones that install. A scan
+	// that skipped it would run whatever is on PATH, or report tools missing that were installed
+	// where the variable says, and either reads as though the variable had been honored.
+	if err := draugrhome.Check(); err != nil {
+		fmt.Fprintln(os.Stderr, "draugr: "+err.Error())
+		return 1
+	}
+
+	// Make tools provisioned by `draugr tools install` (~/.draugr/bin, or bin/ under DRAUGR_HOME)
+	// discoverable to the scanners we spawn and to `doctor`, without the user editing their shell.
+	// Best-effort: with no home directory there is nothing installed to find.
 	if dir, err := tools.BinDir(); err == nil {
 		_ = os.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}

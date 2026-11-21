@@ -124,6 +124,7 @@ win over a settings file.
 | | |
 |---|---|
 | `DRAUGR_CONFIG` | the machine or organization settings file to read, instead of the discovered ones |
+| `DRAUGR_HOME` | where Draugr keeps what it downloads, in place of `~/.draugr`. [`tools install`](#draugr-tools-install-tool) writes to its `bin/`, the tools' data goes to its `data/` and the feeds to its `feeds/`. Every command looks in its `bin/` before `PATH`, and [`doctor`](#draugr-doctor-sagayaml) names it. Must be an absolute path, because a relative one stops every command. `~/.draugr/config.yaml` stays where it is |
 | `DRAUGR_OFFLINE` | make no network calls. Equivalent to `--offline` |
 | `DRAUGR_NO_UPDATE_CHECK` | skip the check for a newer release, without disabling the rest of the network |
 | `DRAUGR_NO_TIPS` | suppress the console's contextual tips |
@@ -1655,7 +1656,7 @@ one line under the table counts them:
 ```console
 $ draugr doctor --offline
 …
-TOOLS
+TOOLS  looked for in ~/.draugr/bin, then on PATH
 Tool         Status     Version  Notes
 …
 trivy        ✓ found    0.69.3   /usr/bin/trivy · tested against 0.74.0
@@ -1701,7 +1702,7 @@ tools:
 ```console
 $ draugr doctor --config pin.yaml --offline
 …
-TOOLS
+TOOLS  looked for in ~/.draugr/bin, then on PATH
 Tool         Status     Version  Notes
 …
 semgrep      ✓ found    1.177.0  /home/wilson/.draugr/bin/semgrep · pinned in ./pin.yaml
@@ -1862,8 +1863,10 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 | `--controls` | - | Check only the targets these controls would read |
 | `--labels`, `--exposure`, `--criticality` | - | Select components as [`draugr scan`](#draugr-scan-sagayaml--dir) does |
 
-The JSON's top-level fields are `draugr`, `descriptor`, `tools`, `missing`, `targets`, `policy`,
-`data` and `uncoveredSurfaces`. `missing` counts each required tool that is absent or has no data,
+The JSON's top-level fields are `draugr`, `descriptor`, `toolsDir`, `tools`, `missing`, `targets`,
+`policy`, `data` and `uncoveredSurfaces`. `toolsDir` is the directory looked in before `PATH`, the
+one the `TOOLS` heading names, which is `~/.draugr/bin` or `bin/` under [`DRAUGR_HOME`](#environment).
+`missing` counts each required tool that is absent or has no data,
 the count the exit code is decided on. An optional tool that is absent is listed and not counted.
 A tool with no data carries the hint for getting it.
 
@@ -2001,6 +2004,17 @@ taken from the upstream checksums files for a release binary), and install them 
 `~/.draugr/bin`, which Draugr **adds to `PATH` automatically**, so `scan` and `doctor` use them with
 no shell config. Refused under `--offline`, naming the tools it would fetch.
 
+To install somewhere else, such as a tool cache a CI runner keeps between jobs or a writable
+directory in a container whose home is read-only, set [`DRAUGR_HOME`](#environment) to an absolute
+path. The tools go to its `bin/` and their data to its `data/`, and every later command that sees
+the same variable looks there:
+
+```bash
+export DRAUGR_HOME=/opt/draugr
+draugr tools install --saga draugr.saga.yaml   # into /opt/draugr/bin
+draugr doctor draugr.saga.yaml                 # TOOLS  looked for in /opt/draugr/bin (DRAUGR_HOME), then on PATH
+```
+
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
 the descriptor there runs, or, with no descriptor, what a zero-config scan runs, which is what
@@ -2136,8 +2150,8 @@ Naming a tool Draugr runs but does not provision, such as `kubectl` or `git`, is
 ### `draugr tools uninstall [tool...]`
 
 Remove tools `draugr tools install` put on this machine: the binary in `~/.draugr/bin`, the Python
-or Node environment beside it, and the data Draugr keeps for the tool under `~/.draugr/data`. A
-copy installed any other way is left where it is, and the line for it says where it was found.
+or Node environment beside it, and the data Draugr keeps for the tool under `~/.draugr/data`, or
+the same paths under [`DRAUGR_HOME`](#environment) when it is set. A copy installed any other way is left where it is, and the line for it says where it was found.
 
 Each tool's own cache stays unless `--caches` is given: Trivy's and Grype's vulnerability
 databases, Nuclei's templates, and the smaller ones Syft, Notation and cosign keep. A tool's settings
