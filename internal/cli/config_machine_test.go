@@ -137,6 +137,7 @@ func TestConfigSetsAndUnsetsEachMachineSetting(t *testing.T) {
 	dir := t.TempDir()
 	for key, value := range map[string]string{
 		"scan.jobs": "3", "log.level": "debug", "log.format": "text", "output.tips": "false", "offline": "true",
+		"scan.limitToolThreads": "true",
 	} {
 		if out, err := runConfig(t, dir, "set", key, value); err != nil {
 			t.Fatalf("set %s %s: %v\n%s", key, value, err, out)

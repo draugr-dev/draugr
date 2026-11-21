@@ -666,7 +666,8 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
-| `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains |
+| `--limit-tool-threads` | `false` | Hold each tool's threads and Go build processes to its job's share of the parallelism bound, for a machine with many cores and little memory per core. Uses less memory and makes a run slower; left off, each tool sizes itself to the machine, as *Each tool's own parallelism* below explains (or `scan.limitToolThreads` in `draugr.config.yaml`) |
+| `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains. Implies `--limit-tool-threads` |
 | `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -679,8 +680,8 @@ the policy check runs only under `--policy`.
 
 The `--cache-*` flags have counterparts in [`draugr.config.yaml`](#draugr-config) under `cache:`
 (`dir`, `ttl`, `readOnly`, `requireDigest`); `--view`, `--evidence`, `--top` and `--no-tips` under
-`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs` under `scan:` (`jobs`). A flag on the
-command line wins over the file.
+`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs` and `--limit-tool-threads` under `scan:`
+(`jobs`, `limitToolThreads`). A flag on the command line wins over the file.
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -710,8 +711,8 @@ available fields). `html`, `junit` and the GitLab formats are files, written wit
 **Tuning parallelism (`-j`/`--jobs`).** By default Draugr runs one scan job per CPU or one per 2 GiB
 of memory, whichever is fewer, counting the CPUs and memory it may use under a container's limits.
 Trivy and Semgrep are multi-threaded themselves, so on a busy machine a lower `-j` can finish
-sooner; `-j 1` runs serially. Each tool's own threads have a bound of their own, under *Each
-tool's own parallelism*. The run's JSON `stats` reports the effective `concurrency` alongside
+sooner; `-j 1` runs serially. Each tool sizes its own threads to the machine unless you limit them,
+under *Each tool's own parallelism*. The run's JSON `stats` reports the effective `concurrency` alongside
 `jobs` (total jobs), `scans`, `cacheHits` and `deduped`.
 
 It also reports where the time went, in milliseconds: `durationMs` (wall-clock), `byControlMs` (each
@@ -723,27 +724,36 @@ absent, not zero, when a run recorded no timings. `dataRefresh` lists each scann
 beside the duration when it is five seconds or more and at least a quarter of the run, and
 `--evidence` names each refresh of a second or more.
 
-**Each tool's own parallelism.** Draugr starts every external tool with `GOMAXPROCS=n` and with
+**Each tool's own parallelism.** By default each external tool sizes itself to the machine, as it
+does when run on its own: a Go tool runs on every CPU it can see, and a Go build it starts, such
+as govulncheck's package load, runs as many compile processes. That is the fastest a scan runs.
+govulncheck and gosec take turns, so only one of them is loading Go packages at any moment across
+the run, on any number of repositories, and their jobs count as one. Within its turn, gosec loads
+two packages at once, each building with `-p` at half the CPUs, rounded down, so together they run
+as many compile processes as one build would. A run with several such loads takes longer than loads
+in parallel would, and each job's wait is in `stats.orderWaitsMs`.
+
+On a machine with many cores and little memory per core, several jobs whose tools each use every
+core can run out of memory, and the kernel then kills the tool using the most. Such a failure says
+how to rerun under the limit. `--limit-tool-threads`, or `scan.limitToolThreads: true` in
+`draugr.config.yaml`, holds every tool to a bound, n: Draugr starts it with `GOMAXPROCS=n` and with
 `-p=n` added after the flags already in `GOFLAGS`, so a Go tool runs on at most n threads and a Go
-build it starts, such as govulncheck's package load, runs at most n compile processes. To use a
-different bound, set `GOMAXPROCS`, or `-p=<n>` in `GOFLAGS`, before running `draugr scan`; Draugr
-passes either one on unchanged. The jobs running at once share n: each starts its tools under n
+build at most n compile processes. The jobs running at once share n: each starts its tools under n
 divided by the jobs that can run beside it, rounded down and at least 1, so a job running alone,
-such as the last of a run, keeps all of n. govulncheck and gosec take turns, so only one of them is
-loading Go packages at any moment across the run, on any number of repositories, and their jobs
-count as one. Within its turn, gosec loads two packages at once, each building with `-p` at half of
-its job's share, rounded down, so its compile processes also stay within that share. A run with
-several such loads takes longer than loads in parallel would, and each job's wait is in
-`stats.orderWaitsMs`.
+such as the last of a run, keeps all of n, and gosec's two loads each build with `-p` at half of its
+job's share. The run then holds less memory and takes longer.
+
+With the limit or without it, a `GOMAXPROCS`, or `-p=<n>` in `GOFLAGS`, set before running
+`draugr scan` is passed on unchanged.
 
 Some tools size a pool of their own, which `GOMAXPROCS` does not reach. Semgrep starts an analysis
 process for each CPU it can see, up to sixteen, and where several Semgrep jobs run at once each gets
 `--jobs` at the CPUs divided among them. Trivy reads five files at once. With `--share-workers`,
 Semgrep's `--jobs` and Trivy's `--parallel` are instead each job's share of n, never more than the
-tool's own default. The run then holds less memory and CPU, and can take longer, because a share is
-fixed when the tool starts and a long Semgrep job that starts beside many short ones keeps its small
-share after they finish. Syft, Grype, Gitleaks, Nuclei, Prowler and Mend's `ua` take no such setting from
-Draugr.
+tool's own default, and every tool is held to the limit as under `--limit-tool-threads`. The run
+then holds less memory and CPU, and can take longer, because a share is fixed when the tool starts
+and a long Semgrep job that starts beside many short ones keeps its small share after they finish.
+Syft, Grype, Gitleaks, Nuclei, Prowler and Mend's `ua` take no such setting from Draugr.
 
 n is half the CPUs or one per 4 GiB of memory, whichever is fewer, and at least 1. The CPUs are
 the ones Draugr may use after a container's CPU limit. The memory is the lower of the machine's and
@@ -2363,6 +2373,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `output.view` | findings, actions or compact | findings | What a console report shows. Overridden by `--view`. |
 | `publish.apiUrl` | a URL | none | Where the `draugr-api` publisher posts when `$DRAUGR_API_URL` is unset. In a project's draugr.config.yaml it is used only on the origin of `publish.apiUrl` in `~/.draugr/config.yaml`, or one `$DRAUGR_API_ORIGINS` lists. Never holds a token. |
 | `scan.jobs` | a whole number of 0 or more; 0, sized to the machine | 0 | How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`. |
+| `scan.limitToolThreads` | true or false | false | Whether each tool's threads and Go build processes are held to its job's share of half the CPUs or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool sizes itself to the machine. Overridden by `--limit-tool-threads`. |
 | `tools.<tool>.version` | a release, such as 0.69.3 | Draugr's pin | The version to install, e.g. `0.69.3`. |
 <!-- end of generated config keys -->
 

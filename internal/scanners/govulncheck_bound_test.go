@@ -16,9 +16,10 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// Two components in two Go repositories, planned to run at once. Each govulncheck run goes through
-// the same runner it would in a scan, with `env` standing in for govulncheck, and each one starts
-// with GOMAXPROCS at the bound and -p in GOFLAGS after the caller's own tags, which the scanner
+// Two components in two Go repositories, planned to run at once under the limit on tool threads.
+// Each govulncheck run goes through the same runner it would in a scan, with `env` standing in for
+// govulncheck, and each one starts with GOMAXPROCS at the bound and -p in GOFLAGS after the
+// caller's own tags, which the scanner
 // still reads as the build tags. The two runs take turns, so their compile processes together stay
 // within the bound rather than reaching twice it.
 func TestEachConcurrentGovulncheckRunCarriesTheBound(t *testing.T) {
@@ -77,7 +78,7 @@ func TestEachConcurrentGovulncheckRunCarriesTheBound(t *testing.T) {
 			{Name: "worker", Repositories: []saga.Repository{{URL: "two"}}},
 		},
 	}
-	if _, err := engine.New(reg, engine.WithConcurrency(2)).Run(context.Background(), model); err != nil {
+	if _, err := engine.New(reg, engine.WithConcurrency(2)).Run(toolexec.WithThreadLimit(context.Background()), model); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	if most != 1 {

@@ -66,14 +66,20 @@ func TestBoundIsTheJobsShare(t *testing.T) {
 	}
 }
 
-// A tool started for one of two jobs starts with half the bound, as GOMAXPROCS and as -p.
-func TestATwoJobRunStartsEachToolWithHalf(t *testing.T) {
+// Under the limit, a tool started for one of two jobs starts with half the bound, as GOMAXPROCS and
+// as -p, and without it with neither.
+func TestATwoJobRunStartsEachToolWithHalfUnderTheLimit(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "")
 	t.Setenv("GOFLAGS", "")
-	ctx := WithJobs(context.Background(), 2)
+	ctx := WithJobs(WithThreadLimit(context.Background()), 2)
 	half := strconv.Itoa(max(1, Parallelism()/2))
 	got := envOf(t, func(argv []string) ([]byte, error) { return Run(ctx, "", argv) }, "GOMAXPROCS", "GOFLAGS")
 	if got["GOMAXPROCS"] != half || got["GOFLAGS"] != "-p="+half {
 		t.Errorf("GOMAXPROCS=%q GOFLAGS=%q, want %s and -p=%s", got["GOMAXPROCS"], got["GOFLAGS"], half, half)
+	}
+	unlimited := WithJobs(context.Background(), 2)
+	got = envOf(t, func(argv []string) ([]byte, error) { return Run(unlimited, "", argv) }, "GOMAXPROCS", "GOFLAGS")
+	if got["GOMAXPROCS"] != "" || got["GOFLAGS"] != "" {
+		t.Errorf("without the limit GOMAXPROCS=%q GOFLAGS=%q, want neither set", got["GOMAXPROCS"], got["GOFLAGS"])
 	}
 }

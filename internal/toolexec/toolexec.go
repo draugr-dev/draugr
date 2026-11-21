@@ -82,8 +82,8 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 }
 
 // command is the process for argv: run in dir, with the caller's environment, env layered over it,
-// and the parallelism bound wherever neither chose it. Every entry point builds its process here,
-// so no tool runs unbounded.
+// and, where the run limits tool threads (WithThreadLimit), the parallelism bound wherever neither
+// chose it. Every entry point builds its process here, so the limit reaches every tool.
 func command(ctx context.Context, dir string, argv, env []string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...) // #nosec G204 -- configured tool invocation // nosem: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Dir = dir

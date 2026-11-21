@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/feeds"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -172,6 +174,9 @@ func TestEveryConfigKeyDefaultIsTheOneTheCodeApplies(t *testing.T) {
 		// No URL is built in: the draugr-api publisher needs one from the file or $DRAUGR_API_URL.
 		"publish.apiUrl": func(d string) bool { return d == "none" },
 		"scan.jobs":      func(d string) bool { return d == flagDefault(t, scan, "jobs") },
+		"scan.limitToolThreads": func(d string) bool {
+			return d == flagDefault(t, scan, "limit-tool-threads") && d == strconv.FormatBool(toolexec.LimitsThreads(context.Background()))
+		},
 		// Each tool's own pin, which the rows named per tool below hold.
 		"tools.<tool>.version": func(d string) bool { return d == "Draugr's pin" },
 	}

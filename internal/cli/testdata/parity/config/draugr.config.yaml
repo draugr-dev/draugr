@@ -40,6 +40,7 @@ output:
   tips: false
 scan:
   jobs: 4
+  limitToolThreads: true
 log:
   level: info
   format: json

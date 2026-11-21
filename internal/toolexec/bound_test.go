@@ -2,6 +2,7 @@ package toolexec
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -95,22 +96,44 @@ func TestDivideKeepsTheCommandsTogetherWithinTheBound(t *testing.T) {
 	}
 }
 
-// A tool's run passing what Divide gives it starts with the divided -p after the caller's flags
-// and GOMAXPROCS at the whole bound.
+// Under the limit, a tool's run passing what Divide gives it starts with the divided -p after the
+// caller's flags and GOMAXPROCS at the whole bound.
 func TestADividedRunStartsWithItsShare(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "")
 	t.Setenv("GOFLAGS", "-tags=aaa")
+	ctx := WithThreadLimit(context.Background())
 	n := Parallelism()
-	count, env := Divide(context.Background(), 2)
+	count, env := Divide(ctx, 2)
 	if want := min(2, n); count != want {
 		t.Errorf("Divide(2) runs %d commands, want %d", count, want)
 	}
-	got := envOf(t, func(argv []string) ([]byte, error) { return RunWithEnv(context.Background(), "", argv, env) }, "GOMAXPROCS", "GOFLAGS")
+	got := envOf(t, func(argv []string) ([]byte, error) { return RunWithEnv(ctx, "", argv, env) }, "GOMAXPROCS", "GOFLAGS")
 	if want := "-tags=aaa -p=" + strconv.Itoa(max(1, n/count)); got["GOFLAGS"] != want {
 		t.Errorf("GOFLAGS = %q, want %q", got["GOFLAGS"], want)
 	}
 	if got["GOMAXPROCS"] != strconv.Itoa(n) {
 		t.Errorf("GOMAXPROCS = %q, want the whole bound %d", got["GOMAXPROCS"], n)
+	}
+}
+
+// Without the limit, Divide still keeps a tool's `go` commands together at what one `go` command
+// would use, the CPUs this process may use, however many jobs run beside it, and the tool's run is
+// given no GOMAXPROCS.
+func TestADividedRunWithoutTheLimitSharesTheMachine(t *testing.T) {
+	t.Setenv("GOMAXPROCS", "")
+	t.Setenv("GOFLAGS", "-tags=aaa")
+	ctx := WithJobs(context.Background(), 1000)
+	cpus := runtime.GOMAXPROCS(0)
+	count, env := Divide(ctx, 2)
+	if want := min(2, cpus); count != want {
+		t.Errorf("Divide(2) runs %d commands, want %d", count, want)
+	}
+	got := envOf(t, func(argv []string) ([]byte, error) { return RunWithEnv(ctx, "", argv, env) }, "GOMAXPROCS", "GOFLAGS")
+	if want := "-tags=aaa -p=" + strconv.Itoa(max(1, cpus/count)); got["GOFLAGS"] != want {
+		t.Errorf("GOFLAGS = %q, want %q", got["GOFLAGS"], want)
+	}
+	if got["GOMAXPROCS"] != "" {
+		t.Errorf("GOMAXPROCS = %q, want none added", got["GOMAXPROCS"])
 	}
 }
 
@@ -131,14 +154,9 @@ func envOf(t *testing.T, run func(argv []string) ([]byte, error), keys ...string
 	return got
 }
 
-// Every entry point gives the tool the bound, including the ones a caller passes no environment
-// to, and keeps the caller's other GOFLAGS.
-func TestEveryEntryPointRunsTheToolUnderTheBound(t *testing.T) {
-	t.Setenv("GOMAXPROCS", "")
-	t.Setenv("GOFLAGS", "-tags=aaa")
-	ctx := context.Background()
-	n := strconv.Itoa(Parallelism())
-	for name, run := range map[string]func([]string) ([]byte, error){
+// entryPoints is every way a tool is run, each under ctx and passing no environment of its own.
+func entryPoints(ctx context.Context) map[string]func([]string) ([]byte, error) {
+	return map[string]func([]string) ([]byte, error){
 		"Run":                func(argv []string) ([]byte, error) { return Run(ctx, "", argv) },
 		"RunCombined":        func(argv []string) ([]byte, error) { return RunCombined(ctx, "", argv) },
 		"RunWithEnv":         func(argv []string) ([]byte, error) { return RunWithEnv(ctx, "", argv, nil) },
@@ -147,7 +165,34 @@ func TestEveryEntryPointRunsTheToolUnderTheBound(t *testing.T) {
 			out, _, err := RunWithStderr(ctx, "", argv, nil)
 			return out, err
 		},
-	} {
+	}
+}
+
+// By default no entry point adds a GOMAXPROCS or a -p, beside other jobs or alone, so each tool
+// sizes itself to the machine; the caller's GOFLAGS reach it as they were.
+func TestByDefaultNoEntryPointBoundsTheTool(t *testing.T) {
+	t.Setenv("GOMAXPROCS", "")
+	t.Setenv("GOFLAGS", "-tags=aaa")
+	for name, run := range entryPoints(WithJobs(context.Background(), 4)) {
+		t.Run(name, func(t *testing.T) {
+			got := envOf(t, run, "GOMAXPROCS", "GOFLAGS")
+			if got["GOMAXPROCS"] != "" || got["GOFLAGS"] != "-tags=aaa" {
+				t.Errorf("the tool ran with GOMAXPROCS=%q GOFLAGS=%q, want none and the caller's -tags=aaa", got["GOMAXPROCS"], got["GOFLAGS"])
+			}
+		})
+	}
+	if env := environ(context.Background(), []string{"DRAUGR_TOOL_VAR=x"}); !slices.Equal(env, append(os.Environ(), "DRAUGR_TOOL_VAR=x")) {
+		t.Errorf("environ added to the caller's environment and the scanner's: %q", env[len(os.Environ()):])
+	}
+}
+
+// Under the limit, every entry point gives the tool the bound, including the ones a caller passes
+// no environment to, and keeps the caller's other GOFLAGS.
+func TestEveryEntryPointRunsTheToolUnderTheBound(t *testing.T) {
+	t.Setenv("GOMAXPROCS", "")
+	t.Setenv("GOFLAGS", "-tags=aaa")
+	n := strconv.Itoa(Parallelism())
+	for name, run := range entryPoints(WithThreadLimit(context.Background())) {
 		t.Run(name, func(t *testing.T) {
 			got := envOf(t, run, "GOMAXPROCS", "GOFLAGS")
 			if got["GOMAXPROCS"] != n {
@@ -160,30 +205,36 @@ func TestEveryEntryPointRunsTheToolUnderTheBound(t *testing.T) {
 	}
 }
 
-// A GOMAXPROCS and a -p the caller set are the ones the tool runs with.
+// A GOMAXPROCS and a -p the caller set are the ones the tool runs with, with the limit or without.
 func TestTheCallersBoundWins(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "3")
 	t.Setenv("GOFLAGS", "-mod=mod -p=2")
-	got := envOf(t, func(argv []string) ([]byte, error) { return Run(context.Background(), "", argv) }, "GOMAXPROCS", "GOFLAGS")
-	if got["GOMAXPROCS"] != "3" || got["GOFLAGS"] != "-mod=mod -p=2" {
-		t.Errorf("the tool ran with GOMAXPROCS=%q GOFLAGS=%q, want the caller's 3 and -mod=mod -p=2", got["GOMAXPROCS"], got["GOFLAGS"])
+	for name, ctx := range map[string]context.Context{
+		"by default":      WithJobs(context.Background(), 4),
+		"under the limit": WithThreadLimit(WithJobs(context.Background(), 4)),
+	} {
+		got := envOf(t, func(argv []string) ([]byte, error) { return Run(ctx, "", argv) }, "GOMAXPROCS", "GOFLAGS")
+		if got["GOMAXPROCS"] != "3" || got["GOFLAGS"] != "-mod=mod -p=2" {
+			t.Errorf("%s the tool ran with GOMAXPROCS=%q GOFLAGS=%q, want the caller's 3 and -mod=mod -p=2", name, got["GOMAXPROCS"], got["GOFLAGS"])
+		}
 	}
 }
 
-// A scanner's own environment layers over the caller's, and the bound is added to what it sets
-// rather than replaced by it.
+// Under the limit, a scanner's own environment layers over the caller's, and the bound is added to
+// what it sets rather than replaced by it.
 func TestAScannersEnvironmentKeepsTheBound(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "")
 	t.Setenv("GOFLAGS", "-tags=aaa")
+	ctx := WithThreadLimit(context.Background())
 	n := strconv.Itoa(Parallelism())
 	got := envOf(t, func(argv []string) ([]byte, error) {
-		return RunWithEnv(context.Background(), "", argv, []string{"GOFLAGS=-tags=bbb", "DRAUGR_TOOL_VAR=x"})
+		return RunWithEnv(ctx, "", argv, []string{"GOFLAGS=-tags=bbb", "DRAUGR_TOOL_VAR=x"})
 	}, "GOMAXPROCS", "GOFLAGS", "DRAUGR_TOOL_VAR")
 	if got["GOFLAGS"] != "-tags=bbb -p="+n || got["GOMAXPROCS"] != n || got["DRAUGR_TOOL_VAR"] != "x" {
 		t.Errorf("the tool ran with %v, want the scanner's GOFLAGS with -p=%s, GOMAXPROCS=%s and its own variable", got, n, n)
 	}
 	got = envOf(t, func(argv []string) ([]byte, error) {
-		return RunWithEnv(context.Background(), "", argv, []string{"GOMAXPROCS=5"})
+		return RunWithEnv(ctx, "", argv, []string{"GOMAXPROCS=5"})
 	}, "GOMAXPROCS")
 	if got["GOMAXPROCS"] != "5" {
 		t.Errorf("GOMAXPROCS = %q, want the scanner's 5", got["GOMAXPROCS"])
@@ -191,14 +242,14 @@ func TestAScannersEnvironmentKeepsTheBound(t *testing.T) {
 }
 
 // The go command reads GOFLAGS on every subcommand, including the ones that build nothing, so a
-// -p it refused would break every Go tool Draugr runs rather than bound it.
+// -p it refused would break every Go tool Draugr runs under the limit rather than bound it.
 func TestTheGoCommandAcceptsTheBound(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go on PATH")
 	}
 	t.Setenv("GOFLAGS", "")
 	for _, argv := range [][]string{{"go", "env", "GOVERSION"}, {"go", "version"}, {"go", "list", "-f", "{{.Name}}", "."}} {
-		if out, err := RunCombined(context.Background(), "", argv); err != nil {
+		if out, err := RunCombined(WithThreadLimit(context.Background()), "", argv); err != nil {
 			t.Errorf("%s under the bound: %v\n%s", strings.Join(argv, " "), err, out)
 		}
 	}
@@ -310,5 +361,17 @@ func TestSharedWorkersAreOptIn(t *testing.T) {
 	}
 	if !SharesWorkers(WithJobs(WithSharedWorkers(context.Background()), 4)) {
 		t.Error("a run that asked to share worker pools lost the request under WithJobs")
+	}
+}
+
+// Limiting tool threads is off unless a run asks for it, and the request survives the job count
+// and the memory peak added under it.
+func TestTheThreadLimitIsOptIn(t *testing.T) {
+	if LimitsThreads(context.Background()) {
+		t.Error("a context nobody marked limits tool threads")
+	}
+	var peak MemoryPeak
+	if !LimitsThreads(WithMemoryPeak(WithJobs(WithThreadLimit(context.Background()), 4), &peak)) {
+		t.Error("a run that asked to limit tool threads lost the request under WithJobs")
 	}
 }

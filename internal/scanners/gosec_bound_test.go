@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,10 +16,10 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// gosecRuns scans two components in two Go repositories with gosec, each run going through the
-// runner a scan uses with `env` standing in for gosec, and returns each run's argv and the
-// environment it started with, keyed by module directory, with the directories by repository.
-func gosecRuns(t *testing.T) (argvs, environments, dirs map[string]string) {
+// gosecRuns scans two components in two Go repositories with gosec under ctx, each run going
+// through the runner a scan uses with `env` standing in for gosec, and returns each run's argv and
+// the environment it started with, keyed by module directory, with the directories by repository.
+func gosecRuns(ctx context.Context, t *testing.T) (argvs, environments, dirs map[string]string) {
 	t.Helper()
 	orig := lookRuntime
 	t.Cleanup(func() { lookRuntime = orig })
@@ -59,32 +60,31 @@ func gosecRuns(t *testing.T) (argvs, environments, dirs map[string]string) {
 			{Name: "worker", Repositories: []saga.Repository{{URL: "two"}}},
 		},
 	}
-	if _, err := engine.New(reg, engine.WithConcurrency(2)).Run(context.Background(), model); err != nil {
+	if _, err := engine.New(reg, engine.WithConcurrency(2)).Run(ctx, model); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	return argvs, environments, dirs
 }
 
-// gosecLoadsHere is the -concurrency gosec runs with on this machine, and the -p each of its loads
-// builds with: gosecLoads or the bound where that is fewer, and the bound divided among them.
-func gosecLoadsHere() (loads, perLoad int) {
-	n := toolexec.Parallelism()
+// gosecLoadsAt is the -concurrency gosec runs with where its loads divide n, and the -p each of
+// them builds with: gosecLoads or n where that is fewer, and n divided among them.
+func gosecLoadsAt(n int) (loads, perLoad int) {
 	loads = min(gosecLoads, n)
 	return loads, max(1, n/loads)
 }
 
-// Each gosec run, in each of two repositories, loads at most gosecLoads packages at once, and each
-// load builds with the bound divided among them, after the caller's own flags. Its compile
-// processes together then stay within the bound rather than reaching the bound for each load.
-// GOMAXPROCS stays the whole bound, because it sizes gosec's own threads.
+// Under the limit, each gosec run, in each of two repositories, loads at most gosecLoads packages
+// at once, and each load builds with the bound divided among them, after the caller's own flags.
+// Its compile processes together then stay within the bound rather than reaching the bound for
+// each load. GOMAXPROCS stays the whole bound, because it sizes gosec's own threads.
 func TestEachGosecRunDividesTheBoundAmongItsLoads(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "")
 	t.Setenv("GOFLAGS", "-tags=aaa")
 	t.Setenv("GOWORK", "")
-	argvs, environments, dirs := gosecRuns(t)
+	argvs, environments, dirs := gosecRuns(toolexec.WithThreadLimit(context.Background()), t)
 
 	n := toolexec.Parallelism()
-	loads, perLoad := gosecLoadsHere()
+	loads, perLoad := gosecLoadsAt(n)
 	if loads*perLoad > n {
 		t.Fatalf("%d loads at -p=%d is %d compile processes, above the bound %d", loads, perLoad, loads*perLoad, n)
 	}
@@ -108,15 +108,43 @@ func TestEachGosecRunDividesTheBoundAmongItsLoads(t *testing.T) {
 	}
 }
 
+// Without the limit, each gosec run still divides among its loads what one `go` command would
+// build with, the CPUs this process may use, so its loads together run as many compile processes
+// as one build would. gosec's own threads are left to it: no GOMAXPROCS is added.
+func TestEachGosecRunWithoutTheLimitDividesTheMachineAmongItsLoads(t *testing.T) {
+	t.Setenv("GOMAXPROCS", "")
+	t.Setenv("GOFLAGS", "-tags=aaa")
+	t.Setenv("GOWORK", "")
+	argvs, environments, dirs := gosecRuns(context.Background(), t)
+
+	loads, perLoad := gosecLoadsAt(runtime.GOMAXPROCS(0))
+	for _, mod := range []string{dirs["one"], dirs["two"]} {
+		env, ok := environments[mod]
+		if !ok {
+			t.Errorf("gosec did not run over %s", mod)
+			continue
+		}
+		if want := " -concurrency " + strconv.Itoa(loads) + " "; !strings.Contains(argvs[mod], want) {
+			t.Errorf("the run over %s is %q, without %q", mod, argvs[mod], strings.TrimSpace(want))
+		}
+		if want := "GOFLAGS=-tags=aaa -p=" + strconv.Itoa(perLoad) + "\n"; !strings.Contains(env, want) {
+			t.Errorf("the run over %s lacks %q; its environment:\n%s", mod, want, env)
+		}
+		if !strings.Contains(env, "GOMAXPROCS=\n") {
+			t.Errorf("the run over %s was given a GOMAXPROCS; its environment:\n%s", mod, env)
+		}
+	}
+}
+
 // A caller who chose -p chose each command's parallelism, and gosec's loads build with it; the
 // number of loads gosec runs at once is still bounded. The caller's GOMAXPROCS stands too.
 func TestGosecKeepsTheCallersBuildParallelism(t *testing.T) {
 	t.Setenv("GOMAXPROCS", "3")
 	t.Setenv("GOFLAGS", "-mod=mod -p=3")
 	t.Setenv("GOWORK", "")
-	argvs, environments, dirs := gosecRuns(t)
+	argvs, environments, dirs := gosecRuns(toolexec.WithThreadLimit(context.Background()), t)
 
-	loads, _ := gosecLoadsHere()
+	loads, _ := gosecLoadsAt(toolexec.Parallelism())
 	for _, mod := range []string{dirs["one"], dirs["two"]} {
 		env, ok := environments[mod]
 		if !ok {

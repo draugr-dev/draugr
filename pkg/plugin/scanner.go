@@ -181,7 +181,7 @@ const OriginDraugr = "draugr"
 
 // ExclusiveGoPackageLoad is the ScannerInfo.Exclusive resource of a scanner that loads a Go
 // module's packages with the go command, which compiles them with as many processes as the
-// per-tool bound allows.
+// machine's CPUs, or as the per-tool bound allows where the run limits tool threads.
 const ExclusiveGoPackageLoad = "go-package-load"
 
 // ExclusiveTerraformModuleCache is the ScannerInfo.Exclusive resource of a scanner that runs Trivy
@@ -280,10 +280,11 @@ type ScannerInfo struct {
 	// same name never run at the same time in one run, on any target. Empty for a scanner whose
 	// jobs may run beside each other.
 	//
-	// It exists for a tool whose own parallelism already fills the bound Draugr gives each tool.
-	// Loading a Go module's packages starts up to that bound in compile processes, so two loads at
-	// once take twice the bound, and a run over many Go repositories takes memory in proportion to
-	// how many it loads together. One load at a time keeps the run within the bound. It serves too
+	// It exists for a tool whose own parallelism already fills what Draugr lets each tool use: the
+	// machine's CPUs, or the bound each tool is held to where the run limits tool threads. Loading a
+	// Go module's packages starts up to that many compile processes, so two loads at once take
+	// twice it, and a run over many Go repositories takes memory in proportion to how many it loads
+	// together. One load at a time keeps the run within it. It serves too
 	// for a tool whose jobs corrupt each other's shared state, as ExclusiveTerraformModuleCache says.
 	//
 	// Declared rather than coded into one scanner so the engine can schedule it. A job takes the

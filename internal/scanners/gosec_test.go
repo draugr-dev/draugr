@@ -214,8 +214,8 @@ func TestExecArgvInDirSetsCwd(t *testing.T) {
 	}
 }
 
-// gosec loads packages from the job's share of the bound: alone, two at once when the bound allows,
-// and beside more jobs than the bound, one, with -p at one.
+// Under the limit, gosec loads packages from the job's share of the bound: alone, two at once when
+// the bound allows, and beside more jobs than the bound, one, with -p at one.
 func TestGosecLoadsFromTheJobsShareOfTheBound(t *testing.T) {
 	t.Setenv("GOFLAGS", "")
 	var argv, env []string
@@ -232,7 +232,7 @@ func TestGosecLoadsFromTheJobsShareOfTheBound(t *testing.T) {
 		{jobs: 1, wantLoads: min(gosecLoads, n), wantP: max(1, n/min(gosecLoads, n))},
 		{jobs: n + 1, wantLoads: 1, wantP: 1},
 	} {
-		ctx := toolexec.WithJobs(context.Background(), tc.jobs)
+		ctx := toolexec.WithJobs(toolexec.WithThreadLimit(context.Background()), tc.jobs)
 		if _, err := run(ctx, "", []string{"gosec", "-fmt", "sarif", "./..."}); err != nil {
 			t.Fatal(err)
 		}
