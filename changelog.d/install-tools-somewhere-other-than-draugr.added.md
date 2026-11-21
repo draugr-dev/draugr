@@ -1,1 +1,0 @@
-- **Install tools somewhere other than `~/.draugr`.** Set `DRAUGR_HOME` to an absolute path, such as a CI runner's shared tool cache, and `draugr tools install` writes to its `bin/`, with the tools' data and the feeds beside it. Every command looks there before `PATH`, and `draugr doctor` names the directory it used.

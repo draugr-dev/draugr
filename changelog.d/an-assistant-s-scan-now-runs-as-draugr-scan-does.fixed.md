@@ -1,1 +1,0 @@
-- **An assistant's scan now runs as `draugr scan` does on the same machine.** The MCP `scan` tool reads `scan.jobs`, `scan.limitToolThreads` and the new `scan.shareWorkers` from `draugr.config.yaml`, so a machine whose tools are held to a share of its memory keeps that limit when an assistant starts the scan.
