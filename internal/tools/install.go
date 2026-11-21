@@ -23,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/draugr-dev/draugr/internal/draugrhome"
 )
 
 // Provisioning downloads pinned, checksum-verified scanner binaries into a Draugr-managed
@@ -636,13 +638,17 @@ func ManagedVersion(name string) string {
 // PythonVersion is the pinned version of a tool obtained as a Python package.
 func PythonVersion(name string) string { return pythonVersions[name] }
 
-// BinDir is Draugr's managed tool directory, ~/.draugr/bin.
+// BinDir is Draugr's managed tool directory: bin/ under $DRAUGR_HOME when it is set, and
+// ~/.draugr/bin otherwise.
+//
+// The Python and Node environments sit beside it, under the same directory, because the install
+// derives their place from this one.
 func BinDir() (string, error) {
-	home, err := os.UserHomeDir()
+	root, err := draugrhome.Dir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".draugr", "bin"), nil
+	return filepath.Join(root, "bin"), nil
 }
 
 // DataRoot is where tools that need more than a binary keep it, one directory per tool.
@@ -651,11 +657,11 @@ func BinDir() (string, error) {
 // has a different lifetime from its binary. Reinstalling one should not silently orphan the other
 // somewhere a reader has to guess at.
 func DataRoot() (string, error) {
-	home, err := os.UserHomeDir()
+	root, err := draugrhome.Dir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".draugr", "data"), nil
+	return filepath.Join(root, "data"), nil
 }
 
 // DataDirFor returns where a tool's supporting files live, or "" when it has none.

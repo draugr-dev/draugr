@@ -233,8 +233,8 @@ func Catalog() map[string]Tool {
 			// configuration is missing is to start a benchmark, and doctor must not run a scan
 			// to find out whether a scan would work. These are its own default search paths.
 			DataFiles: []string{
-				"~/.draugr/data/kube-bench/config.yaml", // what `draugr tools install` writes
-				"{bindir}/cfg/config.yaml",              // a tarball extract, the commonest by hand
+				"{dataroot}/kube-bench/config.yaml", // what `draugr tools install` writes
+				"{bindir}/cfg/config.yaml",          // a tarball extract, the commonest by hand
 				"/etc/kube-bench/cfg/config.yaml",
 				"/usr/local/share/kube-bench/cfg/config.yaml",
 				"/opt/kube-bench/cfg/config.yaml",
@@ -338,8 +338,9 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 		st.DataChecked = true
 		for _, p := range t.DataFiles {
 			// {bindir} is where a tarball extract leaves the data, beside the binary. Which is the
-			// commonest install and the one a fixed list of system paths would miss.
-			expanded := expandHome(strings.ReplaceAll(p, "{bindir}", filepath.Dir(st.Path)))
+			// commonest install and the one a fixed list of system paths would miss. {dataroot} is
+			// where `draugr tools install` puts it, which DRAUGR_HOME moves.
+			expanded := expandDataPath(strings.ReplaceAll(p, "{bindir}", filepath.Dir(st.Path)))
 			if fileExists(expanded) {
 				st.DataFound, st.DataDetail = true, expanded
 				break
@@ -400,6 +401,21 @@ func GovulncheckVersion(out []byte) string {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// expandDataPath resolves {dataroot} to DataRoot, so a catalog entry can name what the install
+// writes wherever DRAUGR_HOME puts it, and a leading ~ to the user's home. A path under a
+// {dataroot} that cannot be worked out is left as written, which exists nowhere and so reads as
+// absent.
+func expandDataPath(path string) string {
+	if rest, ok := strings.CutPrefix(path, "{dataroot}"); ok {
+		root, err := DataRoot()
+		if err != nil {
+			return path
+		}
+		return root + rest
+	}
+	return expandHome(path)
 }
 
 // expandHome resolves a leading ~ so a catalog entry can name a path under the user's home

@@ -17,6 +17,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/draugrhome"
 	"github.com/draugr-dev/draugr/internal/login"
 	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
@@ -510,7 +511,11 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 	col := tui.For(w)
 	// Named like every other block here. It was the one section with no heading, which made the
 	// two that had one read as asides to it rather than as its equals.
-	_, _ = fmt.Fprintf(w, "%s\n", doctorHeading(col, "Tools"))
+	heading := doctorHeading(col, "Tools")
+	if where := toolsLookedFor(); where != "" {
+		heading += "  " + col.Paint(tui.StyleMuted, where)
+	}
+	_, _ = fmt.Fprintf(w, "%s\n", heading)
 	t := tui.NewTable(col, "Tool", "Status", "Version", "Notes")
 	for _, st := range statuses {
 		status, version, notes := "✓ found", st.Version, st.Path
@@ -583,6 +588,21 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 	if line := prowlerTablesNote(statuses); line != "" {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleAccent, line))
 	}
+}
+
+// toolsLookedFor says where the tools in the table were looked for: Draugr's own directory, which
+// every command puts ahead of PATH, and then PATH. It names DRAUGR_HOME when that moved the
+// directory, because a reader comparing the paths in the table with ~/.draugr/bin needs the reason
+// they differ. "" when there is no directory to name.
+func toolsLookedFor() string {
+	dir, err := tools.BinDir()
+	if err != nil {
+		return ""
+	}
+	if draugrhome.FromEnv() {
+		return fmt.Sprintf("looked for in %s (%s), then on PATH", dir, draugrhome.EnvVar)
+	}
+	return fmt.Sprintf("looked for in %s, then on PATH", shortHome(dir))
 }
 
 // prowlerTablesNote says when the prowler found is another release than the one the scanner's
@@ -878,8 +898,11 @@ func writeDoctorJSON(
 	report := struct {
 		Draugr     draugrReport      `json:"draugr"`
 		Descriptor *descriptorReport `json:"descriptor,omitempty"`
-		Tools      []toolReport      `json:"tools"`
-		Missing    int               `json:"missing"`
+		// ToolsDir is the directory `draugr tools install` writes to and every command looks in
+		// before PATH: bin/ under DRAUGR_HOME, or ~/.draugr/bin.
+		ToolsDir string       `json:"toolsDir,omitempty"`
+		Tools    []toolReport `json:"tools"`
+		Missing  int          `json:"missing"`
 		// UncoveredSurfaces are what the descriptor declares that no enabled control looks at.
 		// Present here because the answer a person gets and the answer a pipeline gets diverging
 		// is worse than either being absent.
@@ -895,6 +918,9 @@ func writeDoctorJSON(
 	}{
 		Draugr: dv, Descriptor: desc, Tools: make([]toolReport, 0, len(statuses)), Missing: missing,
 		UncoveredSurfaces: uncovered, Targets: checks, Policy: policy, Data: skald.ScannerDataFrom(data),
+	}
+	if dir, err := tools.BinDir(); err == nil {
+		report.ToolsDir = dir
 	}
 
 	for _, st := range statuses {

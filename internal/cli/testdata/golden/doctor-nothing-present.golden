@@ -1,6 +1,6 @@
 Draugr      dev  (latest: v9.9.9. Run 'draugr self-update')
 
-TOOLS
+TOOLS  looked for in ~/.draugr/bin, then on PATH
 Tool         Status      Version  Notes
 cosign       – optional  -        optional: draugr tools install cosign
 git          ✗ missing   -        install: https://git-scm.com/downloads

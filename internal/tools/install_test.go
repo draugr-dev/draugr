@@ -348,6 +348,7 @@ func TestSemgrepVersionIsPinned(t *testing.T) {
 
 func TestBinDir(t *testing.T) {
 	t.Setenv("HOME", "/tmp/draugr-home-test")
+	t.Setenv("DRAUGR_HOME", "")
 	dir, err := BinDir()
 	if err != nil {
 		t.Fatal(err)

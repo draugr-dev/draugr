@@ -120,6 +120,10 @@ func TestCommandGolden(t *testing.T) {
 			// golden that moved with the window would pin the window.
 			t.Setenv("COLUMNS", "")
 			t.Setenv("NO_COLOR", "1")
+			// doctor names the tool directory, ~ for the home directory. A golden that read the
+			// machine's DRAUGR_HOME or home would pin the machine.
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv("DRAUGR_HOME", "")
 			var b bytes.Buffer
 			tc.run(t, &b)
 			compareGolden(t, tc.name, scrub(b.String()))
