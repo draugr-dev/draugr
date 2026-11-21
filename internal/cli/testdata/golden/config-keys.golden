@@ -14,6 +14,7 @@ output.view            findings, actions or compact                          fin
 publish.apiUrl         a URL                                                 none
 scan.jobs              a whole number of 0 or more; 0, sized to the machine  0
 scan.limitToolThreads  true or false                                         false
+scan.shareWorkers      true or false                                         false
 tools.<tool>.version   a release, such as 0.69.3                             Draugr's pin
 
 Tools: cosign, gitleaks, gosec, govulncheck, grype, kube-bench, notation,

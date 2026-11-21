@@ -667,7 +667,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
 | `--limit-tool-threads` | `false` | Hold each tool's threads and Go build processes to its job's share of the parallelism bound, for a machine with many cores and little memory per core. Uses less memory and makes a run slower; left off, each tool sizes itself to the machine, as *Each tool's own parallelism* below explains (or `scan.limitToolThreads` in `draugr.config.yaml`) |
-| `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains. Implies `--limit-tool-threads` |
+| `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains. Implies `--limit-tool-threads` (or `scan.shareWorkers` in `draugr.config.yaml`) |
 | `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -2374,6 +2374,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `publish.apiUrl` | a URL | none | Where the `draugr-api` publisher posts when `$DRAUGR_API_URL` is unset. In a project's draugr.config.yaml it is used only on the origin of `publish.apiUrl` in `~/.draugr/config.yaml`, or one `$DRAUGR_API_ORIGINS` lists. Never holds a token. |
 | `scan.jobs` | a whole number of 0 or more; 0, sized to the machine | 0 | How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`. |
 | `scan.limitToolThreads` | true or false | false | Whether each tool's threads and Go build processes are held to its job's share of half the CPUs or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool sizes itself to the machine. Overridden by `--limit-tool-threads`. |
+| `scan.shareWorkers` | true or false | false | Whether Semgrep's analysis processes and Trivy's files in flight are held to each job's share of the bound `limitToolThreads` applies, for less memory and CPU and a slower scan, and turns that limit on. Unset means each tool sizes its own pool. Overridden by `--share-workers`. |
 | `tools.<tool>.version` | a release, such as 0.69.3 | Draugr's pin | The version to install, e.g. `0.69.3`. |
 <!-- end of generated config keys -->
 

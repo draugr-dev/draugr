@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/config"
 )
@@ -18,10 +19,10 @@ func TestShareWorkersIsOptIn(t *testing.T) {
 	if f.DefValue != "false" {
 		t.Errorf("--share-workers defaults to %s, want false", f.DefValue)
 	}
-	if toolexec.SharesWorkers((&scanOptions{}).toolLimits(context.Background())) {
+	if toolexec.SharesWorkers(scanpolicy.Limits{}.Context(context.Background())) {
 		t.Error("a run without --share-workers asked its tools to share worker pools")
 	}
-	if !toolexec.SharesWorkers((&scanOptions{shareWorkers: true}).toolLimits(context.Background())) {
+	if !toolexec.SharesWorkers(scanpolicy.Limits{ShareWorkers: true}.Context(context.Background())) {
 		t.Error("a run with --share-workers did not ask its tools to share worker pools")
 	}
 }
@@ -38,17 +39,17 @@ func TestLimitToolThreadsIsOptIn(t *testing.T) {
 		t.Errorf("--limit-tool-threads defaults to %s, want false", f.DefValue)
 	}
 	ctx := context.Background()
-	if toolexec.LimitsThreads((&scanOptions{}).toolLimits(ctx)) {
+	if toolexec.LimitsThreads(scanpolicy.Limits{}.Context(ctx)) {
 		t.Error("a run without --limit-tool-threads limited its tools' threads")
 	}
-	limited := (&scanOptions{limitToolThreads: true}).toolLimits(ctx)
+	limited := scanpolicy.Limits{LimitToolThreads: true}.Context(ctx)
 	if !toolexec.LimitsThreads(limited) {
 		t.Error("a run with --limit-tool-threads did not limit its tools' threads")
 	}
 	if toolexec.SharesWorkers(limited) {
 		t.Error("--limit-tool-threads alone asked the tools to share worker pools")
 	}
-	if !toolexec.LimitsThreads((&scanOptions{shareWorkers: true}).toolLimits(ctx)) {
+	if !toolexec.LimitsThreads(scanpolicy.Limits{ShareWorkers: true}.Context(ctx)) {
 		t.Error("a run with --share-workers did not limit its tools' threads")
 	}
 }
@@ -71,9 +72,9 @@ func TestScanLimitToolThreadsReachesToolexec(t *testing.T) {
 		{"a typed false wins over the file", map[string]bool{"limit-tool-threads": true}, false, &on, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := scanOptions{setFlags: tc.typed, limitToolThreads: tc.flag}
-			scanSettingsFrom(&opts, config.ScanSettings{LimitToolThreads: tc.file})
-			if got := toolexec.LimitsThreads(opts.toolLimits(context.Background())); got != tc.want {
+			opts := scanOptions{setFlags: tc.typed, limits: scanpolicy.Limits{LimitToolThreads: tc.flag}}
+			opts.limits.Configure(config.ScanSettings{LimitToolThreads: tc.file}, opts.setFlags)
+			if got := toolexec.LimitsThreads(opts.limits.Context(context.Background())); got != tc.want {
 				t.Errorf("the tools' context limits threads = %v, want %v", got, tc.want)
 			}
 		})

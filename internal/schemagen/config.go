@@ -129,6 +129,11 @@ func configFields() map[string]map[string]any {
 				"or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool " +
 				"sizes itself to the machine. Overridden by `--limit-tool-threads`.",
 		},
+		"scan.shareWorkers": {
+			"description": "Whether Semgrep's analysis processes and Trivy's files in flight are held to each job's share " +
+				"of the bound `limitToolThreads` applies, for less memory and CPU and a slower scan, and turns that limit on. " +
+				"Unset means each tool sizes its own pool. Overridden by `--share-workers`.",
+		},
 		"log": {
 			"description": "What Draugr logs, and in which format.",
 		},

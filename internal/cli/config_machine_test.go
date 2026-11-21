@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -137,7 +138,7 @@ func TestConfigSetsAndUnsetsEachMachineSetting(t *testing.T) {
 	dir := t.TempDir()
 	for key, value := range map[string]string{
 		"scan.jobs": "3", "log.level": "debug", "log.format": "text", "output.tips": "false", "offline": "true",
-		"scan.limitToolThreads": "true",
+		"scan.limitToolThreads": "true", "scan.shareWorkers": "true",
 	} {
 		if out, err := runConfig(t, dir, "set", key, value); err != nil {
 			t.Fatalf("set %s %s: %v\n%s", key, value, err, out)
@@ -173,19 +174,19 @@ func TestAScanRunsTheConfiguredJobs(t *testing.T) {
 	if got := concurrency(scanOptions{}); got != `"concurrency": 3,` {
 		t.Errorf("with no flag, %s; want the project's 3", got)
 	}
-	if got := concurrency(scanOptions{jobs: 1, setFlags: map[string]bool{"jobs": true}}); got != `"concurrency": 1,` {
+	if got := concurrency(scanOptions{limits: scanpolicy.Limits{Jobs: 1}, setFlags: map[string]bool{"jobs": true}}); got != `"concurrency": 1,` {
 		t.Errorf("with --jobs 1, %s; want the flag's 1", got)
 	}
 
-	opts := scanOptions{jobs: 0, setFlags: map[string]bool{"jobs": true}}
-	scanSettingsFrom(&opts, config.ScanSettings{Jobs: new(4)})
-	if opts.jobs != 0 {
-		t.Errorf("--jobs 0 was overridden by the configuration: jobs = %d", opts.jobs)
+	opts := scanOptions{setFlags: map[string]bool{"jobs": true}}
+	opts.limits.Configure(config.ScanSettings{Jobs: new(4)}, opts.setFlags)
+	if opts.limits.Jobs != 0 {
+		t.Errorf("--jobs 0 was overridden by the configuration: jobs = %d", opts.limits.Jobs)
 	}
-	opts = scanOptions{jobs: 7}
-	scanSettingsFrom(&opts, config.ScanSettings{})
-	if opts.jobs != 7 {
-		t.Errorf("a file that sets no jobs changed them to %d", opts.jobs)
+	opts = scanOptions{limits: scanpolicy.Limits{Jobs: 7}}
+	opts.limits.Configure(config.ScanSettings{}, opts.setFlags)
+	if opts.limits.Jobs != 7 {
+		t.Errorf("a file that sets no jobs changed them to %d", opts.limits.Jobs)
 	}
 }
 

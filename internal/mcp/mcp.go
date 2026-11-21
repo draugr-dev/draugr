@@ -27,6 +27,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/version"
+	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/surveyor"
@@ -83,25 +84,26 @@ type Options struct {
 	// Surveyors supplies the discovery plugins. Empty disables survey and list_surveyors, so a
 	// caller embedding this server chooses whether it may reach a cluster or a forge at all.
 	Surveyors *surveyor.Registry
-	// Config merges Draugr's configuration into each descriptor scan and check_tools read. `draugr
-	// mcp` passes the function `draugr scan` calls. Nil reads no configuration.
+	// Config merges Draugr's configuration into each descriptor scan and check_tools read, and
+	// gives scan its scan.* settings. `draugr mcp` passes the function `draugr scan` calls. Nil
+	// reads no configuration.
 	Config ConfigLoader
 }
 
 // ConfigLoader merges the configuration in effect into a descriptor, the way `draugr scan` merges
 // it: draugr.config.yaml in the process's working directory over ~/.draugr/config.yaml, or the one
-// file --config or $DRAUGR_CONFIG names. It returns the error `draugr scan` would refuse a file
-// with.
+// file --config or $DRAUGR_CONFIG names. It returns the scan.* settings those files resolve to, and
+// the error `draugr scan` would refuse a file with.
 //
 // A function rather than a call into the CLI's loader because the CLI imports this package. The
 // function is the loader itself, so a scan from an assistant and one from a terminal in the same
 // directory read the same files and refuse the same mistakes.
-type ConfigLoader func(ctx context.Context, model *saga.Model) error
+type ConfigLoader func(ctx context.Context, model *saga.Model) (config.ScanSettings, error)
 
-// apply runs the loader, when there is one.
-func (c ConfigLoader) apply(ctx context.Context, model *saga.Model) error {
+// apply runs the loader, when there is one. Without one every scan.* setting is unset.
+func (c ConfigLoader) apply(ctx context.Context, model *saga.Model) (config.ScanSettings, error) {
 	if c == nil {
-		return nil
+		return config.ScanSettings{}, nil
 	}
 	return c(ctx, model)
 }
@@ -290,7 +292,9 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			"repositories, executes external scanners and reaches the network. Prefer " +
 			"summarize_report when a recent report already exists. A severity gate in the " +
 			"verdict judges each finding's rankedSeverity, not its severity. The scan merges " +
-			"draugr.config.yaml from the server's working directory, as `draugr scan` does.\n\n" +
+			"draugr.config.yaml from the server's working directory, as `draugr scan` does. " +
+			"This tool has no flags: set scan.jobs, scan.limitToolThreads or scan.shareWorkers " +
+			"in that file instead.\n\n" +
 			"Scope: this runs the controls the descriptor declares over the components it " +
 			"declares, and nothing else. It is a reproducible floor, not a substitute for " +
 			"reading the code. It does not reason about trust boundaries, whether a build " +

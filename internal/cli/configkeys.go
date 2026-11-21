@@ -66,6 +66,7 @@ var machineKeys = map[string]struct{ accepts, def string }{
 	"publish.apiUrl":        {"a URL", "none"},
 	"scan.jobs":             {acceptsCount + "; 0, sized to the machine", "0"},
 	"scan.limitToolThreads": {acceptsBool, "false"},
+	"scan.shareWorkers":     {acceptsBool, "false"},
 	"tools.<tool>.version":  {"a release, such as 0.69.3", "Draugr's pin"},
 }
 

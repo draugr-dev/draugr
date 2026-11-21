@@ -366,6 +366,9 @@ func flatten(f config.File) []kv {
 	if l := f.Scan.LimitToolThreads; l != nil {
 		out = append(out, kv{"scan.limitToolThreads", strconv.FormatBool(*l)})
 	}
+	if s := f.Scan.ShareWorkers; s != nil {
+		out = append(out, kv{"scan.shareWorkers", strconv.FormatBool(*s)})
+	}
 	if l := f.Log; l != (config.LogSettings{}) {
 		if l.Level != "" {
 			out = append(out, kv{"log.level", l.Level})
