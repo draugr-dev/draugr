@@ -37,8 +37,8 @@ reports with the build being scanned.
 
 ## A starter for a repository
 
-The sections most projects set first, for the repository the file sits in. Copy it, set the
-component's two classifications, and run `draugr scan draugr.saga.yaml`:
+The sections most projects set first, for the repository the file sits in. Copy it and run
+`draugr scan draugr.saga.yaml`:
 
 ```yaml
 project: my-app
@@ -54,16 +54,18 @@ config:
     iac:     { enabled: true } # misconfigured Dockerfiles, Terraform and Kubernetes manifests
 components:
   - name: app
-    exposure: authenticated    # who can reach it: public, authenticated, internal or restricted
-    criticality: important     # what an outage costs: critical, important or supporting
+    # exposure: internal       # who can reach it: public, authenticated, internal or restricted
+    # criticality: supporting  # what an outage costs: critical, important or supporting
     repositories:
       - url: .
 ```
 
 `exposure` and `criticality` decide a finding's priority, so a flaw in a public, critical service
-ranks above the same flaw in an internal tool. The Saga schema's
-[`components`](../reference/saga-schema.md#components) section says what each value means. A component that
-declares neither is ranked as `public` and `critical`, so nothing hides while you decide.
+ranks above the same flaw in an internal tool. Left out, as here, the component is ranked as
+`public` and `critical`, so nothing hides before you decide. Declare them once you know: a lower
+exposure or criticality moves this component's findings down, which is right only when it is true.
+The Saga schema's [`components`](../reference/saga-schema.md#components) section says what each
+value means.
 
 ## Add more of your surface
 
