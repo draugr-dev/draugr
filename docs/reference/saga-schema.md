@@ -2880,7 +2880,8 @@ draugr validate azure.saga.yaml --resolved   # the merged descriptor, with sourc
 
 ## `references`
 
-Links to manual or human-performed controls (threat model, architecture diagram, …):
+Links to manual or human-performed controls (threat model, architecture diagram, …). Each needs
+both `type` and `link`:
 
 ```yaml
 references:

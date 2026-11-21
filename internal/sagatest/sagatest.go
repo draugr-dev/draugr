@@ -9,6 +9,7 @@ package sagatest
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -231,9 +232,27 @@ func set(doc any, path []string, v any) {
 	}
 }
 
+// sortedKeys are a mapping's keys in order, so the mutations come out the same on every run.
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // Mutations lists every single change the parity test makes to a descriptor: each string in the
 // wrong case, as a value nothing defines, as a number and as a boolean, each boolean as a string,
-// an unknown key in each mapping, and each value and list item as null.
+// an unknown key in each mapping, each value and list item as null, each key deleted, and each
+// key of a list item, or of a mapping in a mapping of mappings, copied onto every sibling that
+// lacks it.
+//
+// A deleted key is not a null one: a schema refuses a null by its type, so the two readers agree on
+// it whatever either thinks of the key being absent, and a key another key requires is only tested
+// by leaving it out. A key copied from a sibling is how a key reaches an item of another kind, such
+// as a converter on a SARIF import or a token on an import that reads a file, which is where a rule
+// tying one key to another is tested at all.
 func Mutations(base any) []Mutation {
 	var out []Mutation
 	var walk func(n any, path []string)
@@ -243,19 +262,19 @@ func Mutations(base any) []Mutation {
 			d := deepCopy(base)
 			at(d, path).(map[string]any)["zzUnknownKey"] = "x"
 			out = append(out, Mutation{"extra-key", strings.Join(path, "."), d})
-			keys := make([]string, 0, len(x))
-			for k := range x {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-			for _, k := range keys {
+			out = append(out, transplants(base, x, path)...)
+			for _, k := range sortedKeys(x) {
 				here := append(append([]string{}, path...), k)
 				d := deepCopy(base)
 				set(d, here, nil)
 				out = append(out, Mutation{"null", strings.Join(here, "."), d})
+				d = deepCopy(base)
+				delete(at(d, path).(map[string]any), k)
+				out = append(out, Mutation{"drop", strings.Join(here, "."), d})
 				walk(x[k], here)
 			}
 		case []any:
+			out = append(out, transplants(base, x, path)...)
 			for i, e := range x {
 				here := append(append([]string{}, path...), strconv.Itoa(i))
 				d := deepCopy(base)
@@ -291,6 +310,58 @@ func Mutations(base any) []Mutation {
 		}
 	}
 	walk(base, nil)
+	return out
+}
+
+// siblings are the mappings a list or a mapping holds, by the index or the key that names each,
+// in order. A mapping whose every value is a mapping, such as accounts or clusters, holds siblings
+// as a list of mappings does; any other holds none.
+func siblings(n any) (names []string, items []map[string]any) {
+	switch x := n.(type) {
+	case []any:
+		for i, e := range x {
+			if m, ok := e.(map[string]any); ok {
+				names, items = append(names, strconv.Itoa(i)), append(items, m)
+			}
+		}
+	case map[string]any:
+		for _, k := range sortedKeys(x) {
+			m, ok := x[k].(map[string]any)
+			if !ok {
+				return nil, nil
+			}
+			names, items = append(names, k), append(items, m)
+		}
+	}
+	return names, items
+}
+
+// transplants are the mutations that copy a key one sibling under n has onto each sibling that
+// lacks it, with the donor's value. The same key and value offered by two donors is copied once,
+// and the same key with another value is copied again, since a format or a kind is a different
+// rule for each value it takes.
+func transplants(base, n any, path []string) []Mutation {
+	names, items := siblings(n)
+	var out []Mutation
+	for to, r := range items {
+		here := append(append([]string{}, path...), names[to])
+		done := map[string]bool{}
+		for from, d := range items {
+			if from == to {
+				continue
+			}
+			for _, k := range sortedKeys(d) {
+				seen := k + "=" + fmt.Sprint(d[k])
+				if _, has := r[k]; has || done[seen] {
+					continue
+				}
+				done[seen] = true
+				doc := deepCopy(base)
+				at(doc, here).(map[string]any)[k] = deepCopy(d[k])
+				out = append(out, Mutation{"transplant from " + names[from], strings.Join(append(here, k), "."), doc})
+			}
+		}
+	}
 	return out
 }
 

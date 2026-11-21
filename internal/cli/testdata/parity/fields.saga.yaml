@@ -22,6 +22,27 @@ components:
           type: header
           header: X-API-Key
           tokenEnv: API_KEY
+    # Every format beside a source, in one list, so each key one of them reads is copied onto the
+    # others and both readers judge it there. TestEveryVariantIsInTheCorpus requires each value.
+    imports:
+      - control: sast
+        file: reports/tool.sarif
+        format: sarif
+        suppressions: count
+      - control: sca
+        file: reports/govulncheck.json
+        format: govulncheck-json
+        commit: 0123abc
+      - control: sca
+        file: reports/grype.json
+        format: grype-json
+      - control: sca
+        file: reports/osv.json
+        format: osv-scanner-json
+      - control: sast
+        source: github-code-scanning
+        tokenEnv: CI_GITHUB_TOKEN
+        repository: acme/web
 config:
   controls:
     provenance:
@@ -52,6 +73,15 @@ config:
       url: https://draugr.acme.example
     - kind: github-issue
       branches: [main]
+      split: none
+      children: none
       select:
         components: [web]
         labels: { team: payments }
+    # A split and a children apart, so each is copied onto the other's entry.
+    - kind: gitlab-issue
+      label: draugr-gitlab
+      children: controls
+    - kind: azure-work-item
+      label: draugr-azure
+      split: control

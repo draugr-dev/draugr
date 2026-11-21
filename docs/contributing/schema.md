@@ -75,6 +75,16 @@ quoting warning as `draugr validate` objecting. A new field has to be written as
 of those documents; when no example should carry it, write it in
 `internal/cli/testdata/parity/fields.saga.yaml`.
 
+Besides changing each value, they delete each key, and copy each key of a list item, or of an
+account or a cluster, onto every sibling that lacks it. That is what reaches a rule tying one key to
+another, such as `converter` on a SARIF import or `tokenEnv` on an import that reads a file, and the
+schema writes each such rule as `if`/`then` beside the definition it constrains. A copied key needs
+a sibling of another kind to come from, so `TestEveryVariantIsInTheCorpus` requires every value of a
+field that decides which keys its siblings may hold (an import's `format` and `source`, a
+publisher's `kind`, `children` and `split`, an account's `provider`) on an item that has a sibling.
+A rule no schema can state, a name declared in one place and used in another, is listed in
+`parityExceptions` or `dropExceptions` with the reason.
+
 `internal/schemagen/strictness_test.go` requires every string property to be closed or listed with
 the reason it is open, and every object to refuse keys it does not list.
 

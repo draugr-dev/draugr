@@ -53,6 +53,16 @@ func (m *Model) Validate() error {
 			"project %q: lowercase letters, digits and dashes, starting and ending with a letter "+
 				"or digit", m.Project))
 	}
+	// A reference without its link points a reader at nothing, and one without its type does not
+	// say what the document is.
+	for i, r := range m.References {
+		if r.Type == "" {
+			errs = append(errs, fmt.Errorf("references[%d].type is required, the kind of document, such as ThreatModel", i))
+		}
+		if r.Link == "" {
+			errs = append(errs, fmt.Errorf("references[%d].link is required, the document's address", i))
+		}
+	}
 
 	errs = append(errs, validateControllerKeys("config.", m.Config.Controls)...)
 

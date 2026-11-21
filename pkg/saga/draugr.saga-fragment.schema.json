@@ -931,9 +931,35 @@
           "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
           "items": {
             "additionalProperties": false,
+            "oneOf": [
+              {
+                "required": [
+                  "keyless"
+                ]
+              },
+              {
+                "required": [
+                  "github"
+                ]
+              },
+              {
+                "required": [
+                  "x509"
+                ]
+              }
+            ],
             "properties": {
               "github": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "required": [
+                      "repository",
+                      "workflow",
+                      "ref"
+                    ]
+                  }
+                ],
                 "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
                 "properties": {
                   "ref": {
@@ -960,7 +986,26 @@
               },
               "keyless": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "required": [
+                      "issuer"
+                    ]
+                  }
+                ],
                 "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+                "oneOf": [
+                  {
+                    "required": [
+                      "identity"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "identityRegexp"
+                    ]
+                  }
+                ],
                 "properties": {
                   "identity": {
                     "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif.",
@@ -983,6 +1028,14 @@
               },
               "x509": {
                 "additionalProperties": false,
+                "allOf": [
+                  {
+                    "required": [
+                      "trustStore",
+                      "subject"
+                    ]
+                  }
+                ],
                 "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
                 "properties": {
                   "subject": {
@@ -1508,6 +1561,28 @@
     },
     "excludeRule": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "paths": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "paths"
+          ]
+        },
+        {
+          "properties": {
+            "rules": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "rules"
+          ]
+        }
+      ],
       "description": "One exclusion. Set paths, rules, or both; when both are set a finding must match both.",
       "properties": {
         "expires": {
@@ -1760,9 +1835,35 @@
               "description": "Who is expected to have signed what. A signer names itself, the images it covers, and the identity to check against.",
               "items": {
                 "additionalProperties": false,
+                "oneOf": [
+                  {
+                    "required": [
+                      "keyless"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "github"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "x509"
+                    ]
+                  }
+                ],
                 "properties": {
                   "github": {
                     "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "required": [
+                          "repository",
+                          "workflow",
+                          "ref"
+                        ]
+                      }
+                    ],
                     "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
                     "properties": {
                       "ref": {
@@ -1789,7 +1890,26 @@
                   },
                   "keyless": {
                     "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "required": [
+                          "issuer"
+                        ]
+                      }
+                    ],
                     "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+                    "oneOf": [
+                      {
+                        "required": [
+                          "identity"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "identityRegexp"
+                        ]
+                      }
+                    ],
                     "properties": {
                       "identity": {
                         "description": "The exact signing identity, e.g. \"https://github.com/acme/ci/.github/workflows/release.yml@refs/tags/v3\". A job calling a reusable workflow is signed as that workflow, not as the caller. Run the control with no signers declared and read it back from --format sarif.",
@@ -1812,6 +1932,14 @@
                   },
                   "x509": {
                     "additionalProperties": false,
+                    "allOf": [
+                      {
+                        "required": [
+                          "trustStore",
+                          "subject"
+                        ]
+                      }
+                    ],
                     "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
                     "properties": {
                       "subject": {
@@ -1841,6 +1969,64 @@
     },
     "fragmentImport": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "repository": false,
+              "tokenEnv": false
+            }
+          },
+          "if": {
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "properties": {
+              "commit": false,
+              "format": false,
+              "severity": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "not": {
+                  "const": "sarif"
+                }
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "severity": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "osv-scanner-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            }
+          }
+        }
+      ],
       "description": "A file another tool wrote about this component, or a service's alerts for its repository, read into one of Draugr's controls.",
       "oneOf": [
         {
@@ -2215,6 +2401,42 @@
     },
     "hostAuth": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "header"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "header"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "bearer"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "header": false
+            }
+          }
+        }
+      ],
       "description": "Authenticate the dynamic scan of this endpoint. Absent means probe it anonymously, which against an application that requires a login tests the login page and reports a pass about everything behind it.",
       "properties": {
         "header": {
@@ -2314,6 +2536,90 @@
     },
     "import": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "repository": false,
+              "tokenEnv": false
+            }
+          },
+          "if": {
+            "required": [
+              "source"
+            ]
+          },
+          "then": {
+            "properties": {
+              "commit": false,
+              "converter": false,
+              "format": false,
+              "severity": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "not": {
+                  "const": "sarif"
+                }
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "severity": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "osv-scanner-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            }
+          }
+        },
+        {
+          "else": {
+            "properties": {
+              "converter": false
+            }
+          },
+          "if": {
+            "properties": {
+              "format": {
+                "const": "draugr-converter"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            },
+            "required": [
+              "converter"
+            ]
+          }
+        }
+      ],
       "description": "A file another tool wrote about this component, or a service's alerts for its repository, read into one of Draugr's controls.",
       "oneOf": [
         {
@@ -2615,6 +2921,70 @@
     "publisherConfig": {
       "additionalProperties": false,
       "allOf": [
+        {
+          "if": {
+            "required": [
+              "maxChildren"
+            ]
+          },
+          "then": {
+            "properties": {
+              "children": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            },
+            "required": [
+              "children"
+            ]
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "children": {
+                "const": "controls"
+              },
+              "split": {
+                "const": "control"
+              }
+            },
+            "required": [
+              "children",
+              "split"
+            ]
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "children": {
+                "not": {
+                  "const": "none"
+                }
+              },
+              "item": {
+                "properties": {
+                  "type": {
+                    "const": "task"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              },
+              "kind": {
+                "const": "gitlab-issue"
+              }
+            },
+            "required": [
+              "kind",
+              "item",
+              "children"
+            ]
+          }
+        },
         {
           "else": {
             "properties": {
@@ -3319,6 +3689,38 @@
     },
     "publisherSelect": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "components": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "components"
+          ]
+        },
+        {
+          "properties": {
+            "labels": {
+              "minProperties": 1
+            }
+          },
+          "required": [
+            "labels"
+          ]
+        },
+        {
+          "properties": {
+            "controls": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "controls"
+          ]
+        }
+      ],
       "description": "The part of a run an issue entry covers, with the meaning of --components, --labels and --controls. A list matches any of its values, every label must match, and the keys together narrow.",
       "properties": {
         "components": {
@@ -3696,6 +4098,23 @@
     "vexSource": {
       "additionalProperties": false,
       "description": "Where one supplier's VEX document comes from. Exactly one of path, url or repository. Naming a source is how you accept its claims, and the report names their author on every finding they excused.",
+      "oneOf": [
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "required": [
+            "repository"
+          ]
+        }
+      ],
       "properties": {
         "path": {
           "description": "A document on disk, resolved relative to where Draugr runs rather than to the descriptor or the repository, which is the rule every other path in a descriptor follows.",

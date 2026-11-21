@@ -128,6 +128,65 @@ func TestMutationsChangeOneThingAtATime(t *testing.T) {
 	}
 }
 
+// TestMutationsDropAndTransplant: each key deleted rather than nulled, and each key of one sibling
+// copied onto the others that lack it, in a list and in a mapping of mappings, once per value.
+func TestMutationsDropAndTransplant(t *testing.T) {
+	base := map[string]any{
+		"imports": []any{
+			map[string]any{"file": "a.sarif"},
+			map[string]any{"file": "b.json", "format": "trivy-json"},
+			map[string]any{"file": "c.json", "format": "osv-scanner-json"},
+			"not a mapping",
+		},
+		"accounts": map[string]any{
+			"prod": map[string]any{"provider": "aws", "account": "011111111111"},
+			"dev":  map[string]any{"provider": "gcp", "project": "dev-1"},
+		},
+		"labels": map[string]any{"team": "payments", "tier": map[string]any{"x": "y"}},
+	}
+	byKind := map[string][]Mutation{}
+	for _, m := range Mutations(base) {
+		byKind[m.Kind+" "+m.Path] = append(byKind[m.Kind+" "+m.Path], m)
+	}
+	drop := byKind["drop imports.1.format"]
+	if len(drop) != 1 {
+		t.Fatalf("drop imports.1.format made %d times, want once", len(drop))
+	}
+	if _, has := drop[0].Doc.(map[string]any)["imports"].([]any)[1].(map[string]any)["format"]; has {
+		t.Error("drop left the key in place")
+	}
+	for _, c := range []struct {
+		key  string
+		want []string
+	}{
+		// Two donors offer format with two values, and each is a different rule.
+		{"transplant from 1 imports.0.format", []string{"trivy-json"}},
+		{"transplant from 2 imports.0.format", []string{"osv-scanner-json"}},
+		{"transplant from dev accounts.prod.project", []string{"dev-1"}},
+		{"transplant from prod accounts.dev.account", []string{"011111111111"}},
+	} {
+		got := byKind[c.key]
+		if len(got) != len(c.want) {
+			t.Errorf("%s made %d times, want %d", c.key, len(got), len(c.want))
+			continue
+		}
+		path := strings.Split(strings.SplitN(c.key, " ", 4)[3], ".")
+		if v := at(got[0].Doc, path); v != c.want[0] {
+			t.Errorf("%s copied %v, want %v", c.key, v, c.want[0])
+		}
+	}
+	for key := range byKind {
+		// A mapping holding anything but mappings has no siblings, and a key an item already has is
+		// not copied over its own value.
+		if strings.HasPrefix(key, "transplant") && (strings.Contains(key, " labels.") || strings.HasSuffix(key, "imports.1.file")) {
+			t.Errorf("unexpected mutation %s", key)
+		}
+	}
+	if _, has := base["imports"].([]any)[0].(map[string]any)["format"]; has {
+		t.Errorf("a transplant changed the document it was made from: %v", base)
+	}
+}
+
 func TestCopyDirCopiesTheTree(t *testing.T) {
 	src := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(src, "a", "b"), 0o750); err != nil {

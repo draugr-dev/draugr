@@ -372,6 +372,33 @@ func publisherRules() []any {
 	return rules
 }
 
+// issueProjectRules require the descriptor's project wherever a publisher of an issue kind is
+// declared, one rule per kind as pkg/publish lists them: the publisher finds its items by the
+// project, and a descriptor naming none gives it nothing to find them by.
+func issueProjectRules() []any {
+	var rules []any
+	for _, kind := range publish.Kinds() {
+		if !publish.IssueKind(kind) {
+			continue
+		}
+		publisher := map[string]any{
+			"properties": map[string]any{"kind": map[string]any{"const": kind}},
+			"required":   []any{"kind"},
+		}
+		rules = append(rules, map[string]any{
+			"if": map[string]any{
+				"properties": map[string]any{"config": map[string]any{
+					"properties": map[string]any{"publishers": map[string]any{"contains": publisher}},
+					"required":   []any{"publishers"},
+				}},
+				"required": []any{"config"},
+			},
+			"then": map[string]any{"required": []any{"project"}},
+		})
+	}
+	return rules
+}
+
 // applyPublisherRules replaces the generated rules in publisherConfig's allOf and keeps the rest.
 func applyPublisherRules(defs map[string]any) error {
 	pc, ok := defs["publisherConfig"].(map[string]any)
@@ -517,8 +544,10 @@ func FragmentSchema(sagaJSON []byte) ([]byte, error) {
 		"attributed suppressions, or contributes a setting that can only add findings; it cannot " +
 		"change policy, so it carries no release or gate, and cannot switch a control off."
 	// A fragment requires nothing. One carrying only exclusions is a perfectly good fragment, and
-	// so is one carrying only components.
+	// so is one carrying only components. Nor does it hold the descriptor's rules across its
+	// top-level keys, which are about publishers a fragment cannot declare.
 	delete(doc, "required")
+	delete(doc, "allOf")
 
 	kept := map[string]any{}
 	// Clusters and accounts too: a team's fragment names the cluster or the account its component
@@ -618,6 +647,7 @@ func addFragmentImport(defs, fragProps map[string]any) error {
 	fragFormat["anyOf"] = kept
 	props["format"] = fragFormat
 	fragImp["properties"] = props
+	fragImp["allOf"] = importRules(false)
 	defs["fragmentImport"] = fragImp
 
 	list, ok := fragProps["imports"].(map[string]any)
@@ -631,6 +661,53 @@ func addFragmentImport(defs, fragProps map[string]any) error {
 	fragList["items"] = map[string]any{"$ref": "#/$defs/fragmentImport"}
 	fragProps["imports"] = fragList
 	return nil
+}
+
+// importRules are the rules across an import's keys that pkg/saga's validateImports enforces, so an
+// editor refuses the import `draugr validate` would. converter is false for a fragment's import,
+// which has no converter key and no draugr-converter format, so the rules about them are left out.
+//
+// An import with no format is read as SARIF, so a rule naming a format holds only where format is
+// written: an `if` on format's const alone would also match an import that leaves it out.
+func importRules(converter bool) []any {
+	fileOnly := map[string]any{"format": false, "severity": false, "commit": false}
+	if converter {
+		fileOnly["converter"] = false
+	}
+	format := func(f any) map[string]any {
+		return map[string]any{
+			"properties": map[string]any{"format": f},
+			"required":   []any{"format"},
+		}
+	}
+	rules := []any{
+		// A source reads alerts rather than a file, and a file reads no service's token or repository.
+		map[string]any{
+			"if":   map[string]any{"required": []any{"source"}},
+			"then": map[string]any{"properties": fileOnly},
+			"else": map[string]any{"properties": map[string]any{"tokenEnv": false, "repository": false}},
+		},
+		// severity maps a SARIF result property.
+		map[string]any{
+			"if":   format(map[string]any{"not": map[string]any{"const": saga.ImportFormatSARIF}}),
+			"then": map[string]any{"properties": map[string]any{"severity": false}},
+		},
+		// OSV-Scanner leaves what its configuration ignores out of the file.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatOSVScannerJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+	}
+	if converter {
+		// A converter's file needs the converter that wrote it and records no suppressions, and no
+		// other format reads a converter.
+		rules = append(rules, map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatConverter}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}, "required": []any{"converter"}},
+			"else": map[string]any{"properties": map[string]any{"converter": false}},
+		})
+	}
+	return rules
 }
 
 // pointAtFragmentComponents makes a fragment's `components` list hold fragmentComponent entries.

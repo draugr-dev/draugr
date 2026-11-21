@@ -69,6 +69,11 @@ func (Provenance) Info() plugin.ControllerInfo {
 // that applies only under a prefix is a scoped rule, and the scope belongs on the thing it scopes.
 // It also keeps the control out of deciding which images are "ours", a judgment it would get wrong
 // on a surveyed cluster, where every image arrives with no `builtBy` and reads as self-built.
+//
+// What a signer has to declare, one trust model and the parts that model needs, is written in
+// oneOf and allOf, which an editor reads and plugin.ValidateConfig does not. The controller refuses
+// the same signers when it reads them, with a message saying what a missing part would match, and a
+// second, generic message beside it would only repeat it less usefully.
 var provenanceOptionSchema = json.RawMessage(`{
   "type": "object",
   "properties": {
@@ -79,6 +84,11 @@ var provenanceOptionSchema = json.RawMessage(`{
         "type": "object",
         "additionalProperties": false,
         "required": ["name"],
+        "oneOf": [
+          {"required": ["keyless"]},
+          {"required": ["github"]},
+          {"required": ["x509"]}
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -93,6 +103,11 @@ var provenanceOptionSchema = json.RawMessage(`{
             "type": "object",
             "additionalProperties": false,
             "description": "A Sigstore keyless signature, identified by who issued the token and which workload it named.",
+            "allOf": [{"required": ["issuer"]}],
+            "oneOf": [
+              {"required": ["identity"]},
+              {"required": ["identityRegexp"]}
+            ],
             "properties": {
               "issuer": {
                 "type": "string",
@@ -112,6 +127,7 @@ var provenanceOptionSchema = json.RawMessage(`{
             "type": "object",
             "additionalProperties": false,
             "description": "A Notary Project signature, identified by the certificate it carries and the roots that certificate must chain to. What Azure Pipelines produces with a key in Azure Key Vault, and what an in-house PKI produces.",
+            "allOf": [{"required": ["trustStore", "subject"]}],
             "properties": {
               "trustStore": {
                 "type": "string",
@@ -127,6 +143,7 @@ var provenanceOptionSchema = json.RawMessage(`{
             "type": "object",
             "additionalProperties": false,
             "description": "A GitHub Actions signer written as its parts. Expands to the keyless issuer and identity, which draugr validate prints.",
+            "allOf": [{"required": ["repository", "workflow", "ref"]}],
             "properties": {
               "repository": {
                 "type": "string",

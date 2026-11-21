@@ -346,6 +346,7 @@ func sagaSchema(reg *engine.Registry, fields, defs map[string]map[string]any) ([
 		"type":                 "object",
 		"additionalProperties": false,
 		"properties":           props,
+		"allOf":                issueProjectRules(),
 		"$defs":                s.out,
 	}
 	raw, err := json.Marshal(doc)
