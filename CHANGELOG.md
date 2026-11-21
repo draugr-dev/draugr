@@ -16,19 +16,19 @@ _Nothing yet._
 
 ### Added
 
-- **Install tools somewhere other than `~/.draugr`.** Set `DRAUGR_HOME` to an absolute path, such as a CI runner's shared tool cache, and `draugr tools install` writes to its `bin/`, with the tools' data and the feeds beside it. Every command looks there before `PATH`, and `draugr doctor` names the directory it used.
+- **Install tools somewhere other than `~/.draugr`.** Set `DRAUGR_HOME` to an absolute path, such as a CI runner's shared tool cache. `draugr tools install` then writes there, every command looks there before `PATH`, and `draugr doctor` names the directory it used.
 
 ### Changed
 
-- **A `references` entry needs both `type` and `link`.** `draugr validate` refuses one missing either, as the schema already did.
+- **`draugr validate` refuses a `references` entry missing `type` or `link`.** The schema already required both. Add the missing field, or remove the entry.
 
-- **A scan runs at full speed by default.** Draugr no longer gives each tool a `GOMAXPROCS` or Go `-p`, so each tool sizes itself to the machine. On a machine with many cores and little memory per core, `--limit-tool-threads` or `scan.limitToolThreads: true` restores the previous limit, and `--share-workers` now implies it.
+- **Scans no longer limit each tool's threads by default.** Each tool sizes itself to the machine, which roughly halves a scan of a large Go repository. If a tool is killed for memory, rerun with `--limit-tool-threads`, or set `scan.limitToolThreads` to true in `draugr.config.yaml`. `--share-workers` turns the limit on too.
 
 ### Fixed
 
-- **An assistant's scan now runs as `draugr scan` does on the same machine.** The MCP `scan` tool reads `scan.jobs`, `scan.limitToolThreads` and the new `scan.shareWorkers` from `draugr.config.yaml`, so a machine whose tools are held to a share of its memory keeps that limit when an assistant starts the scan.
+- **An assistant's scan now follows your `draugr.config.yaml`.** The MCP `scan` tool reads `scan.jobs`, `scan.limitToolThreads` and the new `scan.shareWorkers`, so a limit you set for `draugr scan` also applies when an assistant starts the scan.
 
-- **Your editor flags the import and publisher settings Draugr refuses.** The Saga schema marks a `converter` on any format but `draugr-converter` (and requires one there), `severity` on a tool's JSON, `suppressions` on `osv-scanner-json` or a converter's file, `tokenEnv` or `repository` on a file import, an empty exclusion or `select`, a VEX source naming two places, and an incomplete signer.
+- **Your editor flags the import and publisher settings Draugr refuses.** The Saga schema now marks a `converter`, `severity`, `suppressions`, `tokenEnv` or `repository` on an import that cannot take it, a missing `converter` on `draugr-converter`, an empty exclusion or `select`, a VEX source naming two places, and an incomplete signer.
 
 ## [0.184.0] - 2026-11-20
 
