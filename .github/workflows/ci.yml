@@ -156,6 +156,49 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code -- go.mod go.sum
+      # The action's cosign install steps, run on this runner as action.yml holds them. The Go
+      # tests read their keys, and only a runner shows that a composite step reads the first
+      # attempt's outcome after continue-on-error and runs the second. The script takes the steps
+      # from action.yml on each run and points the named attempts at a release that does not exist.
+      - name: Write the action's cosign steps with failing installs
+        if: needs.changes.outputs.code == 'true'
+        run: |
+          python3 scripts/cosign-install-steps.py action.yml .cosign-steps/first-fails cosign-first
+          python3 scripts/cosign-install-steps.py action.yml .cosign-steps/both-fail cosign-first cosign-second
+      - name: Install cosign with the first attempt failing
+        id: cosign-retry
+        if: needs.changes.outputs.code == 'true'
+        uses: ./.cosign-steps/first-fails
+      - name: The second attempt installed cosign
+        if: needs.changes.outputs.code == 'true'
+        env:
+          FIRST: ${{ steps.cosign-retry.outputs.first }}
+          SECOND: ${{ steps.cosign-retry.outputs.second }}
+        run: |
+          set -euo pipefail
+          echo "first attempt: ${FIRST:-did not run}, second attempt: ${SECOND:-did not run}"
+          if [ "$FIRST" != "failure" ] || [ "$SECOND" != "success" ]; then
+            echo "::error::Want the first attempt to fail and the second to install cosign." >&2
+            exit 1
+          fi
+          cosign version
+      # Expected to fail; the step after it fails the job unless it did.
+      - name: Install cosign with both attempts failing
+        id: cosign-both
+        if: needs.changes.outputs.code == 'true'
+        continue-on-error: true
+        uses: ./.cosign-steps/both-fail
+      - name: The action failed when neither attempt installed cosign
+        if: needs.changes.outputs.code == 'true'
+        env:
+          OUTCOME: ${{ steps.cosign-both.outcome }}
+        run: |
+          set -euo pipefail
+          echo "outcome with both attempts failing: $OUTCOME"
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "::error::Want the action to fail when neither attempt installed cosign." >&2
+            exit 1
+          fi
 
   lint:
     name: Lint (golangci-lint + gosec)

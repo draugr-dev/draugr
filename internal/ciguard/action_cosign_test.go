@@ -37,9 +37,10 @@ func actionSteps(t *testing.T) []actionStepKeys {
 	return action.Runs.Steps
 }
 
-// TestTheActionInstallsCosignASecondTimeBeforeItFails holds the shape of the retry. The installer
-// downloads cosign once, with no retry of its own, so one cut-short download would otherwise fail
-// the job before anything is scanned. Both attempts are the same pinned installer, so the second
+// TestTheActionInstallsCosignASecondTimeBeforeItFails holds the shape of the retry. The installer's
+// downloads retry only a timeout and a few HTTP status codes, so one cut-short download would
+// otherwise fail the job before anything is scanned. The Build & test job in ci.yml runs these
+// steps on a runner, with the attempts made to fail (scripts/cosign-install-steps.py). Both attempts are the same pinned installer, so the second
 // is held to the same checks as the first, and a check after them stops the job when neither
 // installed it, so the continue-on-error on each attempt cannot turn into a green tick.
 func TestTheActionInstallsCosignASecondTimeBeforeItFails(t *testing.T) {
