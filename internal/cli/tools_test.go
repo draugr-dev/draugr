@@ -893,6 +893,81 @@ func TestToolsInstallRefusesAToolItDoesNotProvision(t *testing.T) {
 	}
 }
 
+// KICS runs from its image, which `draugr tools install` does not pull, so asking for it says so
+// and names the command that does, with the digest a scan runs.
+func TestToolsInstallNamesThePullForAnImageTool(t *testing.T) {
+	err := checkInstallable([]string{"kics"})
+	want := "cannot install \"kics\": Draugr runs it and does not provision it. Run `draugr doctor` to see " +
+		"where to get it. kics runs from its image, which `draugr tools install` does not pull; pull it " +
+		"with `docker pull " + tools.KICSImage + "`\ninstallable: "
+	if err == nil || !strings.HasPrefix(err.Error(), want) {
+		t.Errorf("err = %v\nwant a refusal starting %q", err, want)
+	}
+	if got := pullAdvice([]string{"kubectl", "git"}); got != "" {
+		t.Errorf("pull advice for tools on PATH = %q", got)
+	}
+}
+
+// doctor, for a descriptor that turns KICS on, requires Docker and the image and names the pull
+// where the image is missing, though both were optional in the inventory.
+func TestDoctorRequiresTheKICSImageWhenADescriptorTurnsItOn(t *testing.T) {
+	path := writeSaga(t, `project: p
+config:
+  controls:
+    iac:
+      enabled: true
+      kics: { enabled: true }
+components:
+  - name: api
+    repositories: [{ url: https://example.com/api.git }]
+`)
+	present := map[string]string{"docker": "27.3.1", "git": "2.55.0", "trivy": tools.PinnedVersion("trivy")}
+	stubDetect(t, present)
+	var out bytes.Buffer
+	err := runDoctor(context.Background(), &out, builtins.Registry(), path, doctorRun{}, detectTool,
+		func(context.Context) (string, error) { return "9.9.9", nil })
+	if err == nil || !strings.Contains(out.String(), "kics    ✗ missing") ||
+		!strings.Contains(out.String(), "install: needs Docker, then `docker pull "+tools.KICSImage+"`") {
+		t.Errorf("err %v, output:\n%s", err, out.String())
+	}
+
+	present["kics"] = tools.KICSVersion
+	stubDetect(t, present)
+	out.Reset()
+	if err := runDoctor(context.Background(), &out, builtins.Registry(), path, doctorRun{}, detectTool,
+		func(context.Context) (string, error) { return "9.9.9", nil }); err != nil || !strings.Contains(out.String(), "kics    ✓ found") {
+		t.Errorf("with the image: err %v, output:\n%s", err, out.String())
+	}
+}
+
+// A descriptor that turns KICS on, installed from with --saga, says the image is not pulled and how
+// to pull it, beside the tools it installs.
+func TestToolsInstallForADescriptorNamesThePull(t *testing.T) {
+	stubDetect(t, map[string]string{"docker": "27.3.1", "git": "2.55.0"})
+	path := writeSaga(t, `project: p
+config:
+  controls:
+    iac:
+      enabled: true
+      kics: { enabled: true }
+components:
+  - name: api
+    repositories: [{ url: https://example.com/api.git }]
+`)
+	var out bytes.Buffer
+	names, all, err := installNames(&out, nil, toolsInstallOptions{saga: path})
+	if err != nil || all {
+		t.Fatalf("names %v, all %v, err %v", names, all, err)
+	}
+	if !slices.Contains(names, "trivy") || slices.Contains(names, "kics") {
+		t.Errorf("names = %v, want trivy and not kics", names)
+	}
+	if !strings.Contains(out.String(), `needs "kics", which Draugr cannot provision. Install it separately`) ||
+		!strings.Contains(out.String(), "pull it with `docker pull "+tools.KICSImage+"`") {
+		t.Errorf("output does not name the pull:\n%s (names %v)", out.String(), names)
+	}
+}
+
 // The plan above already names every current tool, with its version and where it lives. Repeating
 // the list afterwards reads as a second check that found something different, and on a full
 // install it buries the one line describing what happened under seven describing what did not.

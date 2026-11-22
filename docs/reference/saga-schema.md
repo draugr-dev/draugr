@@ -732,7 +732,7 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 | `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei` | `intrusive`, run the templates that may write to the endpoint, declares [`mutate`](../../internal/scanners/nuclei.md#intrusive-templates); `rateLimit`, `concurrency`, `timeout`, `retries`, the scan's pace; `tags`, `excludeTags`, `templates`, which templates run; `interactsh`, the callback templates. [Options](../../internal/scanners/nuclei.md#options) |
-| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `osv-scanner` (key `osvScanner`), `cosign`, `notation` | `enabled` only |
+| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `osv-scanner` (key `osvScanner`), `cosign`, `notation`, `kics` | `enabled` only |
 
 
 [`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) writes every
@@ -1209,6 +1209,14 @@ scanner wrote.
 A package one scanner wrote no URL for, such as a Cargo workspace member in Grype's report, is
 matched on its type, name and version: Grype's `rust-crate` and Trivy's `cargo` are both
 `pkg:cargo`. Where two different URLs fit, it is left unmatched rather than joined to a guess.
+
+An infrastructure setting has no package or advisory to match on, and KICS and Trivy name their
+checks in ids that share nothing. Turned on with `iac: { kics: { enabled: true } }`, KICS runs
+beside `trivy-config`, and a KICS finding is matched to Trivy's where three things hold: KICS's
+query is one Draugr lists as testing the same setting as that Trivy check, both are in the same
+file of the same repository, and KICS's line falls inside the lines Trivy reported, such as one
+container's. A finding either side could match twice is left unmatched and counted.
+[`kics`](../../internal/scanners/kics.md#counted-once) lists the pairs.
 
 **An exclusion covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whichever tool
 found it: a decision about a vulnerability is a decision about the vulnerability, not about one

@@ -47,6 +47,13 @@ func (l Level) AtLeast(other Level) bool { return l.Rank() >= other.Rank() }
 type Location struct {
 	URI       string `json:"uri,omitempty"`
 	StartLine int    `json:"startLine,omitempty"`
+	// EndLine is the last line of the region the scanner reported, where it reported one that spans
+	// more than StartLine: Trivy gives a Kubernetes container's check the lines of the whole container.
+	// Zero where the scanner gave no end. Not part of Fingerprint, which has always keyed on the start.
+	//
+	// Read so that a finding another scanner reports at one line inside that region can be recognized
+	// as the same setting on the same resource (see SameCheckAs). Draugr's own SARIF does not write it.
+	EndLine int `json:"endLine,omitempty"`
 }
 
 // Result is a single finding.
@@ -1501,6 +1508,28 @@ type Taxon struct {
 	// Version is the taxonomy revision the id belongs to, e.g. "cis-1.12". A check number means
 	// a different thing between benchmark revisions, so an id without one is ambiguous.
 	Version string `json:"version,omitempty"`
+}
+
+// ruleTaxonomySuffix ends the taxonomy of a taxon naming another tool's rule (see SameCheckAs).
+const ruleTaxonomySuffix = " rules"
+
+// SameCheckAs is the taxon a rule carries to say it checks the same setting as another tool's rule:
+// taxonomy "Trivy rules", id "KSV-0017". tool is the name that tool's findings carry as their Tool.
+//
+// Two tools checking one setting write ids that share nothing, so nothing but a statement can say
+// they are one check. The scanner whose rule makes the statement is the one that has read both
+// rule sets; the other tool's findings are left as they are.
+func SameCheckAs(tool, ruleID, name string) Taxon {
+	return Taxon{Taxonomy: tool + ruleTaxonomySuffix, ID: ruleID, Name: name}
+}
+
+// SameCheck reports the tool and rule a SameCheckAs taxon names, and false for any other taxon.
+func (t Taxon) SameCheck() (tool, ruleID string, ok bool) {
+	tool, ok = strings.CutSuffix(t.Taxonomy, ruleTaxonomySuffix)
+	if !ok || tool == "" || t.ID == "" {
+		return "", "", false
+	}
+	return tool, t.ID, true
 }
 
 // Key renders a taxon as a stable correlation key: two observations carrying the same key are

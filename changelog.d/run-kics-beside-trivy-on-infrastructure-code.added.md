@@ -1,0 +1,1 @@
+- **Run KICS beside Trivy on infrastructure code.** With `config.controls.iac.kics.enabled: true`, Checkmarx KICS runs as a second `iac` scanner, from its pinned image with no network and the checkout read-only, and a setting both tools flag on one resource counts once. `draugr doctor` names the `docker pull` command when the image is missing.

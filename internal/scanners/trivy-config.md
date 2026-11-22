@@ -32,6 +32,10 @@ that report as well. Draugr removes them before converting, because `trivy conve
 whole report when one package is malformed, and `iac` reads no package. On a Trivy older than 0.53.0, which has no
 `--show-suppressed`, the scan is `trivy config --debug --format sarif <dir>`.
 
+The JSON also lists every configuration file Trivy checked, a file where every check passed
+included, and Draugr records each as read. So where [`kics`](kics.md) also runs and skips part of a
+file Trivy checked, the file is not unread for `iac`, and the gap is recorded as KICS's.
+
 Trivy reports these shortfalls only in its log, and exits 0 after each. Draugr reads the log for
 them and reports each as [unread](../controllers/iac.md#unread):
 

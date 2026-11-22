@@ -41,6 +41,7 @@ func Registry() *engine.Registry {
 	reg.RegisterScanner(scanners.NewSemgrep())
 	reg.RegisterScanner(scanners.NewGosec())
 	reg.RegisterScanner(scanners.NewTrivyConfig())
+	reg.RegisterScanner(scanners.NewKICS())
 	reg.RegisterScanner(scanners.NewKubeBench())
 	reg.RegisterScanner(scanners.NewKubeBenchJob())
 	reg.RegisterScanner(scanners.NewK8sPolicies())

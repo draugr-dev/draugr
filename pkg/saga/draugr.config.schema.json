@@ -134,6 +134,17 @@
           "description": "Whether this control runs. An entry with no `enabled` key counts as enabled; an absent entry means disabled.",
           "type": "boolean"
         },
+        "kics": {
+          "additionalProperties": false,
+          "description": "kics, published by checkmarx.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "nonShippingPaths": {
           "anyOf": [
             {

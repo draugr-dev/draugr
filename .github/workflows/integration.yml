@@ -228,6 +228,17 @@ jobs:
           ./bin/draugr tools install -y --all
           echo "$HOME/.draugr/bin" >> "$GITHUB_PATH"
 
+      # The kics scanner runs KICS from its image, which `draugr tools install` does not pull. The
+      # reference is read from the one line that pins it, so the image pulled is the image a scan
+      # runs, and the pull fails the step if that line stops reading as one.
+      - name: Pull the KICS image
+        if: steps.needed.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          image=$(sed -n 's/^[[:space:]]*KICSImage[[:space:]]*= "\(.*\)"$/\1/p' internal/tools/tools.go)
+          test -n "$image"
+          docker pull "$image"
+
       # A registry the Notary Project test can push a signature to. No public image carries one
       # from a certificate the test can trust, so it signs an image of its own here.
       #

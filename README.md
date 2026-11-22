@@ -113,7 +113,7 @@ its own license, and you can swap it.
 | `sca` | known flaws in the libraries you depend on | Trivy, Grype, OSV-Scanner and Mend opt-in |
 | `secrets` | passwords and keys committed by accident | Gitleaks |
 | `sast` | patterns in the code you wrote that let somebody in | Semgrep, gosec opt-in for Go |
-| `iac` | settings that leave a door open, in Terraform, Kubernetes and Dockerfiles | Trivy |
+| `iac` | settings that leave a door open, in Terraform, Kubernetes and Dockerfiles | Trivy, KICS opt-in |
 | `images` | what is baked into your container images | Trivy, Grype opt-in |
 | `licenses` | terms attached to code you did not write | Trivy |
 | `dast` | problems only visible from outside a running app | Nuclei, authenticated, and from an OpenAPI spec |

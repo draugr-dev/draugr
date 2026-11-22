@@ -69,7 +69,7 @@ Scans code/history for **leaked credentials**, API keys, tokens, private keys. I
 
 Finds **misconfigurations** in infrastructure definitions (Terraform, Kubernetes manifests,
 Dockerfiles, CloudFormation), open security groups, privileged containers, etc. In Draugr: **`iac`**
-via Trivy config.
+via Trivy config, with opt-in [KICS](https://kics.io) as a second scanner.
 
 ## Container image scanning
 

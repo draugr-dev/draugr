@@ -478,6 +478,8 @@ type sarifArtifact struct {
 
 type sarifRegion struct {
 	StartLine int `json:"startLine,omitempty"`
+	// EndLine is read and never written: Location.EndLine says why.
+	EndLine int `json:"endLine,omitempty"`
 }
 
 // driverName is the single SARIF tool Draugr reports as. Draugr is an orchestrator that
@@ -964,6 +966,9 @@ func (rr runReader) result(sr sarifResult) Result {
 		res.Location.URI = sr.Locations[0].PhysicalLocation.ArtifactLocation.URI
 		if region := sr.Locations[0].PhysicalLocation.Region; region != nil {
 			res.Location.StartLine = region.StartLine
+			if region.EndLine > region.StartLine {
+				res.Location.EndLine = region.EndLine
+			}
 		}
 	}
 	// A numeric score on the result overrides the rule's; otherwise inherit it.

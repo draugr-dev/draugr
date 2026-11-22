@@ -34,7 +34,7 @@ executing on your machine, which is a question worth being able to answer withou
 | `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` (default), `grype-fs` (opt-in), `osv-scanner` (opt-in), `retirejs` (opt-in), `mend-sca` (opt-in), `govulncheck` (opt-in) | [doc](../../internal/controllers/sca.md) |
 | `sast` | Static Application Security Testing | component | ✅ | `semgrep` (default), `gosec` (opt-in) | [doc](../../internal/controllers/sast.md) |
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../../internal/controllers/secrets.md) |
-| `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` | [doc](../../internal/controllers/iac.md) |
+| `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` (default), `kics` (opt-in) | [doc](../../internal/controllers/iac.md) |
 | `headers` | HTTP security headers | component | ✅ | `draugr-headers` (native) | [doc](../../internal/controllers/headers.md) |
 | `dast` | Dynamic Application Security Testing | component | ✅ | `nuclei` | [doc](../../internal/controllers/dast.md) |
 | `kubernetes` | CIS Kubernetes Benchmark / cluster posture | component | ✅ | `draugr-k8s-policies` (default), `kube-bench` and `kube-bench-job` (opt-in) | [doc](../../internal/controllers/kubernetes.md) |
@@ -77,6 +77,7 @@ reference](saga-schema.md#sbom-generation).
 | `mend-sca` | sca | Mend CLI (Unified Agent) | proprietary | ✅ | [doc](../../internal/scanners/mend-sca.md) |
 | `mend-licenses` | licenses | Mend CLI (Unified Agent) | proprietary | ✅ | [doc](../../internal/scanners/mend-licenses.md) |
 | `trivy-config` | iac | Aqua Trivy (config) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-config.md) |
+| `kics` | iac | Checkmarx KICS (container image `checkmarx/kics`, pinned by digest) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kics.md) |
 | `trivy-license` | licenses | Aqua Trivy (license) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-license.md) |
 | `kube-bench` | kubernetes | Aqua kube-bench | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench.md) |
 | `kube-bench-job` | kubernetes | Aqua kube-bench (in-cluster Job) | Apache-2.0 | ✅ | [doc](../../internal/scanners/kube-bench-job.md) |
@@ -170,6 +171,7 @@ Not scanners, but tools Draugr provisions/uses:
 | Tool | Purpose | Install |
 |------|---------|:------:|
 | `cosign` | verify release/tool signatures (Sigstore) | `draugr tools install cosign` |
+| `docker` | runs the `kics` scanner from its image, with no network and the checkout read-only | system |
 | `git` | check out repositories for repo-scanning controls | system |
 | `kubectl` | required by the `kube-bench` scanner, whose `policies` checks shell out to it | system |
 | `syft` | generate SBOMs when a Saga sets `config.sbom` | `draugr tools install syft` |

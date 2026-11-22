@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -32,6 +33,38 @@ func TestIACPlan(t *testing.T) {
 		if j.Scanner != "trivy-config" {
 			t.Errorf("scanner = %q", j.Scanner)
 		}
+	}
+}
+
+// KICS runs only where a descriptor turns it on, and then once per repository beside Trivy: two
+// repositories are four jobs, each scanner over each repository.
+func TestIACPlansKICSBesideTrivyWhenTurnedOn(t *testing.T) {
+	comp := &saga.Component{Name: "infra", Repositories: []saga.Repository{
+		{URL: "https://git/a.git", Revision: "main"},
+		{URL: "https://git/b.git"},
+	}}
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"iac": {"enabled": true, "kics": map[string]any{"enabled": true}},
+	}}}
+	jobs, err := NewIAC().Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, j := range jobs {
+		got = append(got, j.Scanner+" "+j.Target.(plugin.RepositoryTarget).URL)
+	}
+	want := []string{
+		"trivy-config https://git/a.git", "kics https://git/a.git",
+		"trivy-config https://git/b.git", "kics https://git/b.git",
+	}
+	if strings.Join(got, ", ") != strings.Join(want, ", ") {
+		t.Errorf("jobs = %v\nwant %v", got, want)
+	}
+
+	model.Config.Controls["iac"]["kics"] = map[string]any{"enabled": false}
+	if jobs, _ := NewIAC().Plan(model, comp); len(jobs) != 2 || jobs[0].Scanner != "trivy-config" || jobs[1].Scanner != "trivy-config" {
+		t.Errorf("KICS turned off planned %v", jobs)
 	}
 }
 
