@@ -1,1 +1,0 @@
-- **A Python finding named by its PyPA id (`PYSEC-…`) now merges with the same flaw under its CVE.** An imported pip-audit or OSV-Scanner file and Trivy no longer count one advisory twice.

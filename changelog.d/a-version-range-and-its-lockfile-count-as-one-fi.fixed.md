@@ -1,1 +1,0 @@
-- **A version range and its lockfile count as one finding.** With `trivyFs.detectionPriority: comprehensive`, an advisory reported both for a `requirements.txt` range such as `pillow>=10.4` and for the lockfile beside it is now counted once, at the lockfile's line and version. The range's copy stays in the report, counted under it.
