@@ -78,6 +78,10 @@ config:
       retirejs:
         enabled: true                                # opt-in, and the only option it takes:
                                                      # fingerprints JavaScript no lockfile names
+      osvScanner:
+        enabled: true                                # opt-in, and the only option it takes:
+                                                     # PyPA, RustSec, Go and Erlang advisories,
+                                                     # always offline
       # mendSca:
       #   enabled: true
       #   productToken: 1a2b3c4d                     # which Mend product this reports into.

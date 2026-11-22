@@ -54,8 +54,9 @@ func total(paths []RemovedPath) int64 {
 // scanDataDirs names the directory under DataRoot a scanner writes for a tool at scan time, as
 // opposed to InstallSpec.DataDir, which the install itself writes. Both go when the tool does.
 var scanDataDirs = map[string]string{
-	"gitleaks": "gitleaks",
-	"retire":   "retirejs",
+	"gitleaks":    "gitleaks",
+	"retire":      "retirejs",
+	"osv-scanner": "osv-scanner",
 }
 
 // ScanDataDir is where a scanner keeps what it writes for tool at scan time, or "" when it writes

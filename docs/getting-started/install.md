@@ -153,6 +153,8 @@ Prefer your own install (Homebrew, package manager, an existing copy)? That work
 - [Gitleaks](https://github.com/gitleaks/gitleaks), `secrets` control.
 - [Semgrep](https://semgrep.dev), `sast` control (default; opt-in [gosec](https://github.com/securego/gosec) for Go).
 - [Grype](https://github.com/anchore/grype), opt-in second scanner for `sca` and `images`.
+- [OSV-Scanner](https://github.com/google/osv-scanner), opt-in for `sca`, for the PyPA, RustSec,
+  Go and Erlang advisories Trivy's and Grype's databases do not carry.
 - [retire.js](https://github.com/RetireJS/retire.js), opt-in for `sca`, and the one that finds
   JavaScript no lockfile describes.
 - [Nuclei](https://github.com/projectdiscovery/nuclei), `dast` control.

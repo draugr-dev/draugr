@@ -9,6 +9,7 @@ kube-bench   scanner   kubernetes               0.16.0   draugr tools install   
 kubectl      utility   -                        -        -                                    ✗ not found
 notation     scanner   provenance               1.3.2    draugr tools install                 ✗ not found
 nuclei       scanner   dast                     3.11.1   draugr tools install                 ✗ not found
+osv-scanner  scanner   sca                      2.7.1    draugr tools install                 ✗ not found
 prowler      scanner   cloud                    -        -                                    ✗ not found
 retire       scanner   sca                      6.1.0    draugr tools install · needs Node    ✗ not found
 semgrep      scanner   sast                     1.182.1  draugr tools install · needs Python  ✗ not found

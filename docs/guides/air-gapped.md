@@ -72,6 +72,9 @@ retire --path /tmp/empty --cachedir ~/.draugr/data/retirejs   # retire.js adviso
 `~/.cache/grype` and `~/.local/nuclei-templates` by default, all relocatable with
 `TRIVY_CACHE_DIR`, `GRYPE_DB_CACHE_DIR` and `NUCLEI_TEMPLATES_DIR`. retire.js is the exception:
 Draugr already points it under `~/.draugr/data`, and passes `--jsrepo` at that copy when offline.
+OSV-Scanner is another: its databases, one per ecosystem, land in `~/.draugr/data/osv-scanner` the
+first time a scan with network reads that ecosystem, so scan each project once on the connected
+machine before copying, and an offline scan of an ecosystem with no database there fails, naming it.
 
 `draugr doctor` on the runner lists each copy with the date it was downloaded and, where the tool
 records it, the date its publisher built it. A copy the tool will not use, such as a Grype database
