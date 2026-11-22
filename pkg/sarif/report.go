@@ -2048,21 +2048,21 @@ func ProvesAbsence(method string) bool {
 }
 
 // RankAt returns the severity a finding's priority band should be computed from, given what
-// reachability analysis concluded.
+// reachability analysis concluded. Today that is base, whatever the verdict.
 //
-// Only an unreachable verdict moves anything, and only from a method that proves absence.
+// An unreachable verdict is evidence about the builds the analyzer compiled, and those are not yet
+// every build a module ships: Draugr analyzes the host's platform, and another only where the
+// module's own files are built for it alone, so code a dependency compiles only for Windows is in a
+// Windows binary no run read (https://github.com/draugr-dev/draugr/issues/2236). Lowering a finding
+// on that would move it down on a check that did not cover everything that ships, which uncertainty
+// never does. The verdict is kept as evidence, in report.json and the HTML report, and lowers
+// nothing until every build the module graph produces is analyzed.
+//
 // Reachable does not raise: severity already assumes the vulnerable code runs, so treating a
 // confirmed call as an escalation would count the same assumption twice. Unknown moves nothing by
-// definition. It is the absence of a finding, not one.
-//
-// A weak method's unreachable verdict still travels and is still shown. What it does not do is
-// lower the band, because the reader deciding whether to act on it needs to make that call
-// themselves rather than have it made by a guess.
-func (r *Reachability) RankAt(base Severity) Severity {
-	if r == nil || r.State != ReachabilityUnreachable || !ProvesAbsence(r.Method) {
-		return base
-	}
-	return base.Deescalate()
+// definition.
+func (*Reachability) RankAt(base Severity) Severity {
+	return base
 }
 
 // vulnerabilityID matches a vulnerability identifier at the start of a rule id, allowing whatever

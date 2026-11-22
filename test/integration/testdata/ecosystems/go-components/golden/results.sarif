@@ -164,7 +164,13 @@
             "component": "worker",
             "control": "sca",
             "correlation": {
-              "countedUnder": "trivy"
+              "alsoFoundBy": [
+                {
+                  "ruleId": "CVE-2020-36067",
+                  "severity": "high",
+                  "tool": "trivy"
+                }
+              ]
             },
             "fingerprint": "<cleared>",
             "package": {
@@ -174,12 +180,11 @@
               "purl": "pkg:golang/github.com/tidwall/gjson@v1.6.5",
               "version": "v1.6.5"
             },
-            "priority": "P2",
+            "priority": "P1",
             "reachability": {
               "analyzer": "govulncheck",
               "asOf": "<today>",
               "method": "call-graph",
-              "rankedAs": "medium",
               "state": "unreachable",
               "symbols": [
                 "github.com/tidwall/gjson.Get",
@@ -232,12 +237,11 @@
               "purl": "pkg:golang/github.com/tidwall/gjson@v1.6.5",
               "version": "v1.6.5"
             },
-            "priority": "P2",
+            "priority": "P1",
             "reachability": {
               "analyzer": "govulncheck",
               "asOf": "<today>",
               "method": "call-graph",
-              "rankedAs": "medium",
               "state": "unreachable",
               "symbols": [
                 "github.com/tidwall/gjson.Get",
@@ -280,13 +284,7 @@
             "component": "worker",
             "control": "sca",
             "correlation": {
-              "alsoFoundBy": [
-                {
-                  "ruleId": "CVE-2020-36067",
-                  "severity": "high",
-                  "tool": "trivy"
-                }
-              ]
+              "countedUnder": "trivy"
             },
             "fingerprint": "<cleared>",
             "package": {

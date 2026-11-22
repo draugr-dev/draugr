@@ -93,8 +93,8 @@ set, and can leave any out and add none.
 
 ## What no converter may set
 
-A finding moves down only on evidence Draugr can check, such as a call graph it reads or a decision
-recorded in the descriptor. A converter's statement is neither. Each of these sets a finding aside,
+A finding moves down only on evidence Draugr can check, such as a decision recorded in the
+descriptor. A converter's statement is not that. Each of these sets a finding aside,
 says who accepted a risk, or ranks a finding lower, and a file setting one is refused with an error
 naming it, whatever the descriptor declares:
 

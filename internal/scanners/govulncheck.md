@@ -159,19 +159,17 @@ sees the manifest.
 
 ## What a verdict does to a finding
 
-It feeds the priority band and never rewrites the severity the scanner reported, exactly as
-exploitability enrichment does in the other direction. An `unreachable` finding is ranked one severity
-level down; a `reachable` one is unchanged, because severity already assumes the code runs.
-
-The band moves because of **how** this scanner decided, not because it decided. It records
-`method: call-graph`, which Draugr treats as evidence that the vulnerable code does not run; an
-analyzer whose negative rests on a framework's own account of its routing is reported and lowers
-nothing. [Prioritization](../../docs/concepts/prioritization.md) has the table.
+Nothing, to its band. A `reachable` verdict leaves it, because severity already assumes the code
+runs. An `unreachable` verdict leaves it too: the call graph covers the builds Draugr analyzed, the
+host's platform and another only where the module's own files are built for it alone, so code a
+dependency compiles only for another platform is in a binary no run read. The verdict is kept as
+evidence, in `report.json` and the HTML report, and lowering waits until every platform the module
+graph builds for is analyzed (https://github.com/draugr-dev/draugr/issues/2236).
+[Prioritization](../../docs/concepts/prioritization.md#reachability) has the methods.
 
 It never suppresses. Static analysis is defeated by reflection, dynamic dispatch and code
 generation, and a suppression in Draugr records that a *person* decided, with a name attached. An
-inference is not a decision. Where exploitability enrichment has already raised a finding, that
-wins: observed exploitation outranks a call graph's failure to find a path.
+inference is not a decision.
 
 ## License and terms of use
 

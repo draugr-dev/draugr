@@ -197,8 +197,6 @@ func TestTheMovementMenuFilesAFindingUnderTheMarkItsRowShows(t *testing.T) {
         <span class="c">1</span>`,
 		`value="floor" data-label="floored by a control">floored by a control</span>
         <span class="c">1</span>`,
-		`value="unreachable" data-label="lowered as unreachable">lowered as unreachable</span>
-        <span class="c">1</span>`,
 		`value="minimum" data-label="raised to a minimum severity">raised to a minimum severity</span>
         <span class="c">2</span>`,
 		`value="untouched" data-label="ranked from severity alone">ranked from severity alone</span>

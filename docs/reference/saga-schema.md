@@ -1043,13 +1043,12 @@ It adds no findings of its own. Its verdicts are folded onto the findings the ma
 already produced, so a Go vulnerability is still reported once, not once as `CVE-2022-32149` and
 again as `GO-2022-1059`. A vulnerability only it reports is kept.
 
-**What a verdict does.** A finding nothing can reach is ranked one severity level down when the analyzer says
-it followed calls or data to get there, and the report says why. A verdict reached any other way is
-reported and moves nothing;
-[prioritization](../concepts/prioritization.md#reachability) has the methods and
-what each one earns. The severity the scanner reported is unchanged either way: reachability feeds
-the [priority](../concepts/prioritization.md) matrix, exactly as exploitability enrichment does in
-the other direction, and where exploitability has already raised a finding that wins.
+**What a verdict does.** It moves no band. govulncheck's call graph covers the builds Draugr analyzed,
+which are not yet every build a module ships, so a finding nothing in them reaches keeps the band its
+severity and classification give
+([prioritization](../concepts/prioritization.md#reachability) says which builds are analyzed). The
+verdict is evidence: `report.json` and the HTML report carry it, as `not called in the linux/amd64
+build analyzed; other builds not checked`, and the scan terminal shows a reachable finding's call path.
 
 The report says what it decided, beside everything else that moved a ranking:
 
@@ -1058,14 +1057,7 @@ SIGNALS
   reachability  govulncheck · 2 reachable, 6 unreachable
 ```
 
-and every finding whose band moved says so, the way an escalated one does:
-
-```console
-  P2        medium    CVE-2020-14040  trivy  go.mod  golang.org/x/text v0.3.0 → v0.3.8
-            ↓ unreachable · possibility to trigger an infinite loop · govulncheck, 2026-08-21
-```
-
-**It never suppresses.** An unreachable finding stays in the report at a lower band, because a
+**It never suppresses.** An unreachable finding stays in the report at its band, because a
 suppression records that a person decided and an inference is not a decision. A call graph does not
 see reflection, dynamic dispatch or code generation, and the call that makes something reachable can
 be written tomorrow. To excuse a finding, use [`config.exclude`](#configexclude) or a [VEX

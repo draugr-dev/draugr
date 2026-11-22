@@ -830,9 +830,6 @@ func notesFor(col tui.Painter, f finding) []string {
 		text := m.text()
 		fixed = append(fixed, notePart{plain: text, painted: col.Paint(m.style, text)})
 	}
-	if w := notBuiltWord(f.reachability); w != "" {
-		fixed = append(fixed, notePart{plain: w, painted: w})
-	}
 	fixed = append(fixed, reasoning(col, f)...)
 
 	room := messageWidth
@@ -915,10 +912,10 @@ func reasoning(col tui.Painter, f finding) []notePart {
 		ratingNote(f.rating),
 		converterRaised(f),
 		converterSet(f.converter),
+		// Only the reachable path. A verdict that a module is not built, or not called, moves no
+		// band, so it does not change what to fix first, and the terminal leaves it to the HTML
+		// report (reachabilityEvidence).
 		reachabilityPath(f.reachability),
-		notBuiltEvidence(f.reachability),
-		unreachableCredit(f.reachability),
-		unreachableStanding(f.reachability),
 		sarif.AgreementNote(f.alsoFoundBy, f.severity, f.reporter),
 		controlFloorNote(f),
 		historicalNote(f.historical),

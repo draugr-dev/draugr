@@ -205,12 +205,11 @@
               "purl": "pkg:golang/golang.org/x/text@v0.3.6",
               "version": "v0.3.6"
             },
-            "priority": "P2",
+            "priority": "P1",
             "reachability": {
               "analyzer": "govulncheck",
               "asOf": "<today>",
               "method": "call-graph",
-              "rankedAs": "medium",
               "state": "unreachable",
               "symbols": [
                 "golang.org/x/text/language.ParseAcceptLanguage"

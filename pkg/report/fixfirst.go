@@ -139,10 +139,6 @@ func writeBlockFacts(w io.Writer, col tui.Painter, f finding, width int, withCom
 	if m := movedBy(f); m != nil {
 		parts = append(parts, col.Paint(m.style, m.text()))
 	}
-	// Where a mark would stand, and plain: evidence beside the finding that moved nothing.
-	if w := notBuiltWord(f.reachability); w != "" {
-		parts = append(parts, w)
-	}
 	label := func(name, value string) string {
 		return col.Paint(cDim, name) + " " + value
 	}
