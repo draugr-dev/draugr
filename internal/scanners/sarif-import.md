@@ -141,15 +141,15 @@ into findings shaped as Draugr's dependency scanners shape theirs.
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
   for it, else by Trivy's own severity, `CRITICAL` and `HIGH` as high, `MEDIUM` as medium, `LOW` as
-  low. A Grype finding is rated by its CVSS score (a vendor's before the NVD's), else by the bottom of
-  the band its severity names. `Negligible` and `Unknown` score 0.0, so such a finding is ranked
-  low, not hidden, as a native run's is ([how an unrated finding is ranked is under
-  review](https://github.com/draugr-dev/draugr/issues/2222)). The Go vulnerability
+  low, and `UNKNOWN` as high, labeled `not scored yet`. A Grype finding is rated by its CVSS score (a
+  vendor's before the NVD's), else by the bottom of the band its severity names, `Negligible` as low.
+  A Grype finding with no CVSS score and an `Unknown` severity is high, labeled `not scored yet`. The
+  Go vulnerability
   database publishes no severity, so a govulncheck finding is medium, as a native one is. An
   OSV-Scanner finding is rated by its group's `max_severity`, the highest CVSS score OSV-Scanner
   computed from the grouped advisories' vectors, version 4 included; else by the highest
   `database_specific.severity` among them, `CRITICAL` as critical, `HIGH` as high, `MODERATE` as
-  medium, `LOW` as low; else medium, as OSV-Scanner's SARIF levels every finding. The tables
+  medium, `LOW` as low; else as high, labeled `not scored yet`. The tables
   in [Each tool's own rating](#each-tools-own-rating) read SARIF and do not apply, and the
   descriptor refuses an import's `severity` beside a tool's JSON.
 - **Only a Grype scan of a directory is read.** An image scan is about the image, not the
@@ -315,7 +315,7 @@ Draugr did not run the tool, so the report states what it knows about the file i
 | `format` | the import's `format`, where it is a tool's own JSON. Absent for SARIF |
 | `file` | the path the descriptor gave |
 | `written` | when the file says its run ended (`invocations[].endTimeUtc`, `CreatedAt` in Trivy's JSON, or `descriptor.timestamp` in Grype's), or else the file's modification time |
-| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5`. For a tool's own JSON, `CVSS score` and `Trivy's severity`, `CVSS score, else Grype's severity`, `govulncheck states none, read as medium`, or for OSV-Scanner `CVSS score`, `the advisory's severity` and `OSV-Scanner states none, read as medium` |
+| `severity` | where severities came from: `security-severity`, the tool's own rating as its table below names it, such as `gosec's severity tag`, the import's mapping, as `acme-severity, mapped by the descriptor`, `SARIF level`, or a count of each, as `security-severity for 2, problem.severity for 5`. For a tool's own JSON, `CVSS score`, `Trivy's severity` and `Trivy's UNKNOWN, not scored yet, read as high`, `CVSS score, else Grype's severity`, `govulncheck states none, read as medium`, or for OSV-Scanner `CVSS score`, `the advisory's severity` and `OSV-Scanner states none, not scored yet, read as high` |
 | `commit` | the commit the file was checked against, or `not stated`. Where the import's `commit` could not bind the file, why, as `not stated, ${{ GITHUB_SHA }} is not set` or `not stated, the file does not say which repository 0123456789ab is in` |
 | `component` | the component that imports it |
 | `left out` | how many findings were dropped from this component because the repository's `paths:` or `ignore:` excludes their file, as `3 findings outside paths, 1 matched by ignore, not counted`. They are not in the findings, the priorities or the gate. Absent where none was left out |

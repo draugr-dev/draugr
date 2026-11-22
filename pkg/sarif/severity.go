@@ -102,6 +102,15 @@ func severityFromLevel(l Level) Severity {
 	}
 }
 
+// NotScoredYet is the rating, and the end of the message, of a vulnerability its source has not
+// scored yet, which ranks as high until a score arrives: Trivy's UNKNOWN, Grype's Unknown, an OSV
+// record with no severity. A report that shows the rating's detail beside the message, as the
+// console does, trims MessageNotScoredYet from the message so the label is read once.
+const NotScoredYet = "not scored yet"
+
+// MessageNotScoredYet ends the message of a vulnerability not scored yet.
+const MessageNotScoredYet = " (" + NotScoredYet + ")"
+
 // Severity resolves a finding's normalized severity, in the order the SARIF/prioritization
 // design prescribes:
 //

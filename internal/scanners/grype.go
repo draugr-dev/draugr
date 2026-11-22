@@ -430,13 +430,19 @@ func withGrypeMatchPackages(report *sarif.Report, matches []grypeMatch) {
 	index := newGrypeMatchIndex(matches)
 	for i := range report.Results {
 		r := &report.Results[i]
-		pkg, aliases, ok := index.find(r.RuleID, r.Message, r.Location.URI)
+		pkg, aliases, unscored, ok := index.find(r.RuleID, r.Message, r.Location.URI)
 		if !ok {
 			continue
 		}
 		r.Package = &pkg
 		if len(aliases) > 0 {
 			r.Aliases = aliases
+		}
+		// Grype's SARIF writes Unknown as a score of 0.0, which reads as low and cannot be told from
+		// Negligible, a real rating. Its JSON keeps the word. A score above 0 came from a CVSS record,
+		// the advisory's own or a related one's, and decides.
+		if unscored && (!r.HasScore || r.Score == 0) {
+			markNotScored(r, map[string]string{"severity": "Unknown"}, withoutGrypeSeverity(r.Message))
 		}
 	}
 }
@@ -460,19 +466,20 @@ func newGrypeMatchIndex(matches []grypeMatch) grypeMatchIndex {
 
 func grypeMatchKey(ruleID, version string) string { return ruleID + "\x00" + version }
 
-// find returns the package of the match a result reports and the match's other identifiers, and
-// false where no match fits or the matches that fit disagree about the package. Matches that agree
-// about the package and not about the identifiers give none.
+// find returns the package of the match a result reports, the match's other identifiers, whether
+// Grype has not scored the vulnerability yet (Unknown, with no CVSS score, in every match that fits),
+// and false where no match fits or the matches that fit disagree about the package. Matches that
+// agree about the package and not about the identifiers give none.
 //
 // Matches of the rule and version are narrowed to the package type the message names, then to
 // those whose first location, which is the one Grype writes as the result's, is the longest
 // path-wise suffix of the result's location. A suffix rather than equality, because Grype prefixes
 // an image finding's path with a short image name and may root a directory finding's path at the
 // directory it was given.
-func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []string, bool) {
+func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []string, bool, bool) {
 	kind, version, ok := grypeMessagePackage(message)
 	if !ok {
-		return sarif.Package{}, nil, false
+		return sarif.Package{}, nil, false, false
 	}
 	var best []grypeMatch
 	longest := -1
@@ -488,7 +495,7 @@ func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []str
 		}
 	}
 	if len(best) == 0 {
-		return sarif.Package{}, nil, false
+		return sarif.Package{}, nil, false, false
 	}
 	pkg, aliases := grypeMatchPackage(best[0]), grypeMatchAliases(best[0])
 	for _, m := range best[1:] {
@@ -497,14 +504,32 @@ func (x grypeMatchIndex) find(ruleID, message, uri string) (sarif.Package, []str
 		cpe := pkg.CPEMatch && other.CPEMatch
 		pkg.CPEMatch, other.CPEMatch = false, false
 		if other != pkg {
-			return sarif.Package{}, nil, false
+			return sarif.Package{}, nil, false, false
 		}
 		pkg.CPEMatch = cpe
 		if !slices.Equal(grypeMatchAliases(m), aliases) {
 			aliases = nil
 		}
 	}
-	return pkg, aliases, true
+	unscored := true
+	for _, m := range best {
+		unscored = unscored && grypeUnscored(m.Vulnerability)
+	}
+	return pkg, aliases, unscored, true
+}
+
+// grypeUnscored reports whether Grype has not rated v: its severity is Unknown and it states no CVSS
+// score of its own. A related record's score is read from the SARIF result, where Grype puts it.
+func grypeUnscored(v grypeVulnerability) bool {
+	if grypeSeverity(v.Severity) != "unknown" {
+		return false
+	}
+	for _, c := range v.CVSS {
+		if c.Metrics.BaseScore > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // grypeMatchAliases are the identifiers of the vulnerabilities Grype relates to a match, other than
