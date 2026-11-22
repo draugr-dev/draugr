@@ -251,7 +251,7 @@ func TestOnUnloadedNamesTheGoModAndTheFirstDiagnostic(t *testing.T) {
 			`{"draugrUnloaded":{"goMod":"man/go.mod","reason":"govulncheck: no packages matched the provided patterns"}}`},
 		{"a header with the cause on it", root,
 			"govulncheck: loading packages: err: exit status 1: stderr: go: updates to go.mod needed; to update it:\n\tgo mod tidy\n",
-			`{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: err: exit status 1: stderr: go: updates to go.mod needed; to update it:"}}`},
+			`{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: run go mod tidy: go: updates to go.mod needed"}}`},
 		{"a diagnostic in the module cache", root,
 			"govulncheck: loading packages: \nThere are errors with the provided package patterns:\n\n-: # example.com/x\n" +
 				"# [pkg-config --cflags  -- gtk4]\n/home/dev/go/pkg/mod/example.com/x@v1.0.0/x.go:9:8: could not import C (no metadata for C)\n",
@@ -304,6 +304,10 @@ func TestUnloadedReasonNamesTheAction(t *testing.T) {
 				"pkg/grpc/proto/sound_expansion_test.go": "package proto\n",
 			},
 			want: "generate or declare pb.PredictOptions, used at pkg/grpc/backend.go:71"},
+		{name: "a go.mod that needs go mod tidy", fixture: "go-mod-untidy.stderr",
+			want: "run go mod tidy: go: updates to go.mod needed"},
+		{name: "a go.sum missing an entry", fixture: "go-sum-missing.stderr",
+			want: "run go mod download golang.org/x/text: go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file"},
 		{name: "a cause with no action", fixture: "toolchain-mismatch.stderr",
 			want: "golang.org/toolchain@v0.0.1-go1.27.1.linux-amd64/src/internal/poll/splice_linux.go:237:21: " +
 				"unknown field rfd in struct literal of type splicePipe"},

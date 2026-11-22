@@ -75,6 +75,9 @@ Each module's run stands on its own:
   run gosec over go.mod: go list -e -deps ./... cannot load the module, so gosec did not run: exit status 1: go: go.mod requires go >= 1.99 (running go 1.26.10; GOTOOLCHAIN=local)
   ```
 
+  When the go command prints a fix, the message ends with it, as `go: updates to go.mod needed; to
+  update it: go mod tidy`. Run it in the directory of the `go.mod` named after `run gosec over`.
+
   Draugr runs that `go list` in the module, with gosec's environment and build tags, before gosec,
   because gosec skips a package it cannot load and exits 0. The findings from the other modules are
   kept. A problem inside one package, such as an import that does not resolve, does not stop the

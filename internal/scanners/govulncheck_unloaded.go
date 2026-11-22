@@ -18,6 +18,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/draugr-dev/draugr/internal/toolexec"
 )
 
 // govulncheckUnloaded is a Go module govulncheck could not load, as Draugr records it in the stream.
@@ -85,7 +87,7 @@ func govulncheckLoadFailure(err error) (string, bool) {
 // what to do about it, where govulncheck's diagnostics show what is missing, and otherwise its first
 // diagnostic.
 //
-// The action leads, because the console cuts a long reason short. Three causes have one:
+// The action leads, because the console cuts a long reason short. Four causes have one:
 //
 //   - A cgo package whose C header or pkg-config library is not installed. The fix is the system
 //     package that provides it; building without cgo is not, because the packages behind the cgo
@@ -94,6 +96,8 @@ func govulncheckLoadFailure(err error) (string, bool) {
 //     being the common case. GOFLAGS carries the tag to the go command govulncheck runs.
 //   - An identifier nothing in the checkout declares, which is code the build generates. Draugr
 //     cannot generate it; the person reading the caveat can, before the scan.
+//   - A module the go command will not load as it stands and names the command for, a go.mod that
+//     needs `go mod tidy` or a go.sum missing an entry. The command is run in the module.
 //
 // Any other cause is reported as the diagnostic alone: a line that names no action is better than
 // one that names the wrong one.
@@ -105,8 +109,42 @@ func unloadedReason(root, mod, stderr string) string {
 	if action, ok := undefinedAction(root, mod, stderr); ok {
 		return lead + action
 	}
+	if action, ok := goCommandAction(stderr); ok {
+		return lead + action
+	}
 	return lead + firstLoadDiagnostic(root, stderr)
 }
+
+// goCommandAction is the command the go command offered for a module it would not load, as
+// `run go mod tidy: go: updates to go.mod needed`: the command first, then the message it answers
+// without the clause that offered it.
+//
+// Only the go command's own message, `go: …`, which govulncheck quotes after `loading packages:
+// err: exit status 1: stderr:`. A compiler diagnostic's offer of `go get` is not read, because it is
+// wrong for a package a build step generates (see undefinedAction).
+func goCommandAction(stderr string) (string, bool) {
+	lines := strings.Split(stderr, "\n")
+	for i, line := range lines {
+		m := goCommandMessage.FindStringSubmatch(strings.TrimSpace(line))
+		if m == nil || !strings.HasSuffix(m[1], ":") {
+			continue
+		}
+		msg := m[1]
+		cmd, ok := toolexec.NextGoCommand(lines[i+1:])
+		if !ok {
+			continue
+		}
+		if cut := strings.LastIndex(msg, "; "); cut > 0 {
+			msg = msg[:cut]
+		}
+		return "run " + cmd + ": go: " + msg, true
+	}
+	return "", false
+}
+
+// goCommandMessage is a message of the go command's own, at the start of a line or quoted after a
+// colon, capturing what follows `go: `.
+var goCommandMessage = regexp.MustCompile(`(?:^|: )go: (.+)$`)
 
 // missingHeader is the C compiler's report of a header it could not find.
 var missingHeader = regexp.MustCompile(`fatal error: (\S+): No such file or directory`)

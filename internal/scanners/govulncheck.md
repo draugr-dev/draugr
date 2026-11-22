@@ -82,6 +82,7 @@ to load. Its `go.mod` is listed under **Caveats** as `unread-files`, and the rea
 | a cgo package's pkg-config library is not installed | `install the package that provides <library>, which <package> needs`, naming two and counting the rest |
 | a file of the package declares the identifier behind a build tag | `set GOFLAGS=-tags=noassets, under which cmd/infra/strelaypoolsrv/auto/noassets.go declares auto.Assets` |
 | nothing in the checkout declares the identifier, usually generated code | `generate or declare pb.PredictOptions, used at pkg/grpc/backend.go:71` |
+| the go command prints a fix, run in the directory of the `go.mod` listed | `run go mod tidy: go: updates to go.mod needed`, or `run go mod download golang.org/x/text: go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file` |
 | anything else | govulncheck's first diagnostic |
 
 The module's findings keep the band the manifest scanner gave them and carry no verdict, and an
