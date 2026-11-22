@@ -455,6 +455,9 @@ func withCauses(first string, rest []string) string {
 	if !strings.HasSuffix(first, ":") {
 		return first
 	}
+	if cmd, ok := goAdviceAfter(first, rest); ok {
+		return first + " " + cmd
+	}
 	causes := bullets(rest)
 	if len(causes) == 0 {
 		causes = providerCauses(rest)
@@ -546,6 +549,37 @@ func providerCauses(rest []string) []string {
 	}
 	return out
 }
+
+// goAdviceAfter is the command the go command offers on the line after first, where first is one of
+// its own messages ending by offering one: `go: updates to go.mod needed; to update it:` and then,
+// indented, `go mod tidy`. The command is what a reader can do about it, and a reader given only the
+// first line is told there is a fix and not what it is.
+//
+// Only a message of the go command's own, `go: …`. A compiler diagnostic's offer, `; to add it:`
+// before a `go get` line, is left to goDiagnostics, which drops it.
+func goAdviceAfter(first string, rest []string) (string, bool) {
+	if !strings.HasPrefix(first, "go: ") && !strings.Contains(first, ": go: ") {
+		return "", false
+	}
+	return NextGoCommand(rest)
+}
+
+// NextGoCommand returns the first non-blank line of rest, trimmed, where it is a go command a reader
+// can run, as `go mod tidy` or `go mod download golang.org/x/text`, which the go command prints
+// indented on the line after a message that offers it.
+func NextGoCommand(rest []string) (string, bool) {
+	for _, line := range rest {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		return line, goCommand.MatchString(line)
+	}
+	return "", false
+}
+
+// goCommand is a go command line: `go`, a subcommand and its arguments.
+var goCommand = regexp.MustCompile(`^go [a-z]+(?: \S+)*$`)
 
 // goDiagnostic is a compiler diagnostic, `file.go:line:col: message`, capturing the file and the
 // position.

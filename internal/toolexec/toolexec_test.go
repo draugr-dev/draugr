@@ -570,6 +570,34 @@ func TestWithCauses(t *testing.T) {
 			},
 			want: "loading packages: a/a.go:3:8: undefined: X; b/b.go:9:2: undefined: Y",
 		},
+		{
+			// The go command offers the fix on the next line, indented, and the fix is the part a
+			// reader can act on.
+			name:  "the go command's offer keeps the command it offers",
+			first: "go: updates to go.mod needed; to update it:",
+			rest:  []string{"go mod tidy"},
+			want:  "go: updates to go.mod needed; to update it: go mod tidy",
+		},
+		{
+			name:  "the offer is kept where the message is wrapped",
+			first: "err: exit status 1: stderr: go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file; to add it:",
+			rest:  []string{"", "go mod download golang.org/x/text"},
+			want: "err: exit status 1: stderr: go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file; " +
+				"to add it: go mod download golang.org/x/text",
+		},
+		{
+			// Not the go command's message, so whatever follows is not its offer.
+			name:  "a command after another tool's colon is not folded in",
+			first: "build failed:",
+			rest:  []string{"go mod tidy"},
+			want:  "build failed:",
+		},
+		{
+			name:  "a go message followed by something other than a command is left alone",
+			first: "go: updates to go.mod needed; to update it:",
+			rest:  []string{"see the documentation"},
+			want:  "go: updates to go.mod needed; to update it:",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -908,5 +936,19 @@ func TestProviderCausesLeavesOutSourcesThatDoNotApply(t *testing.T) {
 	if got := providerCauses([]string{"- oci-registry: GET https://r/v2/: unexpected status: 401 Unauthorized"}); len(got) != 1 ||
 		got[0] != "oci-registry: GET https://r/v2/: unexpected status: 401 Unauthorized" {
 		t.Errorf("providerCauses = %q", got)
+	}
+}
+
+// The go command's stderr for a module whose go.mod is out of date, as `go list` prints it: the fix
+// is the second line, and the failure is worded with it.
+func TestFirstLineKeepsTheGoCommandsFix(t *testing.T) {
+	t.Parallel()
+	for stderr, want := range map[string]string{
+		"go: updates to go.mod needed; to update it:\n\tgo mod tidy\n":                                                          "go: updates to go.mod needed; to update it: go mod tidy",
+		"go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file; to add it:\n\tgo mod download golang.org/x/text\n": "go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file; to add it: go mod download golang.org/x/text",
+	} {
+		if got := firstLine(stderr); got != want {
+			t.Errorf("firstLine = %q, want %q", got, want)
+		}
 	}
 }
