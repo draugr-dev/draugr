@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Changed
 
-- **An unreachable Go finding drops one band again.** When govulncheck finds no call path, the finding is ranked one severity level lower, as before 0.186.0, and the line under it names the build analyzed, such as `govulncheck on linux/amd64`. Findings that rose in 0.186.0 return to their earlier band.
+- **Go findings with no govulncheck call path are lowered again.** Their ranked severity drops one level, high to medium, and the band is recomputed, so it usually drops a step. The console marks them `↓ unreachable` and credits the build, such as `govulncheck on linux/amd64, 2026-11-22`, which `report.json` records as `reachability.build`. A severity or priority gate may newly pass.
 
 ## [0.186.0] - 2026-11-22
 
