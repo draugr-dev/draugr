@@ -1,0 +1,1 @@
+- **Turn on OSV-Scanner for `sca` to read the PyPA, RustSec, Go and Erlang advisories Trivy and Grype do not carry.** With `config.controls.sca.osvScanner.enabled: true` it runs offline, downloads each ecosystem's database once per run, and its findings merge with Trivy's and Grype's. `draugr tools install osv-scanner` fetches it.
