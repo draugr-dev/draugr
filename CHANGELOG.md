@@ -16,21 +16,21 @@ _Nothing yet._
 
 ### Added
 
-- **Import Veracode Pipeline Scan's results.** An import with `format: veracode-pipeline-json` reads the `results.json` Pipeline Scan writes with `-jo true` into `sast`: each flaw at its file and line, under its CWE, rated by Veracode's severity and fingerprinted by its flaw hash. A Java class's bare file name is placed at its file in the checkout.
+- **Import Veracode Pipeline Scan results.** An import with `format: veracode-pipeline-json` reads the `results.json` Pipeline Scan writes with `-jo true` into `sast`. Each flaw keeps its file, line, CWE and Veracode's severity, and a Java class named by its bare file name is placed at its file in the checkout.
 
 ### Changed
 
-- **A Go finding govulncheck finds no call path to keeps its severity and band.** The verdict covers only the builds Draugr analyzed, so it no longer lowers the finding or marks the row `↓ unreachable`; report.json and the HTML report carry it. Findings it used to lower rank higher, so `--fail-on` and a priority gate can newly fail.
+- **Go findings with no govulncheck call path are no longer lowered.** They keep their severity and priority and no longer show `↓ unreachable`; the verdict stays in report.json and the HTML report. Some findings now rank higher, so a gate on severity or priority can newly fail. Fix them, or add them to `config.exclude` with a reason.
 
 ### Fixed
 
-- **A flaw two scanners found is one code-scanning alert, whichever way you upload.** The GitHub Action's `sarif` output, `code-scanning.sarif` and `draugr diff --format sarif` now hold it once, as the finding the gate counts, naming the other scanner in `correlation.alsoFoundBy`. Before, only the `github` publisher did, and an `upload-sarif` step opened one alert per scanner.
+- **A flaw two scanners found is now one code-scanning alert in every upload path.** The GitHub Action's `sarif` output, `code-scanning.sarif` and `draugr diff --format sarif` list it once, naming the second scanner in `correlation.alsoFoundBy`. Before, only the `github` publisher did, and an `upload-sarif` step opened one alert per scanner.
 
-- **A Go module the go command will not load is reported with the command that fixes it.** When gosec or govulncheck cannot load a module whose `go.mod` needs `go mod tidy`, or whose `go.sum` misses an entry, the error or caveat now ends with the command the go command printed. Before, the message stopped at `to update it:`.
+- **A Go module the go command will not load is reported with its fix.** When gosec or govulncheck cannot load a module, the error or caveat now ends with the command the go command printed, such as `go mod tidy`. Before, the message stopped at `to update it:`.
 
-- **A vulnerability its database has not scored yet now ranks as high, labeled `not scored yet`, until a score arrives.** Trivy's UNKNOWN and Grype's Unknown ranked as low, and an OSV-Scanner record with no severity as medium. A gate on severity or priority may newly fail: fix the finding, or set it aside in `config.exclude` with a reason.
+- **A vulnerability with no score yet now ranks as high, labeled `not scored yet`.** It used to rank low (Trivy, Grype) or medium (OSV-Scanner). A gate on severity or priority can newly fail on these. Fix the finding, or add it to `config.exclude` with a reason. The rank updates once its database publishes a score.
 
-- **An imported govulncheck file now lists each Go module it did not analyze** under `unread-files`, with the `govulncheck -C <dir>` command to run and import. Before, those modules' findings got no reachability verdict and no warning.
+- **Importing a govulncheck file now warns about the Go modules it did not analyze.** Each is listed under `unread-files` with the `govulncheck -C <dir>` command to run and import. Before, those modules' findings had no reachability verdict and nothing said so.
 
 ## [0.185.0] - 2026-11-21
 
