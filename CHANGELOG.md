@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Changed
 
-- **Go findings with no govulncheck call path are lowered again**, first published here: 0.186.1 was tagged but never released. Their ranked severity drops one level and the band is recomputed, usually by a step. The console marks them `↓ unreachable` and credits the build, such as `govulncheck on linux/amd64`. A severity or priority gate may newly pass.
+- **Go findings with no govulncheck call path are ranked lower again.** 0.186.0 stopped lowering them, and 0.186.1 never published. Their severity drops one level and the band is recomputed, usually by a step. The console marks them `↓ unreachable` and names the build, such as `govulncheck on linux/amd64`. A severity or priority gate may newly pass.
 
 ### Security
 
-- **Draugr's own Go dependencies are past three advisories.** golang.org/x/net v0.62.0 fixes CVE-2026-78661 and CVE-2026-97045, and golang.org/x/crypto v0.59.0 fixes GO-2026-5932. 0.186.0 and earlier ship the affected versions. govulncheck finds no call path from Draugr to any of them, so upgrading is all there is to do.
+- **Draugr's own Go dependencies are updated for three advisories.** golang.org/x/net v0.62.0 fixes CVE-2026-78661 and CVE-2026-97045, and every earlier Draugr release ships an older x/net. golang.org/x/crypto v0.59.0 fixes GO-2026-5932 in v0.58.0, shipped since Draugr 0.174.0. govulncheck finds no call path from Draugr to any of them, so upgrading is all there is to do.
 
 ## [0.186.1] - 2026-11-22
 
