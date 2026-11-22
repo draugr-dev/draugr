@@ -3,7 +3,7 @@ Control     Scanners                                                 Purpose
 cloud       prowler                                                  Check a live cloud account against the provider's CIS Benchmark.
 dast        nuclei                                                   Find problems only visible from outside a running app (dynamic testing).
 headers     draugr-headers                                           Check how a running site answers a browser, the settings that stop a page being abused.
-iac         trivy-config                                             Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.
+iac         trivy-config, kics*                                      Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.
 images      trivy, grype*                                            Find known flaws in the operating system and packages baked into a container image.
 kubernetes  draugr-k8s-policies, kube-bench*, kube-bench-job*        Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.
 licenses    trivy-license, mend-licenses*                            Report license terms attached to code you did not write, where they carry an obligation.
@@ -23,6 +23,7 @@ PUBLISHERS  (who each scanner comes from)
   abuse.ch             urlhaus
   anchore              grype, grype-fs
   aquasecurity         kube-bench, kube-bench-job, trivy, trivy-config, trivy-fs, trivy-license
+  checkmarx            kics
   gitleaks             gitleaks
   mend.io              mend-licenses, mend-sca
   notaryproject        notation

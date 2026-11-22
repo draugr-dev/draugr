@@ -66,7 +66,34 @@ type Tool struct {
 	// Not the same as how the tool is installed. gosec arrives as a release binary and still loads
 	// a module's packages with `go`, so a host with gosec and no Go has a gosec that cannot run.
 	Runtime Runtime
+	// Image is the container image the tool runs from, pinned by digest, for a tool Draugr runs with
+	// `docker run` rather than from PATH. Binary is then the name Draugr knows the tool by, and the
+	// tool is present when the local Docker daemon holds this image. Empty for every other tool.
+	//
+	// Pinned by digest because a tag can be pushed again: a scan that ran one build of the tool's
+	// rules yesterday would run another today under the same name, and the report could not say which.
+	Image string
+	// ImageVersion is the tool's release that Image holds, reported as its version when the image is
+	// present. A digest names exactly one build, so the release is known without running it.
+	ImageVersion string
 }
+
+// RuntimeDocker is Docker, which runs a tool from its container image.
+var RuntimeDocker = Runtime{Binary: "docker", Name: "Docker"}
+
+// KICSVersion is the KICS release the kics scanner runs, and KICSImage the image it runs it from,
+// pinned by the digest of the multi-platform index Checkmarx published for that release, so one
+// pin serves amd64 and arm64.
+//
+// Quoted literals on lines of their own, so a bump is a two-line change a reviewer can check against
+// `docker buildx imagetools inspect checkmarx/kics:<version>`.
+const (
+	KICSVersion = "2.2.1"
+	KICSImage   = "checkmarx/kics:v2.2.1@sha256:49ccc54b6ae7f5d5fc95e96f8f95c18c57f3bba047ab611a03d80792bdff6757"
+)
+
+// PullCommand is the command that puts an image tool's image on this machine.
+func PullCommand(t Tool) string { return "docker pull " + t.Image }
 
 // Runtime is a program a tool runs on.
 type Runtime struct {
@@ -264,6 +291,27 @@ func Catalog() map[string]Tool {
 			InstallHint: "https://kubernetes.io/docs/tasks/tools/",
 			Category:    CategoryUtility,
 		},
+		// Runs KICS for the iac control, which a descriptor turns on; nothing else needs it, so it is
+		// optional until a descriptor selects a scanner that does.
+		"docker": {
+			Binary:      "docker",
+			VersionArgs: []string{"--version"},
+			InstallHint: "https://docs.docker.com/get-started/get-docker/",
+			Category:    CategoryUtility,
+			Optional:    true,
+		},
+		// Not a binary on PATH: Draugr runs KICS from its image, with no network and the checkout
+		// mounted read-only, and `draugr tools install` does not pull it. Optional for the reason
+		// docker is.
+		"kics": {
+			Binary:       "kics",
+			Image:        KICSImage,
+			ImageVersion: KICSVersion,
+			InstallHint:  "needs Docker, then `docker pull " + KICSImage + "`",
+			Category:     CategoryScanner,
+			Optional:     true,
+			Runtime:      RuntimeDocker,
+		},
 	}
 }
 
@@ -303,6 +351,9 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 	}
 
 	st := Status{Tool: t}
+	if t.Image != "" {
+		return detectImage(ctx, st, lookPath, run)
+	}
 	path, err := lookPath(t.Binary)
 	if err != nil {
 		return st // not found on PATH
@@ -347,6 +398,30 @@ func Detect(ctx context.Context, t Tool, lookPath LookPathFunc, run RunFunc) Sta
 			}
 		}
 	}
+	return st
+}
+
+// detectImage reports a tool that runs from its image as found when the local Docker daemon holds
+// that image, at the digest the catalog pins, and names the image as its path.
+//
+// Asked of the daemon rather than of a registry: a scan runs the image with pulling turned off, so
+// an image the daemon does not hold is one the scan cannot run, whatever a registry has. No docker on
+// PATH, or a daemon that does not answer, is not found too, and Err says which, since the image may
+// well be there.
+func detectImage(ctx context.Context, st Status, lookPath LookPathFunc, run RunFunc) Status {
+	engine := st.Tool.Runtime.Binary
+	if engine == "" {
+		engine = RuntimeDocker.Binary
+	}
+	if _, err := lookPath(engine); err != nil {
+		st.Err = err
+		return st
+	}
+	if _, err := run(ctx, []string{engine, "image", "inspect", "--format", "{{.Id}}", st.Tool.Image}); err != nil {
+		st.Err = err
+		return st
+	}
+	st.Found, st.Path, st.Version = true, st.Tool.Image, st.Tool.ImageVersion
 	return st
 }
 

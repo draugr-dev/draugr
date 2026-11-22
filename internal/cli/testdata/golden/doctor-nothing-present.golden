@@ -3,11 +3,13 @@ Draugr      dev  (latest: v9.9.9. Run 'draugr self-update')
 TOOLS  looked for in ~/.draugr/bin, then on PATH
 Tool         Status      Version  Notes
 cosign       – optional  -        optional: draugr tools install cosign
+docker       – optional  -        optional: https://docs.docker.com/get-started/get-docker/
 git          ✗ missing   -        install: https://git-scm.com/downloads
 gitleaks     ✗ missing   -        install: draugr tools install gitleaks
 gosec        ✗ missing   -        install: draugr tools install gosec
 govulncheck  ✗ missing   -        install: draugr tools install govulncheck, it is distributed as a Go package and needs a Go toolchain to build
 grype        ✗ missing   -        install: draugr tools install grype
+kics         – optional  -        optional: needs Docker, then `docker pull checkmarx/kics:v2.2.1@sha256:49ccc54b6ae7f5d5fc95e96f8f95c18c57f3bba047ab611a03d80792bdff6757`
 kube-bench   ✗ missing   -        install: https://github.com/aquasecurity/kube-bench/releases, extract both the binary and its cfg/ directory
 kubectl      ✗ missing   -        install: https://kubernetes.io/docs/tasks/tools/
 notation     ✗ missing   -        install: draugr tools install notation

@@ -77,7 +77,7 @@ func TestGitleaksCSVBecomesTheSARIFGitleaksWrites(t *testing.T) {
 			PartialFingerprints: map[string]string{"commitSha": commit}},
 		{RuleID: "generic-api-key",
 			Message:  "generic-api-key has detected secret for file real/config.py.",
-			Location: sarif.Location{URI: "linked/config.py", StartLine: 7}},
+			Location: sarif.Location{URI: "linked/config.py", StartLine: 7, EndLine: 8}},
 	}
 	if len(report.Results) != len(want) {
 		t.Fatalf("results %+v", report.Results)

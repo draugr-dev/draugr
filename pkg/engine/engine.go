@@ -3143,6 +3143,10 @@ func applyCorrelation(controls map[string]plugin.ControlResult) (groups, extraSu
 			g, extra := correlateGroup(results, idxs, pickCheck)
 			groups, extraSuppressed = groups+g, extraSuppressed+extra
 		}
+		for _, idxs := range sameCheckGroups(results, cr.Report.Rules) {
+			g, extra := correlateGroup(results, idxs, strongestOf)
+			groups, extraSuppressed = groups+g, extraSuppressed+extra
+		}
 
 		counts := cr.Report.Counts()
 		cr.Summary = plugin.Summary{Errors: counts.Error, Warnings: counts.Warning, Notes: counts.Note}
@@ -3226,16 +3230,19 @@ func correlate(results []sarif.Result, idxs []int, primary int) {
 
 // flawGroups is every set of a control's findings that correlation counts once: the copies of one
 // vulnerability in one dependency, an imported finding and its native copy at one line of code, and
-// the copies of one benchmark check on one target. applyCorrelation reads the check apart from the
-// others, because it picks the counted copy of a check differently.
+// the copies of one benchmark check on one target, and two tools' findings of one setting on one
+// resource. applyCorrelation reads the check apart from the others, because it picks the counted copy
+// of a check differently.
 //
 // No two share a finding. A vulnerability key needs a package and a vulnerability, which a benchmark
 // check carries neither of; codeGroups leaves out any finding about a package, which every finding
-// correlationKeyOf keys is, and any rule that implements a benchmark check; and checkGroups leaves
-// out any finding correlationKeyOf keys.
+// correlationKeyOf keys is, and any rule that implements a benchmark check; checkGroups leaves out
+// any finding correlationKeyOf keys; and sameCheckGroups leaves out all three kinds, and every
+// imported finding, which is the only kind codeGroups pairs.
 func flawGroups(rep sarif.Report) [][]int {
 	groups := append(correlationGroups(rep.Results), codeGroups(rep.Results, rep.Rules)...)
-	return append(groups, checkGroups(rep.Results, rep.Rules)...)
+	groups = append(groups, checkGroups(rep.Results, rep.Rules)...)
+	return append(groups, sameCheckGroups(rep.Results, rep.Rules)...)
 }
 
 // unplaced is the repository an imported finding is correlated in where nothing establishes one. It
@@ -3507,6 +3514,134 @@ func checkGroups(results []sarif.Result, rules map[string]sarif.Rule) [][]int {
 		}
 	}
 	return groups
+}
+
+// sameCheckKey identifies one tool's findings of one rule in one file.
+type sameCheckKey struct {
+	component, repository, image, location string
+	// product is the tool, as toolProduct names it, and rule its rule id as sameCheckRuleID compares it.
+	product, rule string
+}
+
+// sameCheckGroups pairs a finding whose rule says it checks the same setting as another tool's rule
+// (sarif.SameCheckAs) with that tool's finding of that rule on the same resource, the pairs ascending
+// and in the order of their first finding.
+//
+// Two IaC scanners checking one setting write rule ids that share nothing, KICS a UUID and Trivy
+// KSV-0017, so the rule's statement is what says the two are one check. The resource is the region:
+// Trivy reports a Kubernetes container's checks at the lines of the whole container, and KICS
+// reports the same setting at one line inside it, so a finding is the other tool's copy where its
+// line falls inside that finding's region, in the same file of the same repository and component.
+// A finding with no end line is a region of one line.
+//
+// A pair is made only where each side has exactly one match. Two containers in one region, two
+// statements on one rule, or a tool reporting a rule twice at one place cannot be paired copy to copy,
+// and those findings stay counted apart, which is what they were before: a duplicate counted twice is
+// visible, and a finding counted under another resource's is not.
+//
+// Left out: a finding about a package or a benchmark check, which the other groups key; an imported
+// finding, which codeGroups pairs with its native copy; and a finding inside a downloaded module,
+// which is placed at the block that calls the module rather than at the resource.
+func sameCheckGroups(results []sarif.Result, rules map[string]sarif.Rule) [][]int {
+	eligible := func(res sarif.Result) bool {
+		if res.Scanner == plugin.ImportScanner || res.Module != nil || res.Location.URI == "" {
+			return false
+		}
+		if _, keyed := correlationKeyOf(res); keyed {
+			return false
+		}
+		_, check := benchmarkCheckOf(rules[res.RuleID])
+		return !check && toolProduct(res.Tool) != ""
+	}
+	targets := map[sameCheckKey][]int{}
+	for i, res := range results {
+		if !eligible(res) {
+			continue
+		}
+		key := sameCheckKey{
+			component: res.Component, repository: res.Repository, image: res.Image,
+			location: res.Location.URI, product: toolProduct(res.Tool), rule: sameCheckRuleID(res.RuleID),
+		}
+		targets[key] = append(targets[key], i)
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	seen := map[[2]int]bool{}
+	var pairs [][2]int
+	claims := map[int]int{}
+	for i, res := range results {
+		if !eligible(res) || res.Location.StartLine <= 0 {
+			continue
+		}
+		for _, taxon := range rules[res.RuleID].Taxa {
+			tool, id, ok := taxon.SameCheck()
+			if !ok || toolProduct(tool) == toolProduct(res.Tool) {
+				continue
+			}
+			key := sameCheckKey{
+				component: res.Component, repository: res.Repository, image: res.Image,
+				location: res.Location.URI, product: toolProduct(tool), rule: sameCheckRuleID(id),
+			}
+			var within []int
+			for _, j := range targets[key] {
+				if regionCovers(results[j].Location, res.Location.StartLine) {
+					within = append(within, j)
+				}
+			}
+			if len(within) != 1 {
+				// Counted as a claim all the same, so a finding that could be either of two copies pairs
+				// with neither.
+				claims[i] += len(within)
+				continue
+			}
+			pair := [2]int{min(i, within[0]), max(i, within[0])}
+			if seen[pair] {
+				continue
+			}
+			seen[pair] = true
+			pairs = append(pairs, pair)
+			claims[pair[0]]++
+			claims[pair[1]]++
+		}
+	}
+	var groups [][]int
+	for _, p := range pairs {
+		if claims[p[0]] == 1 && claims[p[1]] == 1 {
+			groups = append(groups, []int{p[0], p[1]})
+		}
+	}
+	sort.SliceStable(groups, func(a, b int) bool { return groups[a][0] < groups[b][0] })
+	return groups
+}
+
+// regionCovers reports whether line falls inside the region loc reports: from its start line to its
+// end line, or the start line alone where it has no end.
+func regionCovers(loc sarif.Location, line int) bool {
+	if loc.StartLine <= 0 {
+		return false
+	}
+	return line >= loc.StartLine && line <= max(loc.EndLine, loc.StartLine)
+}
+
+// sameCheckRuleID is a rule id as a statement of the same check compares it: upper case, without
+// an AVD- prefix, dashes, or the zeros a trailing number is padded with. Trivy has written one check
+// as KSV017, AVD-KSV-0017 and KSV-0017 across its releases, and a statement written against one
+// spelling holds for the others.
+func sameCheckRuleID(id string) string {
+	id = strings.ReplaceAll(strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(id)), "AVD-"), "-", "")
+	end := len(id)
+	for end > 0 && id[end-1] >= '0' && id[end-1] <= '9' {
+		end--
+	}
+	if end == len(id) {
+		return id
+	}
+	digits := strings.TrimLeft(id[end:], "0")
+	if digits == "" {
+		digits = "0"
+	}
+	return id[:end] + digits
 }
 
 // countedCheckOf chooses which scanner's copy of one benchmark check is counted.

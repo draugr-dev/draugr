@@ -333,9 +333,9 @@ func installNames(w io.Writer, args []string, opts toolsInstallOptions) ([]strin
 	// there, and teaches them to skip the line on the day it names one that is.
 	if len(unprovisionable) > 0 {
 		sort.Strings(unprovisionable)
-		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision. Install %s separately (`draugr doctor %s` says where from).\n\n",
+		_, _ = fmt.Fprintf(w, "%s needs %s, which Draugr cannot provision. Install %s separately (`draugr doctor %s` says where from)%s.\n\n",
 			opts.saga, strings.Join(quoteAll(unprovisionable), ", "),
-			english.Choose(len(unprovisionable), "it", "them"), opts.saga)
+			english.Choose(len(unprovisionable), "it", "them"), opts.saga, pullAdvice(unprovisionable))
 	}
 	if len(names) == 0 {
 		_, _ = fmt.Fprintf(w, "Nothing to install: %s needs no tool Draugr provisions.\n", opts.saga)
@@ -407,8 +407,9 @@ func checkInstallable(names []string) error {
 	if len(external) > 0 {
 		them := english.Choose(len(external), "it", "them")
 		return fmt.Errorf("cannot install %s: Draugr runs %s and does not provision %s. "+
-			"Run `draugr doctor` to see where to get %s\ninstallable: %s",
-			strings.Join(quoteAll(external), ", "), them, them, them, strings.Join(known, ", "))
+			"Run `draugr doctor` to see where to get %s%s\ninstallable: %s",
+			strings.Join(quoteAll(external), ", "), them, them, them, pullAdvice(external),
+			strings.Join(known, ", "))
 	}
 	if len(unknown) == 0 {
 		return nil
@@ -420,6 +421,25 @@ func checkInstallable(names []string) error {
 		}
 	}
 	return fmt.Errorf("%s\ninstallable: %s", msg, strings.Join(known, ", "))
+}
+
+// pullAdvice is, for the tools among names that run from a container image, the sentence naming
+// the image and the command that pulls it, each as ". kics runs from its image; pull it with
+// `docker pull …`". Empty where none does.
+//
+// `draugr tools install` downloads releases it verifies, and an image is not one, so the command
+// does not pull it. The digest in the command is the one a scan runs, so the image pulled is the
+// image used.
+func pullAdvice(names []string) string {
+	catalog := tools.Catalog()
+	var out strings.Builder
+	for _, n := range names {
+		if t := catalog[n]; t.Image != "" {
+			fmt.Fprintf(&out, ". %s runs from its image, which `draugr tools install` does not pull; "+
+				"pull it with `%s`", n, tools.PullCommand(t))
+		}
+	}
+	return out.String()
 }
 
 func quoteAll(names []string) []string {
@@ -693,6 +713,10 @@ func runToolsList(ctx context.Context, w io.Writer, binDir string) error {
 			pinned, source = tools.NodeVersion(t.Binary), "draugr tools install · needs Node"
 		} else if _, ok := tools.GoTool(t.Binary); ok {
 			pinned, source = tools.GoVersion(t.Binary), "draugr tools install · needs Go"
+		} else if t.Image != "" {
+			// The command with its digest is too long for a column; `doctor` and `tools install kics`
+			// print it whole.
+			pinned, source = t.ImageVersion, "docker pull · needs Docker"
 		}
 
 		status, statusStyle := "✗ not found", tui.StyleFail

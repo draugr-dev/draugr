@@ -161,6 +161,9 @@ Prefer your own install (Homebrew, package manager, an existing copy)? That work
   are scripts that invoke it.
 - [govulncheck](https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck), opt-in for `sca`, and what
   turns a list of known vulnerabilities into the ones this Go code can reach.
+- [KICS](https://github.com/Checkmarx/kics), opt-in second scanner for `iac`. Draugr runs it from
+  its image with Docker, and `draugr tools install` does not pull the image: run the
+  `docker pull` command [its page](../../internal/scanners/kics.md#setup) gives, which pins the digest.
 - [Syft](https://github.com/anchore/syft), SBOM generation (`config.sbom`), which is not a
   control.
 - `git`, needed for any repository scan (`sca`, `secrets`, `sast`, `licenses`).

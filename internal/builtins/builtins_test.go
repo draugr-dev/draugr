@@ -16,7 +16,7 @@ func TestRegistryHasDefaults(t *testing.T) {
 			t.Errorf("%s controller should be registered", c)
 		}
 	}
-	for _, s := range []string{"trivy", "trivy-fs", "trivy-license", "gitleaks", "semgrep", "gosec", "trivy-config", "draugr-headers", "nuclei", "draugr-tls"} {
+	for _, s := range []string{"trivy", "trivy-fs", "trivy-license", "gitleaks", "semgrep", "gosec", "trivy-config", "kics", "draugr-headers", "nuclei", "draugr-tls"} {
 		if _, ok := reg.Scanner(s); !ok {
 			t.Errorf("%s scanner should be registered", s)
 		}

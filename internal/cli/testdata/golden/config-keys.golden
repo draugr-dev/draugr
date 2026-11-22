@@ -24,7 +24,7 @@ Controls, each a block of its own:
   controls.cloud       prowler
   controls.dast        nuclei
   controls.headers     draugrHeaders
-  controls.iac         trivyConfig
+  controls.iac         trivyConfig, kics*
   controls.images      trivy, grype*
   controls.kubernetes  draugrK8sPolicies, kubeBench*, kubeBenchJob*
   controls.licenses    trivyLicense, mendLicenses*

@@ -177,6 +177,10 @@ config:
       #                                              # checks. Commented out: the path must exist
       #   namespaces: [user]                         # top-level package names to evaluate. Unset,
       #                                              # derived from the checks' package lines
+      kics:
+        enabled: true                                # opt-in, and the only option it takes: KICS
+                                                     # beside Trivy, from its image with Docker and
+                                                     # no network; a setting both flag counts once
 
     secrets:
       enabled: true

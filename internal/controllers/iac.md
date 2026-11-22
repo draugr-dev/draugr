@@ -3,7 +3,8 @@
 - **Industry term:** IaC / misconfiguration scanning
 - **Scope:** component
 - **Status:** ✅ implemented
-- **Scanners:** [`trivy-config`](../scanners/trivy-config.md)
+- **Scanners:** [`trivy-config`](../scanners/trivy-config.md) (default),
+  [`kics`](../scanners/kics.md) (opt-in)
 - **Resource:** a component's `repositories:`
 
 ## What it does
@@ -13,6 +14,18 @@ Infrastructure as Code, Terraform, Kubernetes manifests, Dockerfiles, Helm, …)
 deduplicates findings into a per-control result with a severity summary.
 
 Trivy reports per-check severity, so findings are counted as reported.
+
+KICS runs beside Trivy when a descriptor turns it on, one more job per repository, and its findings
+join Trivy's in one result. A setting both flag on one resource is counted once, under the stronger
+rating; [`kics`](../scanners/kics.md#counted-once) says how the two are matched.
+
+```yaml
+config:
+  controls:
+    iac:
+      kics:
+        enabled: true
+```
 
 With `trivyConfig.checks` set and `namespaces` unset, the control derives the namespaces from the
 checks' `package` lines when it plans, and `draugr validate` refuses a check it cannot derive one

@@ -1412,7 +1412,8 @@ func toolBuilds(ctx context.Context, run engine.Result) []report.ToolBuild {
 // missing version is the state this improves on, not a regression to guard against.
 func probeVersion(ctx context.Context, binary string) string {
 	t, ok := tools.Catalog()[binary]
-	if !ok || len(t.VersionArgs) == 0 {
+	// A tool run from its image has no version probe; the image it is found at names the release.
+	if !ok || (len(t.VersionArgs) == 0 && t.Image == "") {
 		return ""
 	}
 	ctx, cancel := context.WithTimeout(ctx, versionProbeTimeout)
