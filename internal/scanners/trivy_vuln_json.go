@@ -410,7 +410,7 @@ func trivyVulnResultOf(
 	if l, ok := layers[v.Layer.DiffID]; ok {
 		layer = &l
 	}
-	return sarif.Result{
+	r := sarif.Result{
 		OperatingSystem: operatingSystem,
 		OSEndOfLife:     endOfLife,
 		Layer:           layer,
@@ -430,6 +430,11 @@ func trivyVulnResultOf(
 			Ecosystem:    res.Type,
 		},
 	}
+	// Trivy's JSON keeps UNKNOWN apart from LOW: the advisory's databases have not rated it yet.
+	if !hasScore && strings.EqualFold(v.Severity, "UNKNOWN") {
+		markNotScored(&r, map[string]string{"severity": "UNKNOWN"}, r.Message)
+	}
+	return r
 }
 
 // trivyVulnAliases are the other identifiers Trivy reports for one vulnerability, from its
@@ -555,9 +560,10 @@ func trivyVulnLevel(severity string) sarif.Level {
 		return sarif.LevelError
 	case "MEDIUM":
 		return sarif.LevelWarning
-	case "LOW", "UNKNOWN":
+	case "LOW":
 		return sarif.LevelNote
 	default:
+		// UNKNOWN with no score is marked not scored yet, which sets its level (markNotScored).
 		return sarif.LevelNote
 	}
 }

@@ -289,12 +289,12 @@ func TestOnePackageMatchedTwoWaysIsNotACPEMatch(t *testing.T) {
 	}
 	msg := "A medium vulnerability in dart-pub package: sentry, version 9.6.0 was found at: /pubspec.lock"
 	for _, order := range [][]grypeMatch{{m("cpe-match"), m("exact-direct-match")}, {m("exact-direct-match"), m("cpe-match")}} {
-		pkg, _, ok := newGrypeMatchIndex(order).find("CVE-2023-36826-sentry", msg, "/pubspec.lock")
+		pkg, _, _, ok := newGrypeMatchIndex(order).find("CVE-2023-36826-sentry", msg, "/pubspec.lock")
 		if !ok || pkg.CPEMatch || pkg.Name != "sentry" {
 			t.Errorf("package %+v (%v), want sentry, unmarked", pkg, ok)
 		}
 	}
-	pkg, _, ok := newGrypeMatchIndex([]grypeMatch{m("cpe-match"), m("cpe-match")}).find("CVE-2023-36826-sentry", msg, "/pubspec.lock")
+	pkg, _, _, ok := newGrypeMatchIndex([]grypeMatch{m("cpe-match"), m("cpe-match")}).find("CVE-2023-36826-sentry", msg, "/pubspec.lock")
 	if !ok || !pkg.CPEMatch {
 		t.Errorf("package %+v (%v), want sentry, marked", pkg, ok)
 	}

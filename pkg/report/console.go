@@ -895,6 +895,11 @@ func findingTitle(f finding) string {
 	// Trimmed before it is shortened, or the sentence is cut to make room for the words about to
 	// be removed, and a row whose prefix is long ends up quoting a third of its own explanation.
 	msg := strings.Join(strings.Fields(strings.ReplaceAll(f.message, "\n", " ")), " ")
+	// The reasoning line shows the rating, so the label is read once, and the sentence keeps the
+	// room.
+	if f.rating != nil && f.rating.Detail == sarif.NotScoredYet {
+		msg = strings.TrimSuffix(msg, sarif.MessageNotScoredYet)
+	}
 	if prefix := upgradeLabel(f) + ": "; prefix != ": " {
 		msg = strings.TrimPrefix(msg, prefix)
 	}

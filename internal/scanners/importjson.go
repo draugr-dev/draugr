@@ -66,7 +66,10 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 
 	rated := make([]string, len(rep.Results))
 	for i, r := range rep.Results {
-		if !r.HasScore {
+		switch {
+		case r.Rating != nil && r.Rating.Detail == notScoredYet:
+			rated[i] = "Trivy's UNKNOWN, " + notScoredYet + ", read as high"
+		case !r.HasScore:
 			rated[i] = "Trivy's severity"
 		}
 	}

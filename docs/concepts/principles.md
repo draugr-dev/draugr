@@ -78,10 +78,9 @@ ran, nothing moves. Where Draugr cannot tell, it assumes the worse case or leave
   than hide until you [declare](prioritization.md) what it is.
 - **A code check that cannot tell whether a value comes from outside the program does not clear
   it.** Its findings keep their rank, even where that leaves a longer list.
-
-One exception remains. An advisory that its database has not scored yet, which Trivy reports as
-`UNKNOWN` and Grype as `Unknown`, ranks as low today, the same as a low one.
-https://github.com/draugr-dev/draugr/issues/2222 tracks it.
+- **A vulnerability whose database has not rated it yet ranks as high**, labeled `not scored yet`,
+  because an unrated flaw may be serious. It is ranked again once a score is published. Trivy reports
+  one as `UNKNOWN` and Grype as `Unknown`, and an OSV record may state no severity.
 
 ## What this means in practice
 

@@ -159,7 +159,7 @@ func TestAnImportedOSVScannerPathIsReadAgainstTheCheckout(t *testing.T) {
 }
 
 // Without a max_severity a finding is read at its advisory's own rating, the highest the grouped
-// advisories give, and without either at medium. A database_specific.severity that is not a word, or
+// advisories give, and without either as not scored yet, at high. A database_specific.severity that is not a word, or
 // is absent, rates nothing and refuses nothing. An advisory no group lists is a finding of its own.
 func TestAnImportedOSVScannerFindingWithoutAScoreIsReadAtItsAdvisorysRating(t *testing.T) {
 	doc := `{"results": [{"source": {"path": "go.mod", "type": "lockfile"}, "packages": [{
@@ -185,7 +185,7 @@ func TestAnImportedOSVScannerFindingWithoutAScoreIsReadAtItsAdvisorysRating(t *t
 		rated    bool
 	}{
 		"GHSA-aaaa-bbbb-cccc": {sarif.SeverityCritical, []string{"GO-2099-0001", "CVE-2099-0001"}, true},
-		"GO-2099-0002":        {sarif.SeverityMedium, nil, false},
+		"GO-2099-0002":        {sarif.SeverityHigh, nil, true},
 		"GHSA-dddd-eeee-ffff": {sarif.SeverityLow, []string{"CVE-2099-0003"}, true},
 	}
 	if len(rep.Results) != len(want) {
@@ -201,7 +201,7 @@ func TestAnImportedOSVScannerFindingWithoutAScoreIsReadAtItsAdvisorysRating(t *t
 	if r := rep.Results[0]; r.Rating == nil || r.Rating.Detail != "severity CRITICAL" {
 		t.Errorf("rating %+v, want the GO advisory's CRITICAL, the higher of the group's two", r.Rating)
 	}
-	if got, want := field(t, rep, "severity"), "the advisory's severity for 2, OSV-Scanner states none, read as medium for 1"; got != want {
+	if got, want := field(t, rep, "severity"), "the advisory's severity for 2, OSV-Scanner states none, not scored yet, read as high for 1"; got != want {
 		t.Errorf("severity = %q, want %q", got, want)
 	}
 }

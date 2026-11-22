@@ -239,7 +239,8 @@ func osvFinding(res osvResult, p osvPackage, g osvGroup) (sarif.Result, sarif.Ru
 		found.Level = osvLevel(rating.Severity)
 		rated = "the advisory's severity"
 	} else {
-		rated = "OSV-Scanner states none, read as medium"
+		markNotScored(&found, nil, found.Message)
+		rated = "OSV-Scanner states none, " + notScoredYet + ", read as high"
 	}
 	rule := sarif.Rule{Name: id, ShortDescription: summary, FullDescription: details,
 		// The documentation's table links each vulnerability as "OSV URL: Link to the osv.dev entry

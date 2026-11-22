@@ -56,7 +56,7 @@ func TestGrypeMatchAliases(t *testing.T) {
 	other := m
 	other.RelatedVulnerabilities = []grypeVulnerability{{ID: "GHSA-2222-2222-2222"}}
 	msg := "A medium vulnerability in npm package: minimatch, version 10.2.3 was found at: /pnpm-lock.yaml"
-	pkg, aliases, ok := newGrypeMatchIndex([]grypeMatch{m, other}).find("CVE-2026-118764-minimatch", msg, "/pnpm-lock.yaml")
+	pkg, aliases, _, ok := newGrypeMatchIndex([]grypeMatch{m, other}).find("CVE-2026-118764-minimatch", msg, "/pnpm-lock.yaml")
 	if !ok || pkg.Version != "10.2.3" || aliases != nil {
 		t.Errorf("find = %+v, %q, %v, want the package and no identifiers", pkg, aliases, ok)
 	}
