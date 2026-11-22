@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.186.0] - 2026-11-22
+
+### Added
+
+- **Import Veracode Pipeline Scan's results.** An import with `format: veracode-pipeline-json` reads the `results.json` Pipeline Scan writes with `-jo true` into `sast`: each flaw at its file and line, under its CWE, rated by Veracode's severity and fingerprinted by its flaw hash. A Java class's bare file name is placed at its file in the checkout.
+
+### Changed
+
+- **A Go finding govulncheck finds no call path to keeps its severity and band.** The verdict covers only the builds Draugr analyzed, so it no longer lowers the finding or marks the row `↓ unreachable`; report.json and the HTML report carry it. Findings it used to lower rank higher, so `--fail-on` and a priority gate can newly fail.
+
+### Fixed
+
+- **A flaw two scanners found is one code-scanning alert, whichever way you upload.** The GitHub Action's `sarif` output, `code-scanning.sarif` and `draugr diff --format sarif` now hold it once, as the finding the gate counts, naming the other scanner in `correlation.alsoFoundBy`. Before, only the `github` publisher did, and an `upload-sarif` step opened one alert per scanner.
+
+- **A Go module the go command will not load is reported with the command that fixes it.** When gosec or govulncheck cannot load a module whose `go.mod` needs `go mod tidy`, or whose `go.sum` misses an entry, the error or caveat now ends with the command the go command printed. Before, the message stopped at `to update it:`.
+
+- **A vulnerability its database has not scored yet now ranks as high, labeled `not scored yet`, until a score arrives.** Trivy's UNKNOWN and Grype's Unknown ranked as low, and an OSV-Scanner record with no severity as medium. A gate on severity or priority may newly fail: fix the finding, or set it aside in `config.exclude` with a reason.
+
+- **An imported govulncheck file now lists each Go module it did not analyze** under `unread-files`, with the `govulncheck -C <dir>` command to run and import. Before, those modules' findings got no reachability verdict and no warning.
+
 ## [0.185.0] - 2026-11-21
 
 ### Added
@@ -7395,7 +7415,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.185.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.186.0...HEAD
+[0.186.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.0
 [0.185.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.185.0
 [0.184.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.184.0
 [0.183.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.183.0

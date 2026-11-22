@@ -1,1 +1,0 @@
-- **A flaw two scanners found is one code-scanning alert, whichever way you upload.** The GitHub Action's `sarif` output, `code-scanning.sarif` and `draugr diff --format sarif` now hold it once, as the finding the gate counts, naming the other scanner in `correlation.alsoFoundBy`. Before, only the `github` publisher did, and an `upload-sarif` step opened one alert per scanner.

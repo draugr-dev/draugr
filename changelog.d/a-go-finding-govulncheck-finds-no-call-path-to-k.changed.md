@@ -1,1 +1,0 @@
-- **A Go finding govulncheck finds no call path to keeps its severity and band.** The verdict covers only the builds Draugr analyzed, so it no longer lowers the finding or marks the row `↓ unreachable`; report.json and the HTML report carry it. Findings it used to lower rank higher, so `--fail-on` and a priority gate can newly fail.

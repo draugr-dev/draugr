@@ -1,1 +1,0 @@
-- **Import Veracode Pipeline Scan's results.** An import with `format: veracode-pipeline-json` reads the `results.json` Pipeline Scan writes with `-jo true` into `sast`: each flaw at its file and line, under its CWE, rated by Veracode's severity and fingerprinted by its flaw hash. A Java class's bare file name is placed at its file in the checkout.
