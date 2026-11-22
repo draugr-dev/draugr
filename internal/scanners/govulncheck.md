@@ -85,10 +85,12 @@ to load. Its `go.mod` is listed under **Caveats** as `unread-files`, and the rea
 | the go command prints a fix, run in the directory of the `go.mod` listed | `run go mod tidy: go: updates to go.mod needed`, or `run go mod download golang.org/x/text: go: golang.org/x/text@v0.1.0: missing go.sum entry for go.mod file` |
 | anything else | govulncheck's first diagnostic |
 
-The module's findings keep the band the manifest scanner gave them and carry no verdict, and an
-advisory only govulncheck reports, such as one in the standard library, was not checked there. A
-failure that
-holds for every module, such as a database govulncheck cannot reach, still fails the repository's
+When the machine's own run cannot load the module, its findings keep the band the manifest scanner
+gave them and carry no verdict, even where a run for another platform loaded it: that run covers
+only the code built for its platform, so its verdict says nothing about the rest. An advisory only
+govulncheck reports, such as one in the standard library, was not checked there. When only another
+platform's run cannot load it, the machine's verdict stands, and the build a verdict names leaves
+that platform out. A failure that holds for every module, such as a database govulncheck cannot reach, still fails the repository's
 job. To fail the run on a module that did not load, set
 [`config.gate.failOnCaveats: [unread-files]`](../../docs/reference/saga-schema.md#configgate).
 

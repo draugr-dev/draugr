@@ -337,6 +337,77 @@ func TestParseGovulncheckAPlatformRunThatDidNotLoad(t *testing.T) {
 	}
 }
 
+// unloadedPlatformRun is a run that found GO-2022-0001 without a call into it, so its verdict is
+// unreachable.
+const unloadedPlatformRun = `{"config":{"scan_level":"symbol"}}
+{"SBOM":{"modules":[{"path":"example.com/app"},{"path":"golang.org/x/sys","version":"v0.1.0"}],"roots":["example.com/app"]}}
+{"osv":{"id":"GO-2022-0001","aliases":["CVE-2022-0001"]}}
+{"finding":{"osv":"GO-2022-0001","fixed_version":"v0.2.0","trace":[{"module":"golang.org/x/sys","version":"v0.1.0"}]}}
+`
+
+// When the host's run cannot load a module, a verdict from another platform's run would rank the
+// module's findings on a build the host's, never analyzed, may not match. The module has no
+// verdict at all: no result, so its findings keep the manifest scanner's band, and the go.mod is
+// named unread.
+func TestParseGovulncheckGivesNoVerdictWhenTheHostDidNotLoad(t *testing.T) {
+	onHost(t, linuxHost)
+	dir := writeTree(t, platformModule)
+	host := `{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: install the package that provides fuse.h"}}` + "\n"
+	rep, err := parseGovulncheck([]byte(host+unloadedPlatformRun), dir, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 0 {
+		t.Errorf("results = %+v, want none: the windows/amd64 run's verdict cannot stand for a module the host did not load", rep.Results)
+	}
+	// The nested module's stdlib-only Windows code has an entry of its own, which is not this test's.
+	i := slices.IndexFunc(rep.Inputs, func(in sarif.Input) bool { return in.Path == "go.mod" })
+	if i < 0 || rep.Inputs[i].Unread != "govulncheck: install the package that provides fuse.h" {
+		t.Errorf("inputs = %+v, want the go.mod unread with the host's reason", rep.Inputs)
+	}
+}
+
+// When the host's run and another platform's both fail to load a module, its go.mod is named once,
+// with the host's reason, not the other platform's, which would read as though only it failed.
+func TestParseGovulncheckGivesTheHostsReasonWhenTwoRunsDidNotLoad(t *testing.T) {
+	onHost(t, linuxHost)
+	dir := writeTree(t, platformModule)
+	host := `{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: undefined: auto.Assets"}}` + "\n"
+	win := `{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: undefined: x","platform":"windows/amd64"}}` + "\n"
+	rep, err := parseGovulncheck([]byte(host+win), dir, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, in := range rep.Inputs {
+		if in.Path == "go.mod" {
+			got = append(got, in.Unread)
+		}
+	}
+	if !slices.Equal(got, []string{"govulncheck: undefined: auto.Assets"}) {
+		t.Errorf("go.mod unread = %q, want the host's reason alone", got)
+	}
+}
+
+// When only another platform's run cannot load the module, the host's verdict stands, and the
+// build it names holds only the platforms whose run analyzed the module.
+func TestParseGovulncheckNamesOnlyTheBuildsThatLoaded(t *testing.T) {
+	onHost(t, linuxHost)
+	dir := writeTree(t, platformModule)
+	win := `{"draugrUnloaded":{"goMod":"go.mod","reason":"govulncheck: undefined: x","platform":"windows/amd64"}}` + "\n"
+	rep, err := parseGovulncheck([]byte(unloadedPlatformRun+win), dir, plugin.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) != 1 {
+		t.Fatalf("results = %+v, want the host's one", rep.Results)
+	}
+	r := rep.Results[0].Reachability
+	if r == nil || r.State != sarif.ReachabilityUnreachable || r.Build == nil || !slices.Equal(r.Build.Platforms, []string{"linux/amd64"}) {
+		t.Errorf("reachability = %+v, want unreachable on a build of linux/amd64 alone", r)
+	}
+}
+
 func TestWithPlatformVerdicts(t *testing.T) {
 	result := func(state sarif.ReachabilityState, platforms ...string) sarif.Result {
 		return sarif.Result{RuleID: "CVE-1", Location: sarif.Location{URI: "go.mod"}, Package: &sarif.Package{Name: "m"},

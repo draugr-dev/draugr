@@ -578,6 +578,7 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 	}
 	var inputs []sarif.Input
 	var host, other []sarif.Result
+	unloaded := unloadedModules(runs, plan)
 	for i, run := range runs {
 		var build *platformBuild
 		if i < len(plan) {
@@ -586,11 +587,22 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 		// A module that did not load is named as unread, and has no results: its findings keep the
 		// band the manifest scanner gave them, with no verdict.
 		if u := run[0].Unloaded; u != nil {
+			// The host's reason is the one to give: the same go.mod listed again for another
+			// platform would replace it, and read as though only that platform failed.
+			if u.Platform != "" && i < len(plan) && unloaded[plan[i].mod] {
+				continue
+			}
 			reason := u.Reason
 			if u.Platform != "" {
 				reason = strings.Replace(reason, "govulncheck: ", "govulncheck for "+u.Platform+": ", 1)
 			}
 			inputs = append(inputs, sarif.Input{Path: u.GoMod, Unread: reason, Analysis: true})
+			continue
+		}
+		// The same holds for its runs for other platforms when the host's did not load: a verdict
+		// from another platform's build would rank the module's findings on code the host's build,
+		// never analyzed, may not hold.
+		if i < len(plan) && unloaded[plan[i].mod] {
 			continue
 		}
 		rs := govulncheckRunResults(run, manifests, asOf)
@@ -738,7 +750,8 @@ func moduleBuilds(plan []govulncheckPlanned, runs [][]govulncheckMessage) ([]str
 		if plan[i].build != nil {
 			platform = plan[i].build.Platform.String()
 		}
-		if !slices.Contains(b.platforms, platform) {
+		// A platform whose run did not load the module analyzed nothing, so it is not named as built.
+		if run[0].Unloaded == nil && !slices.Contains(b.platforms, platform) {
 			b.platforms = append(b.platforms, platform)
 		}
 		scanLevel, sbom := "", false
@@ -900,6 +913,19 @@ func stdlibOnlyReason(platforms []string, files int) string {
 	}
 	return fmt.Sprintf("Go standard-library advisories not checked for %s code · %s",
 		strings.Join(only, " or "), english.Count(files, "file"))
+}
+
+// unloadedModules are the modules of plan whose run for the host did not load. A run for another
+// platform covers only the packages with code for it, so the host's run is the one that analyzes
+// the module, and without it a module has no verdict.
+func unloadedModules(runs [][]govulncheckMessage, plan []govulncheckPlanned) map[string]bool {
+	unloaded := map[string]bool{}
+	for i, run := range runs {
+		if i < len(plan) && plan[i].build == nil && run[0].Unloaded != nil {
+			unloaded[plan[i].mod] = true
+		}
+	}
+	return unloaded
 }
 
 // splitGovulncheckRuns divides a concatenated stream into one slice per govulncheck run. Each run
