@@ -61,6 +61,37 @@ much harm it could cause if it were exploited. A component you mark `critical` w
 low-severity findings, and both words appear on the same finding. See
 [prioritization](../concepts/prioritization.md) for the tables where the two meet.
 
+## Libraries
+
+A library has no deployment of its own, so its `exposure` and `criticality` come from where it is
+used. Left undeclared, a library is ranked as `public` and `critical` like any other component,
+which is the cautious answer for one nobody has looked at.
+
+- A library used inside public services keeps `exposure: public`, because a flaw in it is reachable
+  the way a flaw in those services is.
+- A library only a build tool uses can declare `exposure: internal`, on its owner's say-so, written
+  in the descriptor where review sees it.
+
+Pick `criticality` the same way, from the most critical component that uses the library.
+
+```yaml
+components:
+  - name: pricing             # a library the public checkout service imports
+    exposure: public
+    criticality: critical
+    repositories:
+      - url: https://github.com/acme/pricing.git
+  - name: changelog-parser    # a library only the release tooling uses
+    exposure: internal        # its owner's call, seen in review
+    criticality: important
+    repositories:
+      - url: https://github.com/acme/changelog-parser.git
+```
+
+Declaring a lower `exposure` or `criticality` moves the library's findings down, so a high-severity
+flaw that ranks P1 in `pricing` ranks P3 in `changelog-parser`. That is why the lower level is a
+reviewed declaration in the descriptor rather than a default.
+
 ## By hand, or from discovery
 
 Prefer to hand-edit? Set `exposure` and `criticality` directly on a component. See the [Saga
