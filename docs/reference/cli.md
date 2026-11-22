@@ -1049,6 +1049,10 @@ how many findings are new and the gate, then what changed. The policy, MEASURED 
 blocks are unchanged. A failed run's last line names the gate, the new findings that met it and
 the base.
 
+With `--working-tree` and a base scan of `HEAD`, the comparison covers the work not yet committed.
+The `draugr` hook for pre-commit runs that pair on every commit; see [check each commit with
+pre-commit](../guides/pre-commit.md).
+
 `--report junit` fails the findings the exit code fails on, the new ones that met the gate, and each
 failure's message ends `new since <revision>`. A control with no such finding gets one passing test,
 `nothing new at <gate> since <revision>`. Findings that were already there, and new ones below the

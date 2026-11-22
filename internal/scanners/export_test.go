@@ -26,4 +26,11 @@ func FakeDataReaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeRetireCache(t, cache, "111.json")
+	osv := filepath.Join(home, ".draugr", "data", "osv-scanner", "osv-scalibr", "PyPI")
+	if err := os.MkdirAll(osv, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(osv, "all.zip"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
 }

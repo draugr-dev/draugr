@@ -31,7 +31,7 @@ executing on your machine, which is a question worth being able to answer withou
 | Control | Industry term | Scope | Status | Scanner(s) | Doc |
 |---------|---------------|-------|:------:|------------|-----|
 | `images` | Container image scanning | component | ✅ | `trivy` (default), `grype` (opt-in) | [doc](../../internal/controllers/images.md) |
-| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` (default), `grype-fs` (opt-in), `retirejs` (opt-in), `mend-sca` (opt-in), `govulncheck` (opt-in) | [doc](../../internal/controllers/sca.md) |
+| `sca` | Software Composition Analysis | component | ✅ | `trivy-fs` (default), `grype-fs` (opt-in), `osv-scanner` (opt-in), `retirejs` (opt-in), `mend-sca` (opt-in), `govulncheck` (opt-in) | [doc](../../internal/controllers/sca.md) |
 | `sast` | Static Application Security Testing | component | ✅ | `semgrep` (default), `gosec` (opt-in) | [doc](../../internal/controllers/sast.md) |
 | `secrets` | Secret detection | component | ✅ | `gitleaks` | [doc](../../internal/controllers/secrets.md) |
 | `iac` | IaC / misconfiguration | component | ✅ | `trivy-config` (default), `kics` (opt-in) | [doc](../../internal/controllers/iac.md) |
@@ -68,6 +68,7 @@ reference](saga-schema.md#sbom-generation).
 | `trivy-fs` | sca | Aqua Trivy (fs) | Apache-2.0 | ✅ | [doc](../../internal/scanners/trivy-fs.md) |
 | `grype` | images | Anchore Grype | Apache-2.0 | ✅ | [doc](../../internal/scanners/grype.md) |
 | `grype-fs` | sca | Anchore Grype (dir) | Apache-2.0 | ✅ | [doc](../../internal/scanners/grype-fs.md) |
+| `osv-scanner` | sca | Google OSV-Scanner (offline) | Apache-2.0 (data: each source's, mostly CC-BY 4.0 and CC0 1.0) | ✅ | [doc](../../internal/scanners/osv-scanner.md) |
 | `retirejs` | sca | retire.js (binary: `retire`, from npm) | Apache-2.0 | ✅ | [doc](../../internal/scanners/retirejs.md) |
 | `govulncheck` | sca | Go team govulncheck (reachability for Go) | BSD-3-Clause (data CC-BY-4.0) | ✅ | [doc](../../internal/scanners/govulncheck.md) |
 | `gitleaks` | secrets | Gitleaks | MIT | ✅ | [doc](../../internal/scanners/gitleaks.md) |

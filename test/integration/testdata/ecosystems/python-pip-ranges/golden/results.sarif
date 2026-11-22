@@ -55,6 +55,7 @@
               "fixedVersion": "0.12.3",
               "name": "flask",
               "purl": "pkg:pypi/flask@0.12",
+              "range": ">=0.12",
               "version": "0.12"
             },
             "priority": "P1",

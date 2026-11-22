@@ -743,6 +743,27 @@ func newLineIndex(dir string) *lineIndex {
 	return &lineIndex{dir: dir, files: map[string][]string{}}
 }
 
+// lines is the manifest's lines, read once, and nil where it cannot be read.
+func (l *lineIndex) lines(relPath string) []string {
+	lines, ok := l.files[relPath]
+	if !ok {
+		lines = readLines(filepath.Join(l.dir, relPath))
+		l.files[relPath] = lines
+	}
+	return lines
+}
+
+// at is the text of the manifest's 1-based line n, and "" where there is no such line.
+func (l *lineIndex) at(relPath string, n int) string {
+	if relPath == "" || n < 1 {
+		return ""
+	}
+	if lines := l.lines(relPath); n <= len(lines) {
+		return lines[n-1]
+	}
+	return ""
+}
+
 // maxManifestBytes caps what will be read looking for a declaration. A lockfile can be large, and
 // a line number is a nicety, never worth reading an unbounded file into memory for.
 const maxManifestBytes = 4 << 20 // 4 MiB
@@ -767,11 +788,7 @@ func (l *lineIndex) find(relPath, pkg, version string) int {
 	if relPath == "" || pkg == "" {
 		return 0
 	}
-	lines, ok := l.files[relPath]
-	if !ok {
-		lines = readLines(filepath.Join(l.dir, relPath))
-		l.files[relPath] = lines
-	}
+	lines := l.lines(relPath)
 	var best [3]int
 	for i, line := range lines {
 		if isCommentLine(line) || !containsName(line, pkg) {

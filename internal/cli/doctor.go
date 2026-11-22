@@ -1029,8 +1029,11 @@ func scanContacts(reg *engine.Registry, model *saga.Model) []scanContact {
 					continue
 				}
 				when := "before the scan"
-				if d.PerScan {
+				switch {
+				case d.PerScan:
 					when = "every scan"
+				case d.OnFirstUse:
+					when = "once per run, during the scan"
 				}
 				for _, host := range d.Hosts {
 					rows = append(rows, scanContact{control, info.Name, host, d.Name + " · " + when})

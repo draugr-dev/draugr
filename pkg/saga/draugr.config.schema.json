@@ -813,6 +813,17 @@
           "description": "Whether findings in files under a docs, examples or tests directory count, such as docs/, examples/, tests/ and testdata/ at any depth, and in Go test files, named *_test.go. A component's setting replaces the project's.",
           "type": "string"
         },
+        "osvScanner": {
+          "additionalProperties": false,
+          "description": "osv-scanner, published by google.",
+          "properties": {
+            "enabled": {
+              "description": "Run this scanner. It is opt-in, so it runs only when set to true.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "ownPackages": {
           "anyOf": [
             {
@@ -1277,6 +1288,9 @@
           "$ref": "#/$defs/toolSettings"
         },
         "nuclei": {
+          "$ref": "#/$defs/toolSettings"
+        },
+        "osv-scanner": {
           "$ref": "#/$defs/toolSettings"
         },
         "retire": {

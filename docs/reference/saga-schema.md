@@ -725,14 +725,14 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 | `draugr-tls` | `expiryErrorDays`, `expiryWarnDays` |
 | `gosec` | `include`, `exclude`, rule IDs; `tags`, Go build tags |
 | `trivy`, `trivy-fs` | `pkgTypes` (`os`, `library`), `dbRepository`, an internal mirror |
-| `trivy-fs` | `filePatterns` (`analyzer:regex`), which `trivy-license` reads the same repositories with; `detectionPriority` (`precise`, `comprehensive`); `resolveMaven`, fetch pom dependencies from Maven Central, declares [`disclosure`](../../internal/scanners/trivy-fs.md#what-is-sent); `includeDevDeps`, deprecated for [`devDependencies`](#development-dependencies) |
+| `trivy-fs` | `filePatterns` (`analyzer:regex`), which `trivy-license` reads the same repositories with; `detectionPriority` (`precise`, `comprehensive`), where `comprehensive` also reads a `requirements.txt` range at its minimum and reports the Go standard library at the lowest toolchain a `go.mod` accepts, whatever toolchain its builds use, and a range finding whose advisory a lockfile in the same directory also reports is counted once, at the lockfile ([Version ranges](../../internal/scanners/trivy-fs.md#version-ranges)); `resolveMaven`, fetch pom dependencies from Maven Central, declares [`disclosure`](../../internal/scanners/trivy-fs.md#what-is-sent); `includeDevDeps`, deprecated for [`devDependencies`](#development-dependencies) |
 | `grype`, `grype-fs` | `byCve`. Report under the CVE rather than the advisory ID, on by default |
 | `trivy-config` | `checks`, paths to your own Rego; `namespaces`, the top-level package names to evaluate, derived from the checks' `package` lines when unset |
 | `semgrep` | `config`, a registry ref, path or URL |
 | `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei` | `intrusive`, run the templates that may write to the endpoint, declares [`mutate`](../../internal/scanners/nuclei.md#intrusive-templates); `rateLimit`, `concurrency`, `timeout`, `retries`, the scan's pace; `tags`, `excludeTags`, `templates`, which templates run; `interactsh`, the callback templates. [Options](../../internal/scanners/nuclei.md#options) |
-| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `cosign`, `notation`, `kics` | `enabled` only |
+| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `osv-scanner` (key `osvScanner`), `cosign`, `notation`, `kics` | `enabled` only |
 
 
 [`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) writes every

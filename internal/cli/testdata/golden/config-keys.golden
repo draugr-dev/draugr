@@ -18,7 +18,7 @@ scan.shareWorkers      true or false                                         fal
 tools.<tool>.version   a release, such as 0.69.3                             Draugr's pin
 
 Tools: cosign, gitleaks, gosec, govulncheck, grype, kube-bench, notation,
-nuclei, retire, semgrep, syft, trivy.
+nuclei, osv-scanner, retire, semgrep, syft, trivy.
 
 Controls, each a block of its own:
   controls.cloud       prowler
@@ -30,7 +30,7 @@ Controls, each a block of its own:
   controls.licenses    trivyLicense, mendLicenses*
   controls.provenance  cosign, notation
   controls.sast        semgrep, gosec*
-  controls.sca         trivyFs, grypeFs*, mendSca*, retirejs*
+  controls.sca         trivyFs, grypeFs*, mendSca*, osvScanner*, retirejs*
   controls.secrets     gitleaks
   controls.threats     urlhaus, virustotal*
   controls.tls         draugrTls

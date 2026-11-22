@@ -1,0 +1,5 @@
+Scanning dir /checkout
+Starting filesystem walk for root: /
+Scanned /checkout/Cargo.lock file and found 18 packages
+End status: 23 dirs visited, 59 inodes visited, 1 Extract calls, 689.176µs elapsed, 689.207µs wall time
+Loaded crates.io local db from /home/you/.draugr/data/osv-scanner/osv-scalibr/crates.io/all.zip

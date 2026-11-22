@@ -388,6 +388,37 @@ var installable = map[string]InstallSpec{
 			},
 		},
 	},
+	// OSV-Scanner ships bare release binaries, a SHA256SUMS file listing them and SLSA provenance
+	// (multiple.intoto.jsonl), and signs nothing cosign can check, so it is pinned by SHA-256. Each
+	// value below is the hash of the downloaded bytes, and each matched osv-scanner_SHA256SUMS of the
+	// same release. The checksums file is what checks a version other than the pinned one.
+	"osv-scanner": {
+		Binary:               "osv-scanner",
+		Version:              "2.7.1",
+		ChecksumsURLTemplate: "https://github.com/google/osv-scanner/releases/download/v{version}/osv-scanner_SHA256SUMS",
+		Assets: map[string]Asset{
+			"linux/amd64": {
+				URL:         "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_amd64",
+				URLTemplate: "https://github.com/google/osv-scanner/releases/download/v{version}/osv-scanner_linux_amd64",
+				SHA256:      "fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8",
+			},
+			"linux/arm64": {
+				URL:         "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_linux_arm64",
+				URLTemplate: "https://github.com/google/osv-scanner/releases/download/v{version}/osv-scanner_linux_arm64",
+				SHA256:      "983d22fbad9724514e3fcc6acc83b5fa64c5ffa6b0d9f510028f22c1b223ff81",
+			},
+			"darwin/amd64": {
+				URL:         "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_darwin_amd64",
+				URLTemplate: "https://github.com/google/osv-scanner/releases/download/v{version}/osv-scanner_darwin_amd64",
+				SHA256:      "b8420d5485ba792626315f1bf9a5a2046e971d38eea75bf9090c38852dbc3b1b",
+			},
+			"darwin/arm64": {
+				URL:         "https://github.com/google/osv-scanner/releases/download/v2.7.1/osv-scanner_darwin_arm64",
+				URLTemplate: "https://github.com/google/osv-scanner/releases/download/v{version}/osv-scanner_darwin_arm64",
+				SHA256:      "b22c02877a811c8f78956e8643efa554932b7378f590d13f8e97d4e9448a29f3",
+			},
+		},
+	},
 	"nuclei": {
 		Binary:  "nuclei",
 		Version: "3.11.1",

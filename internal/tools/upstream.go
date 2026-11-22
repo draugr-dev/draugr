@@ -63,6 +63,7 @@ var upstreams = map[string]Upstream{
 	"syft":        {KindGitHubRelease, "anchore/syft"},
 	"grype":       {KindGitHubRelease, "anchore/grype"},
 	"nuclei":      {KindGitHubRelease, "projectdiscovery/nuclei"},
+	"osv-scanner": {KindGitHubRelease, "google/osv-scanner"},
 	"govulncheck": {KindGitHubTag, "golang/vuln"},
 	"semgrep":     {KindPyPI, "semgrep"},
 	"retire":      {KindNPM, "retire"},

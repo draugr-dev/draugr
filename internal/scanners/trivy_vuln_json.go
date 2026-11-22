@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -274,6 +275,61 @@ const trivyClassLangPkgs = "lang-pkgs"
 // vulnerabilities, so it is left out of what the scan names as read and the tree walk reports it.
 var trivyListOnly = []string{"conda-environment", "conda-pkg"}
 
+// trivyTypePip is Trivy's name for a result set read from a requirements file.
+const trivyTypePip = "pip"
+
+// readsRanges reports whether a trivy-fs job asked Trivy to read a version range as its minimum
+// (detectionPriority: comprehensive). Without it Trivy reads only a pinned version, and no finding
+// can carry a range.
+func readsRanges(cfg plugin.Config) bool {
+	v, _ := cfg["detectionPriority"].(string)
+	return v == "comprehensive"
+}
+
+// pipRange is the requirement of a requirements file's line where Trivy, reading ranges, took
+// version from one: the line's specifiers without spaces, such as `>=10.4,<11`. It is "" for a line
+// pinned with ==, and for a line whose range does not start at version, which is then not the line
+// Trivy read the version from.
+//
+// The line is read as Trivy's pip parser reads it (pkg/dependency/parser/python/pip, Trivy 0.76.1):
+// spaces and line continuations dropped, a comment, an environment marker and a hash option cut
+// off, and extras removed. The first of the operators ~=, >= and ==, in that order, found among the
+// comma-separated specifiers gives the version, and only a version taken after ~= or >= is a range's
+// minimum. A trailing .* reads as .0, as Trivy reads it.
+func pipRange(line, version string) string {
+	line = strings.NewReplacer(" ", "", `\`, "").Replace(line)
+	for _, cut := range []string{"#", ";", "--"} {
+		line, _, _ = strings.Cut(line, cut)
+	}
+	if open, shut := strings.Index(line, "["), strings.Index(line, "]"); open >= 0 && shut > open {
+		line = line[:open] + line[shut+1:]
+	}
+	at := strings.IndexFunc(line, func(r rune) bool { return !isPipNameRune(r) })
+	if at <= 0 || version == "" {
+		return ""
+	}
+	specs := line[at:]
+	for _, op := range []string{"~=", ">=", "=="} {
+		for _, spec := range strings.Split(specs, ",") {
+			v, ok := strings.CutPrefix(spec, op)
+			if !ok {
+				continue
+			}
+			if op != "==" && (v == version || strings.HasSuffix(v, ".*") && strings.TrimSuffix(v, "*")+"0" == version) {
+				return specs
+			}
+			return ""
+		}
+	}
+	return ""
+}
+
+// isPipNameRune reports whether r can be part of a package name in a requirements file, as Trivy's
+// pip parser reads one.
+func isPipNameRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '.' || r == '_' || r == '-'
+}
+
 // trivyInput is the dependency file a result set was read from, or false for a set that is not one.
 //
 // Trivy leaves out a file it read no packages from, so the files named here are the ones that
@@ -331,11 +387,19 @@ func trivyVulnReport(doc trivyVulnDoc, dir string, cfg plugin.Config) sarif.Repo
 		}
 		known := res.packageLines()
 		dev, own := res.devPackages(), res.ownPackages()
+		ranges := dir != "" && res.Type == trivyTypePip && readsRanges(cfg)
+		rangeOf := func(found sarif.Result) string {
+			if !ranges {
+				return ""
+			}
+			return pipRange(lines.at(res.Target, found.Location.StartLine), found.Package.Version)
+		}
 		for _, v := range res.Vulnerabilities {
 			found := trivyVulnResultOf(doc, res, v, layers)
 			found.Location.StartLine = lineOf(res, known, v)
 			found.Package.Dev = dev[v.PkgIdentifier.UID]
 			found.Package.Own = own[v.PkgIdentifier.UID]
+			found.Package.Range = rangeOf(found)
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[v.VulnerabilityID]; !seen {
 				rep.Rules[v.VulnerabilityID] = trivyVulnRule(v)
@@ -350,6 +414,7 @@ func trivyVulnReport(doc trivyVulnDoc, dir string, cfg plugin.Config) sarif.Repo
 			found.Location.StartLine = lineOf(res, known, m.Finding)
 			found.Package.Dev = dev[m.Finding.PkgIdentifier.UID]
 			found.Package.Own = own[m.Finding.PkgIdentifier.UID]
+			found.Package.Range = rangeOf(found)
 			rep.Results = append(rep.Results, found)
 			if _, seen := rep.Rules[m.Finding.VulnerabilityID]; !seen {
 				rep.Rules[m.Finding.VulnerabilityID] = trivyVulnRule(m.Finding)

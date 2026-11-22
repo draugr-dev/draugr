@@ -32,6 +32,42 @@ func TestSCAPlan(t *testing.T) {
 	}
 }
 
+// osvScanner runs only where a descriptor turns it on, beside Trivy, once per repository, under its
+// camelCase key.
+func TestSCAPlansOSVScannerOnlyWhereTurnedOn(t *testing.T) {
+	comp := &saga.Component{Name: "backend", Repositories: []saga.Repository{
+		{URL: "https://git/a.git", Revision: "main"},
+		{URL: "https://git/b.git"},
+	}}
+	jobs, err := NewSCA().Plan(saga.Model{}, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, j := range jobs {
+		if j.Scanner == "osv-scanner" {
+			t.Fatal("osv-scanner planned for a descriptor that never names it")
+		}
+	}
+
+	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
+		"sca": {"osvScanner": map[string]any{"enabled": true}},
+	}}}
+	jobs, err = NewSCA().Plan(model, comp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string][]string{}
+	for _, j := range jobs {
+		got[j.Scanner] = append(got[j.Scanner], j.Target.(interface{ Source() string }).Source())
+	}
+	if len(jobs) != 4 || len(got["trivy-fs"]) != 2 || len(got["osv-scanner"]) != 2 || got["osv-scanner"][0] == got["osv-scanner"][1] {
+		t.Errorf("jobs = %v, want trivy-fs and osv-scanner over each repository", got)
+	}
+	if ScannerConfigKey("osv-scanner") != "osvScanner" {
+		t.Errorf("key = %q", ScannerConfigKey("osv-scanner"))
+	}
+}
+
 func TestSCAPlanNilComponent(t *testing.T) {
 	jobs, err := NewSCA().Plan(saga.Model{}, nil)
 	if err != nil || jobs != nil {

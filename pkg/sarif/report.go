@@ -582,6 +582,12 @@ type Package struct {
 	// scanner then matches it against that package's advisories. False for every package the
 	// project fetches from somewhere else.
 	Own bool `json:"own,omitempty"`
+	// Range is the version requirement Version was read from, where the manifest states a range
+	// rather than a pin: `>=10.4,<11` in a requirements.txt, written without spaces, read as 10.4.
+	// Version is then the lowest release the range admits, which is not necessarily what installs; a
+	// lockfile beside the manifest says what does. Empty where the version was pinned, and wherever
+	// the scanner read no range.
+	Range string `json:"range,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.
@@ -2111,6 +2117,11 @@ func (r *Reachability) RankAt(base Severity) Severity {
 // scheme missing here is not a vulnerability to anything that asks, so its findings go uncorrelated,
 // unmatched by VEX and absent from the VEX document.
 //
+// OSV-Scanner names a finding by the first id of the advisories it grouped, which for a Python
+// package is usually the PyPA advisory database's `PYSEC-2024-60`, with the CVE and the GitHub
+// advisory among its aliases. Without the scheme here such a finding has no vulnerability, and so
+// never meets Trivy's copy of the same flaw under its CVE.
+//
 // The retire.js scanner does the same for an advisory with neither a CVE nor a GitHub advisory id:
 // `retirejs:<component>:<id>`, the component as retire.js's advisory repository names it (`jquery`,
 // `DOMPurify`, `@angular/core`) and the advisory's own number, its issue or bug number, a vendor
@@ -2121,6 +2132,7 @@ var vulnerabilityID = regexp.MustCompile(
 		`|GHSA-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}-[2-9cfghjmpqrvwx]{4}` +
 		`|OSV-\d{4}-\d+` +
 		`|RUSTSEC-\d{4}-\d{4}` +
+		`|PYSEC-\d{4}-\d+` +
 		`|GO-\d{4}-\d{4,}` +
 		`|NSWG-ECO-\d+` +
 		`|TEMP-\d{7}-[0-9A-F]{6}` +
