@@ -15,7 +15,7 @@ vulnerable shop, in four steps:
 3. open one finding in the HTML report;
 4. see how a pull request is gated, and run the same gate on your machine.
 
-Every block of output comes from Draugr 0.185.0 on demo commit `bb729745`, run on 2026-11-22. A
+Every block of output comes from Draugr 0.186.0 on demo commit `bb729745`, run on 2026-11-22. A
 newer release or commit prints different counts, and so can a later day, because the scanners read
 advisory databases that change over time. A line reading `…` stands for lines cut from the output.
 
@@ -25,14 +25,14 @@ advisory databases that change over time. A line reading `…` stands for lines 
 
 ## 1. Scan with nothing declared
 
-Install Draugr 0.185.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
+Install Draugr 0.186.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
 the version.
 
 ```console
-$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.185.0 sh
+$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.186.0 sh
 …
 $ draugr version
-draugr 0.185.0 (commit …)
+draugr 0.186.0 (commit …)
 ```
 
 Clone the demo at the commit this page was written against.
@@ -69,16 +69,16 @@ The demo is deliberately vulnerable, so this scan fails. That is the expected re
 ```console
 $ draugr scan .
 …
-DRAUGR  FAIL  draugr-demo  18.801s
+DRAUGR  FAIL  draugr-demo  10.306s
 
- 37 P1 28 P2 18 P3 0 P4
+ 40 P1 25 P2 18 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
  These bands rank severity alone. `draugr classify` makes them describe this application.
 
 CONTROLS
   iac      FAIL   4 P1 5 P2 12 P3
   sast     FAIL   14 P1 6 P2 5 P3 · 2 files unread
-  sca      FAIL   18 P1 17 P2 1 P3
+  sca      FAIL   21 P1 14 P2 1 P3
   secrets  FAIL   1 P1
 …
 SIGNALS
@@ -169,9 +169,9 @@ is still written.
 ```console
 $ draugr scan --no-publish --report sarif -o before
 …
-DRAUGR  FAIL  draugr-demo 1.0  12.357s
+DRAUGR  FAIL  draugr-demo 1.0  13.319s
 
- 275 P1 712 P2 276 P3 0 P4
+ 297 P1 709 P2 257 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
  These bands rank severity alone. `draugr classify` makes them describe this application.
 …
@@ -181,7 +181,7 @@ CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
       4 uncommitted files  not in commit bb729745 · --working-tree reads them
 
 COMPONENTS
-  api         ERROR  260 P1 702 P2 265 P3
+  api         ERROR  282 P1 699 P2 246 P3
   platform    FAIL   3 P1 7 P2 11 P3
   storefront  ERROR  8 P1 1 P2
   worker      FAIL   4 P1 2 P2
@@ -211,9 +211,9 @@ Scan again.
 ```console
 $ draugr scan --no-publish --report sarif -o after --top 1
 …
-DRAUGR  FAIL  draugr-demo 1.0  16.787s
+DRAUGR  FAIL  draugr-demo 1.0  9.699s
 
- 268 P1 704 P2 271 P3 20 P4
+ 290 P1 701 P2 252 P3 20 P4
 …
 CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
   ✗ unread-files · licenses · api
@@ -222,7 +222,7 @@ CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
       web/package-lock.json  records no license for 1 package
 …
 COMPONENTS
-  api         ERROR  260 P1 702 P2 265 P3
+  api         ERROR  282 P1 699 P2 246 P3
   storefront  ERROR  8 P1 1 P2
   platform    pass   3 P3 18 P4
   worker      pass   1 P2 3 P3 2 P4
@@ -261,7 +261,7 @@ $ draugr diff before/results.sarif after/results.sarif
 DRAUGR DIFF  pass  27 reranked (27 lowered)  1238 unchanged
 
  reranked        0 P1 1 P2 6 P3 20 P4
- unchanged       268 P1 703 P2 265 P3 0 P4
+ unchanged       290 P1 700 P2 246 P3 0 P4
  still accepted  2 P1 0 P2 0 P3 0 P4
 
 Gate: fails on any P1 this change introduces.
@@ -332,7 +332,7 @@ $ draugr diff before/results.sarif after/results.sarif --format markdown
 ✅ **pass** · ↕️ 27 reranked (27 lowered) · 1238 unchanged
 
 _reranked_ · 0 P1 · **1 P2** · **6 P3** · **20 P4**<br>
-_unchanged_ · **268 P1** · **703 P2** · **265 P3** · 0 P4<br>
+_unchanged_ · **290 P1** · **700 P2** · **246 P3** · 0 P4<br>
 _still accepted_ · **2 P1** · 0 P2 · 0 P3 · 0 P4
 
 _Gate: fails on any P1 this change introduces._
@@ -348,7 +348,7 @@ $ draugr diff before/results.sarif after/results.sarif --fail-on-new P1 --view c
 DRAUGR DIFF  pass  27 reranked (27 lowered)  1238 unchanged
 
  reranked        0 P1 1 P2 6 P3 20 P4
- unchanged       268 P1 703 P2 265 P3 0 P4
+ unchanged       290 P1 700 P2 246 P3 0 P4
  still accepted  2 P1 0 P2 0 P3 0 P4
 
 Gate: fails on any P1 this change introduces.
