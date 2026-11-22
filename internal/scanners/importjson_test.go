@@ -124,6 +124,8 @@ func TestAnImportedTrivyJSONIsTheFindingTrivyFSMakesOfIt(t *testing.T) {
 // govulncheck's JSON read through the import is what govulncheck's parser makes of the same stream:
 // the advisory under its CVE, the module, its fixed version and the verdict with its call path,
 // located at the go.mod of the module the run analyzed and dated by the day the file was written.
+// One difference: govulncheck's JSON does not say which platform its run built for, so an imported
+// unreachable verdict names no build, where Draugr's own run names the one it analyzed.
 func TestAnImportedGovulncheckJSONIsTheFindingGovulncheckMakesOfIt(t *testing.T) {
 	dir := checkoutWith(t, map[string]string{"go.mod": reachGoMod, "main.go": reachMain})
 	data, err := os.ReadFile(filepath.Join("testdata", "govulncheck-reachable.json"))
@@ -149,8 +151,20 @@ func TestAnImportedGovulncheckJSONIsTheFindingGovulncheckMakesOfIt(t *testing.T)
 		t.Fatalf("imported %d findings, native %d", len(rep.Results), len(native.Results))
 	}
 	for i, got := range rep.Results {
-		if !reflect.DeepEqual(asNative(got), native.Results[i]) {
-			t.Errorf("imported %+v\nnative   %+v", asNative(got), native.Results[i])
+		want := native.Results[i]
+		if r := want.Reachability; r != nil && r.State == sarif.ReachabilityUnreachable {
+			if r.Build == nil || len(r.Build.Platforms) == 0 {
+				t.Errorf("%s: Draugr's own unreachable verdict names no build", want.RuleID)
+			}
+			if got.Reachability != nil && got.Reachability.Build != nil {
+				t.Errorf("%s: an imported verdict names build %v the file never stated", got.RuleID, got.Reachability.Build)
+			}
+			unnamed := *r
+			unnamed.Build = nil
+			want.Reachability = &unnamed
+		}
+		if !reflect.DeepEqual(asNative(got), want) {
+			t.Errorf("imported %+v\nnative   %+v", asNative(got), want)
 		}
 	}
 	byRule := map[string]sarif.Result{}

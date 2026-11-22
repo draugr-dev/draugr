@@ -1,0 +1,1 @@
+- **An unreachable Go finding drops one band again.** When govulncheck finds no call path, the finding is ranked one severity level lower, as before 0.186.0, and the line under it names the build analyzed, such as `govulncheck on linux/amd64`. Findings that rose in 0.186.0 return to their earlier band.

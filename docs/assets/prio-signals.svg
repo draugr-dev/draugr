@@ -1,6 +1,6 @@
-<svg viewBox="0 0 720 412" width="720" height="412" role="img" aria-label="The ledger CVE under each signal on its own: four raise it from high to critical and P2 to P1." xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 720 470" width="720" height="470" role="img" aria-label="The ledger CVE under each signal on its own: four raise it from high to critical and P2 to P1, and unreachable lowers it to medium with the band held at P2." xmlns="http://www.w3.org/2000/svg">
   <title>Each signal on the ledger CVE</title>
-  <desc>The ledger CVE is rated high on tier C2, P2, with no signal. KEV, turned on by config.exploitability.kev, raises it to critical, P1. EPSS with a score of 0.62 against the default threshold 0.5, config.exploitability.epss, raises it one level to critical, P1. Malicious, config.dependencyHealth.enabled, raises it to critical, P1. Deprecated, the same key, raises it one level to critical, P1. KEV and EPSS apply in run phase 2, as the finding is ranked; the others in phase 3, once every scanner has finished.</desc>
+  <desc>The ledger CVE is rated high on tier C2, P2, with no signal. KEV, turned on by config.exploitability.kev, raises it to critical, P1. EPSS with a score of 0.62 against the default threshold 0.5, config.exploitability.epss, raises it one level to critical, P1. Malicious, config.dependencyHealth.enabled, raises it to critical, P1. Deprecated, the same key, raises it one level to critical, P1. Unreachable, config.reachability.analyzers, lowers it one level to medium; C2 puts medium in P2, so the band holds. KEV and EPSS apply in run phase 2, as the finding is ranked; the others in phase 3, once every scanner has finished.</desc>
   <defs>
     <style>
       text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
@@ -18,7 +18,7 @@
     <marker id="u" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#E9635B"/></marker>
     <marker id="d" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#7CA6B8"/></marker>
   </defs>
-  <rect width="720" height="412" rx="12" fill="#0B0E11"/>
+  <rect width="720" height="470" rx="12" fill="#0B0E11"/>
   <text class="e" x="20" y="28">SIGNALS · EACH ONE ON THE LEDGER CVE</text>
   <text class="sm mu" x="20" y="60">signal · turned on by</text>
   <text class="sm mu" x="330" y="60">severity</text>
@@ -63,6 +63,14 @@
   <use href="#c1" x="580" y="318"/>
   <path class="g" d="M20 360H700"/>
 
-  <text class="sm mu" x="20" y="382">KEV and EPSS apply in phase 2, as it is ranked; the others in phase 3, after every</text>
-  <text class="sm mu" x="20" y="400">scanner. Off the catalog, below 0.5 or unflagged, the CVE stays high, P2.</text>
+  <text class="m b" x="20" y="386"><tspan class="td">↓</tspan> unreachable</text>
+  <text class="m k mu" x="20" y="404">config.reachability.analyzers</text>
+  <rect class="sev s2" x="330" y="376" width="74" height="26" rx="5"/><text class="m h c" x="367" y="394">high</text>
+  <path class="dn" d="M408 389H444" marker-end="url(#d)"/>
+  <rect class="sev s3" x="450" y="376" width="84" height="26" rx="5"/><text class="m h c" x="492" y="394">medium</text>
+  <use href="#c2" x="580" y="376"/>
+  <text class="sm mu" x="634" y="394">holds</text>
+  <path class="g" d="M20 418H700"/>
+  <text class="sm mu" x="20" y="440">KEV and EPSS apply in phase 2, as it is ranked; the others in phase 3, after every</text>
+  <text class="sm mu" x="20" y="458">scanner. Off the catalog, below 0.5 or unflagged, the CVE stays high, P2.</text>
 </svg>

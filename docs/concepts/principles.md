@@ -70,10 +70,9 @@ lowers the barrier for a newcomer, without dumbing things down for a professiona
 
 ## 4. Uncertainty never lowers a finding
 
-A finding moves down the list only on evidence that covers what ships. When `govulncheck` finds no
-call path from your Go code to a vulnerable function, it has checked the builds Draugr analyzed, not
-yet every build a module ships, so the finding keeps its band and the verdict is shown in the report.
-Where Draugr cannot tell, it assumes the worse case or leaves the rank alone:
+A finding moves down the list only on evidence. For Go, when `govulncheck` finds no call path from
+your code to a vulnerable function, the row drops a level and says `↓ unreachable`. Where no analysis
+ran, nothing moves. Where Draugr cannot tell, it assumes the worse case or leaves the rank alone:
 
 - **A component nobody classified ranks as public and critical**, so its findings surface rather
   than hide until you [declare](prioritization.md) what it is.

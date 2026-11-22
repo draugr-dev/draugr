@@ -315,8 +315,8 @@ What differs from a SARIF import:
   file. A module no imported file analyzed appears under `unread-files`, and its findings keep their
   manifest scanner's band, with no reachability verdict.
 - **Only `commit` binds the file**, since none of the tools writes a commit into its JSON. A
-  govulncheck file that is not bound claims nothing unreachable: its unreachable verdicts are read
-  as undetermined, and its reachable ones still apply.
+  govulncheck file that is not bound lowers nothing: its unreachable verdicts are read as
+  undetermined, and its reachable ones still apply.
 - **Grype's file is a scan of a directory**, `grype dir:<path>`. An image scan is about the image,
   not the component's repositories, so it is refused.
 - **OSV-Scanner's file holds lockfiles and SBOMs**, each placed by its path in the repository. A

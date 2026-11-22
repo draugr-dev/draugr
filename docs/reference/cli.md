@@ -785,9 +785,8 @@ A severity gate judges each finding's ranked severity, not the SARIF level, so a
 CVSS 7.8 a scanner emits as `warning` is `high` for the gate as it is in the report. A finding with
 no CVSS score takes its band from the level its scanner assigned. A control may hold its findings
 at a **floor** (a `secrets` finding is never below `high`, however the scanner scored it), and
-signals then move the result, so a CVE on KEV is judged `critical`. A reachability verdict moves
-nothing, so an unreachable `critical` is judged `critical`. `--fail-on-new` judges a new finding the
-same way.
+signals then move the result, so a CVE on KEV is judged `critical` and an unreachable `critical` is
+judged `high`. `--fail-on-new` judges a new finding the same way.
 
 **Priority** (P1–P4) is ranked from a finding's severity and the component's declared `exposure`
 and `criticality` (see the [Saga reference](saga-schema.md)). A component that declares neither is

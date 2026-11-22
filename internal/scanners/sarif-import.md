@@ -204,10 +204,10 @@ either. Pipeline Scan writes no SARIF, so its `results.json` is read into code f
 - **A govulncheck file covers the Go modules its runs were started in.** With a local checkout, each
   `go.mod` in it is accounted for, and one no imported file analyzed is listed under `unread-files`
   with the command to run there. Without a local checkout, no module is accounted for.
-- **Bind a govulncheck file with `commit`, or its unreachable verdicts are not claimed.** Without a
+- **Bind a govulncheck file with `commit`, or its unreachable verdicts lower nothing.** Without a
   binding (no `commit`, an unset variable, or a component of several repositories) an unreachable
-  verdict is read as undetermined, its message ending `reachability not determined: the file is
-  bound to no commit`. A reachable verdict applies either way, and no verdict moves a band. See
+  verdict is read as undetermined and the finding keeps its band, its message ending `reachability
+  not determined: the file is bound to no commit`. A reachable verdict applies either way. See
   [Commit](#commit).
 - **The file names no commit or repository.** Only the import's `commit` binds it, and only in a
   component of one repository (see [Commit](#commit)). In a component of several, its findings are

@@ -158,8 +158,8 @@
     "failOnPriority": "P1"
   },
   "priorities": {
-    "p1": 4,
-    "p2": 1,
+    "p1": 3,
+    "p2": 2,
     "p3": 0,
     "p4": 0
   },

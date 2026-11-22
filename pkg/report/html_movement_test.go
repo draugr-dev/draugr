@@ -82,8 +82,8 @@ func movementRun() Data {
 			{RuleID: "CVE-2", Level: sarif.LevelWarning, Tool: "trivy", Priority: "P2", Component: "api",
 				Escalation:   epss,
 				Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable}},
-			{RuleID: "CVE-3", Level: sarif.LevelError, Tool: "trivy", Priority: "P2", Component: "worker",
-				Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph}},
+			{RuleID: "CVE-3", Level: sarif.LevelError, Tool: "trivy", Priority: "P4", Component: "worker",
+				Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable, RankedAs: "low"}},
 			{RuleID: "CVE-4", Level: sarif.LevelNote, Tool: "trivy", Priority: "P4", Component: "worker",
 				Reachability: &sarif.Reachability{State: sarif.ReachabilityUnreachable}},
 		}}},
@@ -123,7 +123,7 @@ func TestTheMovementMenuCountsEveryFindingUnderEachInputThatMovedIt(t *testing.T
 	for rule, want := range map[string][2]string{
 		"cve-1":   {"escalation", "api"},
 		"cve-2":   {"escalation", "api"},
-		"cve-3":   {"untouched", "worker"},
+		"cve-3":   {"unreachable", "worker"},
 		"cve-4":   {"untouched", "worker"},
 		"aws-key": {"floor", "api"},
 		"gcp-key": {"escalation floor", "worker"},
@@ -143,21 +143,20 @@ func TestTheMovementMenuCountsEveryFindingUnderEachInputThatMovedIt(t *testing.T
         <span class="c">3</span>`,
 		`<input type="checkbox" data-k="movement" value="floor" data-label="floored by a control">floored by a control</span>
         <span class="c">2</span>`,
+		`<input type="checkbox" data-k="movement" value="unreachable" data-label="lowered as unreachable">lowered as unreachable</span>
+        <span class="c">1</span>`,
 		`<input type="checkbox" data-k="movement" value="untouched" data-label="ranked from severity alone">ranked from severity alone</span>
-        <span class="c">4</span>`,
+        <span class="c">3</span>`,
 	} {
 		if !strings.Contains(menu, want) {
 			t.Errorf("the Movement menu is missing\n%s\nin\n%s", want, menu)
 		}
 	}
 	// The values in the order the menu offers them everywhere else.
-	order := []string{"raised by a signal", "floored by a control",
+	order := []string{"raised by a signal", "floored by a control", "lowered as unreachable",
 		"raised to a minimum severity", "ranked from severity alone"}
-	// Neither moves a band, so neither is a movement.
-	for _, not := range []string{"history", "unreachable"} {
-		if strings.Contains(menu, not) {
-			t.Errorf("%s is offered as a movement, and it moves no band", not)
-		}
+	if strings.Contains(menu, "history") {
+		t.Error("history is offered as a movement, and it moves no band")
 	}
 	for i := 1; i < len(order); i++ {
 		if strings.Index(menu, order[i-1]) > strings.Index(menu, order[i]) {
@@ -189,6 +188,8 @@ func TestTheMovementMenuOffersEveryValueWithAZero(t *testing.T) {
 		`value="escalation" data-label="raised by a signal" disabled>raised by a signal</span>
         <span class="c">0</span>`,
 		`value="floor" data-label="floored by a control" disabled>floored by a control</span>
+        <span class="c">0</span>`,
+		`value="unreachable" data-label="lowered as unreachable" disabled>lowered as unreachable</span>
         <span class="c">0</span>`,
 		`value="minimum" data-label="raised to a minimum severity" disabled>raised to a minimum severity</span>
         <span class="c">0</span>`,

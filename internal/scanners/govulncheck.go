@@ -606,6 +606,9 @@ func parseGovulncheckAt(out []byte, dir string, now time.Time) (sarif.Report, er
 		other = append(other, rs...)
 	}
 	results := withPlatformVerdicts(host, other)
+	if len(plan) > 0 {
+		withAnalyzedBuilds(dir, results, plan, runs)
+	}
 	inputs = append(inputs, stdlibOnlyInputs(dir, stdlibOnly)...)
 	var notBuilt []sarif.PackageVerdict
 	if len(plan) > 0 {
@@ -655,6 +658,69 @@ type moduleBuild struct {
 //     and those of the go.work governing the module where the workspace uses it.
 //   - The go.mod, and that go.work, can be read and parsed.
 func notBuiltVerdicts(dir string, plan []govulncheckPlanned, runs [][]govulncheckMessage, asOf string) []sarif.PackageVerdict {
+	order, builds := moduleBuilds(plan, runs)
+	tags := goflagsTags(os.Getenv("GOFLAGS"))
+	var out []sarif.PackageVerdict
+	for _, mod := range order {
+		b := builds[mod]
+		if !b.clean {
+			continue
+		}
+		gomod, ok := relSlash(dir, filepath.Join(mod, "go.mod"))
+		if !ok {
+			continue
+		}
+		required, ok := unreplacedRequirements(dir, mod)
+		if !ok {
+			continue
+		}
+		for _, path := range required {
+			if b.built[path] {
+				continue
+			}
+			out = append(out, sarif.PackageVerdict{Path: gomod, Package: path, Reachability: sarif.Reachability{
+				State:    sarif.ReachabilityNotBuilt,
+				Analyzer: govulncheckScanner,
+				Method:   sarif.MethodNotBuilt,
+				AsOf:     asOf,
+				Build:    &sarif.AnalyzedBuild{Platforms: slices.Clone(b.platforms), Tags: slices.Clone(tags)},
+			}})
+		}
+	}
+	return out
+}
+
+// withAnalyzedBuilds gives each unreachable verdict in results the build its module was analyzed
+// over: the platforms govulncheck ran for, the machine's own first, and the build tags set. A call
+// graph covers the build it compiled, so a verdict of no path is a claim about those platforms, and
+// the report names them beside the band it lowered.
+func withAnalyzedBuilds(dir string, results []sarif.Result, plan []govulncheckPlanned, runs [][]govulncheckMessage) {
+	_, builds := moduleBuilds(plan, runs)
+	byManifest := map[string][]string{}
+	for mod, b := range builds {
+		if gomod, ok := relSlash(dir, filepath.Join(mod, "go.mod")); ok {
+			byManifest[gomod] = b.platforms
+		}
+	}
+	tags := goflagsTags(os.Getenv("GOFLAGS"))
+	for i := range results {
+		r := results[i].Reachability
+		if r == nil || r.State != sarif.ReachabilityUnreachable {
+			continue
+		}
+		platforms, ok := byManifest[results[i].Location.URI]
+		if !ok {
+			continue
+		}
+		reach := *r
+		reach.Build = &sarif.AnalyzedBuild{Platforms: slices.Clone(platforms), Tags: slices.Clone(tags)}
+		results[i].Reachability = &reach
+	}
+}
+
+// moduleBuilds gathers, per module, what govulncheck's runs over it read of its build, with the
+// modules in the order plan first names them. runs are the runs plan planned, in the same order.
+func moduleBuilds(plan []govulncheckPlanned, runs [][]govulncheckMessage) ([]string, map[string]*moduleBuild) {
 	var order []string
 	builds := map[string]*moduleBuild{}
 	for i, run := range runs {
@@ -693,35 +759,7 @@ func notBuiltVerdicts(dir string, plan []govulncheckPlanned, runs [][]govulnchec
 			b.clean = false
 		}
 	}
-	tags := goflagsTags(os.Getenv("GOFLAGS"))
-	var out []sarif.PackageVerdict
-	for _, mod := range order {
-		b := builds[mod]
-		if !b.clean {
-			continue
-		}
-		gomod, ok := relSlash(dir, filepath.Join(mod, "go.mod"))
-		if !ok {
-			continue
-		}
-		required, ok := unreplacedRequirements(dir, mod)
-		if !ok {
-			continue
-		}
-		for _, path := range required {
-			if b.built[path] {
-				continue
-			}
-			out = append(out, sarif.PackageVerdict{Path: gomod, Package: path, Reachability: sarif.Reachability{
-				State:    sarif.ReachabilityNotBuilt,
-				Analyzer: govulncheckScanner,
-				Method:   sarif.MethodNotBuilt,
-				AsOf:     asOf,
-				Build:    &sarif.AnalyzedBuild{Platforms: slices.Clone(b.platforms), Tags: slices.Clone(tags)},
-			}})
-		}
-	}
-	return out
+	return order, builds
 }
 
 // unreplacedRequirements are the module paths the go.mod of the module at mod requires, in the
