@@ -1245,17 +1245,12 @@ func droppedOrder(f finding) int {
 }
 
 // reachabilityOrder ranks what reachability analysis said of a finding, for ordering inside a band:
-// 2 where a call path reaches the vulnerable code, 1 where no analysis gave an answer, and 0 where a
-// verdict says nothing reaches it. A not-built mark is evidence that moves nothing, so it ranks as
-// no answer.
+// 2 where a call path reaches the vulnerable code, and 1 otherwise. An unreachable verdict and a
+// not-built mark rank as no answer: each covers the builds analyzed, which are not yet every build a
+// module ships, so neither moves a finding down, inside its band or across one.
 func reachabilityOrder(f finding) int {
-	switch {
-	case f.reachability == nil:
-		return 1
-	case f.reachability.State == sarif.ReachabilityReachable:
+	if f.reachability != nil && f.reachability.State == sarif.ReachabilityReachable {
 		return 2
-	case f.reachability.State == sarif.ReachabilityUnreachable:
-		return 0
 	}
 	return 1
 }
@@ -2000,33 +1995,6 @@ func reachabilityPath(r *sarif.Reachability) string {
 	return out + attribution(r)
 }
 
-// unreachableCredit names who decided a finding is never called, and when.
-//
-// The mark on the row says the band was lowered; this is the part a reader would otherwise have to
-// take on trust. A call graph does not see reflection or code generated tomorrow, so which
-// analyzer ran and which day it ran are what make the claim one somebody can argue with.
-//
-// Not the method. Every method that lowers a band is one Draugr treats as evidence of absence, so
-// naming it here separates two analyzers a reader would act on identically, at the cost of the
-// line the finding's own sentence shares. Where the method decided something the reader cannot
-// otherwise see, it is named: see unreachableStanding.
-func unreachableCredit(r *sarif.Reachability) string {
-	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" {
-		return ""
-	}
-	return strings.TrimSuffix(strings.TrimPrefix(attribution(r), " ("), ")")
-}
-
-// notBuiltWord is the facts line's word for a finding on a module the analyzed build does not
-// compile, or "" for any other. It says what was read and carries no arrow: the band did not move,
-// because the platforms analyzed may not be all that ship.
-func notBuiltWord(r *sarif.Reachability) string {
-	if r == nil || r.State != sarif.ReachabilityNotBuilt {
-		return ""
-	}
-	return "not built"
-}
-
 // notBuiltEvidence names the build a module is missing from, and who read it, for the line under the
 // row: "not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)". Only
 // the build that was read, because a module compiled only for another platform or under a tag nobody
@@ -2053,6 +2021,44 @@ func notBuiltNote(b *sarif.AnalyzedBuild) string {
 	return out + ", " + english.Choose(len(b.Tags), "build tag ", "build tags ") + english.And(b.Tags)
 }
 
+// reachabilityEvidence is everything a reachability verdict says about a finding, for the HTML
+// report: the path that reaches it, the build a module is not in, or that no analyzed build calls it,
+// with who decided and when. "" where no analyzer said anything.
+//
+// The scan terminal shows only the reachable path. The others move no band, so they do not change
+// what to fix first, and a reader who wants the detail has this.
+func reachabilityEvidence(r *sarif.Reachability) string {
+	if r == nil {
+		return ""
+	}
+	switch r.State {
+	case sarif.ReachabilityReachable:
+		return reachabilityPath(r)
+	case sarif.ReachabilityNotBuilt:
+		return notBuiltEvidence(r)
+	case sarif.ReachabilityUnreachable:
+		if !sarif.ProvesAbsence(r.Method) {
+			return unreachableStanding(r)
+		}
+		return notCalledNote(r) + attribution(r)
+	}
+	return ""
+}
+
+// notCalledNote says an analyzer found no call to the vulnerable code in the builds it read, and that
+// the others were not checked, as "not called in the linux/amd64 build analyzed; other builds not
+// checked".
+func notCalledNote(r *sarif.Reachability) string {
+	builds := "the build analyzed"
+	switch {
+	case r.Build != nil && len(r.Build.Platforms) > 0:
+		builds = "the " + platformNote(r.Build.Platforms) + " analyzed"
+	case len(r.Platforms) > 0:
+		builds = "the " + platformNote(r.Platforms) + " analyzed"
+	}
+	return "not called in " + builds + "; other builds not checked"
+}
+
 // unreachableStanding reports an unreachable verdict that left the band where it was.
 //
 // The row carries no mark in that case, so without this line the finding reads as one nothing was
@@ -2063,10 +2069,7 @@ func notBuiltNote(b *sarif.AnalyzedBuild) string {
 // A finding already at the lowest band is neither. Nothing moved because there was nowhere to move
 // it, and the analyzer was believed.
 func unreachableStanding(r *sarif.Reachability) string {
-	if r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs != "" {
-		return ""
-	}
-	if sarif.ProvesAbsence(r.Method) {
+	if r == nil || r.State != sarif.ReachabilityUnreachable || sarif.ProvesAbsence(r.Method) {
 		return ""
 	}
 	credit := attribution(r)

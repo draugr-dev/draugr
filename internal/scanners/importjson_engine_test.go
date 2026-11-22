@@ -139,16 +139,16 @@ func nativeBands(t *testing.T) map[string]string {
 }
 
 // A govulncheck file bound to the commit this run reads moves its verdicts onto trivy-fs's findings
-// of the same advisories, as a govulncheck run does: the unreachable one lowers trivy-fs's finding
-// and the imported copy is folded into it, and the reachable one rides on trivy-fs's finding.
-func TestABoundGovulncheckFileLowersTrivyFSsUnreachableFinding(t *testing.T) {
+// of the same advisories, as a govulncheck run does: the unreachable one rides on trivy-fs's finding,
+// which keeps its band, and the imported copy is folded into it, and so does the reachable one.
+func TestABoundGovulncheckFileCarriesItsVerdictsOntoTrivyFSsFindings(t *testing.T) {
 	native := nativeBands(t)
 	res, found := beside(t, reachStream(t), boundHead)
-	lowered := found["trivy-fs CVE-2026-56852"]
-	if r := lowered.Reachability; r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs == "" ||
-		lowered.Priority == native["trivy-fs CVE-2026-56852"] {
-		t.Errorf("trivy-fs's CVE-2026-56852 at %s (native %s), reachability %+v, want govulncheck's unreachable verdict lowering it",
-			lowered.Priority, native["trivy-fs CVE-2026-56852"], lowered.Reachability)
+	kept := found["trivy-fs CVE-2026-56852"]
+	if r := kept.Reachability; r == nil || r.State != sarif.ReachabilityUnreachable || r.RankedAs != "" ||
+		kept.Priority != native["trivy-fs CVE-2026-56852"] {
+		t.Errorf("trivy-fs's CVE-2026-56852 at %s (native %s), reachability %+v, want govulncheck's unreachable verdict on it, the band unmoved",
+			kept.Priority, native["trivy-fs CVE-2026-56852"], kept.Reachability)
 	}
 	for _, folded := range []string{"sarif-import CVE-2026-56852", "sarif-import CVE-2021-38561"} {
 		if _, kept := found[folded]; kept {
@@ -168,11 +168,11 @@ func TestABoundGovulncheckFileLowersTrivyFSsUnreachableFinding(t *testing.T) {
 	}
 }
 
-// A govulncheck file bound to no commit lowers nothing: nothing shows its run analyzed this code, so
-// trivy-fs's finding it calls unreachable keeps its native band, and so does the imported finding
-// only the file reports, each undetermined. Its reachable verdict still applies, since a call path
-// never makes a finding look safer.
-func TestAnUnboundGovulncheckFileLowersNothing(t *testing.T) {
+// A govulncheck file bound to no commit says nothing is unreachable: nothing shows its run analyzed
+// this code, so trivy-fs's finding it calls unreachable, and the imported finding only the file
+// reports, are each undetermined. Its reachable verdict still applies, since a call path never makes
+// a finding look safer.
+func TestAnUnboundGovulncheckFileClaimsNothingUnreachable(t *testing.T) {
 	native := nativeBands(t)
 	_, found := beside(t, reachStream(t), "")
 	kept := found["trivy-fs CVE-2026-56852"]
@@ -186,8 +186,8 @@ func TestAnUnboundGovulncheckFileLowersNothing(t *testing.T) {
 		t.Errorf("CVE-2020-14040, which only the file reports: %+v, want it undetermined and unmoved", only.Reachability)
 	}
 	_, bound := beside(t, reachStream(t), boundHead)
-	if lowered := bound["sarif-import CVE-2020-14040"]; only.Priority == lowered.Priority {
-		t.Errorf("CVE-2020-14040 at %s unbound and %s bound, want the bound verdict alone to lower it", only.Priority, lowered.Priority)
+	if r := bound["sarif-import CVE-2020-14040"].Reachability; r == nil || r.State != sarif.ReachabilityUnreachable {
+		t.Errorf("CVE-2020-14040 bound: %+v, want the bound file's unreachable verdict", r)
 	}
 	if r := found["trivy-fs CVE-2021-38561"].Reachability; r == nil || r.State != sarif.ReachabilityReachable {
 		t.Errorf("trivy-fs's CVE-2021-38561 reachability %+v, want the unbound file's reachable verdict", r)

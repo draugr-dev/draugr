@@ -152,8 +152,6 @@ To order two rows in one list, compare them key by key from the top. The first k
    [`config.exploitability`](prioritization.md#exploitability) turns them on.
 4. **Severity.** The highest severity among its findings, after adjustment:
    - the severity KEV or EPSS raised it to, where one did;
-   - else the severity reachability analysis lowered it to, where the vulnerable code is never
-     called;
    - else the scanner's own rating.
 5. **Count.** How many findings it clears.
 6. **The step within the policy.** Of the two steps of one package's upgrade, the one within the

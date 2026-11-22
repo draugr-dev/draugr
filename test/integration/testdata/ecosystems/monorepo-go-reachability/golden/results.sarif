@@ -146,12 +146,11 @@
               "purl": "pkg:golang/github.com/tidwall/gjson@v1.6.5",
               "version": "v1.6.5"
             },
-            "priority": "P2",
+            "priority": "P1",
             "reachability": {
               "analyzer": "govulncheck",
               "asOf": "<today>",
               "method": "call-graph",
-              "rankedAs": "medium",
               "state": "unreachable",
               "symbols": [
                 "github.com/tidwall/gjson.Get",

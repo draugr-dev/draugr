@@ -12,7 +12,9 @@ func bandFor(res sarif.Result, expl *exploit.Source) (string, sarif.Severity) {
 	return p.Band, p.RankedAs
 }
 
-func TestUnreachableRanksDown(t *testing.T) {
+// An unreachable verdict moves no band: the call graph covers the builds analyzed, which are not yet
+// every build a module ships (https://github.com/draugr-dev/draugr/issues/2336).
+func TestAnUnreachableVerdictMovesNothing(t *testing.T) {
 	high := sarif.Result{RuleID: "CVE-2020-14040", Level: sarif.LevelError, Score: 7.5, HasScore: true}
 	reachable := high
 	reachable.Reachability = &sarif.Reachability{State: sarif.ReachabilityReachable, Method: sarif.MethodCallGraph}
@@ -22,14 +24,11 @@ func TestUnreachableRanksDown(t *testing.T) {
 	reachBand, reachRanked := bandFor(reachable, nil)
 	unreachBand, unreachRanked := bandFor(unreachable, nil)
 
-	if reachBand == unreachBand {
-		t.Errorf("both banded %q, reachability changed nothing", reachBand)
+	if noneBand, _ := bandFor(high, nil); reachBand != noneBand || unreachBand != noneBand {
+		t.Errorf("reachable %q, unreachable %q, no verdict %q: want one band", reachBand, unreachBand, noneBand)
 	}
-	if reachRanked != "" {
-		t.Errorf("reachable recorded rankedAs %q; severity already assumes the code runs", reachRanked)
-	}
-	if unreachRanked != sarif.SeverityMedium {
-		t.Errorf("unreachable rankedAs = %q, want medium", unreachRanked)
+	if reachRanked != "" || unreachRanked != "" {
+		t.Errorf("rankedAs: reachable %q, unreachable %q, want none", reachRanked, unreachRanked)
 	}
 }
 
@@ -47,12 +46,10 @@ func TestAWeakMethodDoesNotMoveTheBand(t *testing.T) {
 	if ranked != "" {
 		t.Errorf("a framework heuristic recorded rankedAs %q", ranked)
 	}
-	strong := res
-	strong.Reachability = &sarif.Reachability{
-		State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph,
-	}
-	if strongBand, _ := bandFor(strong, nil); strongBand == band {
-		t.Errorf("both banded %q; the method changed nothing", band)
+	none := res
+	none.Reachability = nil
+	if noneBand, _ := bandFor(none, nil); noneBand != band {
+		t.Errorf("banded %q, want %q as with no verdict", band, noneBand)
 	}
 }
 

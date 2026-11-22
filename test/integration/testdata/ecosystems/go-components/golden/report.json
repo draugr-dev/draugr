@@ -56,13 +56,13 @@
         {
           "kind": "manifest",
           "line": 5,
-          "path": "tools/go.mod",
+          "path": "go.mod",
           "repository": "./go-components"
         },
         {
           "kind": "manifest",
           "line": 5,
-          "path": "go.mod",
+          "path": "tools/go.mod",
           "repository": "./go-components"
         }
       ],
@@ -76,8 +76,8 @@
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
       "versioning": "go",
       "where": [
-        "tools/go.mod:5",
-        "go.mod:5"
+        "go.mod:5",
+        "tools/go.mod:5"
       ]
     }
   ],

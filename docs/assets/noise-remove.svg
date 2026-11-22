@@ -1,6 +1,6 @@
 <svg viewBox="0 0 720 620" width="720" height="620" role="img" aria-label="The ledger CVE under each removal lever: correlation makes two copies one row, an exclusion or a VEX statement marks it and keeps it, an action folds it into one upgrade, and an unreachable verdict keeps it in the count." xmlns="http://www.w3.org/2000/svg">
   <title>Levers that remove, on the ledger CVE</title>
-  <desc>The ledger CVE with KEV off, at P2. Correlation, always on in run phase 4: the ledger CVE reported by trivy-fs and by grype-fs becomes one row naming grype-fs. config.exclude, phase 4: accepted with a reason and an expiry, it stays in the report marked accepted and leaves the count and the gate. VEX, phase 4: the module's supplier states it does not affect their product, and it stays marked VEX. Actions, at report time with --view actions: the ledger CVE and two more CVEs in the same module become one upgrade that clears three, at P2. Scanner exclusions and builtBy or operatedBy do not reach it: it carries no directive, and ledger is built by you. An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked unreachable.</desc>
+  <desc>The ledger CVE with KEV off, at P2. Correlation, always on in run phase 4: the ledger CVE reported by trivy-fs and by grype-fs becomes one row naming grype-fs. config.exclude, phase 4: accepted with a reason and an expiry, it stays in the report marked accepted and leaves the count and the gate. VEX, phase 4: the module's supplier states it does not affect their product, and it stays marked VEX. Actions, at report time with --view actions: the ledger CVE and two more CVEs in the same module become one upgrade that clears three, at P2. Scanner exclusions and builtBy or operatedBy do not reach it: it carries no directive, and ledger is built by you. An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, its verdict in the report.</desc>
   <defs>
     <style>
       text{font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;fill:#E6E8EA;font-size:14px}
@@ -84,13 +84,13 @@
 
   <g transform="translate(368 424)">
     <rect class="pan" width="340" height="180" rx="10"/>
-    <text class="m b t" x="14" y="26">↓ unreachable is not removal</text>
+    <text class="m b t" x="14" y="26">unreachable is not removal</text>
     <text class="m k mu" x="14" y="46">config.reachability · phase 3</text>
     <use href="#c2" x="14" y="88"/><text class="b" x="54" y="102">ledger CVE</text>
     <path class="ar" d="M144 98H170" marker-end="url(#h)"/>
     <use href="#c2" x="178" y="84"/><text class="b" x="218" y="98">ledger CVE</text>
-    <text class="m sm" x="218" y="118"><tspan class="td">↓</tspan> unreachable</text>
-    <text class="sm mu" x="14" y="152">Still counted, one severity level lower; only</text>
+    <text class="m sm mu" x="218" y="118">unreachable</text>
+    <text class="sm mu" x="14" y="152">Still counted, at its own severity; only</text>
     <text class="sm mu" x="14" y="170">a person's decision suppresses.</text>
   </g>
 </svg>

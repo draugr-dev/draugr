@@ -89,9 +89,6 @@ func TestAListingThatRaisedNothingStillOverrulesUnreachable(t *testing.T) {
 	if want, _ := bandFor(listedOnly, kev); band != want {
 		t.Errorf("band = %q, want %q; reachability lowered a finding on KEV", band, want)
 	}
-	if _, ranked := bandFor(res, nil); ranked == "" {
-		t.Error("without KEV the same finding should be lowered, or this test proves nothing")
-	}
 }
 
 func TestDefaultPrioritizerAppliesTheControlFloor(t *testing.T) {
