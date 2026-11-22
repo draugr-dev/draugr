@@ -1,0 +1,1 @@
+- **Draugr's own Go dependencies are past three advisories.** golang.org/x/net v0.62.0 fixes CVE-2026-78661 and CVE-2026-97045, and golang.org/x/crypto v0.59.0 fixes GO-2026-5932. 0.186.0 and earlier ship the affected versions. govulncheck finds no call path from Draugr to any of them, so upgrading is all there is to do.
