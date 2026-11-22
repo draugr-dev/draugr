@@ -209,8 +209,8 @@ runs:
         echo "report=${base}/report.json" >>"$GITHUB_OUTPUT"
         echo "out=${base}" >>"$GITHUB_OUTPUT"
 
-    # The installer downloads cosign once, with no retry of its own, so a download cut short or
-    # answered with a gateway error would fail the job before anything is scanned. It runs a second
+    # The installer's downloads retry only what curl counts as transient, a timeout and a few HTTP
+    # status codes, so a download cut short would fail the job before anything is scanned. It runs a second
     # time after a pause, the same pinned installer with the same checksum checks, so nothing
     # unverified runs. The check after it fails the job when neither attempt installed cosign.
     - name: Install cosign
