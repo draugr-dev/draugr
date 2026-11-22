@@ -18,36 +18,44 @@ func TestDeescalateStopsAtLow(t *testing.T) {
 	}
 }
 
-func TestRankAtMovesNothing(t *testing.T) {
-	// Reachable does not raise: severity already assumes the vulnerable code runs. Unreachable does
-	// not lower: the call graph covers the builds analyzed, which are not yet every build a module
-	// ships (https://github.com/draugr-dev/draugr/issues/2336).
+func TestRankAtOnlyMovesUnreachable(t *testing.T) {
+	// Reachable does not raise: severity already assumes the vulnerable code runs, so treating a
+	// confirmed call as an escalation would count the same assumption twice.
 	for _, tc := range []struct {
 		name  string
 		reach *Reachability
+		want  Severity
 	}{
-		{"no analysis", nil},
-		{"reachable", &Reachability{State: ReachabilityReachable, Method: MethodCallGraph}},
-		{"undetermined", &Reachability{State: ReachabilityUnknown, Method: MethodCallGraph}},
-		{"unreachable by call graph", &Reachability{State: ReachabilityUnreachable, Method: MethodCallGraph}},
-		{"unreachable by data flow", &Reachability{State: ReachabilityUnreachable, Method: MethodDataFlow}},
+		{"no analysis", nil, SeverityHigh},
+		{"reachable", &Reachability{State: ReachabilityReachable, Method: MethodCallGraph}, SeverityHigh},
+		{"undetermined", &Reachability{State: ReachabilityUnknown, Method: MethodCallGraph}, SeverityHigh},
+		{"unreachable", &Reachability{State: ReachabilityUnreachable, Method: MethodCallGraph}, SeverityMedium},
 	} {
-		if got := tc.reach.RankAt(SeverityHigh); got != SeverityHigh {
-			t.Errorf("%s: RankAt(high) = %q, want high", tc.name, got)
+		if got := tc.reach.RankAt(SeverityHigh); got != tc.want {
+			t.Errorf("%s: RankAt(high) = %q, want %q", tc.name, got, tc.want)
 		}
 	}
 }
 
-func TestOnlyAStrongMethodProvesAbsence(t *testing.T) {
-	// What separates them is what a *negative* is worth. A call graph that finds no path has
-	// searched for one; a framework heuristic that finds no route has read a configuration file.
-	// The report words the verdict by it, and lowering will rest on it once every build is analyzed.
-	for method, want := range map[string]bool{
-		MethodNotBuilt: false, MethodCallGraph: true, MethodDataFlow: true, MethodFrameworkHeuristic: false,
-		MethodImportCheck: false, "": false, "whatever-ships-next": false,
+func TestOnlyAStrongMethodLowersABand(t *testing.T) {
+	// What separates the four is what a *negative* is worth. A call graph that finds no path has
+	// searched for one; a framework heuristic that finds no route has read a configuration file,
+	// and a band lowered on that is a finding somebody stops looking at on the strength of a guess.
+	for _, tc := range []struct {
+		method string
+		want   Severity
+	}{
+		{MethodNotBuilt, SeverityHigh},
+		{MethodCallGraph, SeverityMedium},
+		{MethodDataFlow, SeverityMedium},
+		{MethodFrameworkHeuristic, SeverityHigh},
+		{MethodImportCheck, SeverityHigh},
+		{"", SeverityHigh},
+		{"whatever-ships-next", SeverityHigh},
 	} {
-		if got := ProvesAbsence(method); got != want {
-			t.Errorf("ProvesAbsence(%q) = %v, want %v", method, got, want)
+		reach := &Reachability{State: ReachabilityUnreachable, Method: tc.method}
+		if got := reach.RankAt(SeverityHigh); got != tc.want {
+			t.Errorf("method %q: RankAt(high) = %q, want %q", tc.method, got, tc.want)
 		}
 	}
 }

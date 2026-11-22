@@ -115,6 +115,58 @@ func TestAnAnalyzerThatDecidedNothingSaysWhyInstead(t *testing.T) {
 	}
 }
 
+func TestUnreachableCreditNamesWhoLoweredIt(t *testing.T) {
+	// The row is marked, so the line under it carries what the mark cannot: which analyzer decided
+	// nothing calls this, and the day it decided.
+	got := unreachableCredit(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+		RankedAs: sarif.SeverityMedium, AsOf: "2026-08-21",
+	})
+	if got != "govulncheck, 2026-08-21" {
+		t.Errorf("credit = %q", got)
+	}
+	// An analyzer that reported no date still gets named rather than going unattributed.
+	got = unreachableCredit(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck", RankedAs: sarif.SeverityLow,
+	})
+	if got != "govulncheck" {
+		t.Errorf("credit = %q", got)
+	}
+	// The build the call graph covered is named beside the analyzer: a verdict of no path holds for
+	// the platforms analyzed, and a binary for another may still make the call.
+	for _, tc := range []struct {
+		platforms []string
+		want      string
+	}{
+		{[]string{"linux/amd64"}, "govulncheck on linux/amd64, 2026-11-22"},
+		{[]string{"linux/amd64", "windows/amd64"}, "govulncheck on linux/amd64 and windows/amd64, 2026-11-22"},
+		{nil, "govulncheck, 2026-11-22"},
+	} {
+		got := unreachableCredit(&sarif.Reachability{
+			State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck", RankedAs: sarif.SeverityMedium,
+			AsOf: "2026-11-22", Build: &sarif.AnalyzedBuild{Platforms: tc.platforms},
+		})
+		if got != tc.want {
+			t.Errorf("credit over %v = %q, want %q", tc.platforms, got, tc.want)
+		}
+	}
+	// Nothing to credit, rather than an empty pair of brackets.
+	if got := unreachableCredit(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, RankedAs: sarif.SeverityLow,
+	}); got != "" {
+		t.Errorf("credit = %q, want nothing where no analyzer is named", got)
+	}
+	// Already at the lowest band: nothing moved, so there is nothing to account for.
+	if got := unreachableCredit(&sarif.Reachability{
+		State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
+	}); got != "" {
+		t.Errorf("credit = %q, want empty when the band did not move", got)
+	}
+	if got := unreachableCredit(nil); got != "" {
+		t.Errorf("nil credit = %q", got)
+	}
+}
+
 // A module the build does not compile is shown with the build that was read, not with a claim that the
 // code is safe: a module built only for another platform or under another tag is still shipped by
 // somebody. None of the lines an unreachable verdict writes appear for it.
@@ -140,7 +192,10 @@ func TestNotBuiltEvidenceNamesTheBuildAModuleIsNotIn(t *testing.T) {
 		}
 	}
 	r := notBuilt(&sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}})
-	if got := unreachableStanding(r) + reachabilityPath(r); got != "" {
+	if got := notBuiltWord(r); got != "not built" {
+		t.Errorf("word = %q, want not built", got)
+	}
+	if got := unreachableCredit(r) + unreachableStanding(r) + reachabilityPath(r); got != "" {
 		t.Errorf("unreachable lines = %q, want none", got)
 	}
 	if loweredAsUnreachable(finding{reachability: r}) || movedBy(finding{reachability: r}) != nil {
@@ -149,14 +204,14 @@ func TestNotBuiltEvidenceNamesTheBuildAModuleIsNotIn(t *testing.T) {
 	// Another state carries neither line.
 	call := &sarif.Reachability{State: sarif.ReachabilityUnreachable, Analyzer: "govulncheck",
 		Method: sarif.MethodCallGraph, RankedAs: sarif.SeverityLow}
-	if got := notBuiltEvidence(call) + notBuiltEvidence(nil); got != "" {
+	if got := notBuiltWord(call) + notBuiltEvidence(call) + notBuiltWord(nil); got != "" {
 		t.Errorf("call graph = %q, want no not-built line", got)
 	}
 }
 
-// The console keeps a not-built finding at its band and severity and leaves the verdict to the HTML
-// report: it moves no band, so it does not change what to fix first.
-func TestTheConsoleLeavesNotBuiltToTheHTMLReport(t *testing.T) {
+// The console's block keeps a not-built finding at its band and severity, says "not built" where a
+// mark would stand, with no arrow, and names the build on the line under it.
+func TestTheConsoleShowsNotBuiltBesideAnUnmovedFinding(t *testing.T) {
 	var out bytes.Buffer
 	if err := (consoleReporter{}).Render(&out, marksData()); err != nil {
 		t.Fatal(err)
@@ -170,8 +225,15 @@ func TestTheConsoleLeavesNotBuiltToTheHTMLReport(t *testing.T) {
 		t.Errorf("row = %q, want P1 high, unmoved", lines[at])
 	}
 	block := strings.Join(lines[at:at+4], "\n")
-	if strings.Contains(block, "not built") || strings.Contains(block, "not in the") || strings.Contains(block, "↓") {
-		t.Errorf("the terminal shows the verdict:\n%s", block)
+	facts, where := strings.TrimSpace(lines[at+2]), strings.TrimSpace(lines[at+3])
+	if !strings.HasPrefix(facts, "not built · ") {
+		t.Errorf("facts line = %q, want it to open with not built", facts)
+	}
+	if want := "not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)"; !strings.Contains(where, want) {
+		t.Errorf("line under = %q, want %q", where, want)
+	}
+	if strings.Contains(block, "↓") || strings.Contains(block, "unreachable") {
+		t.Errorf("block presents the finding as lowered:\n%s", block)
 	}
 }
 
@@ -272,32 +334,5 @@ func TestReachabilityPathCarriesTheShortestRoute(t *testing.T) {
 	}
 	if got := reachabilityPath(nil); got != "" {
 		t.Errorf("nil path = %q", got)
-	}
-}
-
-// The HTML report carries what a reachability verdict says about a finding: the path that reaches
-// it, the build a module is not in, or that the builds analyzed do not call it and the others were
-// not checked.
-func TestTheHTMLReportCarriesTheReachabilityVerdict(t *testing.T) {
-	for name, c := range map[string]struct {
-		r    *sarif.Reachability
-		want string
-	}{
-		"not called": {&sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph,
-			Analyzer: "govulncheck", AsOf: "2026-11-22", Platforms: []string{"linux/amd64"}},
-			"not called in the linux/amd64 build analyzed; other builds not checked (govulncheck, 2026-11-22)"},
-		"not called, builds unnamed": {&sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodCallGraph},
-			"not called in the build analyzed; other builds not checked"},
-		"not built": {&sarif.Reachability{State: sarif.ReachabilityNotBuilt, Method: sarif.MethodNotBuilt, Analyzer: "govulncheck",
-			AsOf: "2026-11-16", Build: &sarif.AnalyzedBuild{Platforms: []string{"linux/amd64"}}},
-			"not in the linux/amd64 build analyzed, no extra build tags (govulncheck, 2026-11-16)"},
-		"a weak method": {&sarif.Reachability{State: sarif.ReachabilityUnreachable, Method: sarif.MethodFrameworkHeuristic},
-			"unreachable · framework-heuristic · band unchanged"},
-		"undetermined": {&sarif.Reachability{State: sarif.ReachabilityUnknown}, ""},
-		"none":         {nil, ""},
-	} {
-		if got := toHTMLFinding(finding{severity: sarif.SeverityHigh, message: "a flaw", reachability: c.r}).Reachability; got != c.want {
-			t.Errorf("%s: %q, want %q", name, got, c.want)
-		}
 	}
 }

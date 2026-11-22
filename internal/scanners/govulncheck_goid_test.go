@@ -195,9 +195,10 @@ func TestAGoFlawGrypeReportsByGoIDCountsOnceUnderGovulnchecksVerdict(t *testing.
 			t.Errorf("%s %s: verdict %+v, want govulncheck's unreachable", r.Component, r.RuleID, r.Reachability)
 			continue
 		}
-		// The verdict moves nothing: the finding is ranked at Grype's own severity.
-		if r.Reachability.RankedAs != "" {
-			t.Errorf("%s %s: ranked as %s, want the verdict to move nothing", r.Component, r.RuleID, r.Reachability.RankedAs)
+		// Grype's own severity, one step down for the verdict, and the band public and critical
+		// gives that.
+		if want := r.Severity("").Deescalate(); r.Reachability.RankedAs != want || r.Priority == "P1" {
+			t.Errorf("%s %s: ranked as %s at %s, want %s and below P1", r.Component, r.RuleID, r.Reachability.RankedAs, r.Priority, want)
 		}
 	}
 	for _, component := range []string{"api", "web"} {
@@ -217,9 +218,8 @@ func TestAGoFlawGrypeReportsByGoIDCountsOnceUnderGovulnchecksVerdict(t *testing.
 	if s := res.Reachability; s.Unreachable != 2*len(chiGrypeMatches) || s.Reachable+s.Unknown != 0 {
 		t.Errorf("reachability = %+v, want each flaw unreachable once per component", s)
 	}
-	// The gate judges the flaws at the severity Grype gave, as it would with no verdict.
 	verdict := norn.Policy{}.Evaluate(map[string]sarif.Report{"sca": report})
-	if verdict.Verdict != norn.Fail {
-		t.Errorf("gate = %+v, want fail: an unreachable verdict passes nothing", verdict)
+	if verdict.Verdict != norn.Pass {
+		t.Errorf("gate = %+v, want pass: no flaw is reachable", verdict)
 	}
 }

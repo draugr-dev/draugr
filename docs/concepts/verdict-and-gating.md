@@ -44,8 +44,8 @@ verdict with two possible reasons cannot be read back to the rule that produced 
 
 A severity gate reads a finding's **ranked severity**: the scanner's rating held at
 the control's [minimum severity](prioritization.md#where-severity-comes-from) and then moved by every signal, the severity the report prints for the finding. A `high`
-on KEV is printed `critical ↑ KEV` and fails `--fail-on critical`. An unreachable verdict moves
-nothing, so an unreachable `critical` still fails `--fail-on critical`. In
+on KEV is printed `critical ↑ KEV` and fails `--fail-on critical`. An unreachable `critical` is
+printed `high ↓ unreachable`, passes `--fail-on critical` and fails `--fail-on high`. In
 `report.json`, `controls[].highest` is the severity each control was judged on.
 
 Which of the two catches more depends on the component, so neither is the stricter one. On a
@@ -339,8 +339,9 @@ fails.
 Every block above answers in bands, which is what the gate is set in and what the fix list is
 ordered by. Within a band, a finding on KEV comes first, then one EPSS raised, then the rest, which
 is why a `high` marked `↑ EPSS` sits above a `critical` with no mark. Next comes reachability: a
-finding a call path reaches before the rest. An unreachable verdict counts as no answer, since it
-covers only the builds analyzed. What a scanner called a flaw is
+finding a call path reaches before one no analysis answered for, and that one before a finding
+marked `↓ unreachable`, which was lowered a level and could otherwise lead its band on the score it
+had before the verdict. What a scanner called a flaw is
 on the finding's own row, where the judgment about it was made.
 
 ## Observability & security posture

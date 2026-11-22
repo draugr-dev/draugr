@@ -15,8 +15,8 @@ A scan of a real project returns hundreds of findings, and their severity alone 
 to fix first. A **band**, P1 to P4, is the order in which to fix findings. Draugr reads it from two inputs: the
 **tier** of the component a finding is in, from its declared `exposure` and `criticality`, and the
 finding's **severity**. Severity starts as the scanner's rating, and **signals** from outside the
-code move it before the band is read: KEV, EPSS and dependency health raise it. The **context
-floor** moves the tier for a leaked credential.
+code move it before the band is read: KEV, EPSS and dependency health raise it, reachability lowers
+it. The **context floor** moves the tier for a leaked credential.
 
 This page follows one finding through each step, and so does
 [Reducing the noise](reducing-the-noise.md). The **ledger CVE** is a CVSS 7.5 flaw in a Go module
@@ -116,9 +116,9 @@ scanner called it. A severity the minimum raised is marked `↑ minimum`.
 A **signal** is a published statement about a flaw or a package that moves the finding's severity
 one or more levels before the band is read. Each is off until it is turned on, and each names
 itself on the finding it moved with a **mark**. On the ledger CVE, every raise reaches critical and
-P1.
+P1, and the lowering leaves P2 in place.
 
-![The ledger CVE under each signal: four raise it to critical and P1](../assets/prio-signals.svg)
+![The ledger CVE under each signal: four raise it to critical and P1, unreachable lowers it to medium with P2 held](../assets/prio-signals.svg)
 
 | mark | means | moves severity | turned on by | applied |
 |---|---|---|---|---|
@@ -126,6 +126,7 @@ P1.
 | `↑ EPSS 0.62` | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 | up one level | `config.exploitability.epss` | as the finding is ranked |
 | `↑ malicious` | the package is in the OSSF Malicious Packages Project | to <span class="dr-crit">critical</span> | `config.dependencyHealth.enabled` | after every scanner finishes |
 | `↑ deprecated` | the publisher marked the version deprecated | up one level | `config.dependencyHealth.enabled` | after every scanner finishes |
+| `↓ unreachable` | `govulncheck` found no call path to the flaw, Go only | down one level | `config.reachability.analyzers` | after every scanner finishes |
 | `↓ pinned` | `.github/workflows/actions.lock` pins the action reference to a commit | holds the band at P3 | an `actions.lock` in the repository | as the finding is ranked |
 
 Other marks share the line under a finding. `↑ floor` means a leaked credential, ranked at C1
@@ -133,9 +134,9 @@ whatever its component declares, as [Context floor](#context-floor) describes. `
 leaked credential, held at high whatever its scanner rated it, by the minimum severity in
 [Where severity comes from](#where-severity-comes-from); a finding both floors moved is marked
 `↑ floor`. `↩ history` means the finding describes a commit rather than the current tree, so its
-path may be gone; it moves nothing. A finding with no mark was ranked by exposure, criticality and
-severity alone. A reachability verdict is not a signal: it moves nothing (see
-[Reachability](#reachability)).
+path may be gone; it moves nothing. A finding a signal raised and an unreachable verdict then lowered
+shows only the mark that decided its severity, `↓ unreachable`, and `report.json` keeps the raise
+under `escalation`. A finding with no mark was ranked by exposure, criticality and severity alone.
 
 KEV and EPSS reach only findings that name a CVE, which is `sca`, `images` and an imported file that
 names its findings by CVE or lists one beside the rule id, and **Signals** counts the imported
@@ -155,9 +156,9 @@ one the scanner reported. With no current copy, nothing is looked up, and the Si
 counts the findings KEV and EPSS could not check and names the command that fetches it.
 
 Dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
-low EPSS score and a package nobody has flagged rank as they would with no signal at all. No signal
-lowers a band, and neither does a reachability verdict, as [Reachability](#reachability) describes.
-Turning each signal on is the second lever in
+low EPSS score and a package nobody has flagged rank as they would with no signal at all. Only
+reachability lowers, and only from an analyzer that shows its method, as
+[Reachability](#reachability) describes. Turning each signal on is the second lever in
 [Reducing the noise](reducing-the-noise.md#ranking).
 
 <a id="how-each-signal-is-produced"></a>
@@ -170,6 +171,7 @@ Turning each signal on is the second lever in
 | EPSS | FIRST, a model trained on observed exploitation | daily | whether a CVE with a low score is safe |
 | malicious | the OSSF Malicious Packages Project, via deps.dev | as reports arrive | whether a package it has not seen is safe |
 | deprecated | the package's publisher, via deps.dev | when the publisher acts | whether the flaw can fire in your code |
+| unreachable | `govulncheck`'s call graph of your code and its dependencies | every scan | what the analysis could not see: reflection, dynamic dispatch, generated code |
 
 How each source decides is on the learn pages: [EPSS & KEV](/learn/epss-and-kev/),
 [dependency health](/learn/dependency-health/), [reachability](/learn/reachability/).
@@ -182,23 +184,41 @@ is on KEV; on `ledger` it is already critical and P1 before KEV is read. The lis
 - the finding is marked `KEV listed` rather than `↑ KEV`, because its band did not move;
 - `report.json` and the SARIF record the listing under `exploited`;
 - the `SIGNALS` line counts it as listed and not raised, `2 findings listed · 1 raised`;
-- it comes first in its band, as a finding and as the [action that clears it](what-to-fix-first.md#how-the-list-is-ordered).
+- it comes first in its band, as a finding and as the [action that clears it](what-to-fix-first.md#how-the-list-is-ordered);
+- it still overrules an unreachable verdict.
 
 EPSS, malicious and deprecated on a finding already at critical record nothing, and `SIGNALS`
 counts only the findings they raised.
 
 ## Collisions
 
-A **collision** is two signals matching one finding. One rule settles it, applied after every scanner
-has finished, when the finding is ranked again.
+A **collision** is two signals matching one finding. Two rules settle it, both applied after every
+scanner has finished, when the finding is ranked again.
 
-![The ledger CVE with two signals at once: ties go to exploitability, and otherwise the higher result wins](../assets/prio-collisions.svg)
+![The ledger CVE with two signals at once: ties go to exploitability, KEV, EPSS and malicious overrule unreachable, deprecated yields](../assets/prio-collisions.svg)
 
 **Two raises: the higher resulting severity wins.** Exploitability asks whether the flaw is being
 used; dependency health asks whether the package should be depended on at all. Neither is the
 stronger claim, so the result decides and the mark names the signal that produced it. A tie goes to
 exploitability, the statement about this specific flaw. On the ledger CVE every raise ends at
 critical, so every pair of raises is a tie.
+
+**A raise against an unreachable verdict: it depends on what the raise claims.** An unreachable
+verdict says analysis found no route today, on one revision; reflection, dynamic dispatch and code
+generation defeat a call graph, and the route appears the day somebody writes the call. So the
+verdict lowers severity one level and never removes the finding, and a signal saying the flaw is
+dangerous now overrules it.
+
+| signal | against `↓ unreachable` | because |
+|---|---|---|
+| KEV | ↑ overrules | somebody is exploiting it; a missed route is the expensive mistake |
+| EPSS | ↑ overrules | the same question, answered by prediction |
+| malicious | ↑ overrules | a hostile package is a problem whichever function anybody calls |
+| deprecated | ↓ yields | it says who maintains the package, not whether this flaw can fire |
+
+A deprecated package with a flaw nothing reaches still ranks down. The deprecation is an argument
+for replacing the dependency, and `report.json` carries it either way. A KEV listing overrules even
+where it raised nothing; EPSS and malicious overrule only where they raised the finding.
 
 <a id="some-findings-are-not-bounded-by-the-component"></a>
 
@@ -253,7 +273,12 @@ Each row is the ledger CVE, rated high, on `ledger`, classified `internal` / `cr
 | EPSS 0.62, threshold 0.5 | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ EPSS 0.62` |
 | package flagged malicious | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ malicious` |
 | version deprecated | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ deprecated` |
-An unreachable verdict changes none of these rows.
+| unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> `↓ unreachable` |
+| on KEV, unreachable | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> `↑ KEV` |
+| deprecated, unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> `↓ unreachable` |
+
+An unreachable verdict lowers the ledger CVE a level and holds the band, because C2 puts high and
+medium in the same band.
 
 ### Other findings
 
@@ -262,13 +287,16 @@ The cases the ledger CVE cannot show:
 | finding | component, tier | rating | signals | ranked severity | band |
 |---|---|---|---|---|---|
 | ledger CVE | `ledger`, unclassified · C1 | <span class="dr-high">high</span> | none | <span class="dr-high">high</span> | <span class="dr-p1">P1</span> |
+| ledger CVE | public, important · C1 | <span class="dr-high">high</span> | unreachable | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> `↓ unreachable` |
 | `CVE-2021-44228`, CVSS 10.0 | public, critical · C1 | <span class="dr-crit">critical</span> | none | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span> |
 | `CVE-2021-44228`, CVSS 10.0 | internal, important · C3 | <span class="dr-crit">critical</span> | none | <span class="dr-crit">critical</span> | <span class="dr-p2">P2</span> |
 | `CVE-2021-44228`, CVSS 10.0 | `ledger` · C2 | <span class="dr-crit">critical</span> | on KEV | <span class="dr-crit">critical</span> | <span class="dr-p1">P1</span>, no mark |
 | leaked token | `ledger` · C2 | <span class="dr-high">high</span>, minimum severity | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> `↑ floor` |
 | leaked token | `batch`: internal, supporting · C4 | <span class="dr-high">high</span>, minimum severity | context floor | <span class="dr-high">high</span> at C1 | <span class="dr-p1">P1</span> `↑ floor` |
 
-The `CVE-2021-44228` row on `ledger` is the case in [Already critical](#already-critical).
+On a public, important component the unreachable verdict moves the band from P1 to P2, where on
+`ledger` it held. The `CVE-2021-44228` row on `ledger` is the case in
+[Already critical](#already-critical).
 
 ## Configuration
 
@@ -426,32 +454,30 @@ config:
     analyzers: [govulncheck]   # Go only; needs a Go toolchain
 ```
 
-**An unreachable verdict moves nothing.** govulncheck follows the call graph of the builds Draugr
-analyzed: the machine's own platform, and Linux, Windows or macOS where the module's own code has
-files only that platform builds. Code a dependency compiles only for another platform is in a binary
-no run read, so a verdict of no path covers some of what ships, not all of it. The finding keeps the
-band its severity and classification give, until every platform the module graph builds for is
-analyzed ([issue 2236](https://github.com/draugr-dev/draugr/issues/2236)).
+Only a method that follows the code can lower severity, because a verdict of no path is worth what
+the analysis could not see:
 
-The verdict is evidence. `report.json` and the HTML report carry it, as `not called in the
-linux/amd64 build analyzed; other builds not checked`. The scan terminal shows a reachable verdict's
-call path, and leaves the rest to the report.
+| method | did | an unreachable verdict |
+|---|---|---|
+| `call-graph` | followed calls from an entry point to the vulnerable symbol | lowers severity one level |
+| `data-flow` | followed the data as well as the calls | lowers severity one level |
+| `framework-heuristic` | read a framework's conventions about wired handlers | reported, nothing moves |
+| `import-check` | saw whether the vulnerable package is referenced | reported, nothing moves |
 
-How strong a verdict of no path is depends on the method that reached it:
-
-| method | did |
-|---|---|
-| `call-graph` | followed calls from an entry point to the vulnerable symbol |
-| `data-flow` | followed the data as well as the calls |
-| `framework-heuristic` | read a framework's conventions about wired handlers |
-| `import-check` | saw whether the vulnerable package is referenced |
-
-govulncheck follows the call graph. A SARIF import carries a verdict only in Draugr's own
-`reachability` result property, and one from a weaker method says so in the report:
+govulncheck follows the call graph. A verdict from a weaker method travels in the report and says it
+moved nothing. A SARIF import carries one only in Draugr's own `reachability` result property:
 
 ```
 unreachable · framework-heuristic · band unchanged (dep-scan, 2026-08-21)
 ```
+
+A call graph covers the build it compiled: the machine's own platform, and Linux, Windows or macOS
+where the module's own code has files only that platform builds. The line under a lowered finding
+names that build, as `govulncheck on linux/amd64, 2026-11-22`, and `report.json` carries it as
+`reachability.build`, because a binary for a platform nobody analyzed may still make the call.
+Analyzing every platform the module graph builds for is
+https://github.com/draugr-dev/draugr/issues/2236. A govulncheck file imported from elsewhere does not
+say which platform its run built for, so its verdict names no build.
 
 A `go.mod` requirement missing from a build govulncheck loaded cleanly is marked `not built`, with
 the platforms and build tags it read, and lowers nothing. It is evidence shown beside the finding,
@@ -459,7 +485,8 @@ not a verdict: the platforms analyzed may not be all the module ships for, and a
 for another is in that binary. Lowering on it waits until every platform the module graph builds for
 is analyzed (https://github.com/draugr-dev/draugr/issues/2236).
 
-An analyzer that does not state its method is read the same way.
+An analyzer that does not state its method is read the same way. A lowered finding is judged at its
+lowered ranked severity by a severity gate, so an unreachable critical passes `--fail-on critical`.
 A Go module govulncheck could not load has no verdict: its findings keep their band, and its
 `go.mod` is listed under **Caveats** as `unread-files`, which
 [`config.gate.failOnCaveats`](../reference/saga-schema.md#configgate) can fail the run on.

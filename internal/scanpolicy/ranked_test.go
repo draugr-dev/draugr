@@ -62,13 +62,15 @@ func TestRankedSeverityIsWhatTheBandWasComputedFrom(t *testing.T) {
 	}{
 		{"untouched", "sca", scored("CVE-2099-0001", 7.5), sarif.SeverityHigh, ""},
 		{"raised by KEV", "sca", scored("CVE-2021-44228", 7.5), sarif.SeverityCritical, ""},
-		{"unreachable, not lowered", "sca", lowered(scored("CVE-2099-0001", 9.8)), sarif.SeverityCritical, ""},
+		{"lowered as unreachable", "sca", lowered(scored("CVE-2099-0001", 9.8)), sarif.SeverityHigh, ""},
 		{"KEV overrules unreachable", "sca", lowered(scored("CVE-2021-44228", 7.5)), sarif.SeverityCritical, ""},
 		{"held at the floor", "secrets", sarif.Result{RuleID: "token", Level: sarif.LevelWarning}, sarif.SeverityHigh, sarif.SeverityHigh},
 		{"above the floor", "secrets", sarif.Result{RuleID: "token", Level: sarif.LevelError, Score: 9.1, HasScore: true}, sarif.SeverityCritical, ""},
 		{"raised by a deprecated package", "sca", withPkg(scored("CVE-2099-0002", 5.0), "pkg:npm/old@1.0.0"), sarif.SeverityHigh, ""},
-		// The deprecation raises a low finding, and the verdict lowers nothing after it.
-		{"deprecated, unreachable", "sca", lowered(withPkg(scored("CVE-2099-0003", 2.0), "pkg:npm/old@1.0.0")), sarif.SeverityMedium, ""},
+		// A low finding the deprecation would raise is not lowered by the verdict at its own band,
+		// so the raise applies and the verdict then lowers the raised value: both records are on
+		// the finding and the band came from the last one.
+		{"deprecated, then lowered", "sca", lowered(withPkg(scored("CVE-2099-0003", 2.0), "pkg:npm/old@1.0.0")), sarif.SeverityLow, ""},
 		{"malicious overrules unreachable", "sca", lowered(withPkg(scored("CVE-2099-0004", 5.0), "pkg:npm/bad@1.0.0")), sarif.SeverityCritical, ""},
 	} {
 		rank := PrioritizerWith(kev, health)
@@ -77,8 +79,8 @@ func TestRankedSeverityIsWhatTheBandWasComputedFrom(t *testing.T) {
 			for _, criticality := range saga.Criticalities {
 				p := rank(c.control, exposure, criticality, c.res)
 				got := stamp(c.res, p)
-				if c.name == "deprecated, unreachable" && (p.Escalation == nil || p.RankedAs != "") {
-					t.Fatalf("%s: want an escalation and no rankedAs on the finding, got %+v", c.name, p)
+				if c.name == "deprecated, then lowered" && (p.Escalation == nil || p.RankedAs == "") {
+					t.Fatalf("%s: want both an escalation and a rankedAs on the finding, got %+v", c.name, p)
 				}
 				if ranked := got.RankedSeverity(); ranked != c.want {
 					t.Fatalf("%s: RankedSeverity = %q, want %q (%+v)", c.name, ranked, c.want, p)

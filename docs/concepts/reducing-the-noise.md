@@ -43,7 +43,7 @@ components:
 | `exposure`, `criticality` | sets the component's tier, as each finding is ranked | <span class="dr-p1">P1</span> unclassified, <span class="dr-p2">P2</span> declared | [Matrices](prioritization.md#matrices) |
 | `config.exploitability` | turns on `↑ KEV` and `↑ EPSS`; feeds read at start, applied as each finding is ranked | <span class="dr-p1">P1</span> `↑ KEV` once listed | [Exploitability](prioritization.md#exploitability) |
 | `config.dependencyHealth` | turns on `↑ malicious` and `↑ deprecated`, after every scanner finishes | <span class="dr-p1">P1</span> if its package is flagged | [Dependency health](prioritization.md#dependency-health) |
-| `config.reachability` | turns on govulncheck's call paths, Go only, after every scanner finishes; a verdict moves no band | <span class="dr-p2">P2</span>, its verdict in the report | [Reachability](prioritization.md#reachability) |
+| `config.reachability` | turns on `↓ unreachable`, Go only, after every scanner finishes | <span class="dr-p2">P2</span> `↓ unreachable`, band held | [Reachability](prioritization.md#reachability) |
 | `--min-priority P1` | lists only P1; counts and the gate still read every finding | not listed at <span class="dr-p2">P2</span> | [`--min-priority`](../reference/cli.md#what---min-priority-narrows) |
 
 The two fields are facts about your architecture and your business, which no scanner can compute,
@@ -83,8 +83,8 @@ A finding the tool of an [imported SARIF file](../guides/importing-sarif.md) sup
 ACCEPTED row, named for the tool (`imported bandit`). Like a scanner exclusion, nobody decided it in
 Draugr, so it has no author or date here. `suppressions: count` on the import counts these findings.
 
-An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, with the verdict
-in the report, because a suppression records that a person decided.
+An unreachable verdict is not a removal: the ledger CVE stays in the count at P2, marked
+`↓ unreachable`, because a suppression records that a person decided.
 
 ## Narrowing
 
@@ -132,8 +132,8 @@ The ledger CVE's list, plus one finding the current change introduced:
 | api CVE, new | <span class="dr-med">medium</span> | <span class="dr-p2">P2</span> | passes | fails | passes | fails |
 
 KEV turns the ledger CVE's verdict under `--fail-on critical` because the gate reads the ranked
-severity, not the scanner's high. An unreachable verdict moves nothing: an unreachable critical is
-judged critical. `--min-priority` leaves every verdict in
+severity, not the scanner's high. An unreachable verdict works the other way: an unreachable
+critical is judged high and passes `--fail-on critical`. `--min-priority` leaves every verdict in
 the table as it is, and a ledger CVE accepted through `config.exclude` or VEX no longer counts
 toward any gate. The flags are in [`scan` flags](../reference/cli.md#gating-on-new-findings), the
 descriptor block is [`config.gate`](../reference/saga-schema.md#configgate), and how the verdict and
@@ -154,6 +154,7 @@ defined in [Signals](prioritization.md#signals), with what it moves and the key 
 | `↑ EPSS 0.62` | the EPSS score, printed to two places, is at or above `epssThreshold`, default 0.5 |
 | `↑ malicious` | the package is in the OSSF Malicious Packages Project |
 | `↑ deprecated` | the publisher marked the version deprecated |
+| `↓ unreachable` | `govulncheck` found no call path to the flaw, Go only |
 | `↑ floor` | a leaked credential, ranked at C1 whatever its component declares |
 | `↑ minimum` | a leaked credential, held at high whatever its scanner rated it |
 | ↩ history | the finding describes a commit rather than the current tree, so its path may be gone |

@@ -529,10 +529,7 @@ type htmlFinding struct {
 	Aside string
 	// Platforms names the builds the finding's code is in where only another platform's build holds
 	// it, "windows/amd64 build", as the console prints it beside the location.
-	// Reachability is what a reachability analyzer said about the finding (reachabilityEvidence),
-	// "" where none did.
-	Reachability string
-	Platforms    string
+	Platforms string
 	// Search is the lower-cased haystack the filter box matches against, precomputed so the
 	// page does not rebuild it per keystroke.
 	Search string
@@ -1146,7 +1143,6 @@ func toHTMLFinding(f finding) htmlFinding {
 		NonShipping:   f.nonShipping,
 		Aside:         asideNote(f.aside),
 		Platforms:     platformNote(f.platforms),
-		Reachability:  reachabilityEvidence(f.reachability),
 		ActionKey:     actionKeyFor(f),
 		// What the row shows is what it finds.
 		Search: strings.ToLower(strings.Join(
@@ -1299,6 +1295,7 @@ type htmlFacet struct {
 var movementMenu = []struct{ key, label string }{
 	{moveEscalation, "raised by a signal"},
 	{moveFloor, "floored by a control"},
+	{moveUnreachable, "lowered as unreachable"},
 	{movePinned, "held at P3, pinned by actions.lock"},
 	{moveMinimum, "raised to a minimum severity"},
 	{moveUntouched, "ranked from severity alone"},
@@ -2548,7 +2545,7 @@ prints each scanner's full output.</p>
 {{define "statechips"}}{{with .}}<span class="sevs">{{range .}}<span class="sev {{.Class}}">{{.Text}}</span>{{end}}</span>{{end}}{{end}}
 {{define "class"}}{{if .Assumed}}<span class="asm">{{.Value}}</span><span class="tag">assumed</span>{{else}}{{.Value}}{{end}}{{end}}
 {{define "ruleid"}}{{if .HelpURI}}<a href="{{.HelpURI}}" target="_blank" rel="noopener noreferrer">{{.RuleID}}</a>{{else}}{{.RuleID}}{{end}}{{end}}
-{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{if .Detail}}<div class="sub">{{.Detail}}</div>{{end}}{{if .Instruction}}<div class="sub">{{.Instruction}}</div>{{end}}{{if .Reachability}}<div class="sub">{{.Reachability}}</div>{{end}}{{end}}
+{{define "rule"}}<span class="id">{{template "ruleid" .}}</span>{{if .Message}}<span class="said"><span class="faint"> · </span>{{.Message}}</span>{{end}}{{if .Detail}}<div class="sub">{{.Detail}}</div>{{end}}{{if .Instruction}}<div class="sub">{{.Instruction}}</div>{{end}}{{end}}
 {{/* Multi marks a menu whose rows each hold a set of values, space-separated, rather than one.
      Token names the menu in each token it leaves, "priority P1", where the value alone would not
      say which menu it came from; a menu whose labels are phrases leaves the phrase alone. */}}

@@ -750,7 +750,8 @@ type Reachability struct {
 	// `//go:build windows`, found on Linux by a run for windows/amd64. Empty for a verdict over the
 	// machine's own build.
 	Platforms []string `json:"platforms,omitempty"`
-	// Build is the build a ReachabilityNotBuilt state was read from, and nil for any other state. A
+	// Build is the build a ReachabilityNotBuilt or ReachabilityUnreachable state was read from, and nil
+	// for any other state. A
 	// module missing from a build is missing from that build only: one built only under a tag nobody
 	// set, or only for a platform nobody analyzed, is still in somebody's binary, so the evidence
 	// names what it looked at.
@@ -2049,21 +2050,21 @@ func ProvesAbsence(method string) bool {
 }
 
 // RankAt returns the severity a finding's priority band should be computed from, given what
-// reachability analysis concluded. Today that is base, whatever the verdict.
+// reachability analysis concluded.
 //
-// An unreachable verdict is evidence about the builds the analyzer compiled, and those are not yet
-// every build a module ships: Draugr analyzes the host's platform, and another only where the
-// module's own files are built for it alone, so code a dependency compiles only for Windows is in a
-// Windows binary no run read (https://github.com/draugr-dev/draugr/issues/2236). Lowering a finding
-// on that would move it down on a check that did not cover everything that ships, which uncertainty
-// never does. The verdict is kept as evidence, in report.json and the HTML report, and lowers
-// nothing until every build the module graph produces is analyzed.
-//
+// Only an unreachable verdict moves anything, and only from a method that proves absence.
 // Reachable does not raise: severity already assumes the vulnerable code runs, so treating a
 // confirmed call as an escalation would count the same assumption twice. Unknown moves nothing by
-// definition.
-func (*Reachability) RankAt(base Severity) Severity {
-	return base
+// definition. It is the absence of a finding, not one.
+//
+// A weak method's unreachable verdict still travels and is still shown. What it does not do is
+// lower the band, because the reader deciding whether to act on it needs to make that call
+// themselves rather than have it made by a guess.
+func (r *Reachability) RankAt(base Severity) Severity {
+	if r == nil || r.State != ReachabilityUnreachable || !ProvesAbsence(r.Method) {
+		return base
+	}
+	return base.Deescalate()
 }
 
 // vulnerabilityID matches a vulnerability identifier at the start of a rule id, allowing whatever

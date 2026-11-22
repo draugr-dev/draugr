@@ -21,11 +21,12 @@
         }
       ],
       "package": "github.com/tidwall/gjson",
-      "priority": "P1",
+      "priority": "P2",
       "ruleIds": [
         "CVE-2020-36067"
       ],
-      "severity": "high",
+      "severity": "medium",
+      "severityFrom": "high",
       "target": "v1.6.6",
       "title": "Upgrade github.com/tidwall/gjson v1.6.5",
       "versioning": "go",
@@ -75,12 +76,12 @@
     {
       "errors": 2,
       "highest": "high",
-      "highestPriority": "P1",
+      "highestPriority": "P2",
       "name": "sca",
       "notes": 0,
       "threshold": "",
       "total": 2,
-      "verdict": "fail",
+      "verdict": "pass",
       "warnings": 0
     }
   ],
@@ -123,8 +124,8 @@
     "failOnPriority": "P1"
   },
   "priorities": {
-    "p1": 1,
-    "p2": 0,
+    "p1": 0,
+    "p2": 1,
     "p3": 1,
     "p4": 0
   },
@@ -195,5 +196,5 @@
       "target": "./go-carved-module"
     }
   ],
-  "verdict": "fail"
+  "verdict": "pass"
 }
