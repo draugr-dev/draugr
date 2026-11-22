@@ -363,9 +363,18 @@ func withTrivyParallel(ctx context.Context, argv []string) []string {
 }
 
 // trivyScanRun is retryingRun for a Trivy scan, given its share of the machine (withTrivyParallel).
+// An image scan first waits for this run's turn at Trivy's on-disk cache (trivyImageCache), and
+// gives the turn back between retries, so a holder outside this process is not waited on twice.
 // It reads execArgv when it runs, so a test that substitutes the exec reaches it.
 func trivyScanRun() func(context.Context, []string) ([]byte, error) {
 	return retryingRun("trivy", func(ctx context.Context, argv []string) ([]byte, error) {
+		if usesTrivyDiskCache(argv) {
+			release, err := holdTrivyImageCache(ctx)
+			if err != nil {
+				return nil, err
+			}
+			defer release()
+		}
 		return execArgv(ctx, withTrivyParallel(ctx, argv))
 	})
 }

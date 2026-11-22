@@ -106,6 +106,8 @@ later. An older Trivy drops the license and leaves no record of it.
 ## Notes
 
 - Integration mode: **exec** over a local checkout; Trivy + `git` must be on `PATH`.
+- An image scan takes its turn at Trivy's image cache with the run's other image jobs, as
+  [`trivy`](trivy.md#notes) describes; a repository scan keeps its cache in memory and needs none.
 - `helpURI` points at Trivy's own link when it supplies one, and the SPDX page otherwise. An id
   containing a space, slash or parenthesis isn't an SPDX id. It may be an expression like
   `MIT OR Apache-2.0`, so no link is emitted rather than a broken one.

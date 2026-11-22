@@ -80,6 +80,40 @@ func isLockedCache(err error) bool {
 	return err != nil && strings.Contains(err.Error(), lockedCacheMarker)
 }
 
+// trivyImageCache lets one `trivy image` of this process use Trivy's on-disk scan cache at a time.
+//
+// `trivy image` opens that cache, the BoltDB described above, before it fetches the image, keeps it
+// open until the scan ends, and waits five seconds for it before giving up. `trivy fs`, `rootfs` and
+// `config` keep their scan cache in memory and never touch it. So the image jobs of one run, the
+// images control's and the licenses control's, one per image, take turns, and a turn lasts as long
+// as the pull. On a slow network a pull outlasts every retry, and the job waiting behind it fails
+// with nothing wrong but the wait.
+//
+// The holder is another job of this run, and it finishes, so waiting for it here has no limit but
+// the run's context. The retry stays for a holder outside this process, such as a second Draugr
+// sharing the cache directory.
+var trivyImageCache = make(chan struct{}, 1)
+
+// holdTrivyImageCache waits for this process's turn at Trivy's on-disk cache, records the wait as
+// the tool's, and returns the function that ends the turn.
+func holdTrivyImageCache(ctx context.Context) (func(), error) {
+	start := time.Now()
+	select {
+	case trivyImageCache <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	if waited := time.Since(start); waited >= time.Millisecond {
+		plugin.RecordWait(ctx, "trivy", waited)
+	}
+	return func() { <-trivyImageCache }, nil
+}
+
+// usesTrivyDiskCache reports whether argv is a Trivy scan that opens the on-disk scan cache.
+func usesTrivyDiskCache(argv []string) bool {
+	return len(argv) > 1 && argv[1] == "image"
+}
+
 // retryingRun wraps a tooladapter run function with the cache-lock retry.
 func retryingRun(tool string, run func(context.Context, []string) ([]byte, error)) func(context.Context, []string) ([]byte, error) {
 	return func(ctx context.Context, argv []string) ([]byte, error) {

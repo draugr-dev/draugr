@@ -63,6 +63,13 @@ tool, where a suppression cannot be recorded or reviewed. Use `config.exclude` i
 - Integration mode: **exec** (separate process); Trivy must be on `PATH`.
 - Trivy reads the image from the local Docker daemon where the daemon holds it, and pulls it from
   its registry otherwise, with the credential `docker login` stored. No local checkout is needed.
+- Trivy keeps what it learns about an image in a cache under its cache directory, which one
+  `trivy image` at a time can open, and holds it for the whole scan, the pull included. A run's
+  image jobs, this scanner's and [`trivy-license`](trivy-license.md)'s, take turns at it, so a slow
+  pull delays the next image job rather than failing it. The time spent waiting is
+  `stats.toolWaitsMs["trivy"]` in `report.json`. A Trivy outside the run that holds the same cache,
+  such as a second Draugr, is waited for between 35 and 40 seconds, and then the job fails with
+  Trivy's own message, `cache may be in use by another process`.
 
 ## Data
 

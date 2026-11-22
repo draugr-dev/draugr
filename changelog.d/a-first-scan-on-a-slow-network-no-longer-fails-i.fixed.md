@@ -1,0 +1,1 @@
+- **A first scan on a slow network no longer fails `images` or `licenses` on Trivy's cache lock.** A run's image scans now take turns at Trivy's image cache, so one image's slow pull delays the next scan rather than failing it. The wait shows in `stats.toolWaitsMs`.
