@@ -2,6 +2,7 @@ package diff
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -97,15 +98,38 @@ func TestEveryFormatCountsTheFlawOnce(t *testing.T) {
 	}
 }
 
-// The SARIF keeps what each scanner said. It is what the head scan's own report carries, and
-// dropping a scanner's finding from the record is the thing "suppress, don't delete" refuses.
-func TestTheDiffSARIFKeepsBothScannersFindings(t *testing.T) {
+// The SARIF is what code scanning receives, and code scanning opens an alert for every result, so it
+// holds the flaw once, under the finding the gate counted, and names the other scanner there. The
+// head scan's results.sarif keeps both scanners' findings.
+func TestTheDiffSARIFHoldsOneResultPerCountedFlaw(t *testing.T) {
 	var b bytes.Buffer
 	if err := Render(&b, "sarif", Compare(sarif.Report{}, oneFlawTwoScanners()), Options{}); err != nil {
 		t.Fatalf("render: %v", err)
 	}
-	if !strings.Contains(b.String(), "jquery.min.js") {
-		t.Errorf("the record lost what retirejs found:\n%s", b.String())
+	var doc struct {
+		Runs []struct {
+			Results []struct {
+				RuleID     string `json:"ruleId"`
+				Properties struct {
+					Tool        string `json:"tool"`
+					Correlation struct {
+						AlsoFoundBy []struct {
+							Tool string `json:"tool"`
+						} `json:"alsoFoundBy"`
+					} `json:"correlation"`
+				} `json:"properties"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(b.Bytes(), &doc); err != nil || len(doc.Runs) != 1 {
+		t.Fatalf("not a one-run SARIF document (%v):\n%s", err, b.String())
+	}
+	r := doc.Runs[0].Results
+	if len(r) != 1 || r[0].Properties.Tool != "trivy" {
+		t.Fatalf("results = %+v, want trivy's counted finding alone, without retirejs's copy", r)
+	}
+	if a := r[0].Properties.Correlation.AlsoFoundBy; len(a) != 1 || a[0].Tool != "retirejs" {
+		t.Errorf("the counted result's alsoFoundBy = %+v, want retirejs named", a)
 	}
 }
 

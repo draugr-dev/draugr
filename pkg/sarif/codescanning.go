@@ -44,6 +44,8 @@ type Declarations map[DeclaredImage]Declaration
 //
 // So, in the copy:
 //
+//   - a result another scanner's finding is counted under is left out, so code scanning opens one
+//     alert per flaw, as the gate counts it (see countedOnly);
 //   - a relative path is kept, and declared against %SRCROOT% where it was not;
 //   - a `file:` URI is kept, and an absolute path is written as one;
 //   - anything else is removed, the result's image reference included when it was written as a path,
@@ -78,7 +80,13 @@ func ForCodeScanning(doc []byte, declared Declarations) (out []byte, unplaced in
 	if err := dec.Decode(&log); err != nil {
 		return nil, 0, fmt.Errorf("%w: %w", ErrNotSARIF, err)
 	}
-	runs, _ := log["runs"].([]any)
+	// A log whose runs or results are not lists is refused rather than passed on unchanged, since
+	// nothing in it could be held to what code scanning accepts, the copies of counted findings
+	// included.
+	runs, ok := log["runs"].([]any)
+	if !ok {
+		return nil, 0, fmt.Errorf("%w: runs is %T, not a list", ErrNotSARIF, log["runs"])
+	}
 	changed := false
 	for _, r := range runs {
 		run, ok := r.(map[string]any)
@@ -86,7 +94,19 @@ func ForCodeScanning(doc []byte, declared Declarations) (out []byte, unplaced in
 			continue
 		}
 		relative := false
-		results, _ := run["results"].([]any)
+		results, ok := run["results"].([]any)
+		if raw, present := run["results"]; present && !ok {
+			return nil, 0, fmt.Errorf("%w: a run's results is %T, not a list", ErrNotSARIF, raw)
+		}
+		kept, err := countedOnly(results)
+		if err != nil {
+			return nil, 0, err
+		}
+		if len(kept) != len(results) {
+			results = kept
+			run["results"] = kept
+			changed = true
+		}
 		for _, res := range results {
 			result, ok := res.(map[string]any)
 			if !ok {
@@ -146,6 +166,50 @@ func ForCodeScanning(doc []byte, declared Declarations) (out []byte, unplaced in
 		return nil, 0, err
 	}
 	return out, unplaced, nil
+}
+
+// countedOnly is results less the copies of a flaw another scanner's finding is counted under, those
+// whose properties.correlation.countedUnder is set.
+//
+// Code scanning opens an alert for every result and reads nothing in the property bag, so a flaw two
+// scanners reported would otherwise be two alerts under two rule ids, and the Security tab would count
+// what the gate counts once. Leaving the copy out, rather than marking it with a SARIF suppression,
+// keeps code scanning from presenting a second scanner's agreement as somebody's decision to accept
+// the flaw. The counted result's correlation.alsoFoundBy still names the other scanners and what each
+// said, and results.sarif keeps the copies. The run's rules are kept as written, so every kept
+// result's ruleIndex still points where it did.
+//
+// A correlation it cannot read is an error rather than a result kept, since keeping it would upload
+// the copy it may be.
+func countedOnly(results []any) ([]any, error) {
+	kept := make([]any, 0, len(results))
+	for _, res := range results {
+		result, _ := res.(map[string]any)
+		props, _ := result["properties"].(map[string]any)
+		raw, ok := props["correlation"]
+		if !ok {
+			kept = append(kept, res)
+			continue
+		}
+		correlation, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%w: a result's correlation is %T, not an object", ErrNotSARIF, raw)
+		}
+		under, ok := correlation["countedUnder"]
+		if !ok {
+			kept = append(kept, res)
+			continue
+		}
+		name, ok := under.(string)
+		if !ok {
+			return nil, fmt.Errorf("%w: a result's correlation.countedUnder is %T, not a string", ErrNotSARIF, under)
+		}
+		if name != "" {
+			continue
+		}
+		kept = append(kept, res)
+	}
+	return kept, nil
 }
 
 // placeResult holds one result's locations to what code scanning accepts, placing a result left

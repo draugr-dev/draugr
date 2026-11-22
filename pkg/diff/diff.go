@@ -649,8 +649,9 @@ func (r Result) Changed() []Entry {
 // and fourteen on the pull request, with nothing on either screen saying which is the arithmetic.
 //
 // The copies are dropped from the lists rather than from the report. renderSARIF works from the
-// uncounted result, so what is uploaded to code scanning still carries what each scanner said,
-// and so does the head scan's own SARIF.
+// uncounted result, and sarif.ForCodeScanning leaves the copies out of what code scanning receives,
+// where the counted finding's correlation.alsoFoundBy names the other scanners. The head scan's own
+// SARIF keeps every scanner's finding.
 //
 // The gate already asked the right question, so Tripped is carried through untouched.
 func (r Result) Counted() Result {
