@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.186.1] - 2026-11-22
+
+### Changed
+
+- **An unreachable Go finding drops one band again.** When govulncheck finds no call path, the finding is ranked one severity level lower, as before 0.186.0, and the line under it names the build analyzed, such as `govulncheck on linux/amd64`. Findings that rose in 0.186.0 return to their earlier band.
+
 ## [0.186.0] - 2026-11-22
 
 ### Added
@@ -7415,7 +7421,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.186.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.186.1...HEAD
+[0.186.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.1
 [0.186.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.0
 [0.185.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.185.0
 [0.184.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.184.0
