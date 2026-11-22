@@ -12,6 +12,26 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.186.0] - 2026-11-22
+
+### Added
+
+- **Import Veracode Pipeline Scan results.** An import with `format: veracode-pipeline-json` reads the `results.json` Pipeline Scan writes with `-jo true` into `sast`. Each flaw keeps its file, line, CWE and Veracode's severity, and a Java class named by its bare file name is placed at its file in the checkout.
+
+### Changed
+
+- **Go findings with no govulncheck call path are no longer lowered.** They keep their severity and priority and no longer show `↓ unreachable`; the verdict stays in report.json and the HTML report. Some findings now rank higher, so a gate on severity or priority can newly fail. Fix them, or add them to `config.exclude` with a reason.
+
+### Fixed
+
+- **A flaw two scanners found is now one code-scanning alert in every upload path.** The GitHub Action's `sarif` output, `code-scanning.sarif` and `draugr diff --format sarif` list it once, naming the second scanner in `correlation.alsoFoundBy`. Before, only the `github` publisher did, and an `upload-sarif` step opened one alert per scanner.
+
+- **A Go module the go command will not load is reported with its fix.** When gosec or govulncheck cannot load a module, the error or caveat now ends with the command the go command printed, such as `go mod tidy`. Before, the message stopped at `to update it:`.
+
+- **A vulnerability with no score yet now ranks as high, labeled `not scored yet`.** It used to rank low (Trivy, Grype) or medium (OSV-Scanner). A gate on severity or priority can newly fail on these. Fix the finding, or add it to `config.exclude` with a reason. The rank updates once its database publishes a score.
+
+- **Importing a govulncheck file now warns about the Go modules it did not analyze.** Each is listed under `unread-files` with the `govulncheck -C <dir>` command to run and import. Before, those modules' findings had no reachability verdict and nothing said so.
+
 ## [0.185.0] - 2026-11-21
 
 ### Added
@@ -7395,7 +7415,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.185.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.186.0...HEAD
+[0.186.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.0
 [0.185.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.185.0
 [0.184.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.184.0
 [0.183.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.183.0

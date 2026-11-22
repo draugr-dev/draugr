@@ -1,1 +1,0 @@
-- **A Go module the go command will not load is reported with the command that fixes it.** When gosec or govulncheck cannot load a module whose `go.mod` needs `go mod tidy`, or whose `go.sum` misses an entry, the error or caveat now ends with the command the go command printed. Before, the message stopped at `to update it:`.
