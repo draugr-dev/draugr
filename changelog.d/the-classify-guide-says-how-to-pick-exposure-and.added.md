@@ -1,0 +1,1 @@
+- **The classify guide says how to pick exposure and criticality for a library**, by where it is used: a library inside public services stays public, and one only a build tool uses may declare internal on its owner's say-so. A lower declaration ranks its findings lower, so it is made in the descriptor, where review sees it.
