@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -183,58 +182,5 @@ func TestGithubPublisherDismissesNoCorrelatedAlert(t *testing.T) {
 				t.Errorf("alert 4 comment = %q", got)
 			}
 		})
-	}
-}
-
-// A document with no copy in it is uploaded as rendered, and one that cannot be read is refused
-// rather than uploaded with its copies.
-func TestCountedOnly(t *testing.T) {
-	plain := []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr"}},"results":[{"ruleId":"R"}]},{"tool":{"driver":{"name":"Draugr"}}}]}`)
-	got, err := countedOnly(plain)
-	if err != nil || !bytes.Equal(got, plain) {
-		t.Errorf("a document with no copy came back as %s, %v", got, err)
-	}
-
-	withCopy := []byte(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Draugr","rules":[{"id":"R"},{"id":"S"}]}},"results":[
-{"ruleId":"R","ruleIndex":0,"partialFingerprints":{"draugr/v1":"abc"},"properties":{"correlation":{"alsoFoundBy":[{"tool":"grype","ruleId":"S"}]}}},
-{"ruleId":"S","ruleIndex":1,"properties":{"correlation":{"countedUnder":"trivy"}}}]}]}`)
-	got, err = countedOnly(withCopy)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var doc struct {
-		Version string `json:"version"`
-		Runs    []struct {
-			Tool struct {
-				Driver struct {
-					Rules []json.RawMessage `json:"rules"`
-				} `json:"driver"`
-			} `json:"tool"`
-			Results []struct {
-				RuleID              string            `json:"ruleId"`
-				RuleIndex           int               `json:"ruleIndex"`
-				PartialFingerprints map[string]string `json:"partialFingerprints"`
-			} `json:"results"`
-		} `json:"runs"`
-	}
-	if err := json.Unmarshal(got, &doc); err != nil {
-		t.Fatal(err)
-	}
-	if doc.Version != "2.1.0" || len(doc.Runs) != 1 || len(doc.Runs[0].Tool.Driver.Rules) != 2 {
-		t.Errorf("the document around the results changed: %s", got)
-	}
-	if r := doc.Runs[0].Results; len(r) != 1 || r[0].RuleID != "R" || r[0].RuleIndex != 0 || r[0].PartialFingerprints["draugr/v1"] != "abc" {
-		t.Errorf("results = %+v, want R alone and as written", r)
-	}
-
-	for name, bad := range map[string]string{
-		"not json":         `not json`,
-		"no runs":          `{"version":"2.1.0"}`,
-		"results not list": `{"runs":[{"results":{}}]}`,
-		"correlation odd":  `{"runs":[{"results":[{"properties":{"correlation":"trivy"}}]}]}`,
-	} {
-		if _, err := countedOnly([]byte(bad)); err == nil || !strings.Contains(err.Error(), "github code scanning") {
-			t.Errorf("%s: err = %v, want the document refused", name, err)
-		}
 	}
 }

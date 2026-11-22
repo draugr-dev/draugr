@@ -24,7 +24,7 @@ import (
 // alert a person dismissed is theirs and is left alone.
 //
 // It reads the document as uploaded, which holds no copy of a flaw counted under another scanner's
-// finding (see countedOnly). A suppressed flaw's counted finding is dismissed and its copies have no
+// finding (see sarif.ForCodeScanning). A suppressed flaw's counted finding is dismissed and its copies have no
 // result to match, so an alert opened for a copy by an upload that carried one is neither dismissed
 // nor reopened here: it is code scanning's to resolve, as it resolves any open alert an upload no
 // longer carries.

@@ -237,7 +237,9 @@ run it directly. The exit code is the gate:
 ```
 
 Upload `code-scanning.sarif` rather than `results.sarif`: code scanning refuses a whole upload over a
-finding located on an image or a host, and this file leaves those findings without a location. See
-[findings with no file](code-scanning.md#findings-with-no-file).
+finding located on an image or a host, and this file leaves those findings without a location. It
+also lists a flaw two scanners found once, where `results.sarif` keeps both and code scanning would
+open two alerts. See [findings with no file](code-scanning.md#findings-with-no-file) and [a flaw two
+scanners found](code-scanning.md#a-flaw-two-scanners-found).
 
 See the [CLI reference](../reference/cli.md#draugr-scan-sagayaml--dir) for every `scan` flag.

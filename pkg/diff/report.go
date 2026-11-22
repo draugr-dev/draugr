@@ -20,8 +20,9 @@ func Formats() []string { return []string{"console", "json", "markdown", "sarif"
 // Render writes the diff in the named format. Unknown formats error.
 func Render(w io.Writer, format string, r Result, opts Options) error {
 	switch format {
-	// Everything that states a number works from the counted result; the SARIF keeps every
-	// scanner's own finding. See Result.Counted.
+	// Everything that states a number works from the counted result. The SARIF is what code scanning
+	// receives, and sarif.ForCodeScanning, which renderSARIF writes it through, leaves out the same
+	// copies, so it holds one result per flaw too. See Result.Counted.
 	case "", "console":
 		return renderConsole(w, r.Counted(), opts)
 	case "markdown":
@@ -63,7 +64,9 @@ func renderSARIF(w io.Writer, r Result, declared sarif.Declarations) error {
 	// In the form code scanning accepts, since that is where this goes: code scanning refuses a whole
 	// upload over one location it cannot parse, and a new finding on an image carries the image's
 	// reference as its location. The head scan's results.sarif keeps it. A new finding on an image the
-	// head's descriptor declares goes on the line that declares it.
+	// head's descriptor declares goes on the line that declares it. And one result per flaw: a second
+	// scanner's copy of a finding counted under another is left out, since code scanning would open
+	// an alert for it.
 	data, _, err = sarif.ForCodeScanning(data, declared)
 	if err != nil {
 		return err

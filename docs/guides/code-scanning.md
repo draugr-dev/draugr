@@ -116,10 +116,10 @@ open.
 
 ### A flaw two scanners found
 
-The publisher uploads a flaw two scanners found, such as a CVE Trivy and Grype both report, once,
-as the finding the gate counts, so it is one alert, and that result's `correlation.alsoFoundBy`
-property names the other scanner and what it called the flaw, while `results.sarif` keeps both
-scanners' results.
+A flaw two scanners found, such as a CVE Trivy and Grype both report, is one alert. The publisher,
+`code-scanning.sarif` and `draugr diff --format sarif` each hold it once, as the finding the gate
+counts, and that result's `correlation.alsoFoundBy` property names the other scanner and what it
+called the flaw. `results.sarif` keeps both scanners' results.
 
 ### Findings with no file
 
