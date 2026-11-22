@@ -575,6 +575,12 @@ type Package struct {
 	// scanner then matches it against that package's advisories. False for every package the
 	// project fetches from somewhere else.
 	Own bool `json:"own,omitempty"`
+	// Range is the version requirement Version was read from, where the manifest states a range
+	// rather than a pin: `>=10.4,<11` in a requirements.txt, written without spaces, read as 10.4.
+	// Version is then the lowest release the range admits, which is not necessarily what installs; a
+	// lockfile beside the manifest says what does. Empty where the version was pinned, and wherever
+	// the scanner read no range.
+	Range string `json:"range,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.

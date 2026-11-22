@@ -49,12 +49,32 @@ config:
 | `pkgTypes` | Which package types to analyze: `os`, `library`, or both (`--pkg-types`). Narrow it when the OS layer is a platform team's responsibility. |
 | `dbRepository` | OCI repositories to pull the vulnerability database from, in priority order (`--db-repository`). For runners with no route to a public registry. |
 | `filePatterns` | More files for an analyzer to read, each `analyzer:regex` (`--file-patterns`, once per entry). Trivy's pip analyzer reads only `requirements.txt`; the example adds files named `requirements-<something>.txt`. `draugr init` writes the patterns for the requirements files it finds. |
-| `detectionPriority` | `precise`, the default, reads pinned versions only. `comprehensive` also reads a range such as `>=1.2` in `requirements.txt` as its minimum version, and reports Go standard-library vulnerabilities (`--detection-priority`). |
+| `detectionPriority` | `precise`, the default, reads pinned versions only. `comprehensive` also reads a range such as `>=1.2` in `requirements.txt` as its minimum version, and reports Go standard-library vulnerabilities at the lowest toolchain each `go.mod` accepts, whatever toolchain its builds use (`--detection-priority`). See [Version ranges](#version-ranges). |
 | `resolveMaven` | `true` resolves a `pom.xml`'s transitive dependencies by fetching each dependency's pom from Maven Central and the repositories the pom names, which declares the `disclosure` effect for the job (see [What is sent](#what-is-sent)). `false`, the default, passes `--offline-scan`. Ignored with `--offline`. |
 | `includeDevDeps` | Deprecated. Read as [`config.controls.sca.devDependencies`](../controllers/sca.md#development-dependencies), `true` as `report` and `false` as `suppress`, with a warning. |
 
 `pkgTypes` and `dbRepository` also apply to the `trivy` image scanner. The rest decide which
 of a checkout's dependencies are read, and belong to `trivy-fs` only.
+
+### Version ranges
+
+`detectionPriority: comprehensive` is for a project that ships requirements files with no lockfile.
+It adds two kinds of finding:
+
+- **A range read at its minimum.** `pillow>=10.4` in `requirements.txt` is read as Pillow 10.4, and
+  each finding about it carries the range as `package.range` (`>=10.4`). Trivy reads ranges only in
+  pip requirements files: those named `requirements.txt` and those `filePatterns` adds.
+- **The Go standard library at the lowest toolchain a module accepts**: the version on the
+  `go.mod`'s `toolchain` line, or on its `go` line where it has none. That version is reported
+  whatever toolchain the module's builds use, so a module built with a newer Go still reports every
+  advisory against its minimum.
+
+A range finding is counted once where a lockfile in the same directory, such as `uv.lock`,
+`poetry.lock` or `Pipfile.lock`, reports the same advisory in the same package: the finding is
+counted at the lockfile's line and version, which is what installs, and the range's copy stays in
+the report, counted under it, the way another scanner's copy of a flaw is. A range finding with no
+such lockfile counts on its own. So does one beside two lockfiles that pin the package at different
+versions, because neither is the one copy to count it under.
 
 **Development dependencies are read on every run.** Trivy marks each one `Dev` in its JSON, and each
 finding about it carries `dev` on its package. A lockfile holding only development dependencies
