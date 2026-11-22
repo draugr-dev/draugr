@@ -1,0 +1,742 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.76.1"
+  },
+  "ReportID": "01a20424-2a2e-7e72-ae7a-f6b6291c9a05",
+  "CreatedAt": "2026-11-22T10:43:28.686947473-06:00",
+  "ArtifactName": "api",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "requirements.txt",
+      "Class": "lang-pkgs",
+      "Type": "pip",
+      "Packages": [
+        {
+          "Name": "flask",
+          "Identifier": {
+            "PURL": "pkg:pypi/flask@0.12",
+            "UID": "e52f8610e103ea16"
+          },
+          "Version": "0.12",
+          "Locations": [
+            {
+              "StartLine": 1,
+              "EndLine": 1
+            }
+          ],
+          "AnalyzedBy": "pip"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2018-1000656",
+          "VendorIDs": [
+            "GHSA-562c-5r94-xh97"
+          ],
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12",
+            "UID": "e52f8610e103ea16"
+          },
+          "InstalledVersion": "0.12",
+          "FixedVersion": "0.12.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2018-1000656",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:23585375f136be6911b568e6b4b393e3c96d86345f42e1f116714e3221360058",
+          "Title": "python-flask: Denial of Service via crafted JSON file",
+          "Description": "The Pallets Project flask version Before 0.12.3 contains a CWE-20: Improper Input Validation vulnerability in flask that can result in Large amount of memory usage possibly leading to denial of service. This attack appear to be exploitable via Attacker provides JSON data in incorrect encoding. This vulnerability appears to have been fixed in 0.12.3. NOTE: this may overlap CVE-2019-1010083.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-20"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 1,
+            "ubuntu": 1
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:P",
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V2Score": 5,
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2018-1000656",
+            "https://github.com/advisories/GHSA-562c-5r94-xh97",
+            "https://github.com/pallets/flask",
+            "https://github.com/pallets/flask/commit/b178e89e4456e777b1a7ac6d7199052d0dfdbbbe",
+            "https://github.com/pallets/flask/pull/2691",
+            "https://github.com/pallets/flask/releases/tag/0.12.3",
+            "https://github.com/pypa/advisory-database/tree/main/vulns/flask/PYSEC-2018-66.yaml",
+            "https://lists.debian.org/debian-lts-announce/2019/08/msg00025.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2018-1000656",
+            "https://security.netapp.com/advisory/ntap-20190221-0001",
+            "https://security.netapp.com/advisory/ntap-20190221-0001/",
+            "https://ubuntu.com/security/notices/USN-4378-1",
+            "https://usn.ubuntu.com/4378-1",
+            "https://usn.ubuntu.com/4378-1/",
+            "https://www.cve.org/CVERecord?id=CVE-2018-1000656"
+          ],
+          "PublishedDate": "2018-08-20T19:31:45.34Z",
+          "LastModifiedDate": "2026-06-17T01:33:02.153Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2019-1010083",
+          "VendorIDs": [
+            "GHSA-5wv5-4vpf-pj6m"
+          ],
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12",
+            "UID": "e52f8610e103ea16"
+          },
+          "InstalledVersion": "0.12",
+          "FixedVersion": "1.0",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2019-1010083",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:5d6b3b32a28e90c16adae36fc029941c1d953212fbcd9119c83fbe2a81fbd0f1",
+          "Title": "python-flask: unexpected memory usage can lead to denial of service via crafted encoded JSON data",
+          "Description": "The Pallets Project Flask before 1.0 is affected by: unexpected memory usage. The impact is: denial of service. The attack vector is: crafted encoded JSON data. The fixed version is: 1. NOTE: this may overlap CVE-2018-1000656.",
+          "Severity": "HIGH",
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 2,
+            "ubuntu": 1
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:P",
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V2Score": 5,
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2019-1010083",
+            "https://github.com/advisories/GHSA-5wv5-4vpf-pj6m",
+            "https://github.com/pallets/flask",
+            "https://github.com/pypa/advisory-database/tree/main/vulns/flask/PYSEC-2019-179.yaml",
+            "https://nvd.nist.gov/vuln/detail/CVE-2019-1010083",
+            "https://palletsprojects.com/blog/flask-1-0-released/",
+            "https://snyk.io/vuln/SNYK-PYTHON-FLASK-451637",
+            "https://www.cve.org/CVERecord?id=CVE-2019-1010083",
+            "https://www.palletsprojects.com/blog/flask-1-0-released",
+            "https://www.palletsprojects.com/blog/flask-1-0-released/"
+          ],
+          "PublishedDate": "2019-07-17T14:15:11.57Z",
+          "LastModifiedDate": "2026-06-17T02:09:46.147Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2023-30861",
+          "VendorIDs": [
+            "GHSA-m2qf-hxjv-5gpq"
+          ],
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12",
+            "UID": "e52f8610e103ea16"
+          },
+          "InstalledVersion": "0.12",
+          "FixedVersion": "2.3.2, 2.2.5",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2023-30861",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:2de50ceefd1d5212db2a81c3bf0f8f872ae2711556de9d54b93baf19abfd799d",
+          "Title": "flask: Possible disclosure of permanent session cookie due to missing Vary: Cookie header",
+          "Description": "Flask is a lightweight WSGI web application framework. When all of the following conditions are met, a response containing data intended for one client may be cached and subsequently sent by the proxy to other clients. If the proxy also caches `Set-Cookie` headers, it may send one client's `session` cookie to other clients. The severity depends on the application's use of the session and the proxy's behavior regarding cookies. The risk depends on all these conditions being met.\n\n1. The application must be hosted behind a caching proxy that does not strip cookies or ignore responses with cookies.\n2. The application sets `session.permanent = True`\n3. The application does not access or modify the session at any point during a request.\n4. `SESSION_REFRESH_EACH_REQUEST` enabled (the default).\n5. The application does not set a `Cache-Control` header to indicate that a page is private or should not be cached.\n\nThis happens because vulnerable versions of Flask only set the `Vary: Cookie` header when the session is accessed or modified, not when it is refreshed (re-sent to update the expiration) without being accessed or modified. This issue has been fixed in versions 2.3.2 and 2.2.5.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-539"
+          ],
+          "VendorSeverity": {
+            "amazon": 3,
+            "ghsa": 3,
+            "nvd": 3,
+            "oracle-oval": 3,
+            "redhat": 3,
+            "ubuntu": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2023-30861",
+            "https://github.com/pallets/flask",
+            "https://github.com/pallets/flask/commit/70f906c51ce49c485f1d355703e9cc3386b1cc2b",
+            "https://github.com/pallets/flask/commit/8646edca6f47e2cd57464081b3911218d4734f8d%20%282.2.5%29",
+            "https://github.com/pallets/flask/commit/8705dd39c4fa563ea0fe0bf84c85da8fcc98b88d%20%282.3.2%29",
+            "https://github.com/pallets/flask/commit/afd63b16170b7c047f5758eb910c416511e9c965",
+            "https://github.com/pallets/flask/releases/tag/2.2.5",
+            "https://github.com/pallets/flask/releases/tag/2.3.2",
+            "https://github.com/pallets/flask/security/advisories/GHSA-m2qf-hxjv-5gpq",
+            "https://github.com/pypa/advisory-database/tree/main/vulns/flask/PYSEC-2023-62.yaml",
+            "https://linux.oracle.com/cve/CVE-2023-30861.html",
+            "https://linux.oracle.com/errata/ELSA-2023-12710.html",
+            "https://lists.debian.org/debian-lts-announce/2023/08/msg00024.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-30861",
+            "https://security.netapp.com/advisory/ntap-20230818-0006",
+            "https://security.netapp.com/advisory/ntap-20230818-0006/",
+            "https://ubuntu.com/security/notices/USN-6111-1",
+            "https://www.cve.org/CVERecord?id=CVE-2023-30861",
+            "https://www.debian.org/security/2023/dsa-5442"
+          ],
+          "PublishedDate": "2023-05-02T18:15:52.373Z",
+          "LastModifiedDate": "2026-06-17T05:55:47.853Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-27205",
+          "VendorIDs": [
+            "GHSA-68rp-wp8r-4726"
+          ],
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12",
+            "UID": "e52f8610e103ea16"
+          },
+          "InstalledVersion": "0.12",
+          "FixedVersion": "3.1.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-27205",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:f274ff1e302131bc77cbe0f2e3049f060b30b9dc4aee6eb0e681274cc23e1575",
+          "Title": "flask: Flask: Information disclosure via improper caching of session data",
+          "Description": "Flask is a web server gateway interface (WSGI) web application framework. In versions 3.1.2 and below, when the session object is accessed, Flask should set the Vary: Cookie header., resulting in a Use of Cache Containing Sensitive Information vulnerability. The logic instructs caches not to cache the response, as it may contain information specific to a logged in user. This is handled in most cases, but some forms of access such as the Python in operator were overlooked. The severity and risk depend on the application being hosted behind a caching proxy that doesn't ignore responses with cookies, not setting a Cache-Control header to mark pages as private or non-cacheable, and accessing the session in a way that only touches keys without reading values or mutating the session. The issue has been fixed in version 3.1.3.",
+          "Severity": "LOW",
+          "CweIDs": [
+            "CWE-524"
+          ],
+          "VendorSeverity": {
+            "amazon": 2,
+            "ghsa": 1,
+            "nvd": 2,
+            "redhat": 2,
+            "ubuntu": 1
+          },
+          "CVSS": {
+            "ghsa": {
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
+              "V40Score": 2.3
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+              "V3Score": 4.3
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+              "V3Score": 4.3
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-27205",
+            "https://github.com/pallets/flask",
+            "https://github.com/pallets/flask/commit/089cb86dd22bff589a4eafb7ab8e42dc357623b4",
+            "https://github.com/pallets/flask/releases/tag/3.1.3",
+            "https://github.com/pallets/flask/security/advisories/GHSA-68rp-wp8r-4726",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-27205",
+            "https://ubuntu.com/security/notices/USN-8104-1",
+            "https://www.cve.org/CVERecord?id=CVE-2026-27205"
+          ],
+          "PublishedDate": "2026-02-21T06:17:00.91Z",
+          "LastModifiedDate": "2026-06-17T10:26:50.7Z"
+        }
+      ]
+    },
+    {
+      "Target": "uv.lock",
+      "Class": "lang-pkgs",
+      "Type": "uv",
+      "Packages": [
+        {
+          "ID": "sealed-uv@1.0.0",
+          "Name": "sealed-uv",
+          "Identifier": {
+            "PURL": "pkg:pypi/sealed-uv@1.0.0",
+            "UID": "a4c762bb3e555c5f"
+          },
+          "Version": "1.0.0",
+          "Relationship": "root",
+          "DependsOn": [
+            "flask@0.12.2"
+          ],
+          "AnalyzedBy": "uv"
+        },
+        {
+          "ID": "flask@0.12.2",
+          "Name": "flask",
+          "Identifier": {
+            "PURL": "pkg:pypi/flask@0.12.2",
+            "UID": "47874449a18f3834"
+          },
+          "Version": "0.12.2",
+          "Relationship": "direct",
+          "DependsOn": [
+            "click@8.5.0",
+            "itsdangerous@2.2.0",
+            "jinja2@3.1.6",
+            "werkzeug@3.1.8"
+          ],
+          "AnalyzedBy": "uv"
+        },
+        {
+          "ID": "click@8.5.0",
+          "Name": "click",
+          "Identifier": {
+            "PURL": "pkg:pypi/click@8.5.0",
+            "UID": "1507ba743c24d894"
+          },
+          "Version": "8.5.0",
+          "Indirect": true,
+          "Relationship": "indirect",
+          "AnalyzedBy": "uv"
+        },
+        {
+          "ID": "itsdangerous@2.2.0",
+          "Name": "itsdangerous",
+          "Identifier": {
+            "PURL": "pkg:pypi/itsdangerous@2.2.0",
+            "UID": "3a52d0aa92252a6c"
+          },
+          "Version": "2.2.0",
+          "Indirect": true,
+          "Relationship": "indirect",
+          "AnalyzedBy": "uv"
+        },
+        {
+          "ID": "jinja2@3.1.6",
+          "Name": "jinja2",
+          "Identifier": {
+            "PURL": "pkg:pypi/jinja2@3.1.6",
+            "UID": "9c3befdce47c8a32"
+          },
+          "Version": "3.1.6",
+          "Indirect": true,
+          "Relationship": "indirect",
+          "DependsOn": [
+            "markupsafe@3.0.3"
+          ],
+          "AnalyzedBy": "uv"
+        },
+        {
+          "ID": "markupsafe@3.0.3",
+          "Name": "markupsafe",
+          "Identifier": {
+            "PURL": "pkg:pypi/markupsafe@3.0.3",
+            "UID": "c97703c32c4879f7"
+          },
+          "Version": "3.0.3",
+          "Indirect": true,
+          "Relationship": "indirect",
+          "AnalyzedBy": "uv"
+        },
+        {
+          "ID": "werkzeug@3.1.8",
+          "Name": "werkzeug",
+          "Identifier": {
+            "PURL": "pkg:pypi/werkzeug@3.1.8",
+            "UID": "66a4ae1dbfa4f762"
+          },
+          "Version": "3.1.8",
+          "Indirect": true,
+          "Relationship": "indirect",
+          "DependsOn": [
+            "markupsafe@3.0.3"
+          ],
+          "AnalyzedBy": "uv"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2018-1000656",
+          "VendorIDs": [
+            "GHSA-562c-5r94-xh97"
+          ],
+          "PkgID": "flask@0.12.2",
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12.2",
+            "UID": "47874449a18f3834"
+          },
+          "InstalledVersion": "0.12.2",
+          "FixedVersion": "0.12.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2018-1000656",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:d9440f397027ad62ec9621372c07572e3af33ec4a712c6a8198a13d9d809ffbd",
+          "Title": "python-flask: Denial of Service via crafted JSON file",
+          "Description": "The Pallets Project flask version Before 0.12.3 contains a CWE-20: Improper Input Validation vulnerability in flask that can result in Large amount of memory usage possibly leading to denial of service. This attack appear to be exploitable via Attacker provides JSON data in incorrect encoding. This vulnerability appears to have been fixed in 0.12.3. NOTE: this may overlap CVE-2019-1010083.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-20"
+          ],
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 1,
+            "ubuntu": 1
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:P",
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V2Score": 5,
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2018-1000656",
+            "https://github.com/advisories/GHSA-562c-5r94-xh97",
+            "https://github.com/pallets/flask",
+            "https://github.com/pallets/flask/commit/b178e89e4456e777b1a7ac6d7199052d0dfdbbbe",
+            "https://github.com/pallets/flask/pull/2691",
+            "https://github.com/pallets/flask/releases/tag/0.12.3",
+            "https://github.com/pypa/advisory-database/tree/main/vulns/flask/PYSEC-2018-66.yaml",
+            "https://lists.debian.org/debian-lts-announce/2019/08/msg00025.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2018-1000656",
+            "https://security.netapp.com/advisory/ntap-20190221-0001",
+            "https://security.netapp.com/advisory/ntap-20190221-0001/",
+            "https://ubuntu.com/security/notices/USN-4378-1",
+            "https://usn.ubuntu.com/4378-1",
+            "https://usn.ubuntu.com/4378-1/",
+            "https://www.cve.org/CVERecord?id=CVE-2018-1000656"
+          ],
+          "PublishedDate": "2018-08-20T19:31:45.34Z",
+          "LastModifiedDate": "2026-06-17T01:33:02.153Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2019-1010083",
+          "VendorIDs": [
+            "GHSA-5wv5-4vpf-pj6m"
+          ],
+          "PkgID": "flask@0.12.2",
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12.2",
+            "UID": "47874449a18f3834"
+          },
+          "InstalledVersion": "0.12.2",
+          "FixedVersion": "1.0",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2019-1010083",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:6cd4fa91f1d3330d8d865b1da66f5bc71a49af461ce9b319e446421e7035dd2d",
+          "Title": "python-flask: unexpected memory usage can lead to denial of service via crafted encoded JSON data",
+          "Description": "The Pallets Project Flask before 1.0 is affected by: unexpected memory usage. The impact is: denial of service. The attack vector is: crafted encoded JSON data. The fixed version is: 1. NOTE: this may overlap CVE-2018-1000656.",
+          "Severity": "HIGH",
+          "VendorSeverity": {
+            "ghsa": 3,
+            "nvd": 3,
+            "redhat": 2,
+            "ubuntu": 1
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:P",
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V2Score": 5,
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2019-1010083",
+            "https://github.com/advisories/GHSA-5wv5-4vpf-pj6m",
+            "https://github.com/pallets/flask",
+            "https://github.com/pypa/advisory-database/tree/main/vulns/flask/PYSEC-2019-179.yaml",
+            "https://nvd.nist.gov/vuln/detail/CVE-2019-1010083",
+            "https://palletsprojects.com/blog/flask-1-0-released/",
+            "https://snyk.io/vuln/SNYK-PYTHON-FLASK-451637",
+            "https://www.cve.org/CVERecord?id=CVE-2019-1010083",
+            "https://www.palletsprojects.com/blog/flask-1-0-released",
+            "https://www.palletsprojects.com/blog/flask-1-0-released/"
+          ],
+          "PublishedDate": "2019-07-17T14:15:11.57Z",
+          "LastModifiedDate": "2026-06-17T02:09:46.147Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2023-30861",
+          "VendorIDs": [
+            "GHSA-m2qf-hxjv-5gpq"
+          ],
+          "PkgID": "flask@0.12.2",
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12.2",
+            "UID": "47874449a18f3834"
+          },
+          "InstalledVersion": "0.12.2",
+          "FixedVersion": "2.3.2, 2.2.5",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2023-30861",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:e0e9d0c8c9014f80d4c43a7dd12d90cc4c58cdc1b175e6e9b665ca2775b72c58",
+          "Title": "flask: Possible disclosure of permanent session cookie due to missing Vary: Cookie header",
+          "Description": "Flask is a lightweight WSGI web application framework. When all of the following conditions are met, a response containing data intended for one client may be cached and subsequently sent by the proxy to other clients. If the proxy also caches `Set-Cookie` headers, it may send one client's `session` cookie to other clients. The severity depends on the application's use of the session and the proxy's behavior regarding cookies. The risk depends on all these conditions being met.\n\n1. The application must be hosted behind a caching proxy that does not strip cookies or ignore responses with cookies.\n2. The application sets `session.permanent = True`\n3. The application does not access or modify the session at any point during a request.\n4. `SESSION_REFRESH_EACH_REQUEST` enabled (the default).\n5. The application does not set a `Cache-Control` header to indicate that a page is private or should not be cached.\n\nThis happens because vulnerable versions of Flask only set the `Vary: Cookie` header when the session is accessed or modified, not when it is refreshed (re-sent to update the expiration) without being accessed or modified. This issue has been fixed in versions 2.3.2 and 2.2.5.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-539"
+          ],
+          "VendorSeverity": {
+            "amazon": 3,
+            "ghsa": 3,
+            "nvd": 3,
+            "oracle-oval": 3,
+            "redhat": 3,
+            "ubuntu": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
+              "V3Score": 7.5,
+              "V40Score": 8.7
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+              "V3Score": 7.5
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2023-30861",
+            "https://github.com/pallets/flask",
+            "https://github.com/pallets/flask/commit/70f906c51ce49c485f1d355703e9cc3386b1cc2b",
+            "https://github.com/pallets/flask/commit/8646edca6f47e2cd57464081b3911218d4734f8d%20%282.2.5%29",
+            "https://github.com/pallets/flask/commit/8705dd39c4fa563ea0fe0bf84c85da8fcc98b88d%20%282.3.2%29",
+            "https://github.com/pallets/flask/commit/afd63b16170b7c047f5758eb910c416511e9c965",
+            "https://github.com/pallets/flask/releases/tag/2.2.5",
+            "https://github.com/pallets/flask/releases/tag/2.3.2",
+            "https://github.com/pallets/flask/security/advisories/GHSA-m2qf-hxjv-5gpq",
+            "https://github.com/pypa/advisory-database/tree/main/vulns/flask/PYSEC-2023-62.yaml",
+            "https://linux.oracle.com/cve/CVE-2023-30861.html",
+            "https://linux.oracle.com/errata/ELSA-2023-12710.html",
+            "https://lists.debian.org/debian-lts-announce/2023/08/msg00024.html",
+            "https://nvd.nist.gov/vuln/detail/CVE-2023-30861",
+            "https://security.netapp.com/advisory/ntap-20230818-0006",
+            "https://security.netapp.com/advisory/ntap-20230818-0006/",
+            "https://ubuntu.com/security/notices/USN-6111-1",
+            "https://www.cve.org/CVERecord?id=CVE-2023-30861",
+            "https://www.debian.org/security/2023/dsa-5442"
+          ],
+          "PublishedDate": "2023-05-02T18:15:52.373Z",
+          "LastModifiedDate": "2026-06-17T05:55:47.853Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-27205",
+          "VendorIDs": [
+            "GHSA-68rp-wp8r-4726"
+          ],
+          "PkgID": "flask@0.12.2",
+          "PkgName": "flask",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/flask@0.12.2",
+            "UID": "47874449a18f3834"
+          },
+          "InstalledVersion": "0.12.2",
+          "FixedVersion": "3.1.3",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-27205",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:38af0551543fce3c0af720c9c30a141646b3286367e38555b482e7ac3ae0179c",
+          "Title": "flask: Flask: Information disclosure via improper caching of session data",
+          "Description": "Flask is a web server gateway interface (WSGI) web application framework. In versions 3.1.2 and below, when the session object is accessed, Flask should set the Vary: Cookie header., resulting in a Use of Cache Containing Sensitive Information vulnerability. The logic instructs caches not to cache the response, as it may contain information specific to a logged in user. This is handled in most cases, but some forms of access such as the Python in operator were overlooked. The severity and risk depend on the application being hosted behind a caching proxy that doesn't ignore responses with cookies, not setting a Cache-Control header to mark pages as private or non-cacheable, and accessing the session in a way that only touches keys without reading values or mutating the session. The issue has been fixed in version 3.1.3.",
+          "Severity": "LOW",
+          "CweIDs": [
+            "CWE-524"
+          ],
+          "VendorSeverity": {
+            "amazon": 2,
+            "ghsa": 1,
+            "nvd": 2,
+            "redhat": 2,
+            "ubuntu": 1
+          },
+          "CVSS": {
+            "ghsa": {
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N",
+              "V40Score": 2.3
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+              "V3Score": 4.3
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+              "V3Score": 4.3
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-27205",
+            "https://github.com/pallets/flask",
+            "https://github.com/pallets/flask/commit/089cb86dd22bff589a4eafb7ab8e42dc357623b4",
+            "https://github.com/pallets/flask/releases/tag/3.1.3",
+            "https://github.com/pallets/flask/security/advisories/GHSA-68rp-wp8r-4726",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-27205",
+            "https://ubuntu.com/security/notices/USN-8104-1",
+            "https://www.cve.org/CVERecord?id=CVE-2026-27205"
+          ],
+          "PublishedDate": "2026-02-21T06:17:00.91Z",
+          "LastModifiedDate": "2026-06-17T10:26:50.7Z"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-102598",
+          "VendorIDs": [
+            "GHSA-g6x2-hccm-hh4m"
+          ],
+          "PkgID": "werkzeug@3.1.8",
+          "PkgName": "werkzeug",
+          "PkgIdentifier": {
+            "PURL": "pkg:pypi/werkzeug@3.1.8",
+            "UID": "66a4ae1dbfa4f762"
+          },
+          "InstalledVersion": "3.1.8",
+          "FixedVersion": "3.1.9",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2026-102598",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory pip",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Apip"
+          },
+          "Fingerprint": "sha256:24b522a407b6d8b09ea443969b4e232c2fe5366f2cafb650c68568febf82cd24",
+          "Title": "werkzeug: werkzeug: Denial of Service via safe_join() Windows special device paths",
+          "Description": "Werkzeug is a comprehensive WSGI web application library. Prior to 3.1.9, the safe_join function used by send_from_directory can allow a NUL: special-device path because safe_join checks the Windows device name without first removing an empty NTFS ADS marker. The trigger is that an application runs on Windows with NTFS and serves a user-specified path ending in a special device name such as NUL:. The attack mechanism is that a requested path ends in a Windows special device name with an empty ADS marker. The impact is that the special device opens successfully and the file read hangs indefinitely. This issue is fixed in version 3.1.9.",
+          "Severity": "MEDIUM",
+          "CweIDs": [
+            "CWE-67"
+          ],
+          "VendorSeverity": {
+            "ghsa": 2,
+            "redhat": 2,
+            "ubuntu": 2
+          },
+          "CVSS": {
+            "ghsa": {
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N",
+              "V40Score": 6.3
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+              "V3Score": 5.3
+            }
+          },
+          "References": [
+            "https://access.redhat.com/security/cve/CVE-2026-102598",
+            "https://github.com/pallets/werkzeug",
+            "https://github.com/pallets/werkzeug/commit/8d77320bcdf3a34941ec06dcf16b03c065cd21b6",
+            "https://github.com/pallets/werkzeug/pull/3309",
+            "https://github.com/pallets/werkzeug/releases/tag/3.1.9",
+            "https://github.com/pallets/werkzeug/security/advisories/GHSA-g6x2-hccm-hh4m",
+            "https://nvd.nist.gov/vuln/detail/CVE-2026-102598",
+            "https://www.cve.org/CVERecord?id=CVE-2026-102598"
+          ],
+          "PublishedDate": "2026-09-29T16:17:06.01Z",
+          "LastModifiedDate": "2026-09-30T19:38:27.293Z"
+        }
+      ]
+    }
+  ]
+}

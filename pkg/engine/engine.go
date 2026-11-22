@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -3637,13 +3638,23 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 // Python package's name are folded as their package URLs fold them, since one scanner may write the
 // name as published and another as the URL spells it.
 func packageNameKey(p *sarif.Package) (string, bool) {
+	id, ok := packageIdentity(p)
+	if !ok || p.Version == "" {
+		return "", false
+	}
+	return id + "\x00" + p.Version, true
+}
+
+// packageIdentity is a package's URL type and name as packageNameKey keys them, without the
+// version, and false for a package short of either.
+func packageIdentity(p *sarif.Package) (string, bool) {
 	kind := purlType(p.PURL)
 	if kind == "" {
 		if kind = versionorder.PURLType(p.Ecosystem); kind == "" {
 			kind = p.Ecosystem
 		}
 	}
-	if kind == "" || p.Name == "" || p.Version == "" {
+	if kind == "" || p.Name == "" {
 		return "", false
 	}
 	name := p.Name
@@ -3653,7 +3664,7 @@ func packageNameKey(p *sarif.Package) (string, bool) {
 	case "pypi":
 		name = strings.ReplaceAll(strings.ToLower(name), "_", "-")
 	}
-	return "\x00" + kind + "\x00" + name + "\x00" + p.Version, true
+	return "\x00" + kind + "\x00" + name, true
 }
 
 // purlType is a package URL's type, lowercased, and empty for anything that is not a package URL.
@@ -3695,6 +3706,10 @@ func purlType(purl string) string {
 // the same package. Who reported a copy is its Reporter rather than its tool's name, so that import
 // and Draugr's own Trivy run are two scanners, as they are two runs, while two copies from one file
 // are still one scanner's.
+//
+// A copy whose version is a range's minimum joins the copy a file pinning the package in the same
+// directory reports, whichever scanner reported each (joinRangeMinimums): both are one scanner's
+// account of the same requirement, read once from the manifest and once from its lockfile.
 func correlationGroups(results []sarif.Result) [][]int {
 	parent := make([]int, len(results))
 	keys := make([]correlationKey, len(results))
@@ -3783,6 +3798,8 @@ func correlationGroups(results []sarif.Result) [][]int {
 		}
 	}
 
+	joinRangeMinimums(results, keys, keyed, parent, root)
+
 	var groups [][]int
 	at := map[int]int{}
 	for i := range results {
@@ -3799,6 +3816,80 @@ func correlationGroups(results []sarif.Result) [][]int {
 		groups[g] = append(groups[g], i)
 	}
 	return groups
+}
+
+// besideKey identifies one advisory in one package, whatever its version, in one directory of one
+// repository or image.
+type besideKey struct {
+	component, repository, image, vuln, pkg, dir string
+}
+
+// joinRangeMinimums joins a copy whose version was read from a range's minimum (sarif.Package.Range)
+// to the copy of the same advisory in the same package that a file pinning it in the same directory
+// reports: `pillow>=10.4` in requirements.txt, read as 10.4, beside `pillow` at 10.4.0 in uv.lock.
+// The two key apart only because a range's minimum and a pin spell the version differently, and the
+// pinned file is the one that says what installs.
+//
+// After every other join, so a pinned flaw already holds each scanner's copy of it and one flaw
+// reported by two scanners in the same directory is not taken for two pins. A range copy joins only
+// where exactly one pinned flaw beside it matches. Two would be two files pinning the package
+// differently, uv.lock at 10.4.0 and poetry.lock at 11.0.0, and joining the range copy to both would
+// count the two pins as one flaw; picking one of them would be a guess. The range copy is then
+// counted on its own, as it is where nothing beside it pins the package.
+//
+// Same-directory only. A lockfile elsewhere in the repository installs for another project, and says
+// nothing about what this manifest's range resolves to.
+func joinRangeMinimums(results []sarif.Result, keys []correlationKey, keyed []bool, parent []int, root func(int) int) {
+	besideOf := func(i int) (besideKey, bool) {
+		if !keyed[i] || results[i].Location.URI == "" {
+			return besideKey{}, false
+		}
+		id, ok := packageIdentity(results[i].Package)
+		if !ok {
+			return besideKey{}, false
+		}
+		k := keys[i]
+		return besideKey{
+			component: k.component, repository: k.repository, image: k.image,
+			vuln: k.vuln, pkg: id, dir: path.Dir(results[i].Location.URI),
+		}, true
+	}
+	// The pinned copy each directory's package and advisory names, or -1 where more than one flaw
+	// does.
+	pinned := map[besideKey]int{}
+	for i := range results {
+		if readFromRange(results[i]) {
+			continue
+		}
+		k, ok := besideOf(i)
+		if !ok {
+			continue
+		}
+		if j, seen := pinned[k]; seen && (j < 0 || root(j) != root(i)) {
+			pinned[k] = -1
+		} else if !seen {
+			pinned[k] = i
+		}
+	}
+	for i := range results {
+		if !readFromRange(results[i]) {
+			continue
+		}
+		k, ok := besideOf(i)
+		if !ok {
+			continue
+		}
+		if j, seen := pinned[k]; seen && j >= 0 {
+			if a, b := root(i), root(j); a != b {
+				parent[a] = b
+			}
+		}
+	}
+}
+
+// readFromRange reports whether a finding's package version is a range's minimum rather than a pin.
+func readFromRange(res sarif.Result) bool {
+	return res.Package != nil && res.Package.Range != ""
 }
 
 // sharesTool reports whether any scanner reported findings in both sets. The sets hold each copy's
@@ -3912,11 +4003,26 @@ func strongestOf(results []sarif.Result, idxs []int) int {
 			}
 			continue
 		}
+		// Then a copy in a file that pins the version over one read from a range's minimum, so a flaw
+		// a requirements.txt range and the uv.lock beside it both report is counted at the lockfile,
+		// which says what installs. Only between copies in the same band: a range copy ranked higher
+		// keeps the count, so preferring the pin never ranks the flaw lower.
+		if a, b := !readFromRange(results[i]), !readFromRange(results[best]); a != b && samePriority(results[i], results[best]) {
+			if a {
+				best = i
+			}
+			continue
+		}
 		if strongerFinding(results[i], results[best]) {
 			best = i
 		}
 	}
 	return best
+}
+
+// samePriority reports whether two findings are in the same band.
+func samePriority(a, b sarif.Result) bool {
+	return prioritization.Priority(a.Priority).Rank() == prioritization.Priority(b.Priority).Rank()
 }
 
 // strongerFinding reports whether a should be counted in preference to b.
