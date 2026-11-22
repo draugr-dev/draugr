@@ -115,6 +115,7 @@ func goldenPastesSteps() string {
 		"       docs/getting-started/first-saga.md, docs/getting-started/quickstart.md,\n" +
 		"       docs/getting-started/tutorial.md,\n" +
 		"       docs/guides/importing-sarif.md, docs/guides/monorepos.md,\n" +
+		"       docs/guides/pre-commit.md,\n" +
 		"       docs/reference/cli.md,\n" +
 		"       internal/controllers/iac.md, internal/controllers/cloud.md,\n" +
 		"       internal/controllers/secrets.md, internal/controllers/sast.md\n" +
@@ -526,6 +527,7 @@ var pastesConsoleOutput = map[string]bool{
 	"docs/getting-started/tutorial.md":    true,
 	"docs/guides/importing-sarif.md":      true,
 	"docs/guides/monorepos.md":            true,
+	"docs/guides/pre-commit.md":           true,
 	"docs/guides/provenance.md":           true,
 	"docs/reference/cli.md":               true,
 	"internal/controllers/iac.md":         true,
