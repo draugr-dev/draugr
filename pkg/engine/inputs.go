@@ -93,8 +93,10 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 		partly   map[fileKey]string
 		partlyBy map[fileKey]map[string]bool
 		// analysis holds the files an analysis of their code did not cover, which listed as unread
-		// whoever read their packages.
+		// whoever read their packages, and analyzed the files one did cover, which are not, whoever
+		// else did not.
 		analysis map[fileKey]bool
+		analyzed map[fileKey]bool
 		// missed holds, for each file, the scanners that took no package from it and their reasons.
 		// A file another scanner read is a record of that scanner's gap, and not a caveat.
 		missed map[fileKey]map[string]string
@@ -109,12 +111,19 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 				a := scopes[k]
 				if a == nil {
 					a = &acc{scanners: map[string]bool{}, read: map[fileKey]map[string]bool{}, unread: map[fileKey]string{},
-						partly: map[fileKey]string{}, partlyBy: map[fileKey]map[string]bool{}, analysis: map[fileKey]bool{},
+						partly: map[fileKey]string{}, partlyBy: map[fileKey]map[string]bool{}, analysis: map[fileKey]bool{}, analyzed: map[fileKey]bool{},
 						missed: map[fileKey]map[string]string{}, kinds: map[fileKey]string{}}
 					scopes[k] = a
 				}
-				a.scanners[in.Scanner] = true
 				f := fileKey{in.Repository, in.Path}
+				// An analysis that covered the file answers for one that did not, such as one imported
+				// govulncheck file per Go module, each naming the others as not analyzed. It reads no
+				// packages, so it is not a file read.
+				if in.Analysis && in.Unread == "" {
+					a.analyzed[f] = true
+					continue
+				}
+				a.scanners[in.Scanner] = true
 				if in.Kind != "" && a.kinds[f] == "" {
 					a.kinds[f] = in.Kind
 				}
@@ -151,6 +160,10 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 	}
 	out := make([]InputCoverage, 0, len(scopes))
 	for k, a := range scopes {
+		// A scope only analyses accounted for, every one covering its file, has nothing to say.
+		if len(a.scanners) == 0 {
+			continue
+		}
 		cov := InputCoverage{Component: k.component, Control: k.control, Read: len(a.read)}
 		for s := range a.scanners {
 			cov.Scanners = append(cov.Scanners, s)
@@ -158,6 +171,9 @@ func inputCoverage(byCtl map[string][]sarif.Report) []InputCoverage {
 		slices.Sort(cov.Scanners)
 		for f, reason := range a.unread {
 			if len(a.read[f]) > 0 && !a.analysis[f] {
+				continue
+			}
+			if a.analysis[f] && a.analyzed[f] {
 				continue
 			}
 			if _, some := a.partly[f]; some {

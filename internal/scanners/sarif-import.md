@@ -199,6 +199,9 @@ into findings shaped as Draugr's dependency scanners shape theirs.
   repository, as a native run's does, and the imported copy is then folded into it. It is dated by
   the file's modification time, and it is not narrowed to the call paths that start in the
   component's `paths:`.
+- **A govulncheck file covers the Go modules its runs were started in.** With a local checkout, each
+  `go.mod` in it is accounted for, and one no imported file analyzed is listed under `unread-files`
+  with the command to run there. Without a local checkout, no module is accounted for.
 - **Bind a govulncheck file with `commit`, or its unreachable verdicts lower nothing.** Without a
   binding (no `commit`, an unset variable, or a component of several repositories) an unreachable
   verdict is read as undetermined and the finding keeps its band, its message ending `reachability

@@ -269,3 +269,41 @@ func TestInputCoverageListsAFileAnAnalysisDidNotCover(t *testing.T) {
 		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
 	}
 }
+
+// An analysis that covered a file answers for one that did not: two imported govulncheck files, one
+// run in each Go module, each name the other's module as not analyzed and their own as analyzed, and
+// together cover both. One alone leaves the other module listed. An analyzed file reads no packages,
+// so it is not counted as read, and a scope it alone accounts for adds nothing.
+func TestInputCoverageListsAModuleNoAnalysisCovered(t *testing.T) {
+	const notAnalyzed = "Run and import: govulncheck -C test/loadtest -format json ./..."
+	trivy := sarif.Report{Inputs: []sarif.Input{
+		{Scanner: "trivy-fs", Component: "api", Repository: "api", Path: "go.mod", Packages: 4},
+		{Scanner: "trivy-fs", Component: "api", Repository: "api", Path: "test/loadtest/go.mod", Packages: 2},
+	}}
+	rootFile := sarif.Report{Inputs: []sarif.Input{
+		{Scanner: "import", Component: "api", Repository: "api", Path: "go.mod", Analysis: true},
+		{Scanner: "import", Component: "api", Repository: "api", Path: "test/loadtest/go.mod", Analysis: true, Unread: notAnalyzed},
+	}}
+	loadtestFile := sarif.Report{Inputs: []sarif.Input{
+		{Scanner: "import", Component: "api", Repository: "api", Path: "go.mod", Analysis: true, Unread: notAnalyzed},
+		{Scanner: "import", Component: "api", Repository: "api", Path: "test/loadtest/go.mod", Analysis: true},
+	}}
+
+	one := inputCoverage(map[string][]sarif.Report{"sca": {trivy, rootFile}})
+	want := []InputCoverage{{Component: "api", Control: "sca", Scanners: []string{"import", "trivy-fs"}, Read: 2,
+		Unread: []UnreadInput{{Repository: "api", Path: "test/loadtest/go.mod", Reason: notAnalyzed}}}}
+	if !reflect.DeepEqual(one, want) {
+		t.Errorf("one file: coverage =\n%+v\nwant\n%+v", one, want)
+	}
+
+	both := inputCoverage(map[string][]sarif.Report{"sca": {trivy, rootFile, loadtestFile}})
+	want = []InputCoverage{{Component: "api", Control: "sca", Scanners: []string{"import", "trivy-fs"}, Read: 2}}
+	if !reflect.DeepEqual(both, want) {
+		t.Errorf("a file per module: coverage =\n%+v\nwant\n%+v", both, want)
+	}
+
+	analyzedOnly := sarif.Report{Inputs: []sarif.Input{{Scanner: "import", Component: "web", Repository: "web", Path: "go.mod", Analysis: true}}}
+	if got := inputCoverage(map[string][]sarif.Report{"sca": {analyzedOnly}}); len(got) != 0 {
+		t.Errorf("a scope only analyses covered: coverage = %+v, want none", got)
+	}
+}
