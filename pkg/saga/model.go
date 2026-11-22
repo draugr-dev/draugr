@@ -1027,6 +1027,9 @@ const (
 	ImportFormatGrypeJSON = "grype-json"
 	// ImportFormatOSVScannerJSON is the JSON `osv-scanner scan --format json` writes.
 	ImportFormatOSVScannerJSON = "osv-scanner-json"
+	// ImportFormatVeracodePipelineJSON is the results.json Veracode's Pipeline Scan writes with
+	// `-jo true`.
+	ImportFormatVeracodePipelineJSON = "veracode-pipeline-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1034,7 +1037,7 @@ const (
 
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
-	ImportFormatOSVScannerJSON, ImportFormatConverter}
+	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatConverter}
 
 // The services an import's Source names.
 const (

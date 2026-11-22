@@ -334,6 +334,35 @@ What differs from a SARIF import:
 [A tool's own JSON](../../internal/scanners/sarif-import.md#a-tools-own-json) lists what each format
 carries and what is left out.
 
+## Import Veracode Pipeline Scan
+
+Veracode writes no SARIF of its own. Pipeline Scan writes its results as JSON when it runs with
+`-jo true` (`json_output`), to `results.json` unless `json_output_file` names another file. Run
+Pipeline Scan that way in the job, then import the file it writes into `sast`:
+
+```yaml
+imports:
+  - control: sast
+    file: results.json
+    format: veracode-pipeline-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each flaw is a finding** at its file and line, under its CWE, as `CWE-89`, with Veracode's
+  explanation as its detail.
+- **Rated by Veracode's severity:** 5 (Very High) as critical, 4 (High) as high, 3 (Medium) as
+  medium, and 2, 1 and 0 (Low, Very Low, Informational) as low.
+- **A Java class is named by its bare file name.** Where the component has one local checkout,
+  Draugr places it at the one file there whose path ends with that name. If no file or several
+  match, the finding keeps the name as written. A JavaScript file is named by its path already.
+- **Import `results.json`, not `filtered_results.json`.** Pipeline Scan writes the second with only
+  the flaws that violate its pass-fail criteria, and a flaw missing from the file is one Draugr never
+  counts.
+- **A scan whose `scan_status` is not `SUCCESS` is refused**, since its file may hold some of the
+  flaws or none.
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts
