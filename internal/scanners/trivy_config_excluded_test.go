@@ -190,7 +190,7 @@ func TestATrivyConfigScanThatCannotBeReadFails(t *testing.T) {
 	if _, _, err := trivyConfigRun(emptyConversion)(context.Background(), "/tree", argv); err == nil {
 		t.Error("an empty conversion was read as a report")
 	}
-	if _, _, err := trivyConfigReport([]byte("not json")); err == nil {
+	if _, _, _, err := trivyConfigReport([]byte("not json")); err == nil {
 		t.Error("an unreadable report was read as nothing excluded")
 	}
 	if _, err := withTrivyMisconfigExclusions(nil, excludedIn(t, trivyMisconfigJSON)); err == nil {
@@ -305,7 +305,7 @@ func TestAMalformedPackageDoesNotFailTheConversion(t *testing.T) {
 // excludedIn is what trivyConfigReport reads as excluded from doc.
 func excludedIn(t *testing.T, doc string) trivyMisconfigDoc {
 	t.Helper()
-	_, excluded, err := trivyConfigReport([]byte(doc))
+	_, excluded, _, err := trivyConfigReport([]byte(doc))
 	if err != nil {
 		t.Fatalf("%.40s: %v", doc, err)
 	}
@@ -317,11 +317,11 @@ func excludedIn(t *testing.T, doc string) trivyMisconfigDoc {
 // that lists packages as well.
 func TestTrivyConfigReport(t *testing.T) {
 	for _, doc := range []string{trivyMisconfigJSON, `{"SchemaVersion": 2}`} {
-		if out, _, err := trivyConfigReport([]byte(doc)); err != nil || string(out) != doc {
+		if out, _, _, err := trivyConfigReport([]byte(doc)); err != nil || string(out) != doc {
 			t.Errorf("%.40s: rewritten as %.40s (%v)", doc, out, err)
 		}
 	}
-	out, excluded, err := trivyConfigReport([]byte(`{"SchemaVersion": 2, "Results": [{"Target": "Package.resolved", "Packages": [{"Name": ""}]}, {"Target": "Dockerfile", "Type": "dockerfile", "Packages": [{"Name": "x"}], "Misconfigurations": [{"ID": "DS-0002"}], "ExperimentalModifiedFindings": [{"Type": "misconfiguration", "Status": "ignored", "Finding": {"ID": "DS-0026", "Status": "FAIL"}}]}]}`))
+	out, excluded, _, err := trivyConfigReport([]byte(`{"SchemaVersion": 2, "Results": [{"Target": "Package.resolved", "Packages": [{"Name": ""}]}, {"Target": "Dockerfile", "Type": "dockerfile", "Packages": [{"Name": "x"}], "Misconfigurations": [{"ID": "DS-0002"}], "ExperimentalModifiedFindings": [{"Type": "misconfiguration", "Status": "ignored", "Finding": {"ID": "DS-0026", "Status": "FAIL"}}]}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +333,7 @@ func TestTrivyConfigReport(t *testing.T) {
 		t.Errorf("excluded = %+v, want Dockerfile's DS-0026", excluded)
 	}
 	for _, doc := range []string{"not json", `{"Results": {}}`, `{"Results": [{"Target": 1, "ExperimentalModifiedFindings": []}]}`} {
-		if _, _, err := trivyConfigReport([]byte(doc)); err == nil {
+		if _, _, _, err := trivyConfigReport([]byte(doc)); err == nil {
 			t.Errorf("%s: read as a report", doc)
 		}
 	}
@@ -341,5 +341,46 @@ func TestTrivyConfigReport(t *testing.T) {
 	unreadable := func(context.Context, string, []string) ([]byte, []byte, error) { return []byte("not json"), nil, nil }
 	if _, _, err := trivyConfigRun(unreadable)(context.Background(), "/tree", argv); err == nil {
 		t.Error("an unreadable report reached convert")
+	}
+}
+
+// Every configuration file Trivy checked is recorded as read, a clean one included, so a second iac
+// scanner's gap in it is told from the control's. A dependency file `trivy fs` lists is not a
+// misconfiguration check, and a file Trivy also could not read in full, such as a Terraform file
+// whose module it could not load, stays unread rather than read.
+func TestTrivyConfigRecordsTheFilesItChecked(t *testing.T) {
+	_, _, checked, err := trivyConfigReport([]byte(`{"SchemaVersion": 2, "Results": [
+		{"Target": "clean/cm.yaml", "Class": "config", "Type": "kubernetes", "MisconfSummary": {"Successes": 100, "Failures": 0}},
+		{"Target": "k8s/web.yaml", "Class": "config", "Type": "kubernetes", "MisconfSummary": {"Successes": 83, "Failures": 17}},
+		{"Target": "infra/main.tf", "Class": "config", "Type": "terraform"},
+		{"Target": "go.mod", "Class": "lang-pkgs", "Type": "gomod", "Packages": [{"Name": "x"}]}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"clean/cm.yaml", "k8s/web.yaml", "infra/main.tf"}; !slices.Equal(checked, want) {
+		t.Errorf("checked = %v, want %v", checked, want)
+	}
+	unread := []sarif.Input{{Path: "infra/main.tf", Unread: `module "vpc" not loaded`}}
+	got := trivyConfigRead(checked, unread)
+	want := []sarif.Input{{Path: "clean/cm.yaml"}, {Path: "k8s/web.yaml"}}
+	if !slices.Equal(got, want) {
+		t.Errorf("read = %+v, want %+v", got, want)
+	}
+}
+
+// The files Trivy checked come back from the scan as read inputs.
+func TestATrivyConfigScanReturnsTheFilesItChecked(t *testing.T) {
+	argv := []string{"trivy", "fs", trivyConfigExclusionsArg, "/tree"}
+	_, inputs, err := trivyConfigRun(func(_ context.Context, _ string, a []string) ([]byte, []byte, error) {
+		if a[1] == "convert" {
+			return []byte(trivyMisconfigSARIF), nil, nil
+		}
+		return []byte(`{"SchemaVersion": 2, "Results": [{"Target": "k8s/web.yaml", "Class": "config", "Type": "kubernetes"}]}`), nil, nil
+	})(context.Background(), "/tree", argv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []sarif.Input{{Path: "k8s/web.yaml"}}; !slices.Equal(inputs, want) {
+		t.Errorf("inputs = %+v, want %+v", inputs, want)
 	}
 }

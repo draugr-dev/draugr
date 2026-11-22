@@ -47,10 +47,11 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 			}
 			return out, unread, nil
 		}
-		report, excluded, err := trivyConfigReport(out)
+		report, excluded, checked, err := trivyConfigReport(out)
 		if err != nil {
 			return nil, nil, err
 		}
+		inputs := slices.Concat(unread, trivyConfigRead(checked, unread))
 		f, err := os.CreateTemp("", "draugr-trivy-config-*.json")
 		if err != nil {
 			return nil, nil, err
@@ -82,7 +83,7 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		if out, err = withEntrypointDrops(out, dir); err != nil {
 			return nil, nil, err
 		}
-		return out, unread, nil
+		return out, inputs, nil
 	}
 }
 
@@ -98,20 +99,24 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 //
 // Read once rather than once per use, because the report grows with the repository: the packages
 // are most of it, and every read of the whole document is another pass over all of them.
-func trivyConfigReport(report []byte) ([]byte, trivyMisconfigDoc, error) {
+func trivyConfigReport(report []byte) ([]byte, trivyMisconfigDoc, []string, error) {
 	var doc map[string]json.RawMessage
 	if err := json.Unmarshal(report, &doc); err != nil {
-		return nil, trivyMisconfigDoc{}, fmt.Errorf("read its JSON report: %w", err)
+		return nil, trivyMisconfigDoc{}, nil, fmt.Errorf("read its JSON report: %w", err)
 	}
 	var results []map[string]json.RawMessage
 	if raw, ok := doc["Results"]; ok {
 		if err := json.Unmarshal(raw, &results); err != nil {
-			return nil, trivyMisconfigDoc{}, fmt.Errorf("read its JSON report: %w", err)
+			return nil, trivyMisconfigDoc{}, nil, fmt.Errorf("read its JSON report: %w", err)
 		}
 	}
 	var excluded trivyMisconfigDoc
+	var checked []string
 	removed := false
 	for _, res := range results {
+		if target, ok := trivyCheckedTarget(res); ok {
+			checked = append(checked, target)
+		}
 		if _, ok := res["Packages"]; ok {
 			delete(res, "Packages")
 			removed = true
@@ -130,21 +135,57 @@ func trivyConfigReport(report []byte) ([]byte, trivyMisconfigDoc, error) {
 				continue
 			}
 			if err := json.Unmarshal(raw, f.into); err != nil {
-				return nil, trivyMisconfigDoc{}, fmt.Errorf("read its JSON report: %w", err)
+				return nil, trivyMisconfigDoc{}, nil, fmt.Errorf("read its JSON report: %w", err)
 			}
 		}
 		excluded.Results = append(excluded.Results, r)
 	}
 	if !removed {
-		return report, excluded, nil
+		return report, excluded, checked, nil
 	}
 	raw, err := json.Marshal(results)
 	if err != nil {
-		return nil, trivyMisconfigDoc{}, err
+		return nil, trivyMisconfigDoc{}, nil, err
 	}
 	doc["Results"] = raw
 	out, err := json.Marshal(doc)
-	return out, excluded, err
+	return out, excluded, checked, err
+}
+
+// trivyCheckedTarget is the file a result of Trivy's misconfiguration report checked, and false for
+// a result that is not a misconfiguration check, such as the dependency files `trivy fs` lists
+// whatever --scanners says. Trivy lists every configuration file it checked, the ones where every
+// check passed included, with their counts in MisconfSummary.
+func trivyCheckedTarget(res map[string]json.RawMessage) (string, bool) {
+	var class, target string
+	if json.Unmarshal(res["Class"], &class) != nil || class != "config" {
+		return "", false
+	}
+	if json.Unmarshal(res["Target"], &target) != nil || target == "" {
+		return "", false
+	}
+	return target, true
+}
+
+// trivyConfigRead is the files Trivy checked, as inputs read in full, leaving out any it also could
+// not read all of, such as a Terraform file whose module it could not load, which stays unread.
+//
+// Recorded so a second iac scanner's gap in a file is told from the control's: where KICS skips
+// lines a kics-scan comment marks and Trivy checked the file, the file was checked, and the gap is
+// KICS's alone.
+func trivyConfigRead(checked []string, unread []sarif.Input) []sarif.Input {
+	skip := map[string]bool{}
+	for _, in := range unread {
+		skip[in.Path] = true
+	}
+	var out []sarif.Input
+	for _, path := range checked {
+		if !skip[path] {
+			skip[path] = true
+			out = append(out, sarif.Input{Path: path})
+		}
+	}
+	return out
 }
 
 // trivyMisconfigDoc is the slice of Trivy's JSON report that names what it excluded.

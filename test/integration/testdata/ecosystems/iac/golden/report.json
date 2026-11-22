@@ -180,6 +180,16 @@
       "warnings": 2
     }
   ],
+  "dependencyFiles": [
+    {
+      "component": "iac",
+      "control": "iac",
+      "read": 5,
+      "scanners": [
+        "trivy-config"
+      ]
+    }
+  ],
   "descriptor": {
     "digest": "<cleared>",
     "effective": "<cleared>",

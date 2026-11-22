@@ -86,8 +86,8 @@ func TestAModuleTrivyCouldNotLoadIsReportedUnread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !slices.Equal(rep.Inputs, tree.want) {
-			t.Errorf("%s: inputs\n%+v\nwant\n%+v", repo, rep.Inputs, tree.want)
+		if got := unreadInputs(rep.Inputs); !slices.Equal(got, tree.want) {
+			t.Errorf("%s: unread inputs\n%+v\nwant\n%+v", repo, got, tree.want)
 		}
 		if len(rep.Results) != 3 {
 			t.Errorf("%s: %d results, want the findings as they were", repo, len(rep.Results))
@@ -274,8 +274,8 @@ func TestModuleCallsTrivyDidNotEvaluateAreReportedUnread(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !slices.Equal(rep.Inputs, tree.want) {
-			t.Errorf("%s: inputs\n%+v\nwant\n%+v", repo, rep.Inputs, tree.want)
+		if got := unreadInputs(rep.Inputs); !slices.Equal(got, tree.want) {
+			t.Errorf("%s: unread inputs\n%+v\nwant\n%+v", repo, got, tree.want)
 		}
 	}
 }
@@ -374,4 +374,10 @@ func TestTrivyLogEntry(t *testing.T) {
 			t.Errorf("%q: %q %v, want %q %v", line, msg, fields, want.msg, want.fields)
 		}
 	}
+}
+
+// unreadInputs is the inputs a scan could not read in full, leaving out the files it read, which
+// TestTrivyConfigRecordsTheFilesItChecked covers.
+func unreadInputs(inputs []sarif.Input) []sarif.Input {
+	return slices.DeleteFunc(slices.Clone(inputs), func(in sarif.Input) bool { return in.Unread == "" })
 }

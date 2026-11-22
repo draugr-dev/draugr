@@ -307,3 +307,25 @@ func TestInputCoverageListsAModuleNoAnalysisCovered(t *testing.T) {
 		t.Errorf("a scope only analyses covered: coverage = %+v, want none", got)
 	}
 }
+
+// A line KICS skips for a kics-scan comment, in a file Trivy checked, is KICS's gap and not the iac
+// control's: the file is not unread, and the gap is recorded against KICS. Where Trivy did not check
+// the file, it is unread for the control. Two repositories of one component, one of each.
+func TestAFileOneIaCScannerSkippedAndTheOtherCheckedIsNotUnread(t *testing.T) {
+	const skipped = "kics-scan ignore-line comment; KICS did not check what it marks"
+	byCtl := map[string][]sarif.Report{"iac": {
+		{Inputs: []sarif.Input{
+			{Scanner: "trivy-config", Component: "shop", Repository: "web", Path: "k8s/web.yaml"},
+		}},
+		{Inputs: []sarif.Input{
+			{Scanner: "kics", Component: "shop", Repository: "web", Path: "k8s/web.yaml", Unread: skipped},
+			{Scanner: "kics", Component: "shop", Repository: "jobs", Path: "k8s/job.yaml", Unread: skipped},
+		}},
+	}}
+	want := []InputCoverage{{Component: "shop", Control: "iac", Scanners: []string{"kics", "trivy-config"}, Read: 1,
+		Unread: []UnreadInput{{Repository: "jobs", Path: "k8s/job.yaml", Reason: skipped}},
+		Missed: []MissedInput{{Repository: "web", Path: "k8s/web.yaml", Scanner: "kics", Reason: skipped}}}}
+	if got := inputCoverage(byCtl); !reflect.DeepEqual(got, want) {
+		t.Errorf("coverage =\n%+v\nwant\n%+v", got, want)
+	}
+}

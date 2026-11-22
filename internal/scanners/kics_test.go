@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
@@ -276,8 +277,10 @@ func exitCode(t *testing.T, code int) error {
 }
 
 // fakeKICS writes report into the directory the command mounts at /report, unless report is
-// empty, and fails with err. It records the report directory it was given.
+// empty, and fails with err. It records the report directory it was given, under a lock, since an
+// engine run scans two repositories at once.
 func fakeKICS(report string, err error, seen *string) func(context.Context, string, []string) ([]byte, error) {
+	var mu sync.Mutex
 	return func(_ context.Context, _ string, argv []string) ([]byte, error) {
 		for _, a := range argv {
 			src, ok := strings.CutPrefix(a, "type=bind,source=")
@@ -285,7 +288,9 @@ func fakeKICS(report string, err error, seen *string) func(context.Context, stri
 				continue
 			}
 			dir := strings.TrimSuffix(src, ",target="+kicsReportMount)
+			mu.Lock()
 			*seen = dir
+			mu.Unlock()
 			if report != "" {
 				if werr := os.WriteFile(filepath.Join(dir, kicsReportName+".json"), []byte(report), 0o600); werr != nil {
 					return nil, werr

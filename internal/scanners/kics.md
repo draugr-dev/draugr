@@ -55,7 +55,7 @@ docker run --rm --pull never --network none --cap-drop ALL --security-opt no-new
 ```
 
 - **`--network none`.** KICS asks `api.github.com` for its newest release every time it starts a
-  scan (`CheckVersion` in `pkg/scan/client.go`), and no flag turns that off. With no network, the
+  scan, and no flag turns that off. With no network, the
   request fails, KICS scans the same, and nothing in the container can send what it read anywhere.
 - **`--pull never`.** The scan runs the image this machine already holds at the pinned digest, and
   never downloads one. `draugr doctor` says whether it is there.
@@ -183,7 +183,7 @@ Trivy's `KSV-0001` medium, so the KICS copy is the one counted. An exclusion wri
 copy covers both.
 
 The two tools' rule ids share nothing, a UUID against `KSV-0017`, so the match comes from a table
-in Draugr, `kicsSameChecks` in `internal/scanners/kics_same.go`. It names, for each KICS query that
+in Draugr. It names, for each KICS query that
 tests the setting a Trivy check tests, that check, and Draugr counts the two findings once when:
 
 - the KICS query and the Trivy check are a pair in the table,
@@ -210,11 +210,13 @@ and `KSV-0017` are one id.
   (`disable=<id>`, `enable=<id>`), as its documentation describes under *Using commands on scanned files as comments*
   (https://docs.kics.io/latest/running-kics/), and has no flag to stop. Its report names no file and no finding, only a count of lines
   ignored, in which a whole file counts one. Where that count is above zero, Draugr reads the checkout
-  for the comments and reports each file holding one as unread, as
-  `k8s/web.yaml  kics-scan ignore-line comment; KICS did not check what it marks`, so a skip someone
-  wrote in a file is visible beside the findings rather than gone. Trivy's copy of the same setting,
-  where Trivy checks it, is still reported. `config.exclude` is the way to set a finding aside and
-  keep it.
+  for the comments and records each file holding one as not checked by KICS, with the reason
+  `kics-scan ignore-line comment; KICS did not check what it marks`, so a skip someone wrote in a
+  file is visible rather than gone. Where [`trivy-config`](trivy-config.md) checked the file, the
+  file is not unread for `iac`: Trivy still checked what the
+  comment marks, and the report's evidence lists the gap as KICS's alone, as
+  `iac: kics · shop · k8s/web.yaml · kics-scan ignore-line comment; …`. Where Trivy did not check
+  it, the file is unread for `iac`. `config.exclude` is the way to set a finding aside and keep it.
 - Files KICS could not scan, and queries that failed to run, are reported unread against the
   repository root the same way, from the counts in its report, and the `iac` control lists each
   under [unread](../controllers/iac.md#unread).
