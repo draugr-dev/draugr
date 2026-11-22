@@ -18,25 +18,25 @@ _Nothing yet._
 
 - **Run KICS beside Trivy on infrastructure code.** With `config.controls.iac.kics.enabled: true`, Checkmarx KICS runs as a second `iac` scanner, from its pinned image with no network and the checkout read-only, and a setting both tools flag on one resource counts once. `draugr doctor` names the `docker pull` command when the image is missing.
 
-- **Stop a leaked credential before it is committed.** A `draugr` hook for pre-commit fails a commit that adds a finding `HEAD` does not have, and passes one that only carries findings already in the repository. It checks for credentials by default; `args` sets the descriptor, controls and gate. See docs/guides/pre-commit.md.
+- **Stop a leaked credential before it is committed.** Draugr's pre-commit hook fails a commit that adds a finding the last commit did not have, and passes one that only carries existing findings. It checks for credentials by default; `args` in `.pre-commit-config.yaml` replaces that with your own descriptor, controls or gate. [The pre-commit guide](https://github.com/draugr-dev/draugr/blob/v0.187.0/docs/guides/pre-commit.md) sets it up.
 
 - **The classify guide says how to pick exposure and criticality for a library**, by where it is used: a library inside public services stays public, and one only a build tool uses may declare internal on its owner's say-so. A lower declaration ranks its findings lower, so it is made in the descriptor, where review sees it.
 
-- **Turn on OSV-Scanner for `sca` to read the PyPA, RustSec, Go and Erlang advisories Trivy and Grype do not carry.** With `config.controls.sca.osvScanner.enabled: true` it runs offline, downloads each ecosystem's database once per run, and its findings merge with Trivy's and Grype's. `draugr tools install osv-scanner` fetches it.
+- **Turn on OSV-Scanner for `sca`** to add the PyPA, RustSec, Go and Erlang advisories Trivy and Grype do not carry. Set `config.controls.sca.osvScanner.enabled: true`, and its findings merge with Trivy's and Grype's. It never sends your package list to OSV: it downloads each ecosystem's database once per run and reads it locally. `draugr tools install osv-scanner` fetches it.
 
 ### Changed
 
-- **`report.json` counts the infrastructure files `iac` checked.** Its `dependencyFiles` list now has an `iac` entry giving how many configuration files Trivy checked, beside any it could not read in full.
+- **`report.json` says how many infrastructure files `iac` checked.** Its `dependencyFiles` list now has an `iac` entry whose `read` counts the configuration files Trivy checked. Files it could not read in full are listed under `unread`, as before.
 
 ### Fixed
 
-- **A cosign download cut short no longer fails the GitHub Action.** With `verify` on, the action installs cosign a second time when the first attempt fails, using the same pinned installer and checks. When both attempts fail, the job says it could not install cosign, not that the scan failed.
+- **A cosign download cut short no longer fails the GitHub Action.** With `verify` on, the action tries the cosign install once more when the first attempt fails, with the same pinned installer and checks. When both attempts fail, the job says it could not install cosign, not that the scan failed.
 
-- **A first scan on a slow network no longer fails `images` or `licenses` on Trivy's cache lock.** A run's image scans now take turns at Trivy's image cache, so one image's slow pull delays the next scan rather than failing it. The wait shows in `stats.toolWaitsMs`.
+- **A first scan on a slow network no longer fails `images` or `licenses` on Trivy's cache lock.** A run's image scans now wait for each other at Trivy's image cache, so a slow pull delays the next image scan instead of failing it. `stats.toolWaitsMs` in `report.json` shows how long they waited.
 
 - **A Python finding named by its PyPA id (`PYSEC-…`) now merges with the same flaw under its CVE.** An imported pip-audit or OSV-Scanner file and Trivy no longer count one advisory twice.
 
-- **A version range and its lockfile count as one finding.** With `trivyFs.detectionPriority: comprehensive`, an advisory reported both for a `requirements.txt` range such as `pillow>=10.4` and for the lockfile beside it is now counted once, at the lockfile's line and version. The range's copy stays in the report, counted under it.
+- **A version range and its lockfile no longer count one advisory twice.** With `trivyFs.detectionPriority: comprehensive`, an advisory reported both for a `requirements.txt` range such as `pillow>=10.4` and for the lockfile beside it is now counted once, at the lockfile's line and version. The range's copy stays in the report, counted under it.
 
 ## [0.186.2] - 2026-11-22
 
