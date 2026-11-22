@@ -264,13 +264,14 @@ The import names `commit: ${{ GITHUB_SHA }}`, as in [step 2](#2-name-the-commit-
 
 ## Import a tool's own JSON
 
-Trivy's SARIF states each finding's package and fixed version only in prose, govulncheck's has no
-call path, Grype's lists no CVE, so KEV and EPSS can't reach its findings, and OSV-Scanner's carries
-no score. Their own JSON keeps all of it, so import that instead and name the format:
+Trivy's SARIF states each finding's package and fixed version only in prose, and often scores it by
+severity alone (5.5 for MEDIUM) where its JSON carries the CVSS score. govulncheck's has no call
+path, Grype's lists no CVE, so KEV and EPSS can't reach its findings, and OSV-Scanner's carries no
+score. Their own JSON keeps all of it, so import that instead and name the format:
 
 ```bash
 trivy fs --format json -o reports/trivy.json .
-govulncheck -format json ./... > reports/govulncheck.json
+govulncheck -format json ./... > reports/govulncheck.json    # one file per Go module, see below
 grype dir:. -o json=reports/grype.json    # a directory scan; an image scan is refused
 osv-scanner scan --format json . > reports/osv-scanner.json    # an image scan is refused
 ```
@@ -309,6 +310,10 @@ What differs from a SARIF import:
   - govulncheck: medium, since its database publishes none.
   - OSV-Scanner: the CVSS score it gives the vulnerability, else the advisory's severity, else
     medium.
+- **govulncheck analyzes the one Go module it runs in.** In a repository with several, run it in
+  each, `govulncheck -C <dir> -format json ./... > reports/govulncheck-<dir>.json`, and import each
+  file. A module no imported file analyzed appears under `unread-files`, and its findings keep their
+  manifest scanner's band, with no reachability verdict.
 - **Only `commit` binds the file**, since none of the tools writes a commit into its JSON. A
   govulncheck file that is not bound lowers nothing: its unreachable verdicts are read as
   undetermined, and its reachable ones still apply.

@@ -1,0 +1,1 @@
+- **An imported govulncheck file now lists each Go module it did not analyze** under `unread-files`, with the `govulncheck -C <dir>` command to run and import. Before, those modules' findings got no reachability verdict and no warning.

@@ -140,7 +140,66 @@ func readGovulncheckImport(data []byte, ft plugin.FileTarget) (importRead, error
 		// the level its parser gives every one, as an imported one is.
 		rated[i] = "govulncheck states none, read as medium"
 	}
+	if repo, ok := repositoryOf(nil, ft.Repositories); ok {
+		rep.Inputs = govulncheckImportCoverage(runs, manifests, repo.Source())
+	}
 	return importRead{rep: rep, meta: meta, rated: rated, scored: "security-severity"}, nil
+}
+
+// govulncheckImportCoverage accounts for each Go module of the checkout as the file's runs covered
+// it: analyzed where a run started from its packages, and not analyzed otherwise, with the command
+// that would cover it.
+//
+// govulncheck analyzes the one module it is run in, so `govulncheck ./...` at the root of a
+// repository with a second module says nothing about the second, and a dependency finding there
+// gets no verdict. It keeps the band its manifest scanner gave it, which is the safe direction, but
+// a report that names only what was analyzed reads as though the whole repository was. Each module
+// is accounted for, analyzed or not, so a file per module, each imported, covers them all: the
+// engine lists a module as not analyzed only where no report analyzed it.
+//
+// With no local checkout there are no modules to account for, and nothing is said.
+//
+// Each is stamped with the repository's identity as a native scanner's are, so a module one scanner
+// read and the import did not analyze is one file.
+func govulncheckImportCoverage(runs [][]govulncheckMessage, manifests map[string]string, repository string) []sarif.Input {
+	if len(manifests) == 0 {
+		return nil
+	}
+	covered := map[string]bool{}
+	for _, run := range runs {
+		for _, m := range run {
+			if m.SBOM == nil {
+				continue
+			}
+			if gomod, ok := govulncheckManifest(m.SBOM.Roots, manifests); ok {
+				covered[gomod] = true
+			}
+		}
+	}
+	gomods := make([]string, 0, len(manifests))
+	for _, gomod := range manifests {
+		gomods = append(gomods, gomod)
+	}
+	slices.Sort(gomods)
+	out := make([]sarif.Input, 0, len(gomods))
+	for _, gomod := range gomods {
+		in := sarif.Input{Scanner: plugin.ImportScanner, Repository: repository, Path: gomod, Analysis: true}
+		if !covered[gomod] {
+			in.Unread = notAnalyzedByImport(gomod)
+		}
+		out = append(out, in)
+	}
+	return out
+}
+
+// notAnalyzedByImport is why a Go module has no verdict from an imported govulncheck file, with the
+// command whose output, imported too, would give it one. Short, and the command last, because the
+// console cuts a caveat's reason at the width of its row.
+func notAnalyzedByImport(gomod string) string {
+	if dir := path.Dir(gomod); dir != "." {
+		return "Run and import: govulncheck -C " + dir + " -format json ./..."
+	}
+	return "Run and import: govulncheck -format json ./... at the root"
 }
 
 // errNotGrypeJSON is the error of a file that is not Grype's JSON report.
