@@ -19,5 +19,6 @@ controls.sca.mendSca.productToken       a string, required                    -
 controls.sca.mendSca.project            a string                              -
 controls.sca.mendSca.resultTimeout      a duration such as 90s, 15m or 1h30m  10m
 controls.sca.mendSca.settings           a mapping                             -
+controls.sca.osvScanner.enabled         true or false                         false
 controls.sca.retirejs.enabled           true or false                         false
 - no default of its own. `draugr controls sca --options` says what each option does.

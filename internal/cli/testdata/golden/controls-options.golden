@@ -1,18 +1,18 @@
 CONTROLS
-Control     Scanners                                                 Purpose
-cloud       prowler                                                  Check a live cloud account against the provider's CIS Benchmark.
-dast        nuclei                                                   Find problems only visible from outside a running app (dynamic testing).
-headers     draugr-headers                                           Check how a running site answers a browser, the settings that stop a page being abused.
-iac         trivy-config                                             Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.
-images      trivy, grype*                                            Find known flaws in the operating system and packages baked into a container image.
-kubernetes  draugr-k8s-policies, kube-bench*, kube-bench-job*        Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.
-licenses    trivy-license, mend-licenses*                            Report license terms attached to code you did not write, where they carry an obligation.
-provenance  cosign, notation                                         Check that a container image is signed by the identity this descriptor expects.
-sast        semgrep, gosec*                                          Find patterns in a repo's own code that let somebody in (static analysis).
-sca         trivy-fs, govulncheck†, grype-fs*, mend-sca*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
-secrets     gitleaks                                                 Find passwords and keys committed by accident.
-threats     urlhaus, virustotal*                                     Check whether a component's hosts appear on public lists of known-hostile addresses.
-tls         draugr-tls                                               Check the certificates and encryption a component's running endpoints offer visitors.
+Control     Scanners                                                               Purpose
+cloud       prowler                                                                Check a live cloud account against the provider's CIS Benchmark.
+dast        nuclei                                                                 Find problems only visible from outside a running app (dynamic testing).
+headers     draugr-headers                                                         Check how a running site answers a browser, the settings that stop a page being abused.
+iac         trivy-config                                                           Find settings that leave a door open, in Terraform, Kubernetes and Dockerfiles.
+images      trivy, grype*                                                          Find known flaws in the operating system and packages baked into a container image.
+kubernetes  draugr-k8s-policies, kube-bench*, kube-bench-job*                      Check a Kubernetes cluster against the CIS Benchmark, rather than taking it on trust.
+licenses    trivy-license, mend-licenses*                                          Report license terms attached to code you did not write, where they carry an obligation.
+provenance  cosign, notation                                                       Check that a container image is signed by the identity this descriptor expects.
+sast        semgrep, gosec*                                                        Find patterns in a repo's own code that let somebody in (static analysis).
+sca         trivy-fs, govulncheck†, grype-fs*, mend-sca*, osv-scanner*, retirejs*  Find known flaws in the libraries a repo depends on (software composition analysis).
+secrets     gitleaks                                                               Find passwords and keys committed by accident.
+threats     urlhaus, virustotal*                                                   Check whether a component's hosts appear on public lists of known-hostile addresses.
+tls         draugr-tls                                                             Check the certificates and encryption a component's running endpoints offer visitors.
 
 PUBLISHERS  (who each scanner comes from)
   Origin               Scanners
@@ -24,6 +24,7 @@ PUBLISHERS  (who each scanner comes from)
   anchore              grype, grype-fs
   aquasecurity         kube-bench, kube-bench-job, trivy, trivy-config, trivy-fs, trivy-license
   gitleaks             gitleaks
+  google               osv-scanner
   mend.io              mend-licenses, mend-sca
   notaryproject        notation
   projectdiscovery     nuclei
@@ -142,6 +143,9 @@ What each scanner accepts in its Saga block:
     tags         array    Run only the templates carrying one of these tags, e.g. ["cve", "exposure"]. Lowercase. headers is refused, and intrusive needs intrusive: true.
     templates    array    Template files or directories to run instead of the community set, relative to where Draugr runs. Tag exclusions apply to them too, so a template of yours that writes to the endpoint should carry the intrusive tag. They run as written, including any that connect to another port or host.
     timeout      string   How long to wait for each response, in whole seconds, e.g. "30s". 1s to 10m.
+
+  osv-scanner
+    no options, configured by choosing it; any other key is an error
 
   prowler
     Option      Type    What it does

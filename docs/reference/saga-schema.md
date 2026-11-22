@@ -732,7 +732,7 @@ misspelled setting. Each produced a descriptor that claimed a decision it was no
 | `gitleaks` | `config`, a rules file shared across repositories; `history`, scan commit history too, keeping findings whose path is inside the component's [`paths` and `ignore`](#scoping-a-repository) and reporting a secret still in the tree once, as the tree finding |
 | `virustotal` | `requestsPerMinute` |
 | `nuclei` | `intrusive`, run the templates that may write to the endpoint, declares [`mutate`](../../internal/scanners/nuclei.md#intrusive-templates); `rateLimit`, `concurrency`, `timeout`, `retries`, the scan's pace; `tags`, `excludeTags`, `templates`, which templates run; `interactsh`, the callback templates. [Options](../../internal/scanners/nuclei.md#options) |
-| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `cosign`, `notation` | `enabled` only |
+| `draugr-headers`, `draugr-k8s-policies`, `urlhaus`, `retirejs`, `osv-scanner` (key `osvScanner`), `cosign`, `notation` | `enabled` only |
 
 
 [`examples/scanner-options.saga.yaml`](../../examples/scanner-options.saga.yaml) writes every

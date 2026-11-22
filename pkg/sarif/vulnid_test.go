@@ -13,6 +13,9 @@ func TestVulnerabilityIDIgnoresWhatAScannerAppends(t *testing.T) {
 		{"GO-2022-1059", "GO-2022-1059"},
 		{"RUSTSEC-2020-0159", "RUSTSEC-2020-0159"},
 		{"OSV-2021-1234", "OSV-2021-1234"},
+		// The PyPA advisory database's, which OSV-Scanner names a Python finding by.
+		{"PYSEC-2024-60", "PYSEC-2024-60"},
+		{"PYSEC-2026-1994", "PYSEC-2026-1994"},
 		// Trivy's identifiers for advisories that have no CVE, as it reports them.
 		{"NSWG-ECO-408", "NSWG-ECO-408"},
 		{"TEMP-0628843-DBAD28", "TEMP-0628843-DBAD28"},
@@ -59,6 +62,8 @@ func TestVulnerabilityIDIsEmptyForFindingsThatAreNotVulnerabilities(t *testing.T
 		"retirejs:jquery:below-",
 		"retire:jquery:73",
 		"RETIREJS:jquery:73",
+		// A PyPA id with no number.
+		"PYSEC-2024-",
 		"retirejs: not a git repository",
 		"",
 	} {

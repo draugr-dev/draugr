@@ -88,6 +88,8 @@ var (
 	prowlerVersionRE        = regexp.MustCompile(`Prowler\s+([0-9]+\.[0-9]+\.[0-9]+[^\s]*)`)
 	// retire.js prints a bare version: "5.4.3".
 	retireJSVersionRE = regexp.MustCompile(`([0-9]+\.[0-9]+\.[0-9]+[^\s]*)`)
+	// OSV-Scanner prints "osv-scanner version: 2.7.1".
+	osvScannerVersionRE = regexp.MustCompile(`osv-scanner version:\s*(\S+)`)
 	// govulncheck prints a block naming itself and the database it read:
 	//
 	//   Scanner: govulncheck@v1.7.0
@@ -130,6 +132,11 @@ var (
 	// Prowler prints "Prowler 5.44.0".
 	sharedProwlerVersion = &toolVersionProbe{
 		argv: []string{"prowler", "--version"}, extract: firstMatch(prowlerVersionRE), run: runWithoutProwlerVersionCheck,
+	}
+	// OSV-Scanner prints "osv-scanner version: 2.7.1", then the version of the library it extracts
+	// packages with, which is not its own.
+	sharedOSVScannerVersion = &toolVersionProbe{
+		argv: []string{"osv-scanner", "--version"}, extract: firstMatch(osvScannerVersionRE), run: execArgv,
 	}
 	sharedRetireJSVersion = &toolVersionProbe{
 		argv: []string{"retire", "--version"}, extract: firstMatch(retireJSVersionRE), run: execArgv,

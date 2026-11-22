@@ -1,0 +1,1223 @@
+{
+  "results": [
+    {
+      "source": {
+        "path": "/checkout/Cargo.lock",
+        "type": "lockfile"
+      },
+      "packages": [
+        {
+          "package": {
+            "name": "atty",
+            "version": "0.2.14",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/atty@0.2.14"
+          },
+          "groups": [
+            {
+              "ids": [
+                "RUSTSEC-2021-0145",
+                "GHSA-g98v-hv3f-hcfr"
+              ],
+              "aliases": [
+                "GHSA-g98v-hv3f-hcfr",
+                "RUSTSEC-2021-0145"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2024-0375"
+              ],
+              "aliases": [
+                "RUSTSEC-2024-0375"
+              ],
+              "max_severity": ""
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2021-0145.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [],
+                      "os": [
+                        "windows"
+                      ]
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "atty",
+                    "purl": "pkg:cargo/atty"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0.0.0-0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "GHSA-g98v-hv3f-hcfr"
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "On windows, `atty` dereferences a potentially unaligned pointer.\n\nIn practice however, the pointer won't be unaligned unless a custom global allocator is used.\n\nIn particular, the `System` allocator on windows uses `HeapAlloc`, which guarantees a large enough alignment.\n\n# atty is Unmaintained\n\nA Pull Request with a fix has been provided over a year ago but the maintainer seems to be unreachable.\n\nLast release of `atty` was almost 3 years ago.\n\n## Possible Alternative(s)\n\nThe below list has not been vetted in any way and may or may not contain alternatives;\n\n - [std::io::IsTerminal](https://doc.rust-lang.org/stable/std/io/trait.IsTerminal.html) - Stable since Rust 1.70.0\n - [is-terminal](https://crates.io/crates/is-terminal) - Standalone crate supporting Rust older than 1.70.0",
+              "id": "RUSTSEC-2021-0145",
+              "modified": "2023-11-08T04:19:25.814075Z",
+              "published": "2021-07-04T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/atty"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2021-0145.html"
+                },
+                {
+                  "type": "REPORT",
+                  "url": "https://github.com/softprops/atty/issues/50"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/softprops/atty/pull/51"
+                },
+                {
+                  "type": "REPORT",
+                  "url": "https://github.com/softprops/atty/issues/57"
+                }
+              ],
+              "schema_version": "1.7.3",
+              "summary": "Potential unaligned read"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [],
+                    "cvss": null,
+                    "informational": "unmaintained",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2024-0375.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "atty",
+                    "purl": "pkg:cargo/atty"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0.0.0-0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "The maintainer of `atty` has [published](https://github.com/softprops/atty/commit/5bfdbe9e48c6ca6a4909e8d5b04f5e843a257e93) an official notice that the crate is no longer\nunder development, and that users should instead rely on the functionality in the standard library's [`IsTerminal`](https://doc.rust-lang.org/std/io/trait.IsTerminal.html) trait.\n\n## Alternative(s)\n\n- [std::io::IsTerminal](https://doc.rust-lang.org/stable/std/io/trait.IsTerminal.html) - Stable since Rust 1.70.0 and the recommended replacement per the `atty` maintainer.\n- [is-terminal](https://crates.io/crates/is-terminal) - Standalone crate supporting Rust older than 1.70.0",
+              "id": "RUSTSEC-2024-0375",
+              "modified": "2024-09-26T12:26:22Z",
+              "published": "2024-09-25T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/atty"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2024-0375.html"
+                },
+                {
+                  "type": "REPORT",
+                  "url": "https://github.com/softprops/atty/issues/57"
+                }
+              ],
+              "schema_version": "1.7.3",
+              "summary": "`atty` is unmaintained"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2023/06/GHSA-g98v-hv3f-hcfr/GHSA-g98v-hv3f-hcfr.json"
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "atty",
+                    "purl": "pkg:cargo/atty"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0"
+                        },
+                        {
+                          "last_affected": "0.2.14"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "RUSTSEC-2021-0145"
+              ],
+              "database_specific": {
+                "cwe_ids": [],
+                "github_reviewed": true,
+                "github_reviewed_at": "2023-06-30T20:21:59Z",
+                "nvd_published_at": null,
+                "severity": "LOW"
+              },
+              "details": "On windows, `atty` dereferences a potentially unaligned pointer.\n\nIn practice however, the pointer won't be unaligned unless a custom global allocator is used.\n\nIn particular, the `System` allocator on windows uses `HeapAlloc`, which guarantees a large enough alignment.\n\n# atty is Unmaintained\n\nA Pull Request with a fix has been provided over a year ago but the maintainer seems to be unreachable.\n\nLast release of `atty` was almost 3 years ago.\n\n## Possible Alternative(s)\n\nThe below list has not been vetted in any way and may or may not contain alternatives;\n\n- [std::io::IsTerminal](https://doc.rust-lang.org/stable/std/io/trait.IsTerminal.html) - Stable since Rust 1.70.0\n- [is-terminal](https://crates.io/crates/is-terminal) - Standalone crate supporting Rust older than 1.70.0\"\n",
+              "id": "GHSA-g98v-hv3f-hcfr",
+              "modified": "2026-09-10T03:49:53.897184297Z",
+              "published": "2023-06-30T20:21:59Z",
+              "references": [
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/softprops/atty/issues/50"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/softprops/atty/pull/51"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/softprops/atty"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2021-0145.html"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "summary": "atty potential unaligned read"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "smallvec",
+            "version": "1.6.0",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/smallvec@1.6.0"
+          },
+          "groups": [
+            {
+              "ids": [
+                "RUSTSEC-2021-0003",
+                "GHSA-43w2-9j62-hq99"
+              ],
+              "aliases": [
+                "CVE-2021-25900",
+                "GHSA-43w2-9j62-hq99",
+                "RUSTSEC-2021-0003"
+              ],
+              "max_severity": "9.8"
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-corruption"
+                    ],
+                    "cvss": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                    "informational": null,
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2021-0003.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "smallvec::SmallVec::insert_many"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "smallvec",
+                    "purl": "pkg:cargo/smallvec"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0.6.3"
+                        },
+                        {
+                          "fixed": "0.6.14"
+                        },
+                        {
+                          "introduced": "1.0.0"
+                        },
+                        {
+                          "fixed": "1.6.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2021-25900",
+                "GHSA-43w2-9j62-hq99"
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "A bug in the `SmallVec::insert_many` method caused it to allocate a buffer that was smaller than needed.  It then wrote past the end of the buffer, causing a buffer overflow and memory corruption on the heap.\n\nThis bug was only triggered if the iterator passed to `insert_many` yielded more items than the lower bound returned from its `size_hint` method.\n \nThe flaw was corrected in smallvec 0.6.14 and 1.6.1, by ensuring that additional space is always reserved for each item inserted.  The fix also simplified the implementation of `insert_many` to use less unsafe code, so it is easier to verify its correctness.\n\nThank you to Yechan Bae ([@Qwaz](https://github.com/Qwaz)) and the Rust group at Georgia Tech’s SSLab for finding and reporting this bug.",
+              "id": "RUSTSEC-2021-0003",
+              "modified": "2026-07-17T16:00:03.208176448Z",
+              "published": "2021-01-08T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/smallvec"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2021-0003.html"
+                },
+                {
+                  "type": "REPORT",
+                  "url": "https://github.com/servo/rust-smallvec/issues/252"
+                }
+              ],
+              "schema_version": "1.7.5",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "Buffer overflow in SmallVec::insert_many"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2022/05/GHSA-43w2-9j62-hq99/GHSA-43w2-9j62-hq99.json"
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "smallvec",
+                    "purl": "pkg:cargo/smallvec"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0.6.3"
+                        },
+                        {
+                          "fixed": "0.6.14"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                },
+                {
+                  "database_specific": {
+                    "source": "https://github.com/github/advisory-database/blob/main/advisories/github-reviewed/2022/05/GHSA-43w2-9j62-hq99/GHSA-43w2-9j62-hq99.json"
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "smallvec",
+                    "purl": "pkg:cargo/smallvec"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "1.0.0"
+                        },
+                        {
+                          "fixed": "1.6.1"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "aliases": [
+                "CVE-2021-25900",
+                "RUSTSEC-2021-0003"
+              ],
+              "database_specific": {
+                "cwe_ids": [
+                  "CWE-787"
+                ],
+                "github_reviewed": true,
+                "github_reviewed_at": "2022-06-17T00:20:48Z",
+                "nvd_published_at": "2021-01-26T18:16:00Z",
+                "severity": "CRITICAL"
+              },
+              "details": "A bug in the SmallVec::insert_many method caused it to allocate a buffer that was smaller than needed. It then wrote past the end of the buffer, causing a buffer overflow and memory corruption on the heap. This bug was only triggered if the iterator passed to insert_many yielded more items than the lower bound returned from its size_hint method.\n\nThe flaw was corrected in smallvec 0.6.14 and 1.6.1, by ensuring that additional space is always reserved for each item inserted. The fix also simplified the implementation of insert_many to use less unsafe code, so it is easier to verify its correctness.",
+              "id": "GHSA-43w2-9j62-hq99",
+              "modified": "2023-11-08T04:05:16.493284Z",
+              "published": "2022-05-24T17:40:21Z",
+              "references": [
+                {
+                  "type": "ADVISORY",
+                  "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-25900"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/servo/rust-smallvec/issues/252"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/servo/rust-smallvec/commit/5757ac500d4e544485d796b542e4e589749c291b"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/servo/rust-smallvec/commit/9998ba0694a6b51aa6604748b00b6a98f0a0039e"
+                },
+                {
+                  "type": "PACKAGE",
+                  "url": "https://github.com/servo/rust-smallvec"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2021-0003.html"
+                }
+              ],
+              "schema_version": "1.9.0",
+              "severity": [
+                {
+                  "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                  "type": "CVSS_V3"
+                }
+              ],
+              "summary": "Buffer overflow in SmallVec::insert_many"
+            }
+          ]
+        },
+        {
+          "package": {
+            "name": "zstd-safe",
+            "version": "7.1.0",
+            "ecosystem": "crates.io",
+            "purl": "pkg:cargo/zstd-safe@7.1.0"
+          },
+          "groups": [
+            {
+              "ids": [
+                "RUSTSEC-2026-0395"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0395"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0397"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0397"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0399"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0399"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0400"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0400"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0401"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0401"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0402"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0402"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0403"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0403"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0404"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0404"
+              ],
+              "max_severity": ""
+            },
+            {
+              "ids": [
+                "RUSTSEC-2026-0406"
+              ],
+              "aliases": [
+                "RUSTSEC-2026-0406"
+              ],
+              "max_severity": ""
+            }
+          ],
+          "vulnerabilities": [
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-exposure"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0395.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::CCtx::set_parameter"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.1.0"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "With `CParameter::StableInBuffer(true)` (`experimental` feature), the C\nlibrary keeps a pointer to the input of one streaming call and reads from it\nin later calls, including `flush_stream` and `end_stream`, which take no\ninput. An `InBuffer` only borrows its slice for one call, so safe code could\nfree it in between, and freed memory was compressed into the frame. The C\nlibrary behaves this way since zstd 1.5.4, whether bundled or linked from the\nsystem.\n\nThe flaw was corrected by refusing to enable the parameter.",
+              "id": "RUSTSEC-2026-0395",
+              "modified": "2026-11-02T09:30:03.420559993Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0395.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/53a8a290d8cfb52ff5b29fb6e04a40b5a174cc65"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Use-after-free with `CParameter::StableInBuffer`"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-exposure"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0397.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::OutBuffer::around_pos"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "`OutBuffer::around_pos` accepted a position past the initialized length of a\n`Vec\u003cu8\u003e`. The next streaming call then marked everything before the\nposition as initialized, so safe code could read stale heap memory between\nthe vector's previous length and that position.\n\nThe flaw was corrected by zero-filling that gap.",
+              "id": "RUSTSEC-2026-0397",
+              "modified": "2026-11-02T09:30:03.445177143Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0397.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/5827de2459b8ac430e87e860f00c7f3c13023833"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "`OutBuffer::around_pos` exposes uninitialized memory"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-corruption"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0399.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::CCtx::init_using_cdict",
+                        "zstd_safe::DCtx::init_using_ddict"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "3.0.0"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "`CCtx::init_using_cdict` and `DCtx::init_using_ddict` (`experimental`\nfeature, deprecated) took the dictionary as `\u0026CDict\u003c'b\u003e` and `\u0026DDict\u003c'b\u003e`\nwith only `'b: 'a`, so the dictionary itself could be dropped while the\ncontext still pointed at it. The same mistake in other constructors was\nfixed earlier (\u003chttps://github.com/gyscos/zstd-rs/issues/365\u003e).\n\nThe flaw was corrected by taking `\u0026'a CDict\u003c'b\u003e` and `\u0026'a DDict\u003c'b\u003e`.",
+              "id": "RUSTSEC-2026-0399",
+              "modified": "2026-11-02T09:30:03.328955732Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0399.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/e00e7928e3e98953fc43418af6d73f6aae2378fb"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Use-after-free through `init_using_cdict` and `init_using_ddict`"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-exposure"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0400.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::DCtx::decompress",
+                        "zstd_safe::DCtx::decompress_using_ddict",
+                        "zstd_safe::DCtx::decompress_using_dict"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "3.0.1"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "The one-shot `DCtx` and `CCtx` methods assumed the C library resets the\ncontext, but it leaves an open stream as it is. When a stream was left\nunfinished on a context, a one-shot call such as `decompress_using_dict`\ncould leave the context pointing at the dictionary borrowed for that call,\nand the next streaming call resumed the stream against it after it was\nfreed: decompressed output then contained freed heap memory. On the\ncompression side, the stream resumed against the one-shot call's buffers.\n\nThis requires an application to use one context for both streaming and\none-shot calls without a reset in between. The flaw was corrected by\nresetting the session after one-shot calls whenever a stream may be open.",
+              "id": "RUSTSEC-2026-0400",
+              "modified": "2026-11-02T09:30:03.428341570Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0400.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/d34502a0ed07f80ab2aa4c65059578e0466f2467"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Use-after-free of a dictionary after a one-shot call on a context with an open stream"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-exposure"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0401.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::train_from_buffer"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0.0.0-0"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "`ZDICT_trainFromBuffer` is never told the length of the samples buffer, so\n`train_from_buffer` checked that the sample sizes add up to it. With\noverflow checks off, as in release builds, that sum wrapped around: sizes\ntotalling 2^64 plus the buffer length passed the check, and the trainer read\npast the end of the buffer. `zstd::dict::from_continuous` relies on this\ncheck from zstd 0.4.10; older versions of zstd had their own, covered by a\nseparate advisory.\n\nThis requires the sample sizes to come from an untrusted source. The flaw\nwas corrected by summing the sizes with overflow checks.",
+              "id": "RUSTSEC-2026-0401",
+              "modified": "2026-11-02T09:30:03.353698025Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0401.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/781ea454191dbf178d09c1daf6fc896d15fbaa2f"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Out-of-bounds read in `train_from_buffer` when sample sizes overflow"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-corruption"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0402.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::CCtx::try_clone"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.1.4"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "`CCtx::try_clone` (`experimental` feature, deprecated) copies tables sized\nfrom the context's applied parameters. Starting a multithreaded frame\n(`zstdmt` feature) replaces those parameters with the workers' without\nresizing the context's own tables, so after an abandoned single-threaded\nframe, the copy wrote up to 512 KiB past a heap allocation, or read past\none. This became reachable with the bundled zstd 1.5.6.\n\nThe flaw was corrected by refusing `try_clone` (and the unsafe\n`compress_block`) once `NbWorkers` was set on the context.",
+              "id": "RUSTSEC-2026-0402",
+              "modified": "2026-11-02T09:30:04.162155944Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0402.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/682b8b2967cf4aba5cfe2d940d1e381a3e23211a"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Heap buffer overflow in `CCtx::try_clone` on a multithreaded context"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-exposure"
+                    ],
+                    "cvss": null,
+                    "informational": null,
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0403.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::DCtx::decompress_stream"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.0.0"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "When decompression fails inside a legacy (zstd v0.4 to v0.7) frame, the\nbundled zstd library reports the output buffer as fully written although\nnothing was written. `DCtx::decompress_stream` committed that position even\non error, and for a `Vec\u003cu8\u003e` destination this extended the vector's length\nover uninitialized memory.\n\nLegacy support is enabled by default. A 5- or 6-byte corrupt legacy frame is\nenough: through `zstd::stream::write::Decoder`, up to 32 KiB of stale heap\nmemory is then passed to the wrapped writer on the next `write()` or\n`flush()`, or when an `auto_flush()`/`on_flush()` decoder is dropped. Whether\nthis reaches an attacker depends on where the application sends the\ndecompressed output. `zstd::stream::read::Decoder`, `zstd::decode_all` and\nthe bulk API are not affected.\n\nBefore zstd-safe 4.0.0, output buffers could only be initialized slices.\nThe zstd crate's own writer had the same flaw from 0.4.22 to 0.7.x, which is\ncovered by a separate advisory.\n\nThe flaw was corrected by only committing the buffer positions of a\nsuccessful call.",
+              "id": "RUSTSEC-2026-0403",
+              "modified": "2026-11-02T09:30:04.136442771Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0403.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/006e1d1ad1eeaf6b5d4c28329e70217adabcec43"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Uninitialized memory exposed when streaming decompression of a legacy frame fails"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-corruption"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0404.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::DCtx::try_clone"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "4.1.4"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "`DCtx::try_clone` (`experimental` feature, deprecated) is a plain copy of the\nC context. A context owning a dictionary (from `load_dictionary`,\n`ref_prefix` or `init_using_dict`) or a dictionary table (`ref_ddict` with\n`RefMultipleDDicts`) ended up with both copies freeing it. A context cloned\nmid-frame resumed on uninitialized stream state. The clone also silently lost\nthe `WindowLogMax` limit.\n\nThe flaw was corrected by refusing to clone such contexts, and by carrying\nover the parameters the copy leaves out.",
+              "id": "RUSTSEC-2026-0404",
+              "modified": "2026-11-02T09:30:04.168804805Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0404.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/cee6529b553ec600a8e152aaca15a91598820ecf"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Double free in `DCtx::try_clone`"
+            },
+            {
+              "affected": [
+                {
+                  "database_specific": {
+                    "categories": [
+                      "memory-corruption"
+                    ],
+                    "cvss": null,
+                    "informational": "unsound",
+                    "source": "https://github.com/rustsec/advisory-db/blob/osv/crates/RUSTSEC-2026-0406.json"
+                  },
+                  "ecosystem_specific": {
+                    "affected_functions": null,
+                    "affects": {
+                      "arch": [],
+                      "functions": [
+                        "zstd_safe::CCtx::disable_dictionary",
+                        "zstd_safe::CCtx::init",
+                        "zstd_safe::CCtx::load_dictionary",
+                        "zstd_safe::CCtx::ref_cdict",
+                        "zstd_safe::CCtx::ref_prefix",
+                        "zstd_safe::CCtx::reset",
+                        "zstd_safe::CCtx::set_parameter"
+                      ],
+                      "os": []
+                    }
+                  },
+                  "package": {
+                    "ecosystem": "crates.io",
+                    "name": "zstd-safe",
+                    "purl": "pkg:cargo/zstd-safe"
+                  },
+                  "ranges": [
+                    {
+                      "events": [
+                        {
+                          "introduced": "0.0.0-0"
+                        },
+                        {
+                          "fixed": "7.4.0"
+                        },
+                        {
+                          "introduced": "8.0.0-0"
+                        },
+                        {
+                          "fixed": "8.2.0"
+                        }
+                      ],
+                      "type": "SEMVER"
+                    }
+                  ]
+                }
+              ],
+              "database_specific": {
+                "license": "CC0-1.0"
+              },
+              "details": "When a multithreaded frame (`zstdmt` feature, `CParameter::NbWorkers`) is\nleft unfinished, its jobs may still be running on the worker threads: the C\nlibrary only waits for them when the next frame starts, or when the context\nis freed. A session reset makes the context accept changes again in the\nmeantime, so:\n\n- unloading the dictionary (`load_dictionary`, `ref_cdict`, `ref_prefix`,\n  `disable_dictionary`, `init*`, or `reset` with parameters) freed the\n  dictionary a worker was still compressing against;\n- changing `NbWorkers` made the next frame resize the job table before\n  waiting for the old jobs.\n\nThe flaw was corrected by refusing these calls while a multithreaded frame\nis unfinished. The new `CCtx::wait_for_workers()` waits for the workers\nfirst.",
+              "id": "RUSTSEC-2026-0406",
+              "modified": "2026-11-02T09:30:03.591194710Z",
+              "published": "2026-10-16T12:00:00Z",
+              "references": [
+                {
+                  "type": "PACKAGE",
+                  "url": "https://crates.io/crates/zstd-safe"
+                },
+                {
+                  "type": "ADVISORY",
+                  "url": "https://rustsec.org/advisories/RUSTSEC-2026-0406.html"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/commit/e224018a2389915d68ed17f30109bebad36e9734"
+                },
+                {
+                  "type": "WEB",
+                  "url": "https://github.com/gyscos/zstd-rs/pull/384"
+                }
+              ],
+              "schema_version": "1.9.2",
+              "summary": "Use-after-free when changing a multithreaded context with an unfinished frame"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "experimental_config": {
+    "licenses": {
+      "summary": false,
+      "allowlist": null
+    }
+  }
+}
