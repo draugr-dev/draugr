@@ -1,1 +1,0 @@
-- **Stop a leaked credential before it is committed.** A `draugr` hook for pre-commit fails a commit that adds a finding `HEAD` does not have, and passes one that only carries findings already in the repository. It checks for credentials by default; `args` sets the descriptor, controls and gate. See docs/guides/pre-commit.md.

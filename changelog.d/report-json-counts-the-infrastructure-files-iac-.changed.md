@@ -1,1 +1,0 @@
-- **`report.json` counts the infrastructure files `iac` checked.** Its `dependencyFiles` list now has an `iac` entry giving how many configuration files Trivy checked, beside any it could not read in full.
