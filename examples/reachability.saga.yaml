@@ -12,16 +12,18 @@
 #
 # What to expect:
 #
-#   * The severity column does not change. Reachability feeds the priority band; the report still
-#     shows what the scanner said, the same way exploitability enrichment works in reverse.
+#   * No band moves. govulncheck's call graph covers the builds Draugr analyzed, not yet every
+#     build the module ships, so a finding nothing in them reaches keeps its band. The scan prints
+#     a reachable finding's call path under it, and the HTML report shows the rest as
+#     "not called in the build analyzed; other builds not checked".
 #
-#   * Findings nothing can reach drop one severity level and stay in the report. Nothing is suppressed,
-#     a call graph does not see reflection or dynamic dispatch, and an inference is not a
-#     decision. To excuse a finding, use config.exclude or a VEX document, which carry an author.
+#   * Nothing is suppressed. A call graph does not see reflection or dynamic dispatch, and an
+#     inference is not a decision. To excuse a finding, use config.exclude or a VEX document,
+#     which carry an author.
 #
-#   * A summary line says how the analysis went, including how much of it was undetermined:
+#   * The SIGNALS section says how the analysis went:
 #
-#       govulncheck: 2 reachable, 6 not, findings nothing can reach are ranked down, not removed
+#       reachability  govulncheck · 2 reachable, 3 unreachable
 #
 #   * `report.json` and the SARIF carry the call path, ordered from your code to the vulnerable
 #     symbol. That is the evidence a reachability claim is judged on.
@@ -35,14 +37,13 @@ release:
 
 config:
   gate:
-    # The gate this makes practical. Break the build for what your code actually reaches; leave
-    # everything else visible in the report rather than turning the gate off to get work done.
     failOn: P1
 
   # Beside exploitability rather than in the sca scanner block, and that placement is the point:
-  # every entry in a scanner block adds findings, while an analyzer named here adds none and ranks
-  # findings already found downward. Enabling it can turn a failing gate green, so it belongs
-  # somewhere whoever owns the gate reviews it.
+  # every entry in a scanner block adds findings, while an analyzer named here adds none and puts a
+  # verdict on findings already found. Once every build is analyzed (issue 2236, planned), a
+  # verdict of no path will rank a finding down, which can turn a failing gate green, so it
+  # belongs somewhere whoever owns the gate reviews it.
   reachability:
     analyzers: [govulncheck]
 

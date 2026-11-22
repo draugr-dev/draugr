@@ -1035,10 +1035,12 @@ config:
 
 **Beside `config.exploitability`, not in the `sca` scanner block**, and the placement is the point.
 Every entry in a scanner block adds findings, so enabling one there means *check this too*. An
-analyzer named here adds none: it ranks findings already found, **downward**, which can turn a
-failing gate green. That is a decision about how findings are ranked, the same kind
-`config.exploitability` makes in the opposite direction, and it belongs where whoever owns the gate
-will see it in a diff.
+analyzer named here adds none: it puts a verdict on findings already found. Today a verdict moves no
+band (below says why). Once every build a module ships is analyzed, which is planned
+([issue 2236](https://github.com/draugr-dev/draugr/issues/2236)), a verdict of no path will rank a
+finding **downward**, and that can turn a failing gate green. That is a decision about how findings
+are ranked, the same kind `config.exploitability` makes in the opposite direction, so it belongs
+where whoever owns the gate will see it in a diff.
 
 Naming an analyzer in a scanner block is rejected at load, with the line to write instead.
 

@@ -101,8 +101,9 @@ This is deliberate and constrains how integrations are written.
 component's declared exposure and criticality. Context no scanner can compute, because it isn't in
 the code.
 
-**Doubt never makes a finding look safer.** A finding moves down only on evidence: reachability
-lowers one when analysis shows no path from the code to it. Where Draugr cannot tell, a component
+**Doubt never makes a finding look safer.** A finding moves down only on evidence that covers
+what ships: a call graph that showed no path in some builds and never read the others is not that
+evidence, so reachability lowers nothing until every build is analyzed. Where Draugr cannot tell, a component
 nobody classified or a check that never looks at where a value comes from, it assumes the worse case
 or leaves the rank alone, never the milder one. A ranking change that lowers findings because a check
 was not made breaks this, however much noise it would clear.

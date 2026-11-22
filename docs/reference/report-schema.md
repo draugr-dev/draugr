@@ -231,7 +231,8 @@ claim that something is more urgent than its score.
 `draugr/rating` severity, or the level (`error` high, `warning` medium, `note` low), in that order.
 Raise it to `severityFloor` where present. Where `escalation` is present, take `escalation.to`, which
 was raised from that floored severity. Where `reachability` found no path and carries `rankedAs`,
-take `rankedAs`, which was lowered from the severity before it. The result is the ranked severity a
+take `rankedAs`, which was lowered from the severity before it; no analyzer sets it today, so a
+verdict moves nothing. The result is the ranked severity a
 severity gate judges and `controls[].highest` reports.
 
 **`historical: true` marks a finding from the repository's commit history.** Its location is the
