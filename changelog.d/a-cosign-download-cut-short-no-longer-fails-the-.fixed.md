@@ -1,0 +1,1 @@
+- **A cosign download cut short no longer fails the GitHub Action.** With `verify` on, the action installs cosign a second time when the first attempt fails, using the same pinned installer and checks. When both attempts fail, the job says it could not install cosign, not that the scan failed.

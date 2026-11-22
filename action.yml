@@ -209,9 +209,43 @@ runs:
         echo "report=${base}/report.json" >>"$GITHUB_OUTPUT"
         echo "out=${base}" >>"$GITHUB_OUTPUT"
 
+    # The installer downloads cosign once, with no retry of its own, so a download cut short or
+    # answered with a gateway error would fail the job before anything is scanned. It runs a second
+    # time after a pause, the same pinned installer with the same checksum checks, so nothing
+    # unverified runs. The check after it fails the job when neither attempt installed cosign.
     - name: Install cosign
+      id: cosign-first
       if: inputs.verify == 'true'
+      continue-on-error: true
       uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+    - name: Wait before installing cosign again
+      if: inputs.verify == 'true' && steps.cosign-first.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::warning title=cosign install failed::The cosign installer failed. Trying it once more in 15 seconds."
+        sleep 15
+
+    - name: Install cosign (second attempt)
+      id: cosign-second
+      if: inputs.verify == 'true' && steps.cosign-first.outcome == 'failure'
+      continue-on-error: true
+      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+    - name: Check cosign is installed
+      id: cosign-check
+      if: inputs.verify == 'true'
+      shell: bash
+      env:
+        FIRST: ${{ steps.cosign-first.outcome }}
+        SECOND: ${{ steps.cosign-second.outcome }}
+      run: |
+        set -euo pipefail
+        if [ "$FIRST" = "success" ] || [ "$SECOND" = "success" ]; then
+          exit 0
+        fi
+        echo "::error title=Could not install cosign::The action could not install cosign in two attempts, so it cannot verify the Draugr release's signature. Nothing was scanned, so no finding caused this. The installer's error is in the two attempts above; rerun the job." >&2
+        exit 1
 
     - name: Download and verify Draugr ${{ steps.setup.outputs.tag }}
       shell: bash
