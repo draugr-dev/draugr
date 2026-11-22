@@ -1,1 +1,0 @@
-- **Go findings with no govulncheck call path are lowered again**, first published here: 0.186.1 was tagged but never released. Their ranked severity drops one level and the band is recomputed, usually by a step. The console marks them `↓ unreachable` and credits the build, such as `govulncheck on linux/amd64`. A severity or priority gate may newly pass.

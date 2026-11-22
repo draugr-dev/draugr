@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.186.2] - 2026-11-22
+
+### Changed
+
+- **Go findings with no govulncheck call path are lowered again**, first published here: 0.186.1 was tagged but never released. Their ranked severity drops one level and the band is recomputed, usually by a step. The console marks them `↓ unreachable` and credits the build, such as `govulncheck on linux/amd64`. A severity or priority gate may newly pass.
+
+### Security
+
+- **Draugr's own Go dependencies are past three advisories.** golang.org/x/net v0.62.0 fixes CVE-2026-78661 and CVE-2026-97045, and golang.org/x/crypto v0.59.0 fixes GO-2026-5932. 0.186.0 and earlier ship the affected versions. govulncheck finds no call path from Draugr to any of them, so upgrading is all there is to do.
+
 ## [0.186.1] - 2026-11-22
 
 ### Changed
@@ -7421,7 +7431,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.186.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.186.2...HEAD
+[0.186.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.2
 [0.186.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.1
 [0.186.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.0
 [0.185.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.185.0
