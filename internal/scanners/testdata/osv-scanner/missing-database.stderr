@@ -1,0 +1,10 @@
+Scanning dir /checkout
+Starting filesystem walk for root: /
+Scanned /checkout/python/uv.lock file and found 7 packages
+Scanned /checkout/python/requirements.txt file and found 7 packages
+Scanned /checkout/rust/Cargo.lock file and found 18 packages
+End status: 4 dirs visited, 10 inodes visited, 3 Extract calls, 3.396581ms elapsed, 3.396706ms wall time
+could not load db for crates.io ecosystem: unable to fetch OSV database: no offline version of the OSV database is available
+could not load db for PyPI ecosystem: unable to fetch OSV database: no offline version of the OSV database is available
+Error during extraction: (extracting as vulnmatch/osvlocal) could not load db for PyPI ecosystem: unable to fetch OSV database: no offline version of the OSV database is available
+could not load db for crates.io ecosystem: unable to fetch OSV database: no offline version of the OSV database is available

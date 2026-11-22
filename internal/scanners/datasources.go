@@ -44,6 +44,15 @@ var (
 		Hosts: []string{"grype.anchore.io"},
 		Local: "GRYPE_DB_AUTO_UPDATE=false with a populated cache",
 	}}
+	// OSV publishes one archive per ecosystem, and OSV-Scanner downloads the ones the packages it
+	// read belong to. Draugr runs every scan with --offline, so nothing else is contacted, and the
+	// download is asked for only once per ecosystem per run (see osvDatabases).
+	osvScannerData = []plugin.DataSource{{
+		Name:       "vulnerability database, one archive per ecosystem",
+		Hosts:      []string{"osv-vulnerabilities.storage.googleapis.com"},
+		Local:      "the archives under OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY, ~/.draugr/data/osv-scanner unless set; every scan runs --offline",
+		OnFirstUse: true,
+	}}
 	nucleiData = []plugin.DataSource{{
 		Name: "template set",
 		// The update also asks api.github.com and api.pdtm.sh, read from a trace of -update-templates.

@@ -127,9 +127,9 @@ govulncheck's carries no call path, Grype's names no CVE for a finding it report
 or Go advisory, and OSV-Scanner's carries no score. The import's
 [`format`](../../docs/reference/saga-schema.md#componentsimports) reads the tool's own JSON instead,
 with the parser Draugr's own run of that tool uses, so an imported finding is the finding a native
-run makes of the same file. Draugr does not run OSV-Scanner, so its JSON is read on its own terms,
-into findings shaped as Draugr's dependency scanners shape theirs. Draugr does not run Veracode
-either. Pipeline Scan writes no SARIF, so its `results.json` is read into code findings.
+run makes of the same file. OSV-Scanner's JSON is read into findings shaped as Draugr's dependency
+scanners shape theirs, as [`osv-scanner`](osv-scanner.md) reads its own run, except that an import
+reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Veracode. Pipeline Scan writes no SARIF, so its `results.json` is read into code findings.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -137,7 +137,7 @@ either. Pipeline Scan writes no SARIF, so its `results.json` is read into code f
 | `trivy-json` | `trivy fs --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded |
 | `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
 | `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
-| `osv-scanner-json` | `osv-scanner scan --format json` | this page describes | the advisory OSV-Scanner matched, every id and alias it groups with it, such as its CVE, the package, its installed and fixed versions, its package URL and ecosystem, and the score OSV-Scanner gives the group |
+| `osv-scanner-json` | `osv-scanner scan --format json` | [`osv-scanner`](osv-scanner.md) reads it, with the difference above | the advisory OSV-Scanner matched, every id and alias it groups with it, such as its CVE, the package, its installed and fixed versions, its package URL and ecosystem, and the score OSV-Scanner gives the group |
 | `veracode-pipeline-json` | Pipeline Scan's `results.json`, written with `-jo true` | this page describes | the flaw's file and line, placed in the checkout ([Import Veracode Pipeline Scan](../../docs/guides/importing-sarif.md#import-veracode-pipeline-scan)), its CWE, Veracode's severity as the rating, Veracode's explanation as the detail, and Veracode's flaw hashes as fingerprints |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 

@@ -110,7 +110,7 @@ its own license, and you can swap it.
 
 | Control | Looks for | By default |
 |---|---|---|
-| `sca` | known flaws in the libraries you depend on | Trivy, Grype and Mend opt-in |
+| `sca` | known flaws in the libraries you depend on | Trivy, Grype, OSV-Scanner and Mend opt-in |
 | `secrets` | passwords and keys committed by accident | Gitleaks |
 | `sast` | patterns in the code you wrote that let somebody in | Semgrep, gosec opt-in for Go |
 | `iac` | settings that leave a door open, in Terraform, Kubernetes and Dockerfiles | Trivy |
@@ -177,7 +177,7 @@ in the branch's protection rule or ruleset.
 [GitHub Actions](docs/guides/github-action.md) · [Code scanning](docs/guides/code-scanning.md):
 findings in the Security tab · [GitLab](docs/guides/gitlab-ci.md): an include, GitLab's own report
 formats, a sticky merge-request comment · [Azure Pipelines](docs/guides/azure-pipelines.md): a step
-template
+template · [pre-commit](docs/guides/pre-commit.md): a hook that fails a commit adding a finding
 
 **From an AI coding assistant.** Ask one to check a change and it will, using whatever scanner it
 finds over a scope it chose. `draugr mcp` serves Draugr over the [Model Context

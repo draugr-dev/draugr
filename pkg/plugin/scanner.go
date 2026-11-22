@@ -65,6 +65,11 @@ type DataSource struct {
 	// The difference between a scanner that works behind an allowlist and one that also works
 	// without a network, which is the question an operator is actually asking.
 	PerScan bool
+	// OnFirstUse marks data fetched once per run, by the first job that reads it, rather than
+	// before the jobs start. For a tool whose data comes in parts, one per ecosystem, where which parts
+	// a run needs is known only once a job has read its target: the scanner's Prewarm cannot fetch
+	// them, and the hosts are contacted during the scan rather than before it.
+	OnFirstUse bool
 	// Providers names the clouds whose scans contact Hosts, spelled as a descriptor's `provider:`
 	// is: "gcp", "aws", "azure". Empty for data a scan reads whatever it checks. A scanner that
 	// serves several clouds declares it, so an allowlist built for one cloud's scan is not widened

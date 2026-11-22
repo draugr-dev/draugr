@@ -144,6 +144,12 @@ func Catalog() map[string]Tool {
 			DataOK:   GrypeDBOK,
 			DataHint: "run `grype db update`",
 		},
+		"osv-scanner": {
+			Binary:      "osv-scanner",
+			VersionArgs: []string{"--version"},
+			InstallHint: "https://google.github.io/osv-scanner/installation/",
+			Category:    CategoryScanner,
+		},
 		"retire": {
 			Binary:      "retire",
 			VersionArgs: []string{"--version"},

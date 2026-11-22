@@ -30,7 +30,7 @@ transitive trees), so this is where a large share of real risk lives.
    doesn't slip into a proprietary product.
 
 **In Draugr:** the **`sca`** control, backed by [Trivy](https://trivy.dev) (filesystem mode), covers
-the first two. The third is the separate **`licenses`** control, license risk isn't a vulnerability,
+the first two, with opt-in Grype, OSV-Scanner, retire.js and Mend beside it. The third is the separate **`licenses`** control, license risk isn't a vulnerability,
 so it gets its own gate threshold and its own policy.
 
 **Not to be confused with:**

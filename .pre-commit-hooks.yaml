@@ -1,0 +1,33 @@
+# Hook definitions for pre-commit (https://pre-commit.com). docs/guides/pre-commit.md is the how-to.
+#
+# The hook fails a commit on a finding the commit would add, and passes one that only carries
+# findings HEAD already has. It scans HEAD into a temporary directory, then scans the working tree
+# against that scan with --base. A whole-tree gate would instead fail every commit in a repository
+# that already holds a finding, whatever the commit changed.
+#
+# language: system, because Draugr runs scanners it does not ship: the hook needs `draugr` on PATH
+# and the scanners its controls use, which `draugr tools install` provides.
+#
+# args reach both scans, after the hook's own flags, so a descriptor path, --controls or a
+# --fail-on-new given there replaces the hook's default for both. --fail-on-new P4 fails on any new
+# finding: a credential in a commit stays in the history after the file is fixed, and has to be
+# rotated.
+- id: draugr
+  name: draugr
+  description: Fail a commit that adds a security finding HEAD does not have, leaked credentials by default.
+  language: system
+  entry: |
+    sh -c '
+    base=$(mktemp -d) || exit 1
+    trap "rm -rf \"$base\"" EXIT
+    if ! draugr scan --no-publish --no-gate --no-tips -o "$base/out" "$@" >"$base/log" 2>&1; then
+      echo "draugr: the scan of HEAD, which this commit is compared against, failed:" >&2
+      cat "$base/log" >&2
+      exit 1
+    fi
+    draugr scan --no-publish --working-tree --base "$base/out/results.sarif" --fail-on-new P4 --no-tips "$@"
+    ' draugr
+  args: [--controls, secrets]
+  pass_filenames: false
+  stages: [pre-commit]
+  minimum_pre_commit_version: "3.2.0"

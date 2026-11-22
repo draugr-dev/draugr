@@ -168,7 +168,10 @@ behavior around that data is wrong:
 `TestAScannerThatReadsDataWarmsIt` holds a declared source to a warm, and
 `TestEveryToolDocSaysWhatItReads` holds the colocated doc to a `## Data` section naming every host
 the code declares. Where the tool re-fetches on every invocation and keeps no cache, set `PerScan`
-and there is nothing to warm.
+and there is nothing to warm. Where the data comes in parts and which parts a run needs is known
+only once a job has read its target, as OSV-Scanner's databases come one per ecosystem, set
+`OnFirstUse` and have the first job that reads each part fetch it, holding off every other job that
+reads it until it has (see `osvDatabases` in `internal/scanners/osvscanner.go`).
 
 **Check what the tool does with a local copy that is missing or wrong before wiring an offline
 path.** govulncheck's `-db` takes a `file://` URL and reports "No vulnerabilities found", exit 0,

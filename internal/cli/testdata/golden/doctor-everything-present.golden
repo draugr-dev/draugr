@@ -12,6 +12,7 @@ kube-bench   ✓ found  0.16.0   /somewhere/kube-bench
 kubectl      ✓ found  1.31.0   /somewhere/kubectl
 notation     ✓ found  1.3.2    /somewhere/notation
 nuclei       ✓ found  3.11.1   /somewhere/nuclei
+osv-scanner  ✓ found  2.7.1    /somewhere/osv-scanner
 prowler      ✓ found  5.48.0   /somewhere/prowler
 retire       ✓ found  6.1.0    /somewhere/retire
 semgrep      ✓ found  1.182.1  /somewhere/semgrep
@@ -20,38 +21,39 @@ trivy        ✓ found  0.76.1   /somewhere/trivy
 
 NETWORK  (besides its targets · --offline stops all of it)
   draugr scan
-    cloud       *.s3.<region>.amazonaws.com  AWS Lambda code and ECR image layers, outside the CIS checks · every scan
-                *.vault.azure.net            Azure Key Vault data plane · every scan
-                api.loganalytics.io          Azure Log Analytics, outside the CIS checks · every scan
-                github.com                   AWS CodePipeline source repositories, outside the CIS checks · every scan
-                gitlab.com                   AWS CodePipeline source repositories, outside the CIS checks · every scan
-                graph.microsoft.com          Microsoft Graph, for the tenant's domain · every scan
-                ip-ranges.amazonaws.com      AWS IP address ranges, outside the CIS checks · every scan
-                login.microsoftonline.com    Azure sign-in · every scan
-                management.azure.com         Azure Resource Manager · every scan
-    dast        api.github.com               template set · before the scan
-                api.pdtm.sh                  template set · before the scan
-                github.com                   template set · before the scan
-                oast.*                       oast.pro, oast.live, oast.site, oast.online, oast.fun and oast.me learn where each out-of-band callback came from and what it sent, unless interactsh: false
-    iac         mirror.gcr.io                checks bundle · before the scan
-    images      169.254.169.254              Google registry credentials, for an image in gcr.io or *-docker.pkg.dev · every scan
-                ghcr.io                      vulnerability database · before the scan
-                grype.anchore.io             vulnerability database · before the scan
-                mirror.gcr.io                vulnerability database · before the scan
-    licenses    $MEND_URL                    learns the dependency inventory
-                ghcr.io                      vulnerability database · before the scan
-                mirror.gcr.io                vulnerability database · before the scan
-    provenance  rekor.sigstore.dev           learns an image digest, for a signature with no inclusion proof
-                tuf-repo-cdn.sigstore.dev    Sigstore trust root · before the scan
-    sast        semgrep.dev                  rule pack · every scan
-    sca         $MEND_URL                    learns the dependency inventory
-                ghcr.io                      vulnerability database · before the scan
-                grype.anchore.io             vulnerability database · before the scan
-                mirror.gcr.io                vulnerability database · before the scan
-                raw.githubusercontent.com    advisory database · before the scan
-                repo.maven.apache.org        learns each Maven dependency's coordinates, with resolveMaven: true
-                vuln.go.dev                  vulnerability database · every scan
-    threats     urlhaus-api.abuse.ch         learns each host's name
-                www.virustotal.com           learns each host's domain
+    cloud       *.s3.<region>.amazonaws.com                 AWS Lambda code and ECR image layers, outside the CIS checks · every scan
+                *.vault.azure.net                           Azure Key Vault data plane · every scan
+                api.loganalytics.io                         Azure Log Analytics, outside the CIS checks · every scan
+                github.com                                  AWS CodePipeline source repositories, outside the CIS checks · every scan
+                gitlab.com                                  AWS CodePipeline source repositories, outside the CIS checks · every scan
+                graph.microsoft.com                         Microsoft Graph, for the tenant's domain · every scan
+                ip-ranges.amazonaws.com                     AWS IP address ranges, outside the CIS checks · every scan
+                login.microsoftonline.com                   Azure sign-in · every scan
+                management.azure.com                        Azure Resource Manager · every scan
+    dast        api.github.com                              template set · before the scan
+                api.pdtm.sh                                 template set · before the scan
+                github.com                                  template set · before the scan
+                oast.*                                      oast.pro, oast.live, oast.site, oast.online, oast.fun and oast.me learn where each out-of-band callback came from and what it sent, unless interactsh: false
+    iac         mirror.gcr.io                               checks bundle · before the scan
+    images      169.254.169.254                             Google registry credentials, for an image in gcr.io or *-docker.pkg.dev · every scan
+                ghcr.io                                     vulnerability database · before the scan
+                grype.anchore.io                            vulnerability database · before the scan
+                mirror.gcr.io                               vulnerability database · before the scan
+    licenses    $MEND_URL                                   learns the dependency inventory
+                ghcr.io                                     vulnerability database · before the scan
+                mirror.gcr.io                               vulnerability database · before the scan
+    provenance  rekor.sigstore.dev                          learns an image digest, for a signature with no inclusion proof
+                tuf-repo-cdn.sigstore.dev                   Sigstore trust root · before the scan
+    sast        semgrep.dev                                 rule pack · every scan
+    sca         $MEND_URL                                   learns the dependency inventory
+                ghcr.io                                     vulnerability database · before the scan
+                grype.anchore.io                            vulnerability database · before the scan
+                mirror.gcr.io                               vulnerability database · before the scan
+                osv-vulnerabilities.storage.googleapis.com  vulnerability database, one archive per ecosystem · once per run, during the scan
+                raw.githubusercontent.com                   advisory database · before the scan
+                repo.maven.apache.org                       learns each Maven dependency's coordinates, with resolveMaven: true
+                vuln.go.dev                                 vulnerability database · every scan
+    threats     urlhaus-api.abuse.ch                        learns each host's name
+                www.virustotal.com                          learns each host's domain
 
 All required tools present.

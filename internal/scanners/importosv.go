@@ -22,10 +22,11 @@ import (
 // vulnerability with every alias they list, the highest score among them, and each advisory's
 // affected ranges, which say which version fixes it.
 //
-// Draugr runs no OSV-Scanner of its own, so there is no native parser to share. The reader builds
-// each finding as Draugr's dependency scanners build theirs, Trivy's above all: a finding per
-// vulnerability and package, keyed on an advisory id with the others as aliases, so KEV and EPSS
-// reach it by its CVE and correlation joins it to another scanner's finding of that CVE.
+// The reader builds each finding as Draugr's dependency scanners build theirs, Trivy's above all: a
+// finding per vulnerability and package, keyed on an advisory id with the others as aliases, so KEV
+// and EPSS reach it by its CVE and correlation joins it to another scanner's finding of that CVE.
+// The osv-scanner scanner reads its own run with the same functions (see parseOSVScanner), so an
+// imported finding is the finding a native run makes of the same file.
 //
 // Read from the JSON OSV-Scanner 2.7.1 wrote for a package-lock.json pinning lodash 4.17.20,
 // testdata/sarif-import/osv-scanner-lodash.json. What that file does not show is quoted from
@@ -103,6 +104,49 @@ type osvAffected struct {
 			LastAffected string `json:"last_affected"`
 		} `json:"events"`
 	} `json:"ranges"`
+	// DatabaseSpecific is what the advisory's database adds about this package, raw for the reason
+	// osvVulnerability's is. RustSec states its notices here (see osvNotice).
+	DatabaseSpecific json.RawMessage `json:"database_specific"`
+}
+
+// osvUnmaintained is the value RustSec writes in an affected package's
+// database_specific.informational for a crate nobody maintains any more.
+const osvUnmaintained = "unmaintained"
+
+// osvNoticeRating is the rating detail of a RustSec unmaintained notice.
+const osvNoticeRating = "RustSec unmaintained notice, which names no flaw in a version"
+
+// osvNotice reports whether every advisory in vulns is a RustSec unmaintained notice about p: an
+// entry for p whose database_specific.informational is "unmaintained".
+//
+// RustSec publishes three kinds of informational advisory beside its vulnerabilities, and records
+// the kind on the affected package, as in RUSTSEC-2024-0375 for atty:
+// `"database_specific": {"informational": "unmaintained", …}`. An unmaintained notice says the crate
+// has no maintainer. It names no flaw, no affected function and no fixed version, and covers every
+// version from 0.0.0-0 on, so read as a vulnerability it is a finding nothing but replacing the
+// crate clears, rated high because RustSec gives it no score. The other two kinds, `unsound` and
+// `notice`, can describe a real flaw in a version, as RUSTSEC-2021-0145 does for atty's unaligned
+// read, and are read as vulnerabilities.
+func osvNotice(p osvPackage, vulns []osvVulnerability) bool {
+	if len(vulns) == 0 {
+		return false
+	}
+	for _, v := range vulns {
+		notice := false
+		for _, a := range v.Affected {
+			var specific struct {
+				Informational string `json:"informational"`
+			}
+			if osvSamePackage(a, p) && json.Unmarshal(a.DatabaseSpecific, &specific) == nil &&
+				specific.Informational == osvUnmaintained {
+				notice = true
+			}
+		}
+		if !notice {
+			return false
+		}
+	}
+	return true
 }
 
 // readOSVScannerImport reads the JSON `osv-scanner scan --format json` writes.
@@ -116,40 +160,13 @@ type osvAffected struct {
 // component's repositories, and a git result names a commit rather than a package version, so a
 // file holding either is refused rather than read in part.
 func readOSVScannerImport(data []byte, ft plugin.FileTarget) (importRead, error) {
-	// Every OSV-Scanner report is an object listing its results, an empty list for a clean scan. The
-	// key is matched exactly: Go's decoder matches field names without regard to case, and Trivy's
-	// report lists its Results, which would otherwise read as a scan that found nothing.
-	var top map[string]json.RawMessage
-	if err := json.Unmarshal(data, &top); err != nil || !bytes.HasPrefix(bytes.TrimSpace(top["results"]), []byte("[")) {
-		return importRead{}, errNotOSVScannerJSON
+	doc, err := decodeOSVScanner(data)
+	if err != nil {
+		return importRead{}, err
 	}
-	var doc osvDoc
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return importRead{}, errNotOSVScannerJSON
-	}
-	rep := sarif.Report{Tool: osvScanner, Rules: map[string]sarif.Rule{}}
-	var rated []string
-	for _, res := range doc.Results {
-		switch res.Source.Type {
-		case "lockfile", "sbom":
-		case "":
-			return importRead{}, errNotOSVScannerJSON
-		default:
-			return importRead{}, fmt.Errorf("%s source; Draugr reads only lockfiles and SBOMs. Scan the directory", res.Source.Type)
-		}
-		for _, p := range res.Packages {
-			for _, g := range osvGroups(p) {
-				if len(g.IDs) == 0 {
-					return importRead{}, errNotOSVScannerJSON
-				}
-				found, rule, rating := osvFinding(res, p, g)
-				rep.Results = append(rep.Results, found)
-				rated = append(rated, rating)
-				if _, seen := rep.Rules[found.RuleID]; !seen {
-					rep.Rules[found.RuleID] = rule
-				}
-			}
-		}
+	rep, rated, err := osvReport(doc, false)
+	if err != nil {
+		return importRead{}, err
 	}
 	outside := relativeToCheckouts(rep.Results, checkoutRoots(ft.Repositories))
 	// The line of the package's entry in its lockfile, where the component's one checkout is here to
@@ -171,6 +188,57 @@ func readOSVScannerImport(data []byte, ft plugin.FileTarget) (importRead, error)
 	run.Results = make([]json.RawMessage, len(rep.Results))
 	return importRead{rep: rep, outside: outside, meta: importLog{Runs: []importRun{run}}, rated: rated,
 		scored: "CVSS score"}, nil
+}
+
+// decodeOSVScanner reads the JSON `osv-scanner scan --format json` writes, refusing anything else.
+//
+// Every OSV-Scanner report is an object listing its results, an empty list for a clean scan. The
+// key is matched exactly: Go's decoder matches field names without regard to case, and Trivy's
+// report lists its Results, which would otherwise read as a scan that found nothing.
+func decodeOSVScanner(data []byte) (osvDoc, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil || !bytes.HasPrefix(bytes.TrimSpace(top["results"]), []byte("[")) {
+		return osvDoc{}, errNotOSVScannerJSON
+	}
+	var doc osvDoc
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return osvDoc{}, errNotOSVScannerJSON
+	}
+	return doc, nil
+}
+
+// osvReport is the findings of doc, one per vulnerability OSV-Scanner grouped in each package of each
+// file, with the rule each is reported under and, beside each, the rating it was read at where
+// neither a score nor its advisory rated it.
+//
+// notices reads a RustSec unmaintained notice as one (see osvNotice). The osv-scanner scanner does,
+// and an import does not, which reads the file as it always has.
+func osvReport(doc osvDoc, notices bool) (sarif.Report, []string, error) {
+	rep := sarif.Report{Tool: osvScanner, Rules: map[string]sarif.Rule{}}
+	var rated []string
+	for _, res := range doc.Results {
+		switch res.Source.Type {
+		case "lockfile", "sbom":
+		case "":
+			return sarif.Report{}, nil, errNotOSVScannerJSON
+		default:
+			return sarif.Report{}, nil, fmt.Errorf("%s source; Draugr reads only lockfiles and SBOMs. Scan the directory", res.Source.Type)
+		}
+		for _, p := range res.Packages {
+			for _, g := range osvGroups(p) {
+				if len(g.IDs) == 0 {
+					return sarif.Report{}, nil, errNotOSVScannerJSON
+				}
+				found, rule, rating := osvFinding(res, p, g, notices)
+				rep.Results = append(rep.Results, found)
+				rated = append(rated, rating)
+				if _, seen := rep.Rules[found.RuleID]; !seen {
+					rep.Rules[found.RuleID] = rule
+				}
+			}
+		}
+	}
+	return rep, rated, nil
 }
 
 // osvGroups are a package's vulnerabilities: its groups, and a group of its own for any advisory no
@@ -196,7 +264,10 @@ func osvGroups(p osvPackage) []osvGroup {
 // HIGH or CRITICAL. An advisory that rates it neither way, as the Go vulnerability database rates
 // none, is medium, as an imported govulncheck finding is and as OSV-Scanner's SARIF levels every
 // finding.
-func osvFinding(res osvResult, p osvPackage, g osvGroup) (sarif.Result, sarif.Rule, string) {
+//
+// With notices, a group whose every advisory is a RustSec unmaintained notice is low (see
+// osvNotice), whatever else rates it.
+func osvFinding(res osvResult, p osvPackage, g osvGroup, notices bool) (sarif.Result, sarif.Rule, string) {
 	id := g.IDs[0]
 	var vulns []osvVulnerability
 	for _, gid := range g.IDs {
@@ -231,7 +302,12 @@ func osvFinding(res osvResult, p osvPackage, g osvGroup) (sarif.Result, sarif.Ru
 			FixedVersion: pkg.FixedVersion, Title: summary}),
 	}
 	rated := ""
-	if score, err := strconv.ParseFloat(strings.TrimSpace(g.MaxSeverity), 64); err == nil && score > 0 {
+	if notices && osvNotice(p, vulns) {
+		found.Level = sarif.LevelNote
+		found.Rating = newRating(sarif.SeverityLow, map[string]string{"informational": osvUnmaintained},
+			osvNoticeRating)
+		rated = osvNoticeRating
+	} else if score, err := strconv.ParseFloat(strings.TrimSpace(g.MaxSeverity), 64); err == nil && score > 0 {
 		found.Score, found.HasScore = score, true
 		found.Level = osvLevel(sarif.SeverityFromScore(score))
 	} else if rating := osvAdvisoryRating(vulns); rating != nil {
