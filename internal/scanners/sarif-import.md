@@ -128,7 +128,8 @@ or Go advisory, and OSV-Scanner's carries no score. The import's
 [`format`](../../docs/reference/saga-schema.md#componentsimports) reads the tool's own JSON instead,
 with the parser Draugr's own run of that tool uses, so an imported finding is the finding a native
 run makes of the same file. Draugr does not run OSV-Scanner, so its JSON is read on its own terms,
-into findings shaped as Draugr's dependency scanners shape theirs.
+into findings shaped as Draugr's dependency scanners shape theirs. Draugr does not run Veracode
+either. Pipeline Scan writes no SARIF, so its `results.json` is read into code findings.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -137,6 +138,7 @@ into findings shaped as Draugr's dependency scanners shape theirs.
 | `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
 | `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
 | `osv-scanner-json` | `osv-scanner scan --format json` | this page describes | the advisory OSV-Scanner matched, every id and alias it groups with it, such as its CVE, the package, its installed and fixed versions, its package URL and ecosystem, and the score OSV-Scanner gives the group |
+| `veracode-pipeline-json` | Pipeline Scan's `results.json`, written with `-jo true` | this page describes | the flaw's file and line, placed in the checkout ([Import Veracode Pipeline Scan](../../docs/guides/importing-sarif.md#import-veracode-pipeline-scan)), its CWE, Veracode's severity as the rating, Veracode's explanation as the detail, and Veracode's flaw hashes as fingerprints |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -595,6 +597,14 @@ that found nothing:
   `results` list, or a result or group that names no source type or no id;
 - `docker source; Draugr reads only lockfiles and SBOMs. Scan the directory`, for OSV-Scanner's JSON
   holding a result of any source but `lockfile` and `sbom`, the type named first;
+- `not Veracode Pipeline Scan JSON. Run Pipeline Scan with -jo true and import its results.json`, for a
+  file with no `findings` list, or one with an empty list and no `scan_status`;
+- `a flaw names no CWE, severity or file, as Pipeline Scan writes every flaw. Import the results.json
+  it wrote, unedited`, for a flaw missing one of them;
+- `scan status FAILURE: Scan failed. Draugr reads a scan that succeeded. Run Pipeline Scan again`,
+  for a file whose `scan_status` is not `SUCCESS`, with its message where it gives one;
+- `severity 9; Veracode rates a flaw 0 to 5. Import the results.json Pipeline Scan wrote, unedited`,
+  for a flaw rated outside Veracode's scale;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key

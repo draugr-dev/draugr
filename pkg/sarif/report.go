@@ -387,7 +387,8 @@ type Result struct {
 	// under. Nil when only one scanner reported it.
 	Correlation *Correlation `json:"correlation,omitempty"`
 	// CWE are the CWE ids of the flaw, such as CWE-79, where a converter that may set them stated
-	// them. Empty on every other finding.
+	// them, or a tool's own file names them, as Veracode Pipeline Scan's does. Empty on every other
+	// finding.
 	CWE []string `json:"cwe,omitempty"`
 	// Converter is set on every finding read from a converter's file, and says which converter wrote
 	// it, under which contract, from which file, and which of Draugr's properties it set. Nil on

@@ -57,10 +57,12 @@ func TestTheEditorAndDraugrHoldImportKeysToFormatAndKind(t *testing.T) {
 		{"severity on sarif", file(map[string]any{"format": saga.ImportFormatSARIF, "severity": severity}), false, true},
 		{"severity on trivy-json", file(map[string]any{"format": saga.ImportFormatTrivyJSON, "severity": severity}), false, false},
 		{"severity on osv-scanner-json", file(map[string]any{"format": saga.ImportFormatOSVScannerJSON, "severity": severity}), false, false},
+		{"severity on veracode-pipeline-json", file(map[string]any{"format": saga.ImportFormatVeracodePipelineJSON, "severity": severity}), false, false},
 
 		{"suppressions with no format", file(map[string]any{"suppressions": "count"}), false, true},
 		{"suppressions on trivy-json", file(map[string]any{"format": saga.ImportFormatTrivyJSON, "suppressions": "count"}), false, true},
 		{"suppressions on osv-scanner-json", file(map[string]any{"format": saga.ImportFormatOSVScannerJSON, "suppressions": "honor"}), false, false},
+		{"suppressions on veracode-pipeline-json", file(map[string]any{"format": saga.ImportFormatVeracodePipelineJSON, "suppressions": "count"}), false, false},
 
 		{"draugr-converter with its converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv}), false, true},
 		{"draugr-converter with no converter", file(map[string]any{"format": saga.ImportFormatConverter}), false, false},

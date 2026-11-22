@@ -2025,6 +2025,23 @@
               "suppressions": false
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "veracode-pipeline-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            }
+          }
         }
       ],
       "description": "A file another tool wrote about this component, or a service's alerts for its repository, read into one of Draugr's controls.",
@@ -2076,9 +2093,13 @@
             {
               "const": "osv-scanner-json",
               "description": "The JSON osv-scanner scan --format json writes for lockfiles and SBOMs, with each finding's package, fixed version, package URL and every advisory id OSV-Scanner groups with it, such as its CVE, rated by the CVSS score it states."
+            },
+            {
+              "const": "veracode-pipeline-json",
+              "description": "The results.json Veracode's Pipeline Scan writes with -jo true, with each flaw's file, line, CWE and Veracode's severity."
             }
           ],
-          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner by the score the file states.",
+          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner and Veracode by the rating the file states.",
           "type": "string"
         },
         "repository": {
@@ -2115,7 +2136,7 @@
               "description": "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."
             }
           ],
-          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores.",
+          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, and veracode-pipeline-json, whose file records no suppression.",
           "type": "string"
         },
         "tokenEnv": {
@@ -2595,6 +2616,23 @@
           }
         },
         {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "veracode-pipeline-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            }
+          }
+        },
+        {
           "else": {
             "properties": {
               "converter": false
@@ -2675,11 +2713,15 @@
               "description": "The JSON osv-scanner scan --format json writes for lockfiles and SBOMs, with each finding's package, fixed version, package URL and every advisory id OSV-Scanner groups with it, such as its CVE, rated by the CVSS score it states."
             },
             {
+              "const": "veracode-pipeline-json",
+              "description": "The results.json Veracode's Pipeline Scan writes with -jo true, with each flaw's file, line, CWE and Veracode's severity."
+            },
+            {
               "const": "draugr-converter",
               "description": "The file a converter writes in Draugr's versioned contract, for a tool Draugr has no reader for. Needs converter."
             }
           ],
-          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner by the score the file states.",
+          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner and Veracode by the rating the file states.",
           "type": "string"
         },
         "repository": {
@@ -2716,7 +2758,7 @@
               "description": "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."
             }
           ],
-          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores.",
+          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, and veracode-pipeline-json, whose file records no suppression.",
           "type": "string"
         },
         "tokenEnv": {

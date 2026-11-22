@@ -883,6 +883,11 @@ func validateImportFormat(imp Import, at string) []error {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and an %s file is rated by the score and "+
 			"severity it states. Remove severity", at, imp.Format)}
 	}
+	if imp.Severity != nil && imp.ReadFormat() == ImportFormatVeracodePipelineJSON {
+		// Draugr runs no Veracode, so its file is rated by the severity Veracode states for each flaw.
+		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
+			"Veracode states. Remove severity", at, imp.Format)}
+	}
 	if imp.Severity != nil && imp.ReadFormat() != ImportFormatSARIF {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated as Draugr's own run "+
 			"of its tool rates it. Remove severity", at, imp.Format)}
@@ -892,6 +897,11 @@ func validateImportFormat(imp Import, at string) []error {
 	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatOSVScannerJSON {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since OSV-Scanner leaves what its "+
 			"configuration ignores out of the file. Remove it", at)}
+	}
+	// Pipeline Scan's results.json records no mitigation or suppression on a flaw.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatVeracodePipelineJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since a Pipeline Scan file records no "+
+			"suppression. Remove it", at)}
 	}
 	return nil
 }

@@ -697,6 +697,11 @@ func importRules(converter bool) []any {
 			"if":   format(map[string]any{"const": saga.ImportFormatOSVScannerJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
+		// Pipeline Scan's file records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatVeracodePipelineJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
 	}
 	if converter {
 		// A converter's file needs the converter that wrote it and records no suppressions, and no

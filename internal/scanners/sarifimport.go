@@ -126,12 +126,13 @@ type importReader func(data []byte, ft plugin.FileTarget) (importRead, error)
 // JSON is read with the parser Draugr's run of that tool uses, so a finding carries what a native one
 // does; a new format is a reader here and a name in saga.ImportFormats.
 var importReaders = map[string]importReader{
-	saga.ImportFormatSARIF:           readSARIFImport,
-	saga.ImportFormatTrivyJSON:       readTrivyImport,
-	saga.ImportFormatGovulncheckJSON: readGovulncheckImport,
-	saga.ImportFormatGrypeJSON:       readGrypeImport,
-	saga.ImportFormatOSVScannerJSON:  readOSVScannerImport,
-	saga.ImportFormatConverter:       readConverterImport,
+	saga.ImportFormatSARIF:                readSARIFImport,
+	saga.ImportFormatTrivyJSON:            readTrivyImport,
+	saga.ImportFormatGovulncheckJSON:      readGovulncheckImport,
+	saga.ImportFormatGrypeJSON:            readGrypeImport,
+	saga.ImportFormatOSVScannerJSON:       readOSVScannerImport,
+	saga.ImportFormatVeracodePipelineJSON: readVeracodePipelineImport,
+	saga.ImportFormatConverter:            readConverterImport,
 }
 
 // readImport reads data as the format ft names.
