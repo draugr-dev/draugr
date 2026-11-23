@@ -60,7 +60,7 @@ func TestFindingsSetAsideAreListedLastWithTheirReason(t *testing.T) {
 	}
 	for _, want := range []string{
 		".github/workflows/ci.yml:3 · pinned by actions.lock",
-		".config/mise/locks/uv.lock:3 · developer tool, runs in CI",
+		".config/mise/locks/uv.lock:3 · developer tool",
 		"fix change the generator, then regenerate",
 		"Pinned to a commit by .github/workflows/actions.lock",
 		"fix keep actions.lock verified in CI",
@@ -137,7 +137,7 @@ func TestAsideSurvivesTheSARIFFile(t *testing.T) {
 
 func TestAsideNote(t *testing.T) {
 	for in, want := range map[string]string{
-		"": "", sarif.AsideGenerated: "generated", sarif.AsideTooling: "developer tool, runs in CI",
+		"": "", sarif.AsideGenerated: "generated", sarif.AsideTooling: "developer tool",
 		sarif.AsidePinned: "pinned by actions.lock", "other": "other",
 	} {
 		if got := asideNote(in); got != want {

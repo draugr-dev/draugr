@@ -744,13 +744,14 @@ func lastKinds(fs []finding) []string {
 }
 
 // asideNote is the label a finding set aside wears beside its location, or "" for none. A tool's
-// dependency is named as a tool's, not as harmless: it runs on developers' machines and in CI.
+// dependency is named as a tool's, not as harmless, and the label says only what the files say:
+// where the tool runs, a developer's machine or a pipeline, is not in them.
 func asideNote(aside string) string {
 	switch aside {
 	case sarif.AsideGenerated:
 		return "generated"
 	case sarif.AsideTooling:
-		return "developer tool, runs in CI"
+		return "developer tool"
 	case sarif.AsidePinned:
 		return "pinned by actions.lock"
 	}
