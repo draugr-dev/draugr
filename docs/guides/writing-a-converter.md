@@ -89,13 +89,13 @@ scanned.
 
 ## 5. Check it
 
-`draugr doctor` reads the file as the scan will:
+`draugr doctor` reads the file as the scan will, and holds it to the commit the scan reads:
 
 ```console
 TARGETS
-Kind        Target                 Result
-repository  .                      ✓ resolves to 7de995591d35
-file        npm-audit.draugr.json  ✓ converter file, 5 findings
+Kind        Target                       Result
+repository  .                            ✓ resolves to 7de995591d35
+file        npm-audit.draugr.json · web  ✓ converter file, 5 findings, commit 7de995591d35
 ```
 
 `draugr scan` ranks the findings with the rest. Each names the converter, and what it set:

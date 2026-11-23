@@ -1,0 +1,1 @@
+- **`draugr doctor` now fails an imported file written for another commit.** It holds the file to the commit the scan reads, from the file or the import's `commit:`, and fails it with the scan's message, so you find it before `draugr scan` stops on it. A file with no commit passes and names the `unbound-imports` caveat the scan lists.
