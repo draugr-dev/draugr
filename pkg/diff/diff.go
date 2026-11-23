@@ -840,6 +840,13 @@ func counted(rs []sarif.Result) []sarif.Result {
 type Gate struct {
 	FailOn         sarif.Severity
 	FailOnPriority string
+	// Base is the base scan's config.gate.failOnNew where it is in force because the head's own
+	// gate is weaker, in another vocabulary, or absent, and empty where the head's decides alone.
+	// A change's descriptor is part of the change, so a pull request that deletes or loosens the
+	// gate is judged by the gate its base already enforces until it merges.
+	Base string
+	// Head is the head's config.gate.failOnNew beside Base, and empty where it sets none.
+	Head string
 }
 
 // Stated reports whether a gate was asked for at all.
@@ -848,10 +855,33 @@ func (g Gate) Stated() bool { return g.FailOn != "" || g.FailOnPriority != "" }
 // Sentence is the rule in one clause, for a reader who was not there when it ran.
 func (g Gate) Sentence() string {
 	switch {
+	case g.FailOnPriority != "" && g.FailOn != "":
+		return "fails on any " + g.FailOnPriority + " or " + string(g.FailOn) + " severity this change introduces"
 	case g.FailOnPriority != "":
 		return "fails on any " + g.FailOnPriority + " this change introduces"
 	case g.FailOn != "":
 		return "fails on any " + string(g.FailOn) + " severity this change introduces"
 	}
 	return ""
+}
+
+// BaseNote says why the base's gate applies, and empty where it does not.
+func (g Gate) BaseNote() string {
+	if g.Base == "" {
+		return ""
+	}
+	head := "sets none"
+	if g.Head != "" {
+		head = "sets " + thresholdWords(g.Head)
+	}
+	return "The base's config.gate.failOnNew is " + thresholdWords(g.Base) + " and this change's " + head +
+		", so the base's gate applies until the change merges"
+}
+
+// thresholdWords is a gate setting as a reader says it: a band as written, a severity with the word.
+func thresholdWords(setting string) string {
+	if prioritization.Priority(strings.ToUpper(setting)).Rank() > 0 {
+		return strings.ToUpper(setting)
+	}
+	return setting + " severity"
 }

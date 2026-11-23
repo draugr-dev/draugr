@@ -26,6 +26,9 @@ const thisScan = "this scan"
 type baseGate struct {
 	failOn sarif.Severity
 	band   string
+	// gate is the gate in force once the base is read, with the base's recorded gate where it is
+	// stricter than this scan's. See withBaseGate.
+	gate diff.Gate
 	// from is the setting that named the threshold, --fail-on-new or config.gate.failOnNew.
 	from string
 	// basePath is --base, and base the report it names. Empty where no --base was passed.
@@ -54,6 +57,11 @@ func newBaseGate(opts scanOptions, gate *saga.GateConfig, scope engine.Scope) (b
 	if g.base, err = loadSARIF(opts.base); err != nil {
 		return baseGate{}, fmt.Errorf("--base: %w", err)
 	}
+	g.gate = withBaseGate(failOn, band, opts.failOnNew != "", gate, g.base)
+	if g.gate.Base != "" {
+		g.failOn, g.band = g.gate.FailOn, g.gate.FailOnPriority
+		g.from = "config.gate.failOnNew at the base"
+	}
 	if err := comparableScopes(opts.base, g.base, thisScan, scopeReport(scope)); err != nil {
 		return baseGate{}, err
 	}
@@ -66,7 +74,12 @@ func newBaseGate(opts scanOptions, gate *saga.GateConfig, scope engine.Scope) (b
 }
 
 // setting is the threshold as report.json states it, empty where none is set.
-func (g baseGate) setting() string { return newGateSetting(g.failOn, g.band) }
+func (g baseGate) setting() string {
+	if g.failOn != "" && g.band != "" {
+		return g.band + " or " + string(g.failOn)
+	}
+	return newGateSetting(g.failOn, g.band)
+}
 
 // noteUnapplied says on w that a gate on new findings is set and has no base to apply to.
 //
@@ -109,7 +122,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 	if err != nil {
 		return comparison{}, err
 	}
-	compared.Gate = diff.Gate{FailOn: g.failOn, FailOnPriority: g.band}
+	compared.Gate = g.gate
 	compared.Tripped = compared.GateNew(g.failOn, g.band)
 	return comparison{
 		findings: &skald.NewFindings{

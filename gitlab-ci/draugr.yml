@@ -145,7 +145,7 @@ draugr:
         # correcting the descriptor included. The merge base is scanned with this merge request's
         # copy instead, which compares the two trees under one descriptor.
         if ! refusal=$( cd "${DRAUGR_BASE_WORKTREE}" && draugr validate "${DRAUGR_SAGA}" 2>&1 >/dev/null ); then
-          echo "This Draugr release refuses the merge base's ${DRAUGR_SAGA}, so the merge base is scanned with this merge request's copy. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
+          echo "This Draugr release refuses the merge base's ${DRAUGR_SAGA}, so the merge base is scanned with this merge request's copy, whose config.gate.failOnNew then stands for the merge base's. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
           cp "${DRAUGR_SAGA}" "${DRAUGR_BASE_WORKTREE}/${DRAUGR_SAGA}"
         fi
         ( cd "${DRAUGR_BASE_WORKTREE}" && draugr scan "${DRAUGR_SAGA}" \

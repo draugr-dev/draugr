@@ -515,6 +515,9 @@ type MarshalOptions struct {
 	// at level error. Compact keeps them, because they are what says the results are incomplete. None
 	// writes no invocations at all. FromSARIF does not read them back.
 	Notifications []Notification
+	// Provenance is what the run states about itself beyond what its scanners stated, written
+	// after the report's own entries. FromSARIF reads them back as the report's Provenance.
+	Provenance []Provenance
 }
 
 // MarshalSARIF serializes the report to standard SARIF 2.1.0 JSON as a single "Draugr" run,
@@ -532,7 +535,11 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 	if opts.AutomationID != "" {
 		run.AutomationDetails = &sarifAutomationDetails{ID: opts.AutomationID}
 	}
-	run.Properties = runProperties(r.Provenance, r.Decided, r.Consulted, r.UnsettledChecks)
+	provenance := r.Provenance
+	if len(opts.Provenance) > 0 {
+		provenance = append(slices.Clip(r.Provenance), opts.Provenance...)
+	}
+	run.Properties = runProperties(provenance, r.Decided, r.Consulted, r.UnsettledChecks)
 	var relativeNotification bool
 	run.Invocations, relativeNotification = invocationsOf(opts.Notifications)
 	if relativeNotification {

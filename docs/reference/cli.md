@@ -1044,6 +1044,10 @@ and the exit code come from that gate alone, which fails the run when a new find
 it. `--fail-on` still judges every finding the scan reports, and `report.json` records that outcome
 as `gate.wholeRun`, where it decides nothing.
 
+Without `--fail-on-new`, a base whose descriptor set a stricter `failOnNew` holds the scan to it, as
+[`draugr diff`](#draugr-diff-basesarif-headsarif) does, and the change line says
+`fails on P1, the base's gate, which this scan's descriptor weakens`.
+
 ```bash
 draugr scan draugr.saga.yaml -o main/ --no-publish     # on main, kept as an artifact
 draugr scan draugr.saga.yaml -o head/ --base main/results.sarif --fail-on-new P3
@@ -1302,6 +1306,15 @@ each is reported.
 descriptor in the working directory. A working directory holding several is read as holding none,
 and stderr says so. A descriptor that is there and cannot be read is an error.
 [`draugr scan --base`](#gating-on-new-findings) applies the same setting with the same comparison.
+
+**The base's gate still applies.** A pull request's descriptor is part of the change under review,
+so a change that deletes `failOnNew` or loosens it could otherwise pass a finding its base fails on.
+Each `results.sarif` records the `failOnNew` of the descriptor it was scanned with, and without
+`--fail-on-new` the stricter of the base's and the head's applies: the lower threshold in one
+vocabulary, both when one is a band and the other a severity. The diff says when the base's decided,
+for example `The base's config.gate.failOnNew is P1 and this change's sets none, so the base's gate
+applies until the change merges.` A typed `--fail-on-new` replaces both. A base report from a release
+that did not record the gate, or from a descriptor that sets none, leaves the head's gate alone.
 
 **The head alone.** The pull request that adds a repository's first descriptor has nothing at its
 base to scan. `draugr diff head/results.sarif`, with no base report, compares the head against no

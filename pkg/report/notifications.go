@@ -8,6 +8,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 const (
@@ -122,11 +123,15 @@ func cutNoun(kind string) string {
 // is, the Draugr that wrote it, and what it says about the run itself. One function for the file -o
 // writes and the one a publisher renders, so the two cannot say different things about one run.
 func (d Data) SARIFOptions() sarif.MarshalOptions {
-	return sarif.MarshalOptions{
+	opts := sarif.MarshalOptions{
 		AutomationID:  AutomationID(d.ProjectName(), d.Run.Scope),
 		ToolVersion:   d.Version,
 		Notifications: notifications(d),
 	}
+	if p, ok := skald.GateProvenance(d.Gate.DeclaredNew); ok {
+		opts.Provenance = []sarif.Provenance{p}
+	}
+	return opts
 }
 
 // marshalOptions is SARIFOptions in the density the report's view asks for.

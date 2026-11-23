@@ -604,6 +604,8 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			Disabled:       opts.noGate,
 			FailOnNew:      againstBase.setting(),
 			FailOnNewFrom:  againstBase.from,
+			DeclaredNew:    declaredNew(model.Config.Gate),
+			HeldToBase:     againstBase.gate.Base != "",
 			New:            compared.findings,
 			BasePath:       againstBase.basePath,
 			WholeRun:       wholeRun,

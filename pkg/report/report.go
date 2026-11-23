@@ -2254,6 +2254,13 @@ type GateSettings struct {
 	// FailOnNewFrom names the setting FailOnNew came from, config.gate.failOnNew or --fail-on-new,
 	// for the line that states the gate.
 	FailOnNewFrom string
+	// DeclaredNew is the descriptor's own config.gate.failOnNew, whatever --fail-on-new said, and
+	// empty where it sets none. The sarif report records it, so a later comparison reading this scan
+	// as its base holds a change to at least the gate its base committed to.
+	DeclaredNew string
+	// HeldToBase is set where FailOnNew is the base scan's recorded config.gate.failOnNew, applied
+	// because this scan's descriptor sets a weaker one or none.
+	HeldToBase bool
 	// New is the run's comparison with a base scan, nil where none ran.
 	New *skald.NewFindings
 	// BasePath is the file --base named, which names the base where its SARIF records no revision.

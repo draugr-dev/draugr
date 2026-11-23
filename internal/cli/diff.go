@@ -202,8 +202,10 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 
 	// The gate travels with the result so every rendering states what the verdict was measured
 	// against, and so the verdict itself is computed once rather than in each format.
-	result.Gate = diff.Gate{FailOn: failOn, FailOnPriority: failOnNewPriority}
-	result.Tripped = result.GateNew(failOn, failOnNewPriority)
+	// Held to at least the gate the base recorded: the head's descriptor is part of the change.
+	typed := opts.failOnNew != "" || opts.failOnNewPriority != ""
+	result.Gate = withBaseGate(failOn, failOnNewPriority, typed, opts.gate, base)
+	result.Tripped = result.GateNew(result.Gate.FailOn, result.Gate.FailOnPriority)
 
 	view, err := resolveDiffView(opts.view)
 	if err != nil {

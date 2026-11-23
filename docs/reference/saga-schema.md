@@ -1910,6 +1910,10 @@ verdict and the exit code, and the outcome of `failOn` over the whole run is rec
 nothing. A scan with no `--base` has nothing to compare against, so `failOn` judges it and the report
 states the setting with no comparison. Empty, the default, applies no gate to new findings.
 
+A change is judged by at least the `failOnNew` of its base. `results.sarif` records the setting, and a
+comparison applies the stricter of the base's and the change's own, so deleting or loosening it takes
+effect for the changes after the one that does it. A typed `--fail-on-new` replaces both.
+
 
 ## `config.fixes`
 
