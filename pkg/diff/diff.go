@@ -125,9 +125,16 @@ func Compare(base, head sarif.Report) Result {
 
 	var r Result
 	matched := make([]bool, len(baseRes))
+	var held []int
 	for h, res := range headRes {
 		var was sarif.Result
 		b, inBase := pair[h]
+		if !inBase && countsOthers(res) {
+			// Placed once every head finding is paired, since what decides it is whether another
+			// scanner's copy of the same flaw was paired.
+			held = append(held, h)
+			continue
+		}
 		if inBase {
 			was, matched[b] = baseRes[b], true
 			if res.Suppressed() == was.Suppressed() {
@@ -136,38 +143,21 @@ func Compare(base, head sarif.Report) Result {
 				}
 			}
 		}
-		switch {
-		case inBase && gainedObjects(res, was) && !res.Suppressed() && !was.Suppressed():
+		if inBase && gainedObjects(res, was) && !res.Suppressed() && !was.Suppressed() {
 			// The check failed at the base and fails for more at the head: an object joined it. The
 			// base finding is not fixed, since every object it listed may still be there, and the head's
 			// is new, so a gate on new findings trips on what this change added.
 			r.New = append(r.New, res)
-		case inBase && res.Component != was.Component && res.Suppressed() == was.Suppressed():
-			// Moved even where the band changed too, and never reranked as well. The new component's
-			// declared context is usually why the band changed, so the move is the explanation, and
-			// its listing already names both bands beside both components. A finding in two lists
-			// would be counted twice in the strips, which add up to the head scan.
-			r.Moved = append(r.Moved, Move{Result: res, Was: was})
-		case res.Suppressed() && (!inBase || !was.Suppressed()):
-			// Excused in this change: either somebody wrote a rule for a finding that was counting, or a
-			// finding arrived that an existing rule already covers. Both are a decision to live with
-			// something, and the second is the one with nothing else to announce it, no line moved, no
-			// count rose, and a reader is told a finding arrived only if this says so.
-			r.Accepted = append(r.Accepted, res)
-		case res.Suppressed():
-			// Suppressed in both. The decision did not change, so neither did anything.
-			r.Unchanged = append(r.Unchanged, res)
-		case inBase && was.Suppressed():
-			r.Unaccepted = append(r.Unaccepted, res)
-		case inBase && res.Priority != was.Priority:
-			// Counting in both, and ranked differently. Only a counting finding: one excused in both
-			// scans is still accepted whatever its band, because nobody is working from it.
-			r.Reranked = append(r.Reranked, Rerank{Result: res, From: was.Priority})
-		case inBase:
-			r.Unchanged = append(r.Unchanged, res)
-		default:
-			r.New = append(r.New, res)
+			continue
 		}
+		r.place(res, was, inBase)
+	}
+	for _, c := range carriedOver(headRes, pair, held) {
+		var was sarif.Result
+		if c.base >= 0 {
+			was = baseRes[c.base]
+		}
+		r.place(headRes[c.head], was, c.base >= 0)
 	}
 	for b, res := range baseRes {
 		if !matched[b] && !res.Suppressed() {
@@ -194,6 +184,111 @@ func Compare(base, head sarif.Report) Result {
 		}
 	}
 	return r
+}
+
+// place files a head finding under the state it is in, given the base finding it was paired with,
+// where inBase says there was one.
+func (r *Result) place(res, was sarif.Result, inBase bool) {
+	switch {
+	case inBase && res.Component != was.Component && res.Suppressed() == was.Suppressed():
+		// Moved even where the band changed too, and never reranked as well. The new component's
+		// declared context is usually why the band changed, so the move is the explanation, and
+		// its listing already names both bands beside both components. A finding in two lists
+		// would be counted twice in the strips, which add up to the head scan.
+		r.Moved = append(r.Moved, Move{Result: res, Was: was})
+	case res.Suppressed() && (!inBase || !was.Suppressed()):
+		// Excused in this change: either somebody wrote a rule for a finding that was counting, or a
+		// finding arrived that an existing rule already covers. Both are a decision to live with
+		// something, and the second is the one with nothing else to announce it, no line moved, no
+		// count rose, and a reader is told a finding arrived only if this says so.
+		r.Accepted = append(r.Accepted, res)
+	case res.Suppressed():
+		// Suppressed in both. The decision did not change, so neither did anything.
+		r.Unchanged = append(r.Unchanged, res)
+	case inBase && was.Suppressed():
+		r.Unaccepted = append(r.Unaccepted, res)
+	case inBase && res.Priority != was.Priority:
+		// Counting in both, and ranked differently. Only a counting finding: one excused in both
+		// scans is still accepted whatever its band, because nobody is working from it.
+		r.Reranked = append(r.Reranked, Rerank{Result: res, From: was.Priority})
+	case inBase:
+		r.Unchanged = append(r.Unchanged, res)
+	default:
+		r.New = append(r.New, res)
+	}
+}
+
+// countsOthers reports whether a finding is the counted copy of a flaw other scanners reported too.
+func countsOthers(res sarif.Result) bool {
+	return res.Correlation != nil && res.Correlation.CountedUnder == "" && len(res.Correlation.AlsoFoundBy) > 0
+}
+
+// carried is a counted copy at the head and the base finding its flaw had, -1 where it had none.
+type carried struct{ head, base int }
+
+// carriedOver pairs each counted copy the base has no finding of with the base finding that another
+// scanner's copy of the same flaw was paired with, in the order held lists them.
+//
+// Which scanner's copy of a flaw is counted is a fact about the run, not about the flaw: turning a
+// second scanner on can move the count to its copy, and a rating that differs between two scanners
+// decides it. The counted copy is then one the base never saw, while the copy the base did see
+// matches and is left out of every count as correlated. Read by its own fingerprint alone, the flaw
+// would be new at the head, and a gate on new findings would fail a change on a flaw the base
+// already had. So a counted copy whose flaw the base held in another scanner's name takes that base
+// finding's place: unchanged, reranked from its band, or whatever else the pair makes it.
+//
+// A copy is the counted one's where it is counted under it, in the same component, repository and
+// image, under a scanner and rule its alsoFoundBy names, and it was paired with a base finding. One
+// in the counted copy's own file is preferred, so a rule two files both break pairs file to file,
+// and each copy stands for one counted copy at most. A flaw none of whose copies the base had stays
+// new.
+func carriedOver(head []sarif.Result, pair map[int]int, held []int) []carried {
+	out := make([]carried, len(held))
+	for i, h := range held {
+		out[i] = carried{head: h, base: -1}
+	}
+	var copies []int
+	for c, res := range head {
+		if _, inBase := pair[c]; inBase && res.Correlated() {
+			copies = append(copies, c)
+		}
+	}
+	if len(copies) == 0 {
+		return out
+	}
+	claimed := make(map[int]bool, len(copies))
+	for _, sameFile := range []bool{true, false} {
+		for i := range out {
+			if out[i].base >= 0 {
+				continue
+			}
+			counted := head[out[i].head]
+			for _, c := range copies {
+				cp := head[c]
+				if claimed[c] || !copyOf(cp, counted) || sameFile && cp.Location.URI != counted.Location.URI {
+					continue
+				}
+				claimed[c], out[i].base = true, pair[c]
+				break
+			}
+		}
+	}
+	return out
+}
+
+// copyOf reports whether cp is another scanner's copy of the flaw counted is counted for.
+func copyOf(cp, counted sarif.Result) bool {
+	if cp.Correlation.CountedUnder != counted.Reporter() || cp.Component != counted.Component ||
+		cp.Image != counted.Image ||
+		sarif.RepositoryIdentity(cp.Repository) != sarif.RepositoryIdentity(counted.Repository) {
+		return false
+	}
+	for _, o := range counted.Correlation.AlsoFoundBy {
+		if o.Tool == cp.Reporter() && o.RuleID == cp.RuleID {
+			return true
+		}
+	}
+	return false
 }
 
 // distinct drops a result that repeats another in every respect, place included.
