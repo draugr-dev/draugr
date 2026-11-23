@@ -1,8 +1,10 @@
 package sealed
 
 import (
+	"archive/zip"
 	"database/sql"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -422,4 +424,88 @@ func TestWriteGrypeDBIntoAFile(t *testing.T) {
 	if _, err := xxh64File(filepath.Join(blocked, "missing")); err == nil {
 		t.Error("digested a file that does not exist")
 	}
+}
+
+func TestWriteOSVDB(t *testing.T) {
+	home := t.TempDir()
+	fetched := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	if err := WriteOSVDB(home, loadTestAdvisories(t), fetched); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(home, ".draugr", "data", "osv-scanner", "osv-scalibr")
+	path := filepath.Join(root, "PyPI", "all.zip")
+	if info, err := os.Stat(path); err != nil || !info.ModTime().Equal(fetched) {
+		t.Fatalf("PyPI archive: %v %v", info, err)
+	}
+	z, err := zip.OpenReader(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = z.Close() }()
+	if len(z.File) != 1 || z.File[0].Name != "CVE-2018-1000656.json" {
+		t.Fatalf("PyPI archive holds %v", z.File)
+	}
+	r, err := z.File[0].Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rec struct {
+		ID       string `json:"id"`
+		Affected []struct {
+			Package struct{ Ecosystem, Name string } `json:"package"`
+			Ranges  []struct {
+				Events []map[string]string `json:"events"`
+			} `json:"ranges"`
+		} `json:"affected"`
+		DatabaseSpecific struct{ Severity string } `json:"database_specific"`
+	}
+	if err := json.NewDecoder(r).Decode(&rec); err != nil {
+		t.Fatal(err)
+	}
+	a := rec.Affected[0]
+	if rec.ID != "CVE-2018-1000656" || a.Package.Ecosystem != "PyPI" || a.Package.Name != "flask" ||
+		a.Ranges[0].Events[1]["fixed"] != "0.12.3" || rec.DatabaseSpecific.Severity != "HIGH" {
+		t.Errorf("record = %+v", rec)
+	}
+	if raw := readZipEntry(t, filepath.Join(root, "Go", "all.zip"), "CVE-2021-38561.json"); !strings.Contains(raw, `{"fixed":"0.3.7"}`) {
+		t.Errorf("the Go record keeps the module system's v: %s", raw)
+	}
+	// retire.js identifies a library by its file, so js advisories have no OSV ecosystem to go in.
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() == "js" {
+			t.Error("wrote a database for js")
+		}
+	}
+}
+
+func TestWriteOSVDBIntoAFile(t *testing.T) {
+	blocked := filepath.Join(t.TempDir(), "home")
+	if err := os.WriteFile(blocked, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteOSVDB(blocked, loadTestAdvisories(t), time.Now()); err == nil {
+		t.Error("wrote a database under a file")
+	}
+}
+
+func readZipEntry(t *testing.T, path, name string) string {
+	t.Helper()
+	z, err := zip.OpenReader(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = z.Close() }()
+	r, err := z.Open(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(raw)
 }

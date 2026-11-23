@@ -220,6 +220,10 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 		fmt.Fprintf(&b, "      grypeFs:\n        enabled: true     # Trivy does not read %s%s\n",
 			trivyUnreadNames(t), note(PathList(FilePaths(t.TrivyUnread))))
 	}
+	if locks := RustLockfiles(t); len(locks) > 0 {
+		fmt.Fprintf(&b, "      osvScanner:\n        enabled: true     # RustSec advisories Trivy misses%s\n",
+			note(PathList(locks)))
+	}
 	b.WriteString("    secrets:\n      enabled: true       # leaked credentials (Gitleaks)\n")
 	b.WriteString("    sast:\n      enabled: true       # code security (Semgrep)\n")
 	if len(t.Go) > 0 {
@@ -251,6 +255,22 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 	writeImports(&b, t.SARIF, url)
 	writeSurfaceStubs(&b, t, name, len(t.Dockerfiles) > 0)
 	return b.String()
+}
+
+// RustLockfiles are the tree's Cargo.lock files, which OSV-Scanner reads beside Trivy.
+//
+// On for Rust alone, measured: on one real Rust project OSV-Scanner reported five flaws in pinned
+// versions that Trivy did not, for about 0.3s more per scan and a first download of 4 MB for the
+// ecosystem. On a Python project it reported nothing Trivy missed, so Python stays opt-in. Only a
+// lockfile counts, because OSV-Scanner reads pinned versions and a Cargo.toml alone pins none.
+func RustLockfiles(t inventory.Tree) []string {
+	var locks []string
+	for _, f := range t.Dependencies {
+		if f.Ecosystem == "rust" && f.Kind == manifests.Pinned {
+			locks = append(locks, f.Path)
+		}
+	}
+	return locks
 }
 
 // Model is the descriptor Saga writes for the tree, read back as Draugr reads one: one component,

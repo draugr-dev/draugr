@@ -403,3 +403,15 @@ func TestInitFoundFitsTheTerminal(t *testing.T) {
 		t.Errorf("off a terminal the list should be whole:\n%s", whole)
 	}
 }
+
+// init's FOUND row for Rust names OSV-Scanner beside sca where the tree holds a Cargo.lock.
+func TestInitSaysOSVScannerReadsACargoLock(t *testing.T) {
+	t.Parallel()
+	_, console := runInitIn(t, map[string]string{
+		"Cargo.toml": "[package]\nname = \"shop\"\nversion = \"0.1.0\"\n\n[dependencies]\nzip = \"0.5\"\n",
+		"Cargo.lock": "version = 3\n\n[[package]]\nname = \"zip\"\nversion = \"0.5.6\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+	}, initOptions{})
+	if !regexp.MustCompile(`\n  rust +Cargo\.(lock · Cargo\.toml|toml · Cargo\.lock) +sca · osv-scanner\n`).MatchString(console) {
+		t.Errorf("FOUND has no rust row naming osv-scanner:\n%s", console)
+	}
+}

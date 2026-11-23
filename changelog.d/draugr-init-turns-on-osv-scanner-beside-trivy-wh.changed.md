@@ -1,0 +1,1 @@
+- **`draugr init` turns on OSV-Scanner beside Trivy where the tree holds a `Cargo.lock`, and so does a scan with no descriptor.** On a Rust project it reported five flaws in pinned versions that Trivy missed, for about 0.3s more per scan and a first 4 MB download from `osv-vulnerabilities.storage.googleapis.com`. Python stays opt-in.

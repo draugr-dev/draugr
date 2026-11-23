@@ -188,6 +188,7 @@ commented out, and with nothing that serves, no host is written. Edit it, then `
 | `go.mod`, including one that requires nothing | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
 | Copied JavaScript: anything under `vendor/`, or `*.min.js` or a file named for its release, unless it is named as a test (`*.test.js`, `*.spec.js`) | `sca.retirejs` |
 | `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
+| `Cargo.lock` | `sca.osvScanner`, which reads RustSec advisories Trivy misses |
 | A requirements file named other than `requirements.txt`: `requirements-dev.txt`, `requirements/test.txt` | `sca.trivyFs.filePatterns` reaching it |
 | Terraform or OpenTofu, a Terraform plan, Helm, Kubernetes, a Dockerfile, CloudFormation, an Azure Resource Manager template, an Ansible project | `iac`, naming them in its comment |
 | A Dockerfile | a commented `images` control and image entry |
@@ -562,6 +563,7 @@ The scope flags change **what runs**, and so the verdict.
 | copied JavaScript, such as `jquery.min.js` | `sca.retirejs` |
 | a requirements file Trivy opens only by pattern, such as `requirements-dev.txt` | `sca.trivyFs.filePatterns` |
 | a file only Grype reads, such as `setup.py` or `pdm.lock` | `sca.grypeFs` |
+| a `Cargo.lock` | `sca.osvScanner` |
 
 What `init` writes commented out stays off: the `images:` entry for a Dockerfile, and the host for
 an OpenAPI document. The report gains a `FOUND` section after `CONTROLS`, in the console, HTML and

@@ -27,7 +27,11 @@ advisories here, and none under `trivy-fs`.
 It costs time and some precision. Over the 230 projects measured in
 https://github.com/draugr-dev/draugr/issues/1897, OSV-Scanner took about 34 times Trivy's time, and
 much of what it added over Trivy was a requirements range read at its lowest version, which
-`trivyFs.detectionPriority: comprehensive` already reads. It is off unless a descriptor turns it on:
+`trivyFs.detectionPriority: comprehensive` already reads. It is off unless a descriptor turns it on.
+[`draugr init`](../../docs/reference/cli.md#draugr-init-dir) turns it on where the tree holds a
+`Cargo.lock`, and so does a scan with no descriptor: on a Rust project it reported five flaws in
+pinned versions that Trivy did not, for about 0.3s more per scan and a first download of 4 MB, as
+https://github.com/draugr-dev/draugr/issues/2377 records. On a Python project it reported none that Trivy missed. To turn it on yourself:
 
 ```yaml
 config:

@@ -32,7 +32,7 @@ const ecosystems = "testdata/ecosystems"
 func TestSealedScenarios(t *testing.T) {
 	requireTool(t, "docker", "the sealed tier runs every scan in a container with no network")
 	requireTool(t, "git", "each scenario is committed to a repository before it is scanned")
-	for _, tool := range []string{"trivy", "grype", "semgrep", "gitleaks", "gosec", "govulncheck", "retire", "nuclei", "go"} {
+	for _, tool := range []string{"trivy", "grype", "semgrep", "gitleaks", "gosec", "govulncheck", "retire", "nuclei", "osv-scanner", "go"} {
 		requireTool(t, tool, "a sealed scenario runs it")
 	}
 	// A golden rewritten by a draugr found on PATH records whichever release is installed rather
@@ -101,6 +101,7 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 		sealed.WriteGrypeDB(home, advs, now),
 		sealed.WriteGoVulnDB(home, advs, goVulnFetched),
 		sealed.WriteRetireRepo(home, advs, now),
+		sealed.WriteOSVDB(home, advs, now),
 		copyFile(filepath.Join(s.Dir, "draugr.saga.yaml"), filepath.Join(work, "draugr.saga.yaml"), 0o600),
 		copyFile(filepath.Join(ecosystems, "semgrep.yaml"), filepath.Join(work, "semgrep.yaml"), 0o600),
 		s.CopyWorkdir(work),
