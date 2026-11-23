@@ -91,7 +91,17 @@ only the code built for its platform, so its verdict says nothing about the rest
 govulncheck reports, such as one in the standard library, was not checked there. When only another
 platform's run cannot load it, the machine's verdict stands, and the build a verdict names leaves
 that platform out. A failure that holds for every module, such as a database govulncheck cannot reach, still fails the repository's
-job. To fail the run on a module that did not load, set
+job.
+
+**A run that does not finish fails the job and names what it left.** When a run is killed, most often
+because memory ran out, or exits with an error other than a load failure, the scan fails, and every
+`go.mod` of that repository's job is listed as unread, with the reason `govulncheck: was killed before
+it finished, most likely for lack of memory, so no Go module here was analyzed`, or `did not finish`
+for another error. None of that repository's findings carries a verdict, including those of modules
+whose runs had finished, because the job's results are not kept. The list is where
+`dependencyFiles[].unread` names every other file a scanner did not read.
+
+To fail the run on a module that did not load, set
 [`config.gate.failOnCaveats: [unread-files]`](../../docs/reference/saga-schema.md#configgate).
 
 **Standard-library advisories follow each module's Go.** govulncheck runs with the module as its

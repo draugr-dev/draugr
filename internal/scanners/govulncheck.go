@@ -23,6 +23,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -62,7 +63,42 @@ func NewGovulncheck() plugin.Scanner {
 	s.preflight = func(ctx context.Context, _ plugin.Config) error { return govulncheckPreflight(ctx) }
 	s.prewarm = refreshGovulnDB
 	s.run = onRuntime(s.info.Binary, onBuildGo(onUnloaded(onGoWork(onGoPlatform(inModuleDir(execArgvInDirWithEnv))))))
+	s.unreadOnFailure = govulncheckUnfinished
 	return s
+}
+
+// govulncheckUnfinished names every go.mod a failed govulncheck job was given as unread, with why.
+//
+// A run that govulncheck started and did not finish, killed or exiting with an error other than a
+// load failure (onUnloaded), fails the job, and the job's verdicts go with it: no module of the
+// checkout was analyzed, the ones whose runs had finished included. Each is named, so the files
+// reachability was never checked for are listed where every other unread file is.
+//
+// Nothing is named for a run refused before govulncheck started, such as a module newer than its
+// build Go (onBuildGo), or a tool that could not start: the job then read nothing of the
+// repository, and the report says so of the repository as a whole.
+func govulncheckUnfinished(dir string, err error) []sarif.Input {
+	_, exited := errors.AsType[*exec.ExitError](err)
+	killed := errors.Is(err, toolexec.ErrKilled)
+	if !killed && (!exited || errors.Is(err, toolexec.ErrCannotStart)) {
+		return nil
+	}
+	reason := "govulncheck: did not finish, so no Go module here was analyzed"
+	if killed {
+		reason = "govulncheck: was killed before it finished, most likely for lack of memory, so no Go module here was analyzed"
+	}
+	runs, _ := govulncheckPlan(dir)
+	var inputs []sarif.Input
+	for _, r := range runs {
+		gomod := "go.mod"
+		if rel, ok := relSlash(dir, r.mod); ok && rel != "." {
+			gomod = rel + "/go.mod"
+		}
+		if !slices.ContainsFunc(inputs, func(in sarif.Input) bool { return in.Path == gomod }) {
+			inputs = append(inputs, sarif.Input{Path: gomod, Unread: reason, Analysis: true})
+		}
+	}
+	return inputs
 }
 
 // inModuleDir runs govulncheck with the module its argv names (`-C <module>`) as its working
