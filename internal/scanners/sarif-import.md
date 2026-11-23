@@ -708,6 +708,13 @@ counted.
 | `dismissed`, by a bot or an account of no stated type | counted | counted |
 | `auto_dismissed` (Dependabot) | counted | counted |
 
+A person's dismissal sets that alert aside and no other finding. Where the control's own scanner
+reports the same flaw, such as Trivy's copy of a dismissed Dependabot alert's advisory, that copy
+still counts, and the alert stays a finding of its own under ACCEPTED, naming who dismissed it. The
+dismissal is recorded only in GitHub, so it does not reach a finding Draugr's own scanner reported. To set
+the flaw aside in every copy, add it to
+[`config.exclude`](../../docs/reference/saga-schema.md#configexclude).
+
 A bot's dismissal counts because a workflow is not a person's decision about the finding, and an
 account whose type GitHub does not state is not assumed to be a person. Its detail names the account,
 so a team sees which workflow did it, and gives the
