@@ -40,6 +40,12 @@ func TestReadFindsWhatATreeHolds(t *testing.T) {
 		"web/vendor/lib/widget.js":       "",
 		"web/src/app.js":                 "",
 		"web/node_modules/x/x-1.0.0.js":  "",
+		// A test's name may carry a version without the file being a library; vendor/ still says so.
+		"web/src/release-2.2.test.js":          "",
+		"web/src/upgrade-1.4.spec.js":          "",
+		"web/tests/release-2.2-notes.js":       "",
+		"web/tests/fixtures/jquery-3.0.min.js": "",
+		"web/tests/vendor/qunit-1.11.0.js":     "",
 
 		"ml/setup.py":         "setup(install_requires=['requests'])\n",
 		"ml/requirements.txt": "requests\n",
@@ -70,7 +76,7 @@ func TestReadFindsWhatATreeHolds(t *testing.T) {
 		got, want []string
 	}{
 		{"Go", got.Go, []string{".", "tools"}},
-		{"VendoredJS", got.VendoredJS, []string{"web/static/angular.1.2.js", "web/static/jquery-1.8.3.min.js", "web/vendor/lib/widget.js"}},
+		{"VendoredJS", got.VendoredJS, []string{"web/static/angular.1.2.js", "web/static/jquery-1.8.3.min.js", "web/tests/vendor/qunit-1.11.0.js", "web/vendor/lib/widget.js"}},
 		{"Terraform", got.Terraform, []string{"deploy/terraform"}},
 		{"Helm", got.Helm, []string{"deploy/chart"}},
 		{"Kubernetes", got.Kubernetes, []string{"deploy/k8s/deployment.yml"}},

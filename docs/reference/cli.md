@@ -186,7 +186,7 @@ commented out, and with nothing that serves, no host is written. Edit it, then `
 | Found in the tree | Written |
 |---|---|
 | `go.mod`, including one that requires nothing | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
-| Copied JavaScript: `*.min.js`, a file named for its release, anything under `vendor/` | `sca.retirejs` |
+| Copied JavaScript: anything under `vendor/`, or `*.min.js` or a file named for its release that is not a test: not `*.test.js` or `*.spec.js`, and not under a test directory [Non-shipping paths](saga-schema.md#non-shipping-paths) lists | `sca.retirejs` |
 | `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
 | A requirements file named other than `requirements.txt`: `requirements-dev.txt`, `requirements/test.txt` | `sca.trivyFs.filePatterns` reaching it |
 | Terraform or OpenTofu, a Terraform plan, Helm, Kubernetes, a Dockerfile, CloudFormation, an Azure Resource Manager template, an Ansible project | `iac`, naming them in its comment |

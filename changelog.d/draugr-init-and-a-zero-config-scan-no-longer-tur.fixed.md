@@ -1,0 +1,1 @@
+- **`draugr init` and a zero-config scan no longer turn on retire.js for a test file whose name carries a version**, such as `release-2.2.test.js`. A `*.test.js` or `*.spec.js` file, or one under a test directory, counts as copied JavaScript only under `vendor/`.

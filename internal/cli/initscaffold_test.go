@@ -2,8 +2,10 @@ package cli
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -259,6 +261,41 @@ func TestInitFoundRowNamesEveryGoModule(t *testing.T) {
 	}, initOptions{})
 	if !strings.Contains(console, "  go  go.mod · tools/go.mod  sca · gosec · govulncheck\n") {
 		t.Errorf("console does not name both modules in one row:\n%s", console)
+	}
+}
+
+// A test file whose name carries a version is the project's own code, so it turns retire.js on
+// neither by its name nor under a test directory; a library named for its release still does.
+func TestInitTurnsOnRetireJSForACopiedLibraryAndNotForATest(t *testing.T) {
+	t.Parallel()
+	npm := map[string]string{
+		"package.json":      `{"name": "shop", "dependencies": {"left-pad": "1.0.0"}}`,
+		"package-lock.json": `{"name": "shop", "lockfileVersion": 3, "packages": {"node_modules/left-pad": {"version": "1.0.0"}}}`,
+	}
+	with := func(extra map[string]string) map[string]string {
+		files := maps.Clone(npm)
+		maps.Copy(files, extra)
+		return files
+	}
+
+	got, console := runInitIn(t, with(map[string]string{
+		"tests/release-2.2-notes.test.js": "test('notes', () => {})\n",
+		"src/upgrade-1.4.spec.js":         "it('upgrades', () => {})\n",
+		"spec/fixtures/jquery-3.0.min.js": "",
+	}), initOptions{})
+	if strings.Contains(got, "retirejs") || strings.Contains(console, "copied JavaScript") {
+		t.Errorf("init read a test file as a copied library:\n%s\n%s", got, console)
+	}
+
+	got, console = runInitIn(t, with(map[string]string{
+		"tests/release-2.2-notes.test.js": "test('notes', () => {})\n",
+		"static/jquery-1.8.3.js":          "",
+	}), initOptions{})
+	if !strings.Contains(got, "retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · static/jquery-1.8.3.js\n") {
+		t.Errorf("init did not turn retire.js on for the library alone:\n%s", got)
+	}
+	if !regexp.MustCompile(`\n  copied JavaScript +static/jquery-1\.8\.3\.js +retirejs\n`).MatchString(console) {
+		t.Errorf("console does not name the library alone under FOUND:\n%s", console)
 	}
 }
 
