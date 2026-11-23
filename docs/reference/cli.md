@@ -185,7 +185,7 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 | Found in the tree | Written |
 |---|---|
 | `go.mod`, including one that requires nothing | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
-| Copied JavaScript: `*.min.js`, a file named for its release, anything under `vendor/` | `sca.retirejs` |
+| Copied JavaScript: anything under `vendor/`, or `*.min.js` or a file named for its release that is not a test: not `*.test.js` or `*.spec.js`, and not under a test directory [Non-shipping paths](saga-schema.md#non-shipping-paths) lists | `sca.retirejs` |
 | `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
 | A requirements file named other than `requirements.txt`: `requirements-dev.txt`, `requirements/test.txt` | `sca.trivyFs.filePatterns` reaching it |
 | Terraform, Helm, Kubernetes, a Dockerfile | named in the `iac` comment |
