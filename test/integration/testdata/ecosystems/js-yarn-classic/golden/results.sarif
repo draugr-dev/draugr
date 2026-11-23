@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "js-yarn-classic",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./js-yarn-classic\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./js-yarn-classic",
               "revision": "<cleared>"

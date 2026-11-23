@@ -15,6 +15,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "api",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-go-reachability\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "worker",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-go-reachability\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "database": "local copy, fetched <today>"
             },

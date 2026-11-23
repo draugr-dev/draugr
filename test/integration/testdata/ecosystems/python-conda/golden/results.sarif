@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "python-conda",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./python-conda\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./python-conda",
               "revision": "<cleared>"

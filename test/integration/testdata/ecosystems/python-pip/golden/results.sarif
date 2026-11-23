@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "python-pip",
+            "fields": {
+              "controls": "[\"sast\",\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./python-pip\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./python-pip",
               "revision": "<cleared>"

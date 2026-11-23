@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "dotnet-csproj",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./dotnet-csproj\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./dotnet-csproj",
               "revision": "<cleared>"

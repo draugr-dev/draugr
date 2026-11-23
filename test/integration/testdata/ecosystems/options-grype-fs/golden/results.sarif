@@ -15,6 +15,43 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "by-advisory",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-grype-fs\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "default",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-grype-fs\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "grype-yaml",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-grype-fs\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./options-grype-fs",
               "revision": "<cleared>"

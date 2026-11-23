@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "js-npm-dev",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./js-npm-dev\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./js-npm-dev",
               "revision": "<cleared>"

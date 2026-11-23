@@ -15,6 +15,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "admin",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "supporting",
+              "exposure": "restricted",
+              "repositories": "[\"./go-carved-module\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "api",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "critical",
+              "exposure": "public",
+              "repositories": "[\"./go-carved-module\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "database": "local copy, fetched <today>"
             },

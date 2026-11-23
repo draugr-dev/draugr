@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "python-pipenv",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./python-pipenv\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./python-pipenv",
               "revision": "<cleared>"

@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "negative-iac-module-cap",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-iac-module-cap\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./negative-iac-module-cap",
               "revision": "<cleared>"

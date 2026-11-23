@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "iac",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./iac\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./iac",
               "revision": "<cleared>"

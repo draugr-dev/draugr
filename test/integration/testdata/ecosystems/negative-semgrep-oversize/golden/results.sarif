@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "negative-semgrep-oversize",
+            "fields": {
+              "controls": "[\"sast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-semgrep-oversize\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./negative-semgrep-oversize",
               "revision": "<cleared>"

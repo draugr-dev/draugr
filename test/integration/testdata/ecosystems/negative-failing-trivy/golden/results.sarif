@@ -27,6 +27,27 @@
           ]
         }
       ],
+      "properties": {
+        "draugr/provenance": [
+          {
+            "component": "negative-failing-trivy",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-failing-trivy\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          }
+        ]
+      },
       "results": [],
       "tool": {
         "driver": {

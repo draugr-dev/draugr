@@ -15,6 +15,53 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "default",
+            "fields": {
+              "controls": "[\"sast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-gosec\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "exclude",
+            "fields": {
+              "controls": "[\"sast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-gosec\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "include",
+            "fields": {
+              "controls": "[\"sast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-gosec\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "tags",
+            "fields": {
+              "controls": "[\"sast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-gosec\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./options-gosec",
               "revision": "<cleared>"

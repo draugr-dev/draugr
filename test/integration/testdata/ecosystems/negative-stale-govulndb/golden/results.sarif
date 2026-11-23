@@ -30,6 +30,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "negative-stale-govulndb",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-stale-govulndb\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./negative-stale-govulndb",
               "revision": "<cleared>"

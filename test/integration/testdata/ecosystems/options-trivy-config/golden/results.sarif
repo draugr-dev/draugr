@@ -15,6 +15,63 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "acme",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-config\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "default",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-config\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "derived",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-config\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "trivyignore",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-config\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "user",
+            "fields": {
+              "controls": "[\"iac\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-config\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./options-trivy-config",
               "revision": "<cleared>"

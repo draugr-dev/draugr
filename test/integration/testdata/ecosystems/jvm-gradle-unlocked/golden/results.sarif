@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "jvm-gradle-unlocked",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./jvm-gradle-unlocked\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./jvm-gradle-unlocked",
               "revision": "<cleared>"

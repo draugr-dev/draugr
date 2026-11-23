@@ -212,6 +212,113 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "default",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "full",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "licenses-deny",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "licenses-dev-default",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "licenses-dev-report",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "licenses-warn",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "licenses-warn-isc",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "trivy-license-deny",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "trivy-license-warn",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "trivyignore",
+            "fields": {
+              "controls": "[\"licenses\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-license\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./options-trivy-license",
               "revision": "<cleared>"
