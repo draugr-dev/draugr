@@ -61,14 +61,9 @@ func TestNucleiReach(t *testing.T) {
 	}
 	tlsSrv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	t.Cleanup(tlsSrv.Close)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	closed := "http://" + ln.Addr().String()
-	_ = ln.Close()
+	nowhere := closedPort(t)
 	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, closed, http.StatusFound)
+		http.Redirect(w, r, nowhere, http.StatusFound)
 	}))
 	t.Cleanup(redirect.Close)
 
@@ -82,14 +77,34 @@ func TestNucleiReach(t *testing.T) {
 			t.Errorf("%s: %v, want it to count as an answer", name, err)
 		}
 	}
-	for name, url := range map[string]string{
-		"a closed port": closed,
-		"no scheme":     "::not a url",
-	} {
-		if err := nucleiReach(context.Background(), url, ""); err == nil {
-			t.Errorf("%s: counted as an answer", name)
+	if err := nucleiReach(context.Background(), "::not a url", ""); err == nil {
+		t.Error("no scheme: counted as an answer")
+	}
+	// Another process can be given a port between the test closing it and the probe, and then
+	// answers on it. A port that answers is replaced by a fresh one, so the case fails only when
+	// every port tried counts as an answer, which is what a probe counting a refused connection does.
+	refused := false
+	for range 5 {
+		if nucleiReach(context.Background(), closedPort(t), "") != nil {
+			refused = true
+			break
 		}
 	}
+	if !refused {
+		t.Error("a closed port: counted as an answer")
+	}
+}
+
+// closedPort is the URL of a loopback port nothing listened on a moment ago.
+func closedPort(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	url := "http://" + ln.Addr().String()
+	_ = ln.Close()
+	return url
 }
 
 // The probe carries the scan's credential, so an authenticated scan sends no anonymous request.
