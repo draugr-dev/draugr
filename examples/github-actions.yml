@@ -7,8 +7,7 @@
 # the last step uploads every finding to code scanning (the Security tab).
 #
 # `fail-on-new` is set here because `draugr init` writes no config.gate.failOnNew, and a diff with
-# no threshold fails on nothing. A threshold in the workflow also stands when a pull request edits
-# the descriptor it is judged with.
+# no threshold fails on nothing.
 #
 # Code scanning is in every public repository, and in a private one with GitHub Advanced Security;
 # without it, delete the last step. Save the file as .github/workflows/draugr.yml.

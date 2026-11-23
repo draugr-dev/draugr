@@ -51,9 +51,8 @@ jobs:
 This is [`examples/github-actions.yml`](../../examples/github-actions.yml), and it works with the
 descriptor `draugr init` writes. `fail-on-new` is set in the workflow because `draugr init` writes
 no [`config.gate.failOnNew`](../reference/saga-schema.md#configgate), and a diff with no threshold
-fails on nothing. A threshold in the workflow also stands when a pull request edits the descriptor
-it is judged with. Code scanning is in every public repository, and in a private one
-with GitHub Advanced Security; without it, delete the last step. To have the Saga's `github`
+fails on nothing. Code scanning is in every public repository, and in a private one with GitHub
+Advanced Security; without it, delete the last step. To have the Saga's `github`
 publisher upload instead, which also dismisses the alert for a finding accepted in Draugr, see
 [code scanning](code-scanning.md).
 
