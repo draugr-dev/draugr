@@ -240,3 +240,65 @@ func TestACarriedOverExcusedFlawIsUnchanged(t *testing.T) {
 		t.Errorf("accepted = %+v, unchanged = %+v, want OSV-Scanner's copy unchanged", c.Accepted, c.Unchanged)
 	}
 }
+
+// Turning a scanner off moves the count of a flaw back to the copy the remaining scanner had, and
+// nothing about the flaw changes. A diff that read the base's counted copy as fixed would report a
+// fix nobody made, for a flaw the head still has.
+func TestTurningAScannerOffFixesNothing(t *testing.T) {
+	base := report(withOSVScanner("api", "P1")...)
+	r := Compare(base, report(requestsAdvisory("trivy", "CVE-2018-18074", "api", "P1")))
+
+	if len(r.Fixed) != 0 {
+		t.Fatalf("Fixed = %+v, want nothing: Trivy still finds this flaw", r.Fixed)
+	}
+	c := r.Counted()
+	if len(c.Unchanged) != 1 || c.Unchanged[0].RuleID != "CVE-2018-18074" {
+		t.Errorf("Counted().Unchanged = %+v, want Trivy's copy alone", c.Unchanged)
+	}
+	if len(c.Changed()) != 0 {
+		t.Errorf("changed = %+v, want nothing changed", c.Changed())
+	}
+}
+
+// The same for two tools whose rules are paired by the setting they check.
+func TestTurningAPairedRuleOffFixesNothing(t *testing.T) {
+	kics, trivy := withKICS("deploy/pod.yaml", "P2")
+	r := Compare(report(kics, trivy), report(kubernetesSetting("Trivy", trivyEscalation, "deploy/pod.yaml", 9, "P2")))
+
+	if c := r.Counted(); len(c.Fixed) != 0 || len(c.Unchanged) != 1 || c.Unchanged[0].Tool != "Trivy" {
+		t.Errorf("fixed = %+v, unchanged = %+v, want Trivy's copy unchanged alone", c.Fixed, c.Unchanged)
+	}
+}
+
+// A flaw gone from every scanner's report is fixed, beside a flaw whose count only moved back to
+// the scanner left on.
+func TestAFlawGoneFromEveryScannerIsStillFixed(t *testing.T) {
+	gone, goneCopy := withKICS("deploy/worker.yaml", "P2")
+	kept, keptCopy := withKICS("deploy/pod.yaml", "P2")
+	r := Compare(
+		report(gone, goneCopy, kept, keptCopy),
+		report(kubernetesSetting("Trivy", trivyEscalation, "deploy/pod.yaml", 9, "P2")),
+	)
+
+	c := r.Counted()
+	if len(c.Fixed) != 1 || c.Fixed[0].Tool != "KICS" || c.Fixed[0].Location.URI != "deploy/worker.yaml" {
+		t.Errorf("Counted().Fixed = %+v, want KICS's counted copy in worker.yaml alone", c.Fixed)
+	}
+}
+
+// One copy at the head stands for one counted base finding. Where the base counted the flaw in two
+// files and the head still has it in one, the other file's flaw is fixed, whichever order the base
+// lists them in.
+func TestOneHeadCopyKeepsOneCountedFlaw(t *testing.T) {
+	kicsA, trivyA := withKICS("deploy/a.yaml", "P2")
+	kicsB, trivyB := withKICS("deploy/b.yaml", "P2")
+	// b.yaml's counted copy first, so pairing by the first copy that fits would take a.yaml's.
+	r := Compare(
+		report(kicsB, kicsA, trivyA, trivyB),
+		report(kubernetesSetting("Trivy", trivyEscalation, "deploy/a.yaml", 9, "P2")),
+	)
+
+	if c := r.Counted(); len(c.Fixed) != 1 || c.Fixed[0].Location.URI != "deploy/b.yaml" {
+		t.Errorf("Counted().Fixed = %+v, want b.yaml's flaw alone", c.Fixed)
+	}
+}

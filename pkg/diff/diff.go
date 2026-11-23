@@ -159,8 +159,9 @@ func Compare(base, head sarif.Report) Result {
 		}
 		r.place(headRes[c.head], was, c.base >= 0)
 	}
+	found := stillFound(baseRes, matched)
 	for b, res := range baseRes {
-		if !matched[b] && !res.Suppressed() {
+		if !matched[b] && !res.Suppressed() && !found[b] {
 			// A finding that was suppressed in the base and is gone from the head was not
 			// counting either way, so calling it fixed would inflate the good news.
 			r.Fixed = append(r.Fixed, res)
@@ -243,32 +244,71 @@ type carried struct{ head, base int }
 // and each copy stands for one counted copy at most. A flaw none of whose copies the base had stays
 // new.
 func carriedOver(head []sarif.Result, pair map[int]int, held []int) []carried {
-	out := make([]carried, len(held))
-	for i, h := range held {
-		out[i] = carried{head: h, base: -1}
-	}
 	var copies []int
 	for c, res := range head {
 		if _, inBase := pair[c]; inBase && res.Correlated() {
 			copies = append(copies, c)
 		}
 	}
-	if len(copies) == 0 {
-		return out
+	out := make([]carried, len(held))
+	for i, c := range standIns(head, held, copies) {
+		out[i] = carried{head: held[i], base: -1}
+		if c >= 0 {
+			out[i].base = pair[c]
+		}
+	}
+	return out
+}
+
+// stillFound marks each counted base finding that matched nothing at the head while another
+// scanner's copy of its flaw, in the base, matched something there.
+//
+// The other direction of carriedOver. Turning a scanner off, or a scanner's database dropping an
+// advisory, moves the count of a flaw to a copy the base had as correlated. That copy matches at the
+// head and is classified there, while the base's counted copy matches nothing. Read by its own
+// fingerprint alone it would be fixed, and a reviewer would be told of a fix for a flaw every head
+// scan still finds. A flaw is fixed only where no copy of it, under any scanner, is in the head.
+func stillFound(base []sarif.Result, matched []bool) map[int]bool {
+	var counted, copies []int
+	for b, res := range base {
+		switch {
+		case !matched[b] && countsOthers(res):
+			counted = append(counted, b)
+		case matched[b] && res.Correlated():
+			copies = append(copies, b)
+		}
+	}
+	found := map[int]bool{}
+	for i, c := range standIns(base, counted, copies) {
+		if c >= 0 {
+			found[counted[i]] = true
+		}
+	}
+	return found
+}
+
+// standIns gives each counted finding another scanner's copy of its flaw, from copies, all indexes
+// into rs, in the order counted lists them: the copy's index, or -1 where none is left.
+//
+// A copy in the counted finding's own file is preferred, so a rule two files both break pairs file
+// to file, and each copy stands for one counted finding at most.
+func standIns(rs []sarif.Result, counted, copies []int) []int {
+	out := make([]int, len(counted))
+	for i := range out {
+		out[i] = -1
 	}
 	claimed := make(map[int]bool, len(copies))
 	for _, sameFile := range []bool{true, false} {
-		for i := range out {
-			if out[i].base >= 0 {
+		for i, n := range counted {
+			if out[i] >= 0 {
 				continue
 			}
-			counted := head[out[i].head]
 			for _, c := range copies {
-				cp := head[c]
-				if claimed[c] || !copyOf(cp, counted) || sameFile && cp.Location.URI != counted.Location.URI {
+				cp := rs[c]
+				if claimed[c] || !copyOf(cp, rs[n]) || sameFile && cp.Location.URI != rs[n].Location.URI {
 					continue
 				}
-				claimed[c], out[i].base = true, pair[c]
+				claimed[c], out[i] = true, c
 				break
 			}
 		}
