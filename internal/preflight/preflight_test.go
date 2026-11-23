@@ -610,8 +610,8 @@ func TestDoctorChecksAnImportedFileAsItsFormat(t *testing.T) {
 // unbound, and offline a remote repository's branch is not resolved.
 func TestDoctorHoldsAnImportedFileToTheCommit(t *testing.T) {
 	const (
-		apiHead = "0123456789abcdef0123456789abcdef01234567"
-		webHead = "89abcdef0123456789abcdef0123456789abcdef"
+		firstHead  = "0123456789abcdef0123456789abcdef01234567"
+		secondHead = "89abcdef0123456789abcdef0123456789abcdef"
 	)
 	dir := t.TempDir()
 	write := func(name, provenance string) string {
@@ -630,9 +630,9 @@ func TestDoctorHoldsAnImportedFileToTheCommit(t *testing.T) {
 	two := []plugin.RepositoryTarget{{URL: "https://github.com/acme/api", Revision: "main"}, {URL: "https://github.com/acme/web", Revision: "main"}}
 	probes := Probes{Revision: func(_ context.Context, url, _ string) (string, error) {
 		if strings.HasSuffix(url, "/web") {
-			return webHead, nil
+			return secondHead, nil
 		}
-		return apiHead, nil
+		return firstHead, nil
 	}}
 	for _, c := range []struct {
 		name    string
@@ -641,23 +641,23 @@ func TestDoctorHoldsAnImportedFileToTheCommit(t *testing.T) {
 		status  Status
 		detail  string
 	}{
-		{"the file's own commit", plugin.FileTarget{Path: write("same.sarif", stated("https://github.com/acme/api", apiHead)), Repositories: one},
+		{"the file's own commit", plugin.FileTarget{Path: write("same.sarif", stated("https://github.com/acme/api", firstHead)), Repositories: one},
 			false, Passed, "SARIF 2.1.0, 1 result, commit 0123456789ab"},
-		{"the descriptor's commit, abbreviated", plugin.FileTarget{Path: plain, Repositories: one, Commit: apiHead[:7]},
+		{"the descriptor's commit, abbreviated", plugin.FileTarget{Path: plain, Repositories: one, Commit: firstHead[:7]},
 			false, Passed, "SARIF 2.1.0, 1 result, commit 0123456789ab"},
-		{"another commit", plugin.FileTarget{Path: plain, Repositories: one, Commit: webHead},
+		{"another commit", plugin.FileTarget{Path: plain, Repositories: one, Commit: secondHead},
 			false, Failed, "scanned 89abcdef0123, this run reads 0123456789ab. Run the tool again"},
 		{"an unset variable", plugin.FileTarget{Path: plain, Repositories: one, CommitUnset: "GITHUB_SHA"},
 			false, Passed, "SARIF 2.1.0, 1 result, commit not stated, ${{ GITHUB_SHA }} is not set. The scan lists it under unbound-imports"},
-		{"the second of two repositories", plugin.FileTarget{Path: write("web.sarif", stated("https://github.com/acme/web", webHead)), Repositories: two},
+		{"the second of two repositories", plugin.FileTarget{Path: write("web.sarif", stated("https://github.com/acme/web", secondHead)), Repositories: two},
 			false, Passed, "commit 89abcdef0123"},
-		{"the first's commit for the second", plugin.FileTarget{Path: write("web-old.sarif", stated("https://github.com/acme/web", apiHead)), Repositories: two},
+		{"the first's commit for the second", plugin.FileTarget{Path: write("web-old.sarif", stated("https://github.com/acme/web", firstHead)), Repositories: two},
 			false, Failed, "scanned 0123456789ab, this run reads 89abcdef0123"},
-		{"two repositories, the file naming neither", plugin.FileTarget{Path: plain, Repositories: two, Commit: webHead},
+		{"two repositories, the file naming neither", plugin.FileTarget{Path: plain, Repositories: two, Commit: secondHead},
 			false, Passed, "commit not stated, the file names none or several of the component's repositories"},
-		{"offline, a remote branch", plugin.FileTarget{Path: plain, Repositories: one, Commit: apiHead},
+		{"offline, a remote branch", plugin.FileTarget{Path: plain, Repositories: one, Commit: firstHead},
 			true, NotChecked, "SARIF 2.1.0, 1 result, commit not checked under --offline"},
-		{"offline, a file read but refused", plugin.FileTarget{Path: write("junk.sarif", `"x":`), Repositories: one, Commit: apiHead},
+		{"offline, a file read but refused", plugin.FileTarget{Path: write("junk.sarif", `"x":`), Repositories: one, Commit: firstHead},
 			true, Failed, "not a SARIF log"},
 	} {
 		got := Run(context.Background(), []plugin.Target{c.target}, Options{Offline: c.offline, Probes: probes})
@@ -671,8 +671,8 @@ func TestDoctorHoldsAnImportedFileToTheCommit(t *testing.T) {
 
 	// Two components importing one file are checked apart, as each holds it to its own repository.
 	got := Run(context.Background(), []plugin.Target{
-		plugin.FileTarget{Path: plain, Component: "api", Repositories: one, Commit: apiHead},
-		plugin.FileTarget{Path: plain, Component: "web", Repositories: []plugin.RepositoryTarget{two[1]}, Commit: apiHead},
+		plugin.FileTarget{Path: plain, Component: "api", Repositories: one, Commit: firstHead},
+		plugin.FileTarget{Path: plain, Component: "web", Repositories: []plugin.RepositoryTarget{two[1]}, Commit: firstHead},
 	}, Options{Probes: probes})
 	if len(got) != 2 || got[0].Status != Passed || got[1].Status != Failed ||
 		got[0].Target != plain+" · api" || got[1].Target != plain+" · web" {
