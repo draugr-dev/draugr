@@ -15,6 +15,11 @@ import (
 // A diff whose only news is findings that moved component or changed band has still compared
 // something, and their sections follow, so it does not claim every finding was already where it was.
 func nothingChanged(r Result) string {
+	// A control the change stopped looked at nothing, so "already there" would claim what nobody
+	// checked. The note above the listing names the control.
+	if r.Held.Fails() {
+		return "Nothing is new where this change still scans."
+	}
 	if len(r.Moved) == 0 && len(r.Reranked) > 0 {
 		return "Nothing is new or fixed. Only priorities changed."
 	}

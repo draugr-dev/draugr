@@ -549,7 +549,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	var wholeRun norn.Verdict
 	if againstBase.judges(compared) {
 		wholeRun, verdict.Verdict = verdict.Verdict, norn.Pass
-		if compared.tripped > 0 {
+		if compared.tripped > 0 || compared.result.Held.Fails() {
 			verdict.Verdict = norn.Fail
 		}
 	}
@@ -606,6 +606,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			FailOnNewFrom:  againstBase.from,
 			DeclaredNew:    declaredNew(model.Config.Gate),
 			HeldToBase:     againstBase.gate.Base != "",
+			HeldNotes:      compared.result.Held.Notes(),
 			New:            compared.findings,
 			BasePath:       againstBase.basePath,
 			WholeRun:       wholeRun,

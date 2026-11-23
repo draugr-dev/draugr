@@ -750,6 +750,10 @@ type Result struct {
 	// counted once rather than once per scanner. Zero when no two scanners agreed on anything,
 	// which includes every run with one scanner per control.
 	Correlated int
+	// Declared is what the descriptor declared for the part of it this run covered: each
+	// component's classification and controls, and the exclusions in force. results.sarif records
+	// it so a later comparison can hold a change to what its base declared.
+	Declared Declarations
 }
 
 // ReachabilitySummary counts what reachability analysis concluded, so a reader can see the
@@ -1836,6 +1840,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	// Controls, and a report reads the two together.
 	res.ContextFloors = e.contextFloors
 	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
+	res.Declared = e.declarations(model, time.Now())
 	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped
 	res.FailedScans = sortFailedScans(failedScans)

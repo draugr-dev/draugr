@@ -180,7 +180,8 @@ func verdict(r Result) (string, bool) {
 	if !r.Gate.Stated() {
 		return "", false
 	}
-	return map[bool]string{true: "FAIL", false: "pass"}[len(r.Tripped) > 0], len(r.Tripped) > 0
+	failed := len(r.Tripped) > 0 || r.Held.Fails()
+	return map[bool]string{true: "FAIL", false: "pass"}[failed], failed
 }
 
 func loc(f string, line int) string {
@@ -756,6 +757,9 @@ func writeGate(w io.Writer, col tui.Painter, r Result) {
 	if note := r.Gate.BaseNote(); note != "" {
 		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleMuted, note+"."))
 	}
+	for _, note := range r.Held.Notes() {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleMuted, note+"."))
+	}
 	_, _ = fmt.Fprintln(w)
 }
 
@@ -887,6 +891,9 @@ func writeMarkdownVerdict(w io.Writer, r Result) {
 		if note := r.Gate.BaseNote(); note != "" {
 			_, _ = fmt.Fprintf(w, "_%s._\n\n", note)
 		}
+		for _, note := range r.Held.Notes() {
+			_, _ = fmt.Fprintf(w, "_%s._\n\n", note)
+		}
 	}
 	if r.NoBase {
 		_, _ = fmt.Fprintf(w, "_%s._\n\n", noBaseNote)
@@ -1007,6 +1014,45 @@ type jsonDiff struct {
 	Reranked []jsonRerank `json:"reranked"`
 	// NoBase is present, and true, when there was no base scan to compare against.
 	NoBase bool `json:"noBase,omitempty"`
+	// HeldToBase is what the base's declaration decided beyond the head's, absent where nothing.
+	HeldToBase *jsonHeld `json:"heldToBase,omitempty"`
+}
+
+// jsonHeld is Held as the JSON format carries it.
+type jsonHeld struct {
+	// Unrecorded is true where the base report recorded no declaration, so the head's decided alone.
+	Unrecorded bool `json:"unrecorded,omitempty"`
+	// Raised are new findings at the band the base's classification gives them, with the band the
+	// head's gave them.
+	Raised []jsonRerank `json:"raised,omitempty"`
+	// Dropped are the controls the base ran and the head does not; component is absent for a
+	// project-wide control.
+	Dropped []jsonDropped `json:"dropped,omitempty"`
+	// Unscanned are the base's findings from a dropped control, which are not fixed.
+	Unscanned []sarif.Result `json:"unscanned,omitempty"`
+	// SelfAccepted are new findings excused by an exclusion the base did not have, gated as new.
+	SelfAccepted []sarif.Result `json:"selfAccepted,omitempty"`
+}
+
+// jsonDropped is a dropped control.
+type jsonDropped struct {
+	Component string `json:"component,omitempty"`
+	Control   string `json:"control"`
+}
+
+// heldJSON is h for the JSON format, nil where the base decided nothing beyond the head.
+func heldJSON(h Held) *jsonHeld {
+	if !h.Unrecorded && len(h.Raised)+len(h.Dropped)+len(h.Unscanned)+len(h.SelfAccepted) == 0 {
+		return nil
+	}
+	out := &jsonHeld{Unrecorded: h.Unrecorded, Unscanned: h.Unscanned, SelfAccepted: h.SelfAccepted}
+	for _, rr := range h.Raised {
+		out.Raised = append(out.Raised, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: "raised"})
+	}
+	for _, d := range h.Dropped {
+		out.Dropped = append(out.Dropped, jsonDropped(d))
+	}
+	return out
 }
 
 // jsonMove is a finding as head has it, with the component and band it had in base.
@@ -1049,11 +1095,12 @@ func renderJSON(w io.Writer, r Result) error {
 			NewBySeverity: countSeverities(r.New), FixedBySeverity: countSeverities(r.Fixed),
 			NewByPriority: countPriorities(r.New), FixedByPriority: countPriorities(r.Fixed),
 		},
-		New:      r.New,
-		Fixed:    r.Fixed,
-		Moved:    make([]jsonMove, 0, len(r.Moved)),
-		Reranked: make([]jsonRerank, 0, len(r.Reranked)),
-		NoBase:   r.NoBase,
+		New:        r.New,
+		Fixed:      r.Fixed,
+		Moved:      make([]jsonMove, 0, len(r.Moved)),
+		Reranked:   make([]jsonRerank, 0, len(r.Reranked)),
+		NoBase:     r.NoBase,
+		HeldToBase: heldJSON(r.Held),
 	}
 	for _, m := range r.Moved {
 		doc.Moved = append(doc.Moved, jsonMove{Finding: m.Result, FromComponent: m.Was.Component, FromPriority: m.Was.Priority})

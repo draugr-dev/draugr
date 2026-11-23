@@ -1048,7 +1048,9 @@ as `gate.wholeRun`, where it decides nothing.
 
 Without `--fail-on-new`, a base whose descriptor set a stricter `failOnNew` holds the scan to it, as
 [`draugr diff`](#draugr-diff-basesarif-headsarif) does, and the change line says
-`fails on P1, the base's gate, which this scan's descriptor weakens`.
+`fails on P1, the base's gate, which this scan's descriptor weakens`. The scan is held to the base's
+classification, controls and exclusions as `draugr diff` is, typed threshold or not, and says so
+under the change line.
 
 ```bash
 draugr scan draugr.saga.yaml -o main/ --no-publish     # on main, kept as an artifact
@@ -1318,6 +1320,25 @@ for example `The base's config.gate.failOnNew is P1 and this change's sets none,
 applies until the change merges.` Where no descriptor is in reach, the line says `no descriptor was
 read for this change` instead, since the diff cannot know what the change's descriptor sets. A typed `--fail-on-new` replaces both. A base report from a release
 that did not record the gate, or from a descriptor that sets none, leaves the head's gate alone.
+
+**The base's declaration still applies.** Each `results.sarif` also records what its descriptor
+declared: each component's `exposure`, `criticality`, controls and repositories, and the
+[`config.exclude`](saga-schema.md#configexclude) rules in force. Whatever threshold applies, typed or
+not, the diff holds the change to the base's declaration until it merges:
+
+- A new finding ranks by the more exposed and the more critical of the base's classification and the
+  head's. The base's is the component of the same name, a component that declared a repository the
+  change moved to this one, or a component a finding moved from.
+- A control the base ran on a repository, or on a component that declares none, and the head does
+  not run there fails the gate, because nothing the change adds there was looked for. The base's
+  findings from it read as not scanned rather than fixed.
+- A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
+  gated as new.
+
+The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
+there was looked for.` A change that lowers a classification or adds an exclusion, and adds no
+finding of its own, passes. A base report from a release that did not record the declaration says so
+and leaves the head's to decide.
 
 **The head alone.** The pull request that adds a repository's first descriptor has nothing at its
 base to scan. `draugr diff head/results.sarif`, with no base report, compares the head against no

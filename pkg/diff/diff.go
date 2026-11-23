@@ -7,6 +7,7 @@
 package diff
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -76,6 +77,11 @@ type Result struct {
 	// descriptor. Every finding at the head is then new, which a reader would otherwise take for a
 	// change that introduced all of them.
 	NoBase bool
+	// Held is what the base's declaration decided beyond the head's: see HoldToBase.
+	Held Held
+	// arrived are the accepted findings the base had no finding of: excused on arrival, by a rule
+	// that was already there or by one the change adds.
+	arrived []sarif.Result
 }
 
 // CompareWithoutBase is the comparison with no base scan: nothing at the base, so every finding
@@ -203,6 +209,9 @@ func (r *Result) place(res, was sarif.Result, inBase bool) {
 		// something, and the second is the one with nothing else to announce it, no line moved, no
 		// count rose, and a reader is told a finding arrived only if this says so.
 		r.Accepted = append(r.Accepted, res)
+		if !inBase {
+			r.arrived = append(r.arrived, res)
+		}
 	case res.Suppressed():
 		// Suppressed in both. The decision did not change, so neither did anything.
 		r.Unchanged = append(r.Unchanged, res)
@@ -672,7 +681,9 @@ func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Re
 	wantSeverity := failOn != ""
 	wantPriority := failOnPriority != ""
 	prioRank := prioritization.Priority(failOnPriority).Rank()
-	for _, f := range r.New {
+	// A finding the change excused with an exclusion of its own counts as new until the exclusion
+	// merges: the change's descriptor is part of the change, so it cannot accept what it adds.
+	for _, f := range slices.Concat(r.New, r.Held.SelfAccepted) {
 		// A second scanner's copy of a flaw already counted is not a new finding to gate on. It
 		// reaches this list the day somebody enables a second matcher, and failing a pull request
 		// over nine copies of nine vulnerabilities that were already there teaches people to turn
@@ -796,6 +807,8 @@ func (r Result) Counted() Result {
 	out.Unchanged = counted(r.Unchanged)
 	out.Accepted = counted(r.Accepted)
 	out.Unaccepted = counted(r.Unaccepted)
+	out.Held.SelfAccepted = counted(r.Held.SelfAccepted)
+	out.Held.Unscanned = counted(r.Held.Unscanned)
 	out.Moved = nil
 	for _, m := range r.Moved {
 		if !m.Correlated() {

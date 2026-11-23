@@ -1483,6 +1483,9 @@ func MergedSARIF(run engine.Result) sarif.Report {
 	if prov, ok := ScopeProvenance(run.Scope); ok {
 		merged.Provenance = append(merged.Provenance, prov)
 	}
+	// And what the descriptor declared, so a comparison that reads this file as its base can hold the
+	// change to the classification, controls and exclusions the base committed to.
+	merged.Provenance = append(merged.Provenance, DeclaredProvenance(run.Declared)...)
 	// And which exploitability data the run had loaded. A consumer explaining a band needs to
 	// tell "not on KEV" from "KEV was not consulted", and only the run knows which it was.
 	merged.Consulted = run.Consulted

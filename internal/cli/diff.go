@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -234,8 +235,8 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		publishErr = publishDiff(ctx, result, render)
 	}
 
-	if len(result.Tripped) > 0 {
-		return alsoPublish(errNewFindings(len(result.Tripped)), publishErr)
+	if err := gateFailure(result); err != nil {
+		return alsoPublish(err, publishErr)
 	}
 	// The gate passed and only delivery failed, which is still non-zero. But the message has to
 	// say which, because the two are the same color in a checks list and only one of them is about
@@ -306,7 +307,11 @@ func compareWithBase(baseName string, base sarif.Report, headName string, head s
 	if err := comparableScopes(baseName, base, headName, head); err != nil {
 		return diff.Result{}, err
 	}
-	return diff.Compare(base, head), nil
+	// Held to what the base declared: the head's descriptor is part of the change, so it cannot
+	// lower the rank of what the change adds, stop a control the base ran, or excuse its own finding.
+	baseDeclared, recorded := skald.DeclaredOfReport(base)
+	headDeclared, _ := skald.DeclaredOfReport(head)
+	return diff.Compare(base, head).HoldToBase(baseDeclared, headDeclared, recorded, scanpolicy.RankUnder), nil
 }
 
 // diffDescriptor is the descriptor whose config.gate.failOnNew a diff applies: the one --saga

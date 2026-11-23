@@ -156,11 +156,21 @@ func (g baseGate) failure(c comparison, policy *skald.PolicyCheck) error {
 	if !g.judges(c) {
 		return errors.New("policy verdict: fail")
 	}
-	if c.tripped == 0 {
+	if c.tripped == 0 && !c.result.Held.Fails() {
 		return policyFailure(policy)
 	}
-	err := fmt.Errorf("fails on %s: %s since %s", report.ThresholdWords(g.setting()),
-		english.Count(c.tripped, "new finding"), report.BaseName(c.findings.Base, g.basePath))
+	since := report.BaseName(c.findings.Base, g.basePath)
+	var err error
+	switch {
+	case c.tripped == 0:
+		err = fmt.Errorf("fails: %s since %s", c.result.Held.DroppedSentence(), since)
+	case c.result.Held.Fails():
+		err = fmt.Errorf("fails on %s: %s, and %s since %s", report.ThresholdWords(g.setting()),
+			english.Count(c.tripped, "new finding"), c.result.Held.DroppedSentence(), since)
+	default:
+		err = fmt.Errorf("fails on %s: %s since %s", report.ThresholdWords(g.setting()),
+			english.Count(c.tripped, "new finding"), since)
+	}
 	if policyFails(policy) {
 		return fmt.Errorf("policy verdict: fail; %w", err)
 	}
