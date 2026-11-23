@@ -638,3 +638,36 @@ func TestPathListWithinKeepsWholePathsAndCountsTheRest(t *testing.T) {
 		}
 	}
 }
+
+// A Cargo.lock turns on OSV-Scanner beside Trivy, naming the lockfile, and a scan with no
+// descriptor runs it too. A Cargo.toml alone pins nothing for it to read, and a Python lockfile
+// stays with Trivy alone.
+func TestACargoLockTurnsOnOSVScanner(t *testing.T) {
+	t.Parallel()
+	files := map[string]string{
+		"Cargo.toml": "[package]\nname = \"shop\"\nversion = \"0.1.0\"\n\n[dependencies]\nzip = \"0.5\"\n",
+		"Cargo.lock": "version = 3\n\n[[package]]\nname = \"zip\"\nversion = \"0.5.6\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+	}
+	got := scaffoldIn(t, files, false)
+	if want := "osvScanner:\n        enabled: true     # RustSec advisories Trivy misses · Cargo.lock\n"; !strings.Contains(got, want) {
+		t.Errorf("descriptor missing %q:\n%s", want, got)
+	}
+	dir := t.TempDir()
+	layout(t, dir, files)
+	m, err := Model(inventory.Read(dir), "shop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if blk, ok := m.Config.Controls["sca"]["osvScanner"].(saga.ControllerSettings); !ok || blk["enabled"] != true {
+		t.Errorf("sca.osvScanner = %v, want enabled in the zero-config model", m.Config.Controls["sca"]["osvScanner"])
+	}
+
+	for name, tree := range map[string]map[string]string{
+		"Cargo.toml alone": {"Cargo.toml": files["Cargo.toml"]},
+		"Python lockfile":  {"poetry.lock": "[[package]]\nname = \"requests\"\nversion = \"2.0.0\"\n", "pyproject.toml": "[tool.poetry]\nname = \"shop\"\n"},
+	} {
+		if got := scaffoldIn(t, tree, false); strings.Contains(got, "osvScanner") {
+			t.Errorf("%s turned on OSV-Scanner:\n%s", name, got)
+		}
+	}
+}

@@ -91,7 +91,11 @@ func foundRows(t inventory.Tree) []foundRow {
 				on: append([]string{"sca"}, goScanners...)})
 			continue
 		}
-		rows = append(rows, foundRow{kind: e, paths: byEco[e], on: []string{"sca"}})
+		on := []string{"sca"}
+		if e == "rust" && len(scaffold.RustLockfiles(t)) > 0 {
+			on = append(on, "osv-scanner")
+		}
+		rows = append(rows, foundRow{kind: e, paths: byEco[e], on: on})
 	}
 	if _, ok := byEco["go"]; !ok && len(t.Go) > 0 {
 		// A go.mod with no requirements gives sca nothing to read, and the Go controls their code.
