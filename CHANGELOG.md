@@ -16,7 +16,9 @@ _Nothing yet._
 
 ### Security
 
-- **A pull request can no longer turn off the gate on its own new findings by editing the descriptor.** `draugr diff` and `draugr scan --base` apply the stricter of the base's `config.gate.failOnNew` and the change's own, and say when the base's decided. `results.sarif` now records the setting. A typed `--fail-on-new` still replaces both.
+- **These changes fix [GHSA-qjj2-j3rr-4fq8](https://github.com/draugr-dev/draugr/security/advisories/GHSA-qjj2-j3rr-4fq8), which affects 0.164.0 through 0.188.0.** Upgrade if a pipeline on those versions takes its gate on new findings only from `config.gate.failOnNew` in the descriptor, with no `--fail-on-new` (the GitHub Action's `fail-on-new` input is empty by default). Check the pull requests it passed for one that removed or loosened that setting.
+
+- **A pull request can no longer turn off the new-findings gate by editing the descriptor.** `draugr diff` and `draugr scan --base` apply the stricter of the base's `config.gate.failOnNew` and the change's own, and print when the base's setting decided. `results.sarif` now records it, so scan the base with 0.188.1 or later. An explicit `--fail-on-new` still replaces both.
 
 ## [0.188.0] - 2026-11-23
 
