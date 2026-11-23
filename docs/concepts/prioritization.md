@@ -155,6 +155,14 @@ finding's `cveLookup` in `report.json` names the record, so a CVE Draugr looked 
 one the scanner reported. With no current copy, nothing is looked up, and the Signals section
 counts the findings KEV and EPSS could not check and names the command that fetches it.
 
+The looked-up CVE also lets two scanners' copies of one flaw count once. A scanner that names a Go
+flaw only by its GitHub advisory id, and another that names it only by its CVE, otherwise share no
+id, and each copy counts. Where the record lists exactly one CVE, the copy keyed on it joins the
+other, provided both are in the same component and repository or image, at the same package and
+version. The flaw counts at the higher of the
+two bands. Otherwise, correlation reads only the ids each scanner reported: a record listing two
+CVEs, or listing one only as related, joins nothing.
+
 Dependency health reaches only findings about a package. Absence never lowers a band: a CVE missing from KEV, a
 low EPSS score and a package nobody has flagged rank as they would with no signal at all. Only
 reachability lowers, and only from an analyzer that shows its method, as
