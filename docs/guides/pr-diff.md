@@ -452,7 +452,7 @@ Pin the version in both places if you take this route:
 
 ```yaml
 - uses: draugr-dev/draugr@v0
-  with: { version: v0.120.0 }     # the same version that produced the stored base
+  with: { saga: draugr.saga.yaml, version: v0.120.0 }   # the version that produced the stored base
 ```
 
 and re-scan the base whenever you move it. The cache above avoids the whole question, which is why
@@ -462,26 +462,41 @@ it is the one to reach for first.
 
 On GitHub, you don't wire this up by hand. The first-party action's default **`mode: auto`** runs a
 diff on `pull_request` events. It scans the base and head for you and posts one sticky new/fixed
-comment, and a full scan on push. One workflow, one Saga:
+comment, and a full scan on a push to `main`. One workflow, and the Saga `draugr init` writes:
 
 ```yaml
-on: [push, pull_request]
+name: Security
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
-  security-events: write   # push: code scanning
-  pull-requests: write     # PR: the diff comment
+  pull-requests: write          # the pull-request comment
+  security-events: write        # the Security tab, on a push
 jobs:
   draugr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }        # diff needs the base commit
-      - uses: draugr-dev/draugr@v0
+        with:
+          fetch-depth: 0          # the comparison needs the base commit
+      - id: draugr
+        uses: draugr-dev/draugr@v0   # pin @vX.Y.Z for reproducible CI
         with:
           saga: draugr.saga.yaml
-          tools: true
-          fail-on-new: high             # gate only on findings this PR introduces
+          tools: true             # provision the scanners the controls need
+          fail-on-new: P1         # fail a pull request on a new P1 finding
+      - if: always() && github.event_name == 'push'   # even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
+
+This is [`examples/github-actions.yml`](../../examples/github-actions.yml). The push trigger names
+`main` so that a pull request from a branch of this repository runs once, as a diff, rather than
+once more as a full scan of the branch. `fail-on-new` is set in the workflow because `draugr init`
+writes no `config.gate.failOnNew`, and a diff with no threshold fails on nothing.
 
 `diff-view: actions` changes what the comment says, grouping the change into the things somebody
 would do rather than listing every finding. GitLab's template takes `DRAUGR_DIFF_VIEW`, and Azure's

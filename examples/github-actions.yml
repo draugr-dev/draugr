@@ -1,0 +1,44 @@
+# Example GitHub Actions workflow: gate each pull request on the findings it adds, and send the
+# full scan of main to code scanning.
+#
+# It works with the draugr.saga.yaml that `draugr init` writes, unchanged. On a pull request the
+# action scans the base and the head, posts one comment with what the change adds and fixes, and
+# fails on a new P1 finding. On a push to main it runs the full scan, fails on any P1 finding, and
+# the last step uploads every finding to code scanning (the Security tab).
+#
+# `fail-on-new` is set here because `draugr init` writes no config.gate.failOnNew, and a diff with
+# no threshold fails on nothing. A threshold in the workflow also stands when a pull request edits
+# the descriptor it is judged with.
+#
+# Code scanning is in every public repository, and in a private one with GitHub Advanced Security;
+# without it, delete the last step. Save the file as .github/workflows/draugr.yml.
+#
+# README.md, docs/guides/github-action.md and docs/guides/pr-diff.md paste everything below this
+# comment, and a test fails until they match it.
+
+name: Security
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write          # the pull-request comment
+  security-events: write        # the Security tab, on a push
+jobs:
+  draugr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the comparison needs the base commit
+      - id: draugr
+        uses: draugr-dev/draugr@v0   # pin @vX.Y.Z for reproducible CI
+        with:
+          saga: draugr.saga.yaml
+          tools: true             # provision the scanners the controls need
+          fail-on-new: P1         # fail a pull request on a new P1 finding
+      - if: always() && github.event_name == 'push'   # even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}

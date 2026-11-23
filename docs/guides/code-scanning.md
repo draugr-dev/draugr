@@ -43,6 +43,7 @@ request and, by default, uploads only the findings the branch added:
 ```yaml
 - uses: draugr-dev/draugr@v0
   with:
+    saga: draugr.saga.yaml
     code-scanning: new   # the default; `all` uploads every finding
 ```
 
@@ -210,7 +211,7 @@ multi-format, multi-publisher Saga.
 ## 2. Run it from a workflow
 
 The action forwards `GITHUB_TOKEN` to the scan, and the job grants `security-events: write` so
-the upload is allowed. This mirrors
+the upload is allowed. This is
 [`examples/github-actions-code-scanning.yml`](../../examples/github-actions-code-scanning.yml):
 
 ```yaml
@@ -234,9 +235,15 @@ jobs:
         uses: draugr-dev/draugr@v0   # latest v0.x; pin @vX.Y.Z for reproducible CI
         with:
           saga: draugr.saga.yaml          # a Saga with a `github` publisher in config.publishers
-          tools: true
-          fail-on: high                   # optional: fail the build on high-severity findings
+          tools: true                     # provision the scanners the controls need
+          fail-on-new: P1                 # fail a pull request on a new P1 finding
 ```
+
+A push fails on any `P1` finding, the action's default. `fail-on-new` gates a pull request on the
+findings it adds, and is set here because `draugr init` writes no
+[`config.gate.failOnNew`](../reference/saga-schema.md#configgate): a diff with no threshold fails
+on nothing. [`examples/github-actions.yml`](../../examples/github-actions.yml) is the same
+workflow for a descriptor with no `github` publisher, uploading with an `upload-sarif` step.
 
 Because the publisher lives in the Saga, findings are uploaded even on a FAIL verdict, so you
 always get evidence in the Security tab. Draugr dogfoods this itself in

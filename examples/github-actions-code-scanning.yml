@@ -1,38 +1,43 @@
-# Example GitHub Actions workflow: one event-aware Draugr job for both push and pull requests.
+# Example GitHub Actions workflow: code scanning through the Saga's `github` publisher, and a gate
+# on each pull request.
 #
-# With the action's default `mode: auto`, a push runs a full scan and publishes findings to code
-# scanning (the Security tab) via the native `github` publisher; a pull request scans the base
-# and head and posts one sticky new/fixed comment (publishers suppressed, so it never
-# double-posts alongside a code-scanning "GitHub Advanced Security" comment).
+# What it adds to examples/github-actions.yml: the upload is made by the descriptor's `github`
+# publisher rather than by an upload step. The publisher also dismisses the alert for a finding
+# accepted in Draugr, which an upload-sarif step leaves open. `draugr init` does not declare it, so
+# pair this with a Saga that does (docs/guides/code-scanning.md, step 1, or
+# examples/publishing.saga.yaml).
 #
-# Copy this into .github/workflows/ and pair it with a Saga that declares the github publisher
-# (see examples/publishing.saga.yaml). Code scanning is free for public repos; private repos need
-# GitHub Advanced Security.
+# With the action's default `mode: auto`, a push to main runs a full scan, fails on any P1 finding,
+# and the publisher uploads every finding to code scanning (the Security tab). A pull request scans
+# the base and the head, posts one sticky new/fixed comment and fails on a new P1 finding, with the
+# publishers suppressed, so it never posts alongside a code scanning comment. `fail-on-new` is set
+# here because `draugr init` writes no config.gate.failOnNew, and a diff with no threshold fails on
+# nothing.
+#
+# Code scanning is in every public repository, and in a private one with GitHub Advanced Security.
+#
+# docs/guides/code-scanning.md pastes everything below this comment, and a test fails until it
+# matches.
 
 name: Draugr
-
 on:
   push:
     branches: [main]
   pull_request:
-
 permissions:
   contents: read
-  security-events: write # push: the github publisher uploads SARIF to code scanning
-  pull-requests: write   # PR: the sticky diff comment
-
+  security-events: write   # push: the github publisher uploads SARIF
+  pull-requests: write     # PR: the sticky diff comment
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0             # so PR diff mode can reach the base commit
-
+          fetch-depth: 0     # so PR diff mode can reach the base commit
       - name: Draugr scan + publish to code scanning
         uses: draugr-dev/draugr@v0   # latest v0.x; pin @vX.Y.Z for reproducible CI
         with:
           saga: draugr.saga.yaml          # a Saga with a `github` publisher in config.publishers
           tools: true                     # provision the scanners the controls need
-          fail-on: error                  # (push) fail the build on error-level findings
-          # fail-on-new: error            # (PR)   gate only on findings this PR introduces
+          fail-on-new: P1                 # fail a pull request on a new P1 finding

@@ -33,6 +33,8 @@ pipeline.
     go run github.com/draugr-dev/draugr/contrib/converters/npm-audit@vX.Y.Z
     -audit npm-audit.json -lock package-lock.json -commit "$GITHUB_SHA" -o npm-audit.draugr.json
 - uses: draugr-dev/draugr@v0
+  with:
+    saga: draugr.saga.yaml
 ```
 
 Replace `vX.Y.Z` with the Draugr release, such as the one `draugr version` prints.

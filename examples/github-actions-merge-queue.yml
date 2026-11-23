@@ -1,0 +1,41 @@
+# Example GitHub Actions workflow for a repository with a merge queue: gate each pull request, and
+# each queue entry, on the findings it adds.
+#
+# What it adds to examples/github-actions.yml: a merge_group trigger, and `mode: diff` on it. The
+# action's default `mode: auto` runs a full scan on merge_group, which gates the entry on every
+# finding in the tree, those already on main included. `diff` compares the entry with the commit
+# the queue built it on, as a pull request is compared with its base, and posts no comment.
+# Everything else, the descriptor `draugr init` writes included, is as in that file.
+#
+# docs/guides/github-action.md pastes everything below this comment, and a test fails until it
+# matches.
+
+name: Security
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+permissions:
+  contents: read
+  pull-requests: write          # the pull-request comment
+  security-events: write        # the Security tab, on a push
+jobs:
+  draugr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the comparison needs the base commit
+      - id: draugr
+        uses: draugr-dev/draugr@v0   # pin @vX.Y.Z for reproducible CI
+        with:
+          saga: draugr.saga.yaml
+          tools: true             # provision the scanners the controls need
+          mode: ${{ github.event_name == 'merge_group' && 'diff' || 'auto' }}
+          fail-on-new: P1         # fail a pull request or a queue entry on a new P1 finding
+      - if: always() && github.event_name == 'push'   # even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}
