@@ -602,3 +602,39 @@ func TestSagaTurnsOnIaCAndOffersHostsOnlyWhereTheTreeCallsForThem(t *testing.T) 
 		})
 	}
 }
+
+func TestPathListWithinKeepsWholePathsAndCountsTheRest(t *testing.T) {
+	paths := []string{
+		".config/mise/locks/mise.dev/pypi-docker-hosts/0.2.1/pyproject.toml",
+		".config/mise/locks/mise.dev/pypi-docker-hosts/0.2.1/uv.lock",
+		"web/package.json",
+		"web/pnpm-lock.yaml",
+	}
+	for _, tc := range []struct {
+		width int
+		want  string
+	}{
+		{0, PathList(paths)},
+		{1000, PathList(paths)},
+		{140, paths[0] + " · " + paths[1] + " · +2"},
+		{80, paths[0] + " · +3"},
+	} {
+		got := PathListWithin(paths, tc.width)
+		if got != tc.want {
+			t.Errorf("width %d: got %q, want %q", tc.width, got, tc.want)
+		}
+		if tc.width > 0 && len([]rune(got)) > tc.width {
+			t.Errorf("width %d: %q is %d cells", tc.width, got, len([]rune(got)))
+		}
+	}
+	// Not even the first path fits: its start goes, and the file name and the count stay.
+	for _, tc := range []struct {
+		paths []string
+		end   string
+	}{{paths, "/pyproject.toml · +3"}, {paths[:1], "/pyproject.toml"}} {
+		got := PathListWithin(tc.paths, 40)
+		if !strings.HasPrefix(got, "…") || !strings.HasSuffix(got, tc.end) || len([]rune(got)) != 40 {
+			t.Errorf("cut to 40: got %q (%d cells), want … then %q in 40", got, len([]rune(got)), tc.end)
+		}
+	}
+}

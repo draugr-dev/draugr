@@ -19,7 +19,7 @@ func (zc *zeroConfig) found() []report.Found {
 	rows := foundRows(zc.tree)
 	out := make([]report.Found, len(rows))
 	for i, r := range rows {
-		out[i] = report.Found{Kind: r.kind, Files: r.where(), Did: r.scanSays(zc.turnedOff)}
+		out[i] = report.Found{Kind: r.kind, Files: r.where(), Paths: r.paths, Did: r.scanSays(zc.turnedOff)}
 	}
 	return out
 }

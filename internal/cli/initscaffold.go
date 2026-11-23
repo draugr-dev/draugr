@@ -33,6 +33,11 @@ type foundRow struct {
 // where is the files as FOUND prints them, the first few and how many more.
 func (r foundRow) where() string { return scaffold.PathList(r.paths) }
 
+// whereCell is where as a table cell, which a table bounded to a terminal cuts to fewer paths.
+func (r foundRow) whereCell() tui.Cell {
+	return tui.Cell{Text: r.where(), Shorten: func(n int) string { return scaffold.PathListWithin(r.paths, n) }}
+}
+
 // initSays is what init's FOUND block says the scaffold does with the files.
 func (r foundRow) initSays() string {
 	if r.ignored {
@@ -195,9 +200,9 @@ func writeInitSummary(w io.Writer, col tui.Painter, t inventory.Tree, opts initO
 
 	if rows := foundRows(t); len(rows) > 0 {
 		_, _ = fmt.Fprintln(w, col.Paint(tui.StyleMuted, "FOUND"))
-		tbl := tui.NewTable(col).Indent("  ")
+		tbl := tui.NewTable(col).Indent("  ").Fit(tui.Columns(w))
 		for _, r := range rows {
-			tbl.Row(tui.PlainCell(r.kind), tui.PlainCell(r.where()), tui.Styled(tui.StyleMuted, r.initSays()))
+			tbl.Row(tui.PlainCell(r.kind), r.whereCell(), tui.Styled(tui.StyleMuted, r.initSays()))
 		}
 		tbl.Render(w)
 		_, _ = fmt.Fprintln(w)

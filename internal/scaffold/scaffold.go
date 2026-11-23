@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 
@@ -36,6 +37,36 @@ func PathList(paths []string) string {
 		return strings.Join(shown, " · ") + fmt.Sprintf(" · +%d", len(paths)-shownPaths)
 	}
 	return strings.Join(shown, " · ")
+}
+
+// PathListWithin is PathList no wider than width cells: as many of its paths as fit whole, and the
+// rest counted. Where not even the first fits beside the count, the start of that path is cut,
+// since the end of a path is the part that names the file. Zero or less leaves it whole.
+func PathListWithin(paths []string, width int) string {
+	full := PathList(paths)
+	if width <= 0 || utf8.RuneCountInString(full) <= width {
+		return full
+	}
+	shown := make([]string, 0, shownPaths)
+	for _, p := range paths[:min(len(paths), shownPaths)] {
+		shown = append(shown, OneLine(p))
+	}
+	for k := len(shown) - 1; k >= 1; k-- {
+		s := strings.Join(shown[:k], " · ") + fmt.Sprintf(" · +%d", len(paths)-k)
+		if utf8.RuneCountInString(s) <= width {
+			return s
+		}
+	}
+	more := ""
+	if len(paths) > 1 {
+		more = fmt.Sprintf(" · +%d", len(paths)-1)
+	}
+	first := []rune(shown[0])
+	room := max(width-utf8.RuneCountInString(more)-1, 1)
+	if len(first) <= room {
+		return string(first) + more
+	}
+	return "…" + string(first[len(first)-room:]) + more
 }
 
 // OneLine is a path as a comment or a terminal can carry it: unchanged, or quoted with Go's escapes

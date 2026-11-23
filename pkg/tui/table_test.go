@@ -217,3 +217,98 @@ func TestStyledNotesAndCellNotesKeepTheColumns(t *testing.T) {
 		t.Errorf("the cell lost a half:\n%q", out)
 	}
 }
+
+// A column of lists that offers a shorter form is cut to it, so the row fits and the column after it
+// keeps its words; a table with no width keeps every list whole.
+func TestFitShortensAColumnThatOffersIt(t *testing.T) {
+	long := "deep/under/a/tool/lock/dir/pyproject.toml · deep/under/a/tool/lock/dir/uv.lock · +4"
+	build := func(width int) string {
+		var b strings.Builder
+		NewTable(Plain()).Indent("  ").Fit(width).
+			Row(PlainCell("python"), Cell{Text: long, Shorten: func(int) string { return "short · +5" }}, PlainCell("sca · trivy-fs")).
+			Row(PlainCell("Terraform"), PlainCell("infra/azure"), PlainCell("iac")).
+			Render(&b)
+		return b.String()
+	}
+	narrow := build(60)
+	for _, line := range strings.Split(strings.TrimRight(narrow, "\n"), "\n") {
+		if n := len([]rune(line)); n > 60 {
+			t.Errorf("line is %d cells, past the 60 it was given: %q", n, line)
+		}
+	}
+	for _, want := range []string{"short · +5", "sca · trivy-fs", "  Terraform  infra/azure  iac\n"} {
+		if !strings.Contains(narrow, want) {
+			t.Errorf("narrow table missing %q:\n%s", want, narrow)
+		}
+	}
+	if wide := build(0); !strings.Contains(wide, long) {
+		t.Errorf("a table with no width should keep the list whole:\n%s", wide)
+	}
+	if wide := build(200); !strings.Contains(wide, long) {
+		t.Errorf("a table that fits should keep the list whole:\n%s", wide)
+	}
+}
+
+// Under MoveLast, a row whose command is too long to sit beside the others puts its description on
+// the next line, under the column, and the other descriptions stay whole.
+func TestMoveLastPutsAWideRowsLastCellBelowIt(t *testing.T) {
+	cmd := "draugr explain <rule> -r /home/someone/projects/the-service/scan-output/results.sarif"
+	build := func(width int, move bool) string {
+		var b strings.Builder
+		tbl := NewTable(Plain()).Indent("  ").Fit(width)
+		if move {
+			tbl.MoveLast()
+		}
+		tbl.Row(PlainCell("--top 0"), PlainCell("every one of them, not the first ten")).
+			Row(PlainCell("  - rules: [<full rule id>]"), PlainCell("")).
+			Row(PlainCell(cmd), PlainCell("what a rule means and how to fix it")).
+			Row(PlainCell("--view actions"), PlainCell("the same findings as a list of things to do")).
+			Render(&b)
+		return b.String()
+	}
+	got := build(100, true)
+	for _, line := range strings.Split(strings.TrimRight(got, "\n"), "\n") {
+		if n := len([]rune(line)); n > 100 {
+			t.Errorf("line is %d cells, past the 100 it was given: %q", n, line)
+		}
+	}
+	// The column is as wide as the widest row left beside it, the rules line.
+	start := strings.Repeat(" ", 2+len("  - rules: [<full rule id>]")+2)
+	for _, want := range []string{
+		"  " + cmd + "\n" + start + "what a rule means and how to fix it\n",
+		"every one of them, not the first ten\n",
+		"the same findings as a list of things to do\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "…") {
+		t.Errorf("no description should be cut:\n%s", got)
+	}
+	// Without MoveLast the same table loses every description to the one long command, as Fit
+	// always has: what is left beside it is too narrow to be worth a sentence.
+	if lost := build(100, false); strings.Contains(lost, "the same findings") {
+		t.Errorf("without MoveLast the descriptions should go:\n%s", lost)
+	}
+	// Where it all fits, or there is no width, nothing moves.
+	for _, w := range []int{0, 200} {
+		if got := build(w, true); !strings.Contains(got, cmd+"  what a rule means") {
+			t.Errorf("width %d: a table that fits should keep each row on one line:\n%s", w, got)
+		}
+	}
+}
+
+// A row moves only where it alone holds the columns open: two rows equally wide stay, and the last
+// column is trimmed as Fit trims it.
+func TestMoveLastLeavesRowsThatShareTheWidth(t *testing.T) {
+	var b strings.Builder
+	NewTable(Plain()).Indent("  ").Fit(60).MoveLast().
+		Row(PlainCell(strings.Repeat("a", 30)), PlainCell("a sentence much longer than what is left here")).
+		Row(PlainCell(strings.Repeat("b", 30)), PlainCell("another sentence longer than what is left")).
+		Render(&b)
+	got := b.String()
+	if strings.Count(got, "\n") != 2 || !strings.Contains(got, "…") {
+		t.Errorf("rows sharing the width should stay on their lines, trimmed:\n%s", got)
+	}
+}

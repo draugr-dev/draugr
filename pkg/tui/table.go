@@ -23,6 +23,10 @@ type Cell struct {
 	// given a column of its own pays for the heading twice.
 	Note      string
 	NoteStyle Style
+	// Shorten, where set, is the cell's text cut to at most the given number of cells, for a table
+	// bounded by Fit whose rows are wider than the bound. A list keeps its first items and counts the
+	// rest, which a cut made at the edge cannot do.
+	Shorten func(width int) string
 }
 
 // PlainCell is a cell that's just text.
@@ -63,6 +67,9 @@ type Table struct {
 	styledNotes bool
 	// fit is how wide the table may be, or zero for as wide as its content.
 	fit int
+	// moveLast says a row too wide to sit beside the others puts its last cell on a line of its
+	// own, rather than every row's last cell being cut to make room for it.
+	moveLast bool
 }
 
 // Fit bounds the table's width, trimming the last column's text to what is left after the others.
@@ -74,6 +81,17 @@ type Table struct {
 // the destination is a file or a pipe and there is no width to respect.
 func (t *Table) Fit(width int) *Table {
 	t.fit = width
+	return t
+}
+
+// MoveLast tells a table bounded by Fit to move the last cell of a row whose leading cells are too
+// wide onto a line of its own, under the last column, instead of cutting it.
+//
+// For a table whose last column is a sentence a reader needs whole, such as what a command does.
+// Without it, one long command widens the first column for every row, and every description is
+// cut to what is left. A row moves only while the rest would otherwise not fit, widest first.
+func (t *Table) MoveLast() *Table {
+	t.moveLast = true
 	return t
 }
 
@@ -136,19 +154,16 @@ func (t *Table) Render(w io.Writer) {
 		return
 	}
 
-	widths := make([]int, cols)
-	for i, h := range t.headers {
-		widths[i] = width(h)
+	t.shorten(cols)
+	moved := t.moveRows(cols)
+	widths := t.widths(cols, moved)
+	// Where a moved row's last cell starts: under the last column, as the leading columns set it
+	// before the last one is trimmed.
+	start := width(t.indent) + (cols-1)*columnGap
+	for _, n := range widths[:cols-1] {
+		start += n
 	}
-	for _, r := range t.rows {
-		for i, c := range r.cells {
-			if n := cellWidth(c); n > widths[i] {
-				widths[i] = n
-			}
-		}
-	}
-
-	widths = widths[:t.trimToFit(widths)]
+	widths = widths[:t.trimToFit(widths, moved)]
 
 	if len(t.headers) > 0 {
 		cells := make([]Cell, min(len(t.headers), len(widths)))
@@ -157,8 +172,12 @@ func (t *Table) Render(w io.Writer) {
 		}
 		t.writeLine(w, widths, cells)
 	}
-	for _, r := range t.rows {
-		t.writeLine(w, widths, r.cells)
+	for i, r := range t.rows {
+		if moved[i] {
+			t.writeMoved(w, widths, r.cells, start)
+		} else {
+			t.writeLine(w, widths, r.cells)
+		}
 		// Align notes under the second column: far enough in to read as subordinate to the
 		// row, not as rows of their own.
 		//
@@ -179,11 +198,129 @@ func (t *Table) Render(w io.Writer) {
 // than it is worth.
 const noteIndent = 10
 
+// widths are the columns' widths: the widest header or cell in each, leaving out the rows moved,
+// which are written on lines of their own.
+func (t *Table) widths(cols int, moved map[int]bool) []int {
+	widths := make([]int, cols)
+	for i, h := range t.headers {
+		widths[i] = width(h)
+	}
+	for j, r := range t.rows {
+		if moved[j] {
+			continue
+		}
+		for i, c := range r.cells {
+			widths[i] = max(widths[i], cellWidth(c))
+		}
+	}
+	return widths
+}
+
+// fits reports whether a row of these widths is no wider than the table's bound.
+func (t *Table) fits(widths []int) bool {
+	used := width(t.indent) + (len(widths)-1)*columnGap
+	for _, n := range widths {
+		used += n
+	}
+	return used <= t.fit
+}
+
+// shorten cuts the cells that offer a shorter form, column by column from the left, to what the
+// bound leaves beside every other column at its full width, and no narrower than minLastColumn.
+func (t *Table) shorten(cols int) {
+	if t.fit <= 0 {
+		return
+	}
+	for c := range cols - 1 {
+		widths := t.widths(cols, nil)
+		if t.fits(widths) {
+			return
+		}
+		room := t.fit - width(t.indent) - (cols-1)*columnGap
+		for i, n := range widths {
+			if i != c {
+				room -= n
+			}
+		}
+		room = max(room, minLastColumn)
+		for _, r := range t.rows {
+			if c < len(r.cells) && r.cells[c].Shorten != nil && cellWidth(r.cells[c]) > room {
+				r.cells[c].Text = r.cells[c].Shorten(room)
+			}
+		}
+	}
+}
+
+// moveRows picks the rows whose last cell goes on a line of its own, under MoveLast: while the rows
+// left do not fit, the one whose leading cells are widest, where moving it narrows those columns.
+func (t *Table) moveRows(cols int) map[int]bool {
+	moved := map[int]bool{}
+	if !t.moveLast || t.fit <= 0 || cols < 2 {
+		return moved
+	}
+	lead := func(r row) int {
+		n := 0
+		for i, c := range r.cells[:min(len(r.cells), cols-1)] {
+			if i > 0 {
+				n += columnGap
+			}
+			n += cellWidth(c)
+		}
+		return n
+	}
+	for {
+		widths := t.widths(cols, moved)
+		if t.fits(widths) {
+			return moved
+		}
+		widest, most, next := -1, 0, 0
+		for j, r := range t.rows {
+			if moved[j] {
+				continue
+			}
+			n := lead(r)
+			if len(r.cells) < cols || r.cells[cols-1].Text == "" || n <= most {
+				// A row with nothing in the last column stays, and still holds the columns open.
+				next = max(next, n)
+				continue
+			}
+			next = max(next, most)
+			widest, most = j, n
+		}
+		// Moving the widest row helps only where it alone sets the leading columns' width.
+		if widest < 0 || most <= next {
+			return moved
+		}
+		moved[widest] = true
+	}
+}
+
+// writeMoved writes a moved row: its leading cells as the others are written, and its last cell on
+// the next line, starting under the last column and cut to the bound.
+func (t *Table) writeMoved(w io.Writer, widths []int, cells []Cell, start int) {
+	last := len(cells) - 1
+	// Its own cells set its own widths where they are wider than the columns, which they may be.
+	own := make([]int, last)
+	for i := range own {
+		own[i] = cellWidth(cells[i])
+		if i < len(widths) {
+			own[i] = max(own[i], widths[i])
+		}
+	}
+	t.writeLine(w, own, cells[:last])
+	c := cells[last]
+	if t.fit > 0 {
+		c.Text = clip(c.Text, max(t.fit-start, minLastColumn))
+	}
+	_, _ = fmt.Fprintf(w, "%s%s\n", strings.Repeat(" ", start), t.painter.Link(c.URL, t.painter.Paint(c.Style, c.Text)))
+}
+
 // trimToFit shortens the last column so the whole row fits, and returns how many columns are left.
+// A moved row's last cell is cut where it is written, on its own line.
 //
 // Below minLastColumn there is no sentence worth reading, so the column goes entirely rather than
 // leaving a ragged edge of first words.
-func (t *Table) trimToFit(widths []int) int {
+func (t *Table) trimToFit(widths []int, moved map[int]bool) int {
 	last := len(widths) - 1
 	if t.fit <= 0 || last < 1 {
 		return len(widths)
@@ -200,8 +337,8 @@ func (t *Table) trimToFit(widths []int) int {
 		return last
 	}
 	widths[last] = room
-	for _, r := range t.rows {
-		if last < len(r.cells) {
+	for j, r := range t.rows {
+		if last < len(r.cells) && !moved[j] {
 			r.cells[last].Text = clip(r.cells[last].Text, room)
 		}
 	}
