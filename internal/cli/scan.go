@@ -388,7 +388,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// has finished.
 		for _, cfg := range model.Config.Publishers {
 			if err := publish.CheckCredential(cfg); err != nil {
-				return err
+				return fmt.Errorf("no scanner ran: %w", err)
 			}
 		}
 	}
