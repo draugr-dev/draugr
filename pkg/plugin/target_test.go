@@ -392,6 +392,12 @@ func TestFileTargetKeysOnItsContent(t *testing.T) {
 	if ComputeCacheKey(ImportScanner, "1", api, nil) == ComputeCacheKey(ImportScanner, "1", web, nil) {
 		t.Error("two components' repositories share a cache key")
 	}
+	// Against one repository too, since the account of the file names the component it was read for.
+	first, second := api, api
+	first.Component, second.Component = "api", "worker"
+	if ComputeCacheKey(ImportScanner, "1", first, nil) == ComputeCacheKey(ImportScanner, "1", second, nil) {
+		t.Error("two components importing one file share a cache key")
+	}
 	// The commit the descriptor holds it to decides whether it binds, so each is its own scan: a file
 	// read unbound must not answer for one held to a commit, nor one commit for another.
 	keys := map[CacheKey]bool{}

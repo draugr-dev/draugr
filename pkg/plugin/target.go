@@ -482,7 +482,8 @@ func (t FileTarget) Identity() string {
 // CacheDetail is the file's content, so the same path holding different findings is a different
 // scan; the repositories it is read against, because what the import makes of a file depends on
 // them, the revision it is held to, the repository its findings are placed in and the scope that
-// keeps or leaves out each one; the commit the descriptor holds it to, or the variable that left it
+// keeps or leaves out each one; the component it is read for, which its account names; the commit
+// the descriptor holds it to, or the variable that left it
 // unbound; the format it is read as, since one file read by two readers is two answers; whether
 // the tool's own suppressions are counted; the converter and what it may set; and the descriptor's
 // mapping of its tool's rating where it gives one.
@@ -508,6 +509,11 @@ func (t FileTarget) CacheDetail() string {
 	}
 	for _, r := range t.Repositories {
 		detail += " repo=" + r.Identity()
+	}
+	// The import's account of the file names the component it was read for, so two components
+	// importing one file are two reads, each answered from the cache with its own name.
+	if t.Component != "" {
+		detail += " component=" + t.Component
 	}
 	if t.Commit != "" {
 		detail += " commit=" + t.Commit

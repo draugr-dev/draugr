@@ -1,0 +1,1 @@
+- **Two components that import the same file each get their own account of it.** The import's row under the control named only one of them, whichever read the file first, on a fresh run and from the cache alike. Each now names its own component.
