@@ -63,11 +63,13 @@ func TestSARIFImportReadsThePackageEachToolStates(t *testing.T) {
 			sarif.Package{Name: "golang.org/x/text", Version: "v0.3.5", FixedVersion: "0.39.0",
 				PURL: "pkg:golang/golang.org/x/text@v0.3.5", Ecosystem: "golang"}},
 		// OSV-Scanner states the package in the message and the fix in a table in the rule's help,
-		// which lists lodash-es and lodash-rails beside lodash at other fixed versions.
+		// which lists lodash-es and lodash-rails beside lodash at other fixed versions. It writes a Go
+		// module's version without the "v", 0.3.5, which is read as go.mod writes it, as Trivy's and
+		// Grype's are; the fix is kept as written, as theirs is.
 		{"osv-scanner-deps.sarif", "CVE-2020-8203",
 			sarif.Package{Name: "lodash", Version: "4.17.15", FixedVersion: "4.17.19", Ecosystem: "npm"}},
 		{"osv-scanner-deps.sarif", "CVE-2022-32149",
-			sarif.Package{Name: "golang.org/x/text", Version: "0.3.5", FixedVersion: "0.3.8", Ecosystem: "gomod"}},
+			sarif.Package{Name: "golang.org/x/text", Version: "v0.3.5", FixedVersion: "0.3.8", Ecosystem: "gomod"}},
 	} {
 		r := byRule(t, importedDeps(t, c.file), c.rule)
 		if r.Package == nil || *r.Package != c.want {

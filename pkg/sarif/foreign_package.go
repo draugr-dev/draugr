@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
+	"github.com/draugr-dev/draugr/internal/versionorder"
 )
 
 // What follows reads the dependency an imported finding is about, the version that fixes it, and
@@ -78,9 +79,14 @@ func (l *looseFixes) UnmarshalJSON(b []byte) error {
 //
 // A package URL beside a name from the text is kept only where it names the same package at the
 // same version, so the finding never carries an identifier for a package it is not about.
+//
+// A Go module's version is written as go.mod writes it, whatever the file wrote (see
+// spellGoModuleVersion).
 func (fr foreignRunReader) packageOf(sr foreignResult, rule *foreignRule, uri string) *Package {
 	if sr.Properties != nil && sr.Properties.Package.pkg != nil {
-		return sr.Properties.Package.pkg
+		p := *sr.Properties.Package.pkg
+		spellGoModuleVersion(&p)
+		return &p
 	}
 	var p Package
 	fixStated := false
@@ -98,7 +104,8 @@ func (fr foreignRunReader) packageOf(sr foreignResult, rule *foreignRule, uri st
 			switch {
 			case p.Name == "":
 				p.Name, p.Version, p.PURL, p.Ecosystem = name, version, purl, typ
-			case name == p.Name && (version == "" || version == p.Version):
+			case name == p.Name && (version == "" || version == p.Version ||
+				typ == "golang" && versionorder.GoModuleVersion(version) == versionorder.GoModuleVersion(p.Version)):
 				p.PURL, p.Ecosystem = purl, typ
 			}
 		}
@@ -112,7 +119,20 @@ func (fr foreignRunReader) packageOf(sr foreignResult, rule *foreignRule, uri st
 	if !fixStated {
 		p.FixedVersion = statedFix(sr, rule, p)
 	}
+	spellGoModuleVersion(&p)
 	return &p
+}
+
+// spellGoModuleVersion writes a Go module's installed version, in the package and its package URL,
+// with the leading "v" go.mod writes. Tools disagree: Grype and Trivy write v0.3.5 and OSV-Scanner
+// writes 0.3.5, and spelled apart, one module version from two files reads as two packages to
+// upgrade. The fixed version is kept as the file wrote it, and so is every other ecosystem's version.
+func spellGoModuleVersion(p *Package) {
+	if versionorder.Ecosystem(p.PURL, p.Ecosystem) != "Go" {
+		return
+	}
+	p.Version = versionorder.GoModuleVersion(p.Version)
+	p.PURL = versionorder.GoPURL(p.PURL)
 }
 
 // labeled reads one "Key: value" line from a message, and whether the line is there at all: a line

@@ -39,8 +39,8 @@ var byPURLType = map[string]string{
 	"rpm":      "Red Hat",
 }
 
-// byReported maps the ecosystem a scanner names, Trivy's result type or Grype's package type, to the
-// one whose rules order it, for a finding that carries no package URL.
+// byReported maps the ecosystem a scanner names, Trivy's result type, Grype's package type or an OSV
+// ecosystem such as Go, to the one whose rules order it, for a finding that carries no package URL.
 var byReported = map[string]string{
 	"alpine": "Alpine", "apk": "Alpine", "chainguard": "Alpine", "wolfi": "Alpine",
 	"debian": "Debian", "ubuntu": "Debian", "deb": "Debian",
@@ -49,7 +49,7 @@ var byReported = map[string]string{
 	"npm": "npm", "yarn": "npm", "pnpm": "npm", "bun": "npm", "node-pkg": "npm",
 	"pip": "PyPI", "pipenv": "PyPI", "poetry": "PyPI", "uv": "PyPI", "pylock": "PyPI", "python-pkg": "PyPI", "python": "PyPI",
 	"gem": "RubyGems", "gemspec": "RubyGems", "bundler": "RubyGems",
-	"gomod": "Go", "gobinary": "Go", "go-module": "Go",
+	"gomod": "Go", "gobinary": "Go", "go-module": "Go", "go": "Go",
 	"cargo": "crates.io", "rust-crate": "crates.io", "rustbinary": "crates.io",
 	"composer": "Packagist", "php-composer": "Packagist",
 	"nuget": "NuGet", "dotnet-core": "NuGet", "packages-props": "NuGet", "dotnet": "NuGet",
@@ -141,6 +141,35 @@ func (v Version) Compare(w Version) (order int, ok bool) {
 func looksLikeAVersion(s string) bool {
 	s = strings.TrimPrefix(s, "v")
 	return s != "" && s[0] >= '0' && s[0] <= '9'
+}
+
+// GoModuleVersion is a Go module version as go.mod writes it, with its leading "v": "v0.3.0" for
+// "0.3.0". The module system requires the "v", and Trivy, Grype and govulncheck write it, where an OSV
+// record leaves it off. Only a version that starts with a digit gains one, so a version already
+// written with it, a pseudo-version and a +incompatible suffix keep the rest as written, and
+// anything that is not a version is returned unchanged.
+func GoModuleVersion(v string) string {
+	if v == "" || v[0] < '0' || v[0] > '9' {
+		return v
+	}
+	return "v" + v
+}
+
+// GoPURL is a Go package URL with its version written as GoModuleVersion writes it, and any other
+// package URL, or a Go one naming no version, unchanged. Qualifiers and a subpath are kept.
+func GoPURL(purl string) string {
+	if len(purl) < len("pkg:golang/") || !strings.EqualFold(purl[:len("pkg:golang/")], "pkg:golang/") {
+		return purl
+	}
+	base, tail := purl, ""
+	if i := strings.IndexAny(purl, "?#"); i >= 0 {
+		base, tail = purl[:i], purl[i:]
+	}
+	at := strings.LastIndex(base, "@")
+	if at < 0 {
+		return purl
+	}
+	return base[:at+1] + GoModuleVersion(base[at+1:]) + tail
 }
 
 // MavenCoordinate is the groupId:artifactId a Maven package URL names, and false for any other

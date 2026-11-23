@@ -291,6 +291,7 @@ func osvFinding(res osvResult, p osvPackage, g osvGroup, notices bool) (sarif.Re
 		PURL:         osvPURL(p.Package.PURL),
 		Ecosystem:    p.Package.Ecosystem,
 	}
+	osvGoVersion(pkg)
 	found := sarif.Result{
 		Tool:     osvScanner,
 		RuleID:   id,
@@ -403,6 +404,22 @@ func osvPURL(purl string) string {
 		return base
 	}
 	return base + "?" + qs.Encode()
+}
+
+// osvGoVersion writes a Go module's installed version, in the package and its package URL, as go.mod
+// writes it, with its leading "v": OSV records drop it, so OSV-Scanner reports golang.org/x/text 0.3.0
+// where go.mod, Trivy, Grype and govulncheck all say v0.3.0. Spelled apart, one module version reads
+// as two packages, and the same advisory from two scanners is counted and listed for upgrade twice.
+//
+// The fixed version is kept as OSV writes it, without the "v", which is how Trivy and Grype write a Go
+// fix and how the govulncheck scanner records one. Every other ecosystem's versions are kept as
+// written.
+func osvGoVersion(pkg *sarif.Package) {
+	if versionorder.Ecosystem(pkg.PURL, pkg.Ecosystem) != "Go" {
+		return
+	}
+	pkg.Version = versionorder.GoModuleVersion(pkg.Version)
+	pkg.PURL = versionorder.GoPURL(pkg.PURL)
 }
 
 // osvFixedVersion is the version that fixes the vulnerability vulns describe in p, empty where none
