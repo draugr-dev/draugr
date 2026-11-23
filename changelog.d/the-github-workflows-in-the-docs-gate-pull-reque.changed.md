@@ -1,0 +1,1 @@
+- **The GitHub workflows in the docs gate pull requests.** Each one is a file under `examples/` and sets `fail-on-new: P1`, so a pull request fails on a new P1 finding with the descriptor `draugr init` writes. `examples/github-actions-code-scanning.yml` now gates a push at the action's default, any P1 finding, instead of `fail-on: error`.

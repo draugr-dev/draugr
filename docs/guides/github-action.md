@@ -11,11 +11,13 @@ Add Draugr to a repository's CI with the first-party **`draugr-dev/draugr`** act
 cosign-verified Draugr release, provisions the scanners, and, with its default **`mode: auto`**,
 does the right thing per event from **one** workflow and **one** Saga:
 
-- on **push**, it runs a full scan and uploads the merged SARIF to GitHub **code scanning** (the
-  Security tab), via the Saga's `github` publisher;
-- on a **pull request**, it scans the PR's base and head and posts **one sticky new/fixed
-  comment**, with the Saga's publishers suppressed, so it never double-posts alongside a code
-  scanning "GitHub Advanced Security" comment.
+- on a **pull request**, it scans the PR's base and head, posts **one sticky new/fixed
+  comment**, and fails on a finding the change adds at or above `fail-on-new`. The Saga's
+  publishers are suppressed, so it never double-posts alongside a code scanning "GitHub Advanced
+  Security" comment;
+- on a **push**, it runs a full scan and fails on a finding at or above `fail-on`, `P1` by
+  default. The workflow's last step uploads the findings to GitHub **code scanning** (the Security
+  tab).
 
 ```yaml
 name: Security
@@ -25,23 +27,34 @@ on:
   pull_request:
 permissions:
   contents: read
-  security-events: write        # push: upload SARIF to code scanning
-  pull-requests: write          # PRs: post the sticky diff comment
+  pull-requests: write          # the pull-request comment
+  security-events: write        # the Security tab, on a push
 jobs:
   draugr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0          # diff mode needs the PR's base commit
-      - uses: draugr-dev/draugr@v0   # latest v0.x; pin @vX.Y.Z for reproducible CI (installs Draugr for you)
+          fetch-depth: 0          # the comparison needs the base commit
+      - id: draugr
+        uses: draugr-dev/draugr@v0   # pin @vX.Y.Z for reproducible CI
         with:
           saga: draugr.saga.yaml
           tools: true             # provision the scanners the controls need
-          # fail-on: P1           # (scan/push) gate the build; the default
-          # fail-on-new: P1       # (diff/PR)   gate only on findings this PR introduces
-          # diff-view: actions    # (diff/PR)   the comment lists what to do, not every finding
+          fail-on-new: P1         # fail a pull request on a new P1 finding
+      - if: always() && github.event_name == 'push'   # even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
+
+This is [`examples/github-actions.yml`](../../examples/github-actions.yml), and it works with the
+descriptor `draugr init` writes. `fail-on-new` is set in the workflow because `draugr init` writes
+no [`config.gate.failOnNew`](../reference/saga-schema.md#configgate), and a diff with no threshold
+fails on nothing. Code scanning is in every public repository, and in a private one with GitHub
+Advanced Security; without it, delete the last step. To have the Saga's `github`
+publisher upload instead, which also dismisses the alert for a finding accepted in Draugr, see
+[code scanning](code-scanning.md).
 
 **Versioning.** `@v0` is a moving major tag that always points at the newest `v0.x` release, so
 you get updates without editing the ref. For fully reproducible CI, pin an exact release instead
@@ -68,24 +81,40 @@ To scan an image before pushing it, see [Scanning an image before it is pushed](
 
 **In a merge queue**, `auto` picks `scan` for a `merge_group` event, which gates the entry on
 everything in the tree, findings already on `main` included. To gate an entry on the findings it
-adds, as `diff` gates its pull request, choose `diff` on `merge_group`:
+adds, as `diff` gates its pull request, choose `diff` on `merge_group`.
+[`examples/github-actions-merge-queue.yml`](../../examples/github-actions-merge-queue.yml) is the
+workflow above with a `merge_group` trigger and that `mode`:
 
 ```yaml
+name: Security
 on:
+  push:
+    branches: [main]
   pull_request:
   merge_group:
     types: [checks_requested]
+permissions:
+  contents: read
+  pull-requests: write          # the pull-request comment
+  security-events: write        # the Security tab, on a push
 jobs:
   draugr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - uses: draugr-dev/draugr@v0
+          fetch-depth: 0          # the comparison needs the base commit
+      - id: draugr
+        uses: draugr-dev/draugr@v0   # pin @vX.Y.Z for reproducible CI
         with:
+          saga: draugr.saga.yaml
+          tools: true             # provision the scanners the controls need
           mode: ${{ github.event_name == 'merge_group' && 'diff' || 'auto' }}
-          fail-on-new: P1
+          fail-on-new: P1         # fail a pull request or a queue entry on a new P1 finding
+      - if: always() && github.event_name == 'push'   # even when the gate fails
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.draugr.outputs.sarif }}
 ```
 
 A pull request that adds the repository's first descriptor has none at its base. Diff mode then
@@ -170,6 +199,7 @@ the filter removed as *fixed*.
 - uses: draugr-dev/draugr@v0
   id: draugr
   with:
+    saga: draugr.saga.yaml
     code-scanning: new             # default. What this PR is answerable for
     code-scanning-min-priority: P1 # and only what is urgent
 ```
