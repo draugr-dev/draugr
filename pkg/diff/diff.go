@@ -847,6 +847,10 @@ type Gate struct {
 	Base string
 	// Head is the head's config.gate.failOnNew beside Base, and empty where it sets none.
 	Head string
+	// HeadUnread is set where no descriptor was read for the head, so an empty Head says nothing
+	// about the change: `draugr diff` run where no descriptor is in reach compares two reports and
+	// cannot know what the change's descriptor sets.
+	HeadUnread bool
 }
 
 // Stated reports whether a gate was asked for at all.
@@ -870,11 +874,14 @@ func (g Gate) BaseNote() string {
 	if g.Base == "" {
 		return ""
 	}
-	head := "sets none"
-	if g.Head != "" {
-		head = "sets " + thresholdWords(g.Head)
+	head := "this change's sets none"
+	switch {
+	case g.Head != "":
+		head = "this change's sets " + thresholdWords(g.Head)
+	case g.HeadUnread:
+		head = "no descriptor was read for this change"
 	}
-	return "The base's config.gate.failOnNew is " + thresholdWords(g.Base) + " and this change's " + head +
+	return "The base's config.gate.failOnNew is " + thresholdWords(g.Base) + " and " + head +
 		", so the base's gate applies until the change merges"
 }
 

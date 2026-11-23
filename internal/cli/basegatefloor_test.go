@@ -186,3 +186,23 @@ func TestWithBaseGate(t *testing.T) {
 		t.Errorf("a typed --fail-on-new was held to the base's gate: %+v", got)
 	}
 }
+
+// With no descriptor in reach, the diff cannot know what the change's descriptor sets, so the line
+// explaining the base's gate says no descriptor was read rather than that the change sets none.
+func TestADiffWithNoDescriptorSaysItReadNone(t *testing.T) {
+	base := baseWithGate(t, "P1")
+	head := writeFile(t, "head.sarif", sarifDoc("CVE-2", "error", "img", "P1"))
+
+	out, err := diffIn(t, t.TempDir(), base, head)
+	if err == nil || !strings.Contains(err.Error(), "differential gate: 1 new finding") {
+		t.Fatalf("err = %v, want the base's P1 gate tripped\n%s", err, out)
+	}
+	want := "The base's config.gate.failOnNew is P1 and no descriptor was read for this change, " +
+		"so the base's gate applies until the change merges."
+	if !strings.Contains(out, want) {
+		t.Errorf("output does not say %q:\n%s", want, out)
+	}
+	if strings.Contains(out, "sets none") {
+		t.Errorf("output says the change sets no gate, with no descriptor read:\n%s", out)
+	}
+}

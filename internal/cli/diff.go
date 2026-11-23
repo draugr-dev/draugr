@@ -35,8 +35,11 @@ type diffOptions struct {
 	// config.gate.failOnNew applies where neither --fail-on-new spelling is passed.
 	saga string
 	// gate is that descriptor's gate block, read by the command before runDiff, and nil where no
-	// descriptor was read.
+	// descriptor was read or it sets none.
 	gate *saga.GateConfig
+	// descriptorRead is whether a descriptor was read for the head, which tells a descriptor that
+	// sets no gate from one nobody read.
+	descriptorRead bool
 	// declared is where that descriptor declares each image in this repository, read for the sarif
 	// format, and nil where no descriptor was read.
 	declared sarif.Declarations
@@ -88,7 +91,7 @@ func newDiffCommand() *cobra.Command {
 					return err
 				}
 				if model != nil {
-					opts.gate = model.Config.Gate
+					opts.gate, opts.descriptorRead = model.Config.Gate, true
 				}
 			}
 			// The sarif report goes to code scanning, which can show a new finding on an image on
@@ -205,6 +208,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// Held to at least the gate the base recorded: the head's descriptor is part of the change.
 	typed := opts.failOnNew != "" || opts.failOnNewPriority != ""
 	result.Gate = withBaseGate(failOn, failOnNewPriority, typed, opts.gate, base)
+	result.Gate.HeadUnread = result.Gate.Base != "" && !opts.descriptorRead
 	result.Tripped = result.GateNew(result.Gate.FailOn, result.Gate.FailOnPriority)
 
 	view, err := resolveDiffView(opts.view)

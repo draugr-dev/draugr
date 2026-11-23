@@ -650,3 +650,24 @@ func TestOneRepositorySpelledTwoWaysIsOneRepository(t *testing.T) {
 		t.Errorf("unchanged = %d, want one finding in each of the two repositories", len(d.Unchanged))
 	}
 }
+
+// The note under the gate says what the change's descriptor sets: a threshold, none, or, where no
+// descriptor was read for it, that nothing is known about it.
+func TestTheBaseNoteSaysWhatTheChangeSets(t *testing.T) {
+	for _, tc := range []struct {
+		gate Gate
+		want string
+	}{
+		{Gate{}, ""},
+		{Gate{Base: "P1", Head: "P3"}, "The base's config.gate.failOnNew is P1 and this change's sets P3, " +
+			"so the base's gate applies until the change merges"},
+		{Gate{Base: "high"}, "The base's config.gate.failOnNew is high severity and this change's sets none, " +
+			"so the base's gate applies until the change merges"},
+		{Gate{Base: "P1", HeadUnread: true}, "The base's config.gate.failOnNew is P1 and no descriptor was " +
+			"read for this change, so the base's gate applies until the change merges"},
+	} {
+		if got := tc.gate.BaseNote(); got != tc.want {
+			t.Errorf("%+v: BaseNote() = %q, want %q", tc.gate, got, tc.want)
+		}
+	}
+}

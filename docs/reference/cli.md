@@ -1315,7 +1315,8 @@ Each `results.sarif` records the `failOnNew` of the descriptor it was scanned wi
 `--fail-on-new` the stricter of the base's and the head's applies: the lower threshold in one
 vocabulary, both when one is a band and the other a severity. The diff says when the base's decided,
 for example `The base's config.gate.failOnNew is P1 and this change's sets none, so the base's gate
-applies until the change merges.` A typed `--fail-on-new` replaces both. A base report from a release
+applies until the change merges.` Where no descriptor is in reach, the line says `no descriptor was
+read for this change` instead, since the diff cannot know what the change's descriptor sets. A typed `--fail-on-new` replaces both. A base report from a release
 that did not record the gate, or from a descriptor that sets none, leaves the head's gate alone.
 
 **The head alone.** The pull request that adds a repository's first descriptor has nothing at its
