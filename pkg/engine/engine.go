@@ -3937,7 +3937,7 @@ func correlationGroups(results []sarif.Result) [][]int {
 		if !keyed[i] {
 			continue
 		}
-		for _, id := range results[i].AliasVulnerabilityIDs() {
+		for _, id := range correlationAliases(results[i]) {
 			other := keys[i]
 			other.vuln = id
 			if j, seen := first[other]; seen {
@@ -3964,6 +3964,24 @@ func correlationGroups(results []sarif.Result) [][]int {
 		groups[g] = append(groups[g], i)
 	}
 	return groups
+}
+
+// correlationAliases are the identifiers a finding joins another scanner's copy of the same flaw on:
+// the aliases its own scanner reported, and, where it names no CVE, the one CVE an advisory
+// database's record lists among that record's aliases (sarif.CVELookup).
+//
+// The record's CVE only where it lists exactly one. A record listing two would join both of another
+// scanner's copies, one per CVE, into one, and count two findings as one. The lookup itself answers
+// only from one record that names the finding, and reads a record's aliases, the ids of the same
+// vulnerability in other databases, never ids it lists as related. The join still needs the same
+// correlationKey apart from the id, the component, repository or image, and package and version, and
+// two scanners (sharesTool), as every join does.
+func correlationAliases(res sarif.Result) []string {
+	ids := res.AliasVulnerabilityIDs()
+	if l := res.CVELookup; l != nil && len(l.CVEs) == 1 {
+		ids = append(slices.Clone(ids), l.CVEs[0])
+	}
+	return ids
 }
 
 // besideKey identifies one advisory in one package, whatever its version, in one directory of one

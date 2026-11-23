@@ -1,0 +1,1 @@
+- **One Go flaw named two ways counts once.** A finding named only by its GitHub advisory id, such as a govulncheck import's, and another scanner's copy named by its CVE now count as one flaw when the Go vulnerability database lists that CVE as the record's only one. The flaw keeps the higher band.

@@ -286,9 +286,16 @@ type Result struct {
 	// language package's other advisory ids, such as the GitHub advisory id, beside the CVE.
 	//
 	// Correlation reads them, so the finding is counted once with another scanner's copy of the flaw
-	// keyed on any of them, and so does the fold of a reachability verdict onto that copy. Only what the scanner said about this one finding, never an identifier
-	// looked up afterwards: two advisories a database links are not always one flaw, and only the
-	// scanner reporting the finding is asserting that its identifiers are.
+	// keyed on any of them, and so does the fold of a reachability verdict onto that copy. Only what
+	// the scanner said about this one finding, never an identifier looked up afterwards: two
+	// advisories a database links are not always one flaw, and only the scanner reporting the
+	// finding is asserting that its identifiers are.
+	//
+	// One exception, in correlation alone: a finding that names no CVE joins another scanner's copy
+	// keyed on the CVE its CVELookup holds, where that lookup answered from one record and the record
+	// lists exactly one CVE among its aliases, the Go vulnerability database's statement that the two
+	// ids are one vulnerability. The copies must still share the component, the repository or image, and
+	// the package and its version, and come from two scanners. The reachability fold reads Aliases alone.
 	//
 	// Not part of Fingerprint, for the reason Package is not. Kept in the cache, so a cached scan
 	// correlates as a fresh one does, and not written to results.sarif, which carries the
