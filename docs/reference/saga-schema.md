@@ -1215,7 +1215,7 @@ checks in ids that share nothing. Turned on with `iac: { kics: { enabled: true }
 beside `trivy-config`, and a KICS finding is matched to Trivy's where three things hold: KICS's
 query is one Draugr lists as testing the same setting as that Trivy check, both are in the same
 file of the same repository, and KICS's line falls inside the lines Trivy reported, such as one
-container's. A finding either side could match twice is left unmatched and counted.
+container's, or anywhere in a Dockerfile for a check about the whole file. A finding either side could match twice is left unmatched and counted.
 [`kics`](../../internal/scanners/kics.md#counted-once) lists the pairs.
 
 **An exclusion covers every scanner's copy.** Excusing `CVE-2020-14343` excuses it whichever tool
