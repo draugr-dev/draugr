@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -242,8 +243,8 @@ func UncommittedFiles(ctx context.Context, url string) int {
 	if !IsLocalPath(url) {
 		return 0
 	}
-	args := append([]string{"-C", url, "status", "--porcelain", "--", "."}, ownOutputExcludes(ctx, url)...)
-	out, err := exec.CommandContext(ctx, "git", args...).Output() // #nosec G204 -- the descriptor's own repository path and Draugr's own folders
+	args := append([]string{"-C", url, "status", "--porcelain", "--", "."}, ownExcludes(ctx, url)...)
+	out, err := exec.CommandContext(ctx, "git", args...).Output() // #nosec G204 -- the descriptor's own repository path and Draugr's own files
 	if err != nil {
 		return 0 // not a repository, or no git; the clone will say so properly
 	}
@@ -263,6 +264,8 @@ const DefaultOutput = ".draugr/out"
 
 type ownOutputKey struct{}
 
+type ownInputsKey struct{}
+
 // WithOwnOutput records the folders this run writes its reports into, so UncommittedFiles leaves
 // them out. Reports written inside the repository are Draugr's output rather than the reader's
 // work, and counting them would tell the reader a scan left out files that are only its own reports.
@@ -279,16 +282,35 @@ func WithOwnOutput(ctx context.Context, dirs ...string) context.Context {
 	return context.WithValue(ctx, ownOutputKey{}, abs)
 }
 
-// ownOutputExcludes are the pathspecs that leave Draugr's own folders inside repo out of
-// `git status`: DefaultOutput, and each folder WithOwnOutput recorded that lies inside repo.
-func ownOutputExcludes(ctx context.Context, repo string) []string {
+// WithOwnInputs records the files that configure this run, the descriptor, its fragments and a
+// configuration file, so UncommittedFiles leaves them out. They say how to scan the repository and
+// are not code the scan reads, so a descriptor `draugr init` has just written, and nobody has
+// committed yet, is no file the scan left out.
+func WithOwnInputs(ctx context.Context, files ...string) context.Context {
+	var abs []string
+	for _, f := range files {
+		if f == "" {
+			continue
+		}
+		if a, err := filepath.Abs(f); err == nil {
+			abs = append(abs, a)
+		}
+	}
+	return context.WithValue(ctx, ownInputsKey{}, abs)
+}
+
+// ownExcludes are the pathspecs that leave Draugr's own files inside repo out of `git status`:
+// DefaultOutput, each folder WithOwnOutput recorded, and each file WithOwnInputs recorded, that lies
+// inside repo.
+func ownExcludes(ctx context.Context, repo string) []string {
 	out := []string{":(exclude)" + DefaultOutput}
 	root, err := filepath.Abs(repo)
 	if err != nil {
 		return out
 	}
 	dirs, _ := ctx.Value(ownOutputKey{}).([]string)
-	for _, d := range dirs {
+	inputs, _ := ctx.Value(ownInputsKey{}).([]string)
+	for _, d := range append(slices.Clone(dirs), inputs...) {
 		rel, err := filepath.Rel(root, d)
 		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
