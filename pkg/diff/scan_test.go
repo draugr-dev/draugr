@@ -91,15 +91,27 @@ func TestAScanViewDrawsAMoveWhenNothingElseChanged(t *testing.T) {
 	}
 }
 
-// `draugr diff`'s own actions keep the title they had: the target is the scan's, where the fix list
-// beside it names one.
-func TestDiffActionsNameNoTargetOfTheirOwn(t *testing.T) {
-	r := Compare(sarif.Report{}, sarif.Report{Results: []sarif.Result{dependency("CVE-1", "urllib3", "2.0.0", 3, "P2")}})
-	var b bytes.Buffer
-	if err := Render(&b, "console", r, Options{View: ViewActions}); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(b.String(), "→ 2.0.0") {
-		t.Errorf("draugr diff's actions named a target:\n%s", b.String())
+// `draugr diff`'s actions name the release an upgrade moves to, as the scan's own fix list does, so a
+// reader need not take the highest fixed version from the rows. Where the findings one upgrade clears
+// are fixed in different releases, the target is the one that clears them all.
+func TestDiffActionsNameTheUpgradeTarget(t *testing.T) {
+	for name, tc := range map[string]struct {
+		head []sarif.Result
+		want string
+	}{
+		"one finding": {[]sarif.Result{dependency("CVE-1", "urllib3", "2.0.0", 3, "P2")}, "Upgrade urllib3 1.0.0 → 2.0.0"},
+		"fixed in different releases": {[]sarif.Result{
+			dependency("CVE-1", "urllib3", "1.26.5", 3, "P2"),
+			dependency("CVE-2", "urllib3", "2.6.0", 3, "P2"),
+		}, "Upgrade urllib3 1.0.0 → 2.6.0"},
+	} {
+		r := Compare(sarif.Report{}, sarif.Report{Results: tc.head})
+		var b bytes.Buffer
+		if err := Render(&b, "console", r, Options{View: ViewActions}); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(b.String(), tc.want) {
+			t.Errorf("%s: draugr diff's actions do not say %q:\n%s", name, tc.want, b.String())
+		}
 	}
 }

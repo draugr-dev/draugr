@@ -99,9 +99,6 @@ type Options struct {
 	// Declared is where the head's descriptor declares each image, for the sarif format, which places
 	// a new finding on an image on that line. Nil leaves such a finding with no location.
 	Declared sarif.Declarations
-	// upgradeTargets names the release an upgrade action moves to. Set where a scan draws its change,
-	// whose actions then name the release that scan's own fix list names.
-	upgradeTargets bool
 }
 
 // changeStates is the four states in the order a reader meets them, with the mark each one wears
@@ -664,7 +661,7 @@ func writeDiffActions(w io.Writer, col tui.Painter, entries []Entry, rules map[s
 		}
 		_, _ = fmt.Fprintf(w, "  %s  %s  %s\n",
 			col.Paint(tui.PriorityStyle(a.lead.Priority), dash(a.lead.Priority)),
-			col.Paint(tui.StyleStrong, a.what+upgradeTarget(a, opts)),
+			col.Paint(tui.StyleStrong, a.what+upgradeTarget(a)),
 			col.Paint(tui.StyleMuted, meta))
 		if a.line != nil {
 			if a.line.Summary != "" {

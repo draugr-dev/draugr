@@ -53,7 +53,7 @@ func (v ScanView) States() fixlist.ChangeStates {
 func (v ScanView) WriteListing(w io.Writer, view fixlist.View, top int) bool {
 	col := tui.For(w)
 	r := v.Result.Counted()
-	opts := Options{View: View(view), Top: top, upgradeTargets: true}
+	opts := Options{View: View(view), Top: top}
 	entries := r.Changed()
 	switch {
 	case len(entries) == 0 && len(r.Moved) == 0 && len(r.Reranked) == 0 && len(r.Objects) == 0:
@@ -71,10 +71,10 @@ func (v ScanView) WriteListing(w io.Writer, view fixlist.View, top int) bool {
 }
 
 // upgradeTarget is " → " and the release an upgrade action moves to, as the scan's fix list names
-// it, where opts asks for one. Empty for an action that is not an upgrade, and where the fix list
-// names no release.
-func upgradeTarget(a action, opts Options) string {
-	if !opts.upgradeTargets || a.line != nil || !strings.HasPrefix(a.what, "Upgrade ") {
+// it, so `draugr diff` and a scan's change name the version `draugr scan` would. Empty for an action
+// that is not an upgrade, and where the fix list names no release.
+func upgradeTarget(a action) string {
+	if a.line != nil || !strings.HasPrefix(a.what, "Upgrade ") {
 		return ""
 	}
 	results := make([]sarif.Result, 0, len(a.group))

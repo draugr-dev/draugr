@@ -221,7 +221,7 @@ func TestEveryRowLabelsItsControl(t *testing.T) {
 	}}
 	got := renderActions(t, "console", r)
 	for _, want := range []string{
-		"Upgrade urllib3 2.0.7  component api · control sca · 1 finding",
+		"Upgrade urllib3 2.0.7 → 2.6.0  component api · control sca · 1 finding",
 		"component web · control sast · 1 finding",
 	} {
 		if !strings.Contains(got, want) {
@@ -229,7 +229,7 @@ func TestEveryRowLabelsItsControl(t *testing.T) {
 		}
 	}
 	single := renderActions(t, "console", Result{New: r.New[:1]})
-	if !strings.Contains(single, "Upgrade urllib3 2.0.7  control sca · 1 finding") || strings.Contains(single, "component") {
+	if !strings.Contains(single, "Upgrade urllib3 2.0.7 → 2.6.0  control sca · 1 finding") || strings.Contains(single, "component") {
 		t.Errorf("one component: the control is unlabeled or the component named:\n%s", single)
 	}
 }
