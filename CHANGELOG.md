@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.188.1] - 2026-11-23
+
+### Security
+
+- **A pull request can no longer turn off the gate on its own new findings by editing the descriptor.** `draugr diff` and `draugr scan --base` apply the stricter of the base's `config.gate.failOnNew` and the change's own, and say when the base's decided. `results.sarif` now records the setting. A typed `--fail-on-new` still replaces both.
+
 ## [0.188.0] - 2026-11-23
 
 ### Changed
@@ -7509,7 +7515,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.188.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.188.1...HEAD
+[0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
 [0.188.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.0
 [0.187.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.1
 [0.187.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.0
