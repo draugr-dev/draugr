@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **A Go module that does not build on the scanning machine no longer has findings ranked down by another platform.** When govulncheck cannot load a module for the machine's own platform, its findings keep their band and carry no reachability verdict, even where the windows/amd64 or darwin/arm64 run loaded it, and no verdict names a platform whose run failed.
+- **Go findings are no longer ranked lower as unreachable when govulncheck could not load their module on the scanning machine.** A windows/amd64 or darwin/arm64 run that loaded it used to decide, and its findings were marked `↓ unreachable`. They now keep their priority, with no mark. A severity or priority gate may newly fail.
 
 ## [0.187.0] - 2026-11-22
 
