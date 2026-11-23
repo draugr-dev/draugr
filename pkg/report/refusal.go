@@ -23,6 +23,11 @@ type refusal struct {
 	// local is whether the local Docker daemon holds the image. Then the registry has nothing to
 	// serve, and the way out is a scanner that reads the daemon, or a push.
 	local bool
+	// noDaemon is whether no Docker daemon was reachable from the scan, for a refusal with no
+	// credential. Docker Hub refuses a repository that does not exist as it refuses one that needs a
+	// login, so an image built here and never pushed reads as one needing a login, and the way out
+	// for it is a daemon the scanners can reach.
+	noDaemon bool
 }
 
 // localAdvice is the line said once under a registry whose refused images the local Docker daemon
@@ -30,6 +35,15 @@ type refusal struct {
 // where Grype alone read it.
 const localAdvice = "in the local Docker daemon only, and Grype reads registries: enable trivy, " +
 	"or push the image to a registry first (one on localhost works)"
+
+// noDaemonAdvice is the line said once under a registry that refused images with no credential where
+// no Docker daemon answered: the second cause, and its fix, beside the login line.
+const noDaemonAdvice = "or, if the image was built here and never pushed, no Docker daemon was reachable " +
+	"to read it from: push the image first, or mount the daemon's socket into the scan's container"
+
+// socketMount is the docker run flag that mounts the daemon's socket, printed on a line of its own
+// under noDaemonAdvice so a terminal never wraps it in two.
+const socketMount = "-v /var/run/docker.sock:/var/run/docker.sock"
 
 // registryRefusal reports whether a target is an image its registry refused to serve, and the
 // refusal when it is. The run decided both, and whether this machine held a credential, where it
@@ -45,7 +59,8 @@ func registryRefusal(t engine.TargetOutcome) (refusal, bool) {
 	if r.LocalDaemon {
 		return refusal{host: r.Registry, said: said, local: true}, true
 	}
-	return refusal{host: r.Registry, said: said, login: anonymous || r.Status == http.StatusUnauthorized}, true
+	return refusal{host: r.Registry, said: said, login: anonymous || r.Status == http.StatusUnauthorized,
+		noDaemon: anonymous && r.DaemonUnreachable}, true
 }
 
 // loginCommand is the command that stores a credential for host where the scanners read it.
@@ -103,6 +118,9 @@ func htmlUnreachedTargets(d Data) (regs []htmlRegistry, rest []htmlUnreached, co
 		}
 		if g.local {
 			r.Local = localAdvice
+		}
+		if g.noDaemon {
+			r.NoDaemon, r.Mount = noDaemonAdvice, socketMount
 		}
 		for _, m := range g.images {
 			r.Images = append(r.Images, htmlUnreached{Kind: m.Kind, Name: inRegistry(m.Target, g.host), Full: m.Target,

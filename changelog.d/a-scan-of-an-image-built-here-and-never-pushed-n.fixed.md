@@ -1,0 +1,1 @@
+- **A scan of an image built here and never pushed now says so when no Docker daemon is reachable.** With no credential held, Errors names that cause beside the login line: push the image, or mount the daemon's socket into the container the scan runs in.

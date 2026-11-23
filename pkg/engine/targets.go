@@ -59,6 +59,11 @@ type Refusal struct {
 	// built here and never pushed is one a registry has nothing of, so its answer is not the
 	// problem, and logging in does not change it.
 	LocalDaemon bool `json:"localDaemon,omitempty"`
+	// DaemonUnreachable is whether no Docker daemon answered where the scanners look for one, asked
+	// after the scans. An image built here and never pushed is then one no scanner could read
+	// anywhere, and Docker Hub refuses a repository that does not exist as it refuses one that
+	// needs a login, so the registry's answer cannot tell the two apart.
+	DaemonUnreachable bool `json:"daemonUnreachable,omitempty"`
 }
 
 // refusalOf reads a failed pull of an image for its registry declining to serve it: from everything
@@ -113,14 +118,16 @@ func noteCredentials(ctx context.Context, targets []TargetOutcome, held func(con
 }
 
 // noteLocalImages records, on each image a registry refused, whether the local Docker daemon holds
-// it. Asked after the scans and only for refused images, so a run with none starts no docker.
-func noteLocalImages(ctx context.Context, targets []TargetOutcome, local func(context.Context, string) bool) {
+// it, and whether any daemon answered. Asked after the scans and only for refused images, so a run
+// with none starts no docker.
+func noteLocalImages(ctx context.Context, targets []TargetOutcome, local func(context.Context, string) (held, reachable bool)) {
 	if local == nil {
 		return
 	}
 	for i := range targets {
 		if r := targets[i].Refusal; r != nil && targets[i].Kind == "image" {
-			r.LocalDaemon = local(ctx, targets[i].Target)
+			held, reachable := local(ctx, targets[i].Target)
+			r.LocalDaemon, r.DaemonUnreachable = held, !reachable
 		}
 	}
 }

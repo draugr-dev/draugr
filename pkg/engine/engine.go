@@ -102,8 +102,9 @@ type Engine struct {
 	// registryCredential says whether this machine holds a credential for a registry. See
 	// WithRegistryCredentials.
 	registryCredential func(ctx context.Context, host string) (bool, error)
-	// localImage says whether the local Docker daemon holds an image. See WithLocalImages.
-	localImage func(ctx context.Context, ref string) bool
+	// localImage says whether the local Docker daemon holds an image, and whether any daemon
+	// answered. See WithLocalImages.
+	localImage func(ctx context.Context, ref string) (held, reachable bool)
 }
 
 // Prioritizer computes a finding's priority band from its control and its component's risk
@@ -266,10 +267,11 @@ func WithRegistryCredentials(fn func(ctx context.Context, host string) (bool, er
 	return func(e *Engine) { e.registryCredential = fn }
 }
 
-// WithLocalImages lets the engine ask whether the local Docker daemon holds an image, so an image a
-// registry refused says when it was built here and never pushed. Asked after the scans, only for
-// refused images. Nil leaves the question unanswered.
-func WithLocalImages(fn func(ctx context.Context, ref string) bool) Option {
+// WithLocalImages lets the engine ask whether the local Docker daemon holds an image, and whether
+// any daemon answered, so an image a registry refused says when it was built here and never pushed,
+// or when no daemon could be asked. Asked after the scans, only for refused images. Nil leaves the
+// question unanswered.
+func WithLocalImages(fn func(ctx context.Context, ref string) (held, reachable bool)) Option {
 	return func(e *Engine) { e.localImage = fn }
 }
 

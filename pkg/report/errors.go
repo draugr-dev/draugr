@@ -673,13 +673,11 @@ func writeErrors(w io.Writer, col tui.Painter, d Data) {
 			_, _ = fmt.Fprintf(w, "  %s  %s\n", col.Paint(cAccent, loginCommand(g.host)), col.Paint(cDim, "then scan again"))
 		}
 		if g.local {
-			for i, line := range wrapMessage(localAdvice, messageWidth) {
-				prefix := "  "
-				if i > 0 {
-					prefix = "    "
-				}
-				_, _ = fmt.Fprintf(w, "%s%s\n", prefix, col.Paint(cDim, line))
-			}
+			writeAdvice(w, col, localAdvice)
+		}
+		if g.noDaemon {
+			writeAdvice(w, col, noDaemonAdvice)
+			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cAccent, socketMount))
 		}
 	}
 	if len(rest) > 0 {
@@ -695,6 +693,18 @@ func writeErrors(w io.Writer, col tui.Painter, d Data) {
 			fmt.Sprintf("… and %d more · --top 0 lists every one", len(missed)-n)))
 	}
 	_, _ = fmt.Fprintln(w)
+}
+
+// writeAdvice draws a line of advice under a registry's images, dimmed and wrapped, its later lines
+// indented under its first.
+func writeAdvice(w io.Writer, col tui.Painter, advice string) {
+	for i, line := range wrapMessage(advice, messageWidth) {
+		prefix := "  "
+		if i > 0 {
+			prefix = "    "
+		}
+		_, _ = fmt.Fprintf(w, "%s%s\n", prefix, col.Paint(cDim, line))
+	}
 }
 
 // unreachedRow is one target the errors block names: what it is, the components it leaves

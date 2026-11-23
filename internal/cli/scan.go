@@ -458,7 +458,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 		// So an image a registry refused says whether this machine has a login for it, read where
 		// the scanners read one.
 		engine.WithRegistryCredentials(registry.HasCredential),
-		engine.WithLocalImages(preflight.LocalImage),
+		engine.WithLocalImages(preflight.LookInDaemon),
 	)
 	if netpolicy.Offline() {
 		eopts = append(eopts, engine.WithoutPrewarm())

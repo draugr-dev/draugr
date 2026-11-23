@@ -247,12 +247,25 @@ func TestTheLocalDaemonIsAskedOnlyAboutRefusedImages(t *testing.T) {
 		t.Error("answered without a way to ask")
 	}
 	var asked []string
-	noteLocalImages(context.Background(), targets, func(_ context.Context, ref string) bool {
+	noteLocalImages(context.Background(), targets, func(_ context.Context, ref string) (bool, bool) {
 		asked = append(asked, ref)
-		return true
+		return true, true
 	})
 	if !targets[0].Refusal.LocalDaemon || len(asked) != 1 || asked[0] != "app:1" {
 		t.Errorf("asked %v, local %v; want only the refused image", asked, targets[0].Refusal.LocalDaemon)
+	}
+	if targets[0].Refusal.DaemonUnreachable {
+		t.Error("a daemon that answered was recorded as unreachable")
+	}
+}
+
+// A refused image where no daemon answered is recorded as such, so the report can name a daemon the
+// scan could not reach as a cause beside the registry's answer.
+func TestADaemonThatDidNotAnswerIsRecorded(t *testing.T) {
+	targets := []TargetOutcome{{Kind: "image", Target: "app:1", Refusal: &Refusal{Registry: "docker.io", Status: 401}}}
+	noteLocalImages(context.Background(), targets, func(context.Context, string) (bool, bool) { return false, false })
+	if r := targets[0].Refusal; r.LocalDaemon || !r.DaemonUnreachable {
+		t.Errorf("refusal = %+v; want no image held and no daemon reachable", r)
 	}
 }
 

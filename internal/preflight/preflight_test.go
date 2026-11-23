@@ -356,6 +356,114 @@ func TestLocalImageWithoutDocker(t *testing.T) {
 	}
 }
 
+// fakeDaemon is a daemonProbe over a docker CLI and a daemon API that answer as told.
+type fakeDaemon struct {
+	cli     bool            // docker is on PATH
+	ran     map[string]bool // first argument after "docker" → whether it succeeded
+	env     map[string]string
+	ping    int // the API's answer to /_ping, 0 for no answer
+	image   int // the API's answer for the image
+	apiHost string
+}
+
+func (f *fakeDaemon) probe() daemonProbe {
+	return daemonProbe{
+		lookPath: func(string) (string, error) {
+			if f.cli {
+				return "/usr/bin/docker", nil
+			}
+			return "", exec.ErrNotFound
+		},
+		run: func(_ context.Context, args ...string) error {
+			if f.ran[args[1]] {
+				return nil
+			}
+			return errors.New("exit status 1")
+		},
+		getenv: func(k string) string { return f.env[k] },
+		api: func(_ context.Context, host, path string) (int, error) {
+			f.apiHost = host
+			code := f.image
+			if path == "/_ping" {
+				code = f.ping
+			}
+			if code == 0 {
+				return 0, errors.New("dial unix /var/run/docker.sock: connect: no such file or directory")
+			}
+			return code, nil
+		},
+	}
+}
+
+// The daemon is asked through the docker CLI where there is one, and on its socket where there is
+// not, as Trivy reads it in a container with the socket mounted. Only a daemon that did not answer
+// is reported unreachable; one this machine cannot ask counts as reachable, so a refusal is never
+// blamed on a daemon that may be there.
+func TestTheDaemonSaysWhetherItHoldsTheImageAndWhetherItAnswered(t *testing.T) {
+	for _, c := range []struct {
+		name            string
+		f               fakeDaemon
+		held, reachable bool
+		wantHost        string
+	}{
+		{"cli, held", fakeDaemon{cli: true, ran: map[string]bool{"image": true}}, true, true, ""},
+		{"cli, daemon lacks it", fakeDaemon{cli: true, ran: map[string]bool{"version": true}}, false, true, ""},
+		{"cli, no daemon", fakeDaemon{cli: true}, false, false, ""},
+		{"socket, held", fakeDaemon{ping: 200, image: 200}, true, true, "unix:///var/run/docker.sock"},
+		{"socket, daemon lacks it", fakeDaemon{ping: 200, image: 404}, false, true, "unix:///var/run/docker.sock"},
+		{"no socket", fakeDaemon{}, false, false, "unix:///var/run/docker.sock"},
+		{"socket answers, not a daemon", fakeDaemon{ping: 404}, false, false, "unix:///var/run/docker.sock"},
+		{"DOCKER_HOST over tcp", fakeDaemon{env: map[string]string{"DOCKER_HOST": "tcp://docker:2375"}, ping: 200, image: 200},
+			true, true, "tcp://docker:2375"},
+		{"DOCKER_HOST behind TLS", fakeDaemon{env: map[string]string{"DOCKER_HOST": "tcp://docker:2376", "DOCKER_TLS_VERIFY": "1"}},
+			false, true, ""},
+		{"DOCKER_HOST over ssh", fakeDaemon{env: map[string]string{"DOCKER_HOST": "ssh://me@build"}}, false, true, ""},
+	} {
+		held, reachable := c.f.probe().look(context.Background(), "app:1")
+		if held != c.held || reachable != c.reachable || c.f.apiHost != c.wantHost {
+			t.Errorf("%s: held %v, reachable %v, asked %q; want %v, %v, %q",
+				c.name, held, reachable, c.f.apiHost, c.held, c.reachable, c.wantHost)
+		}
+	}
+}
+
+// The daemon's API is asked over its socket and over plain tcp, with the status passed through.
+func TestTheDaemonAPIIsAskedOnItsSocketAndOverTCP(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_ping" || r.URL.Path == "/images/app:1/json" {
+			_, _ = w.Write([]byte("OK"))
+			return
+		}
+		http.NotFound(w, r)
+	})
+	sock := filepath.Join(t.TempDir(), "d.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{Handler: handler, ReadHeaderTimeout: time.Second}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	tcp := httptest.NewServer(handler)
+	t.Cleanup(tcp.Close)
+
+	ctx := context.Background()
+	for _, host := range []string{"unix://" + sock, "tcp://" + strings.TrimPrefix(tcp.URL, "http://")} {
+		if code, err := daemonAPI(ctx, host, "/_ping"); err != nil || code != http.StatusOK {
+			t.Errorf("%s: ping = %d, %v", host, code, err)
+		}
+		if code, err := daemonAPI(ctx, host, "/images/gone:1/json"); err != nil || code != http.StatusNotFound {
+			t.Errorf("%s: a missing image = %d, %v", host, code, err)
+		}
+	}
+	if _, err := daemonAPI(ctx, "unix://"+filepath.Join(t.TempDir(), "none.sock"), "/_ping"); err == nil {
+		t.Error("a socket nobody listens on answered")
+	}
+	if _, err := daemonAPI(ctx, "tcp://bad host", "/_ping"); err == nil {
+		t.Error("an address that is not one answered")
+	}
+}
+
 // A cluster whose context does not resolve, or whose API server does not answer, fails before a
 // scan does, naming the cluster; --offline leaves it unchecked rather than passed.
 func TestAClusterThatCannotBeReachedFails(t *testing.T) {

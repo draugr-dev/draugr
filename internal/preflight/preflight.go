@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -412,10 +413,88 @@ func probeImage(ctx context.Context, ref string, offline bool,
 
 // LocalImage reports whether the local Docker daemon holds ref. No daemon, or no docker, is a no.
 func LocalImage(ctx context.Context, ref string) bool {
-	if _, err := exec.LookPath("docker"); err != nil {
-		return false
+	held, _ := LookInDaemon(ctx, ref)
+	return held
+}
+
+// LookInDaemon asks the local Docker daemon whether it holds ref, and says whether any daemon
+// answered. With docker on PATH the CLI asks, so its context and DOCKER_HOST apply. Without it the
+// daemon's API is asked on its socket, the way Trivy reads an image from a daemon in a container
+// with the socket mounted and no docker CLI installed.
+//
+// reachable is false only when no daemon answered where one is looked for. A daemon that cannot be
+// asked from here, such as one behind TLS with no docker CLI to hold its certificates, counts as
+// reachable, so a refusal is never blamed on a daemon that may well be there.
+func LookInDaemon(ctx context.Context, ref string) (held, reachable bool) {
+	return daemonProbe{lookPath: exec.LookPath, run: runQuiet, getenv: os.Getenv, api: daemonAPI}.look(ctx, ref)
+}
+
+// daemonProbe is LookInDaemon with what it runs and reads passed in, so each answer can be tested
+// without a daemon.
+type daemonProbe struct {
+	lookPath func(string) (string, error)
+	run      func(ctx context.Context, args ...string) error
+	getenv   func(string) string
+	// api sends a GET to the daemon at host (DOCKER_HOST's form) and returns the status.
+	api func(ctx context.Context, host, path string) (int, error)
+}
+
+func (p daemonProbe) look(ctx context.Context, ref string) (held, reachable bool) {
+	if _, err := p.lookPath("docker"); err == nil {
+		if p.run(ctx, "docker", "image", "inspect", "--format", "{{.Id}}", ref) == nil {
+			return true, true
+		}
+		// `docker version` exits non-zero when no daemon answers, and prints the server's
+		// version when one does.
+		return false, p.run(ctx, "docker", "version", "--format", "{{.Server.Version}}") == nil
 	}
-	return exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{.Id}}", ref).Run() == nil // #nosec G204 -- the descriptor's own image reference, passed as one argument
+	host := p.getenv("DOCKER_HOST")
+	if host == "" {
+		host = "unix:///var/run/docker.sock"
+	}
+	if strings.HasPrefix(host, "tcp://") && (p.getenv("DOCKER_TLS_VERIFY") != "" || p.getenv("DOCKER_CERT_PATH") != "") {
+		return false, true
+	}
+	if !strings.HasPrefix(host, "unix://") && !strings.HasPrefix(host, "tcp://") {
+		return false, true
+	}
+	if code, err := p.api(ctx, host, "/_ping"); err != nil || code != http.StatusOK {
+		return false, false
+	}
+	code, err := p.api(ctx, host, "/images/"+ref+"/json")
+	return err == nil && code == http.StatusOK, true
+}
+
+// runQuiet runs a command and reports only whether it succeeded.
+func runQuiet(ctx context.Context, args ...string) error {
+	return exec.CommandContext(ctx, args[0], args[1:]...).Run() // #nosec G204 -- docker, with the descriptor's own image reference as one argument
+}
+
+// daemonAPI sends a GET to the Docker daemon's API at host, a unix:// socket or a plain tcp://
+// address, and returns the status. Two seconds is long for a socket on this machine and short
+// enough that a scan's account of its targets does not wait on a daemon that never answers.
+func daemonAPI(ctx context.Context, host, path string) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	base := "http://docker"
+	transport := &http.Transport{}
+	if sock, ok := strings.CutPrefix(host, "unix://"); ok {
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", sock)
+		}
+	} else {
+		base = "http://" + strings.TrimPrefix(host, "tcp://")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
+	if err != nil {
+		return 0, err
+	}
+	resp, err := (&http.Client{Transport: transport}).Do(req)
+	if err != nil {
+		return 0, err
+	}
+	_ = resp.Body.Close()
+	return resp.StatusCode, nil
 }
 
 // dialHost opens a TCP connection to an endpoint, completing the TLS handshake for https, and

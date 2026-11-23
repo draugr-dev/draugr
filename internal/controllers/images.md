@@ -36,6 +36,18 @@ docker push registry.example.com/app:$GITHUB_SHA
 read, so the scan runs where that variable is set and the build tags the image with the same value.
 See [Substitution](../../docs/reference/saga-schema.md#substitution).
 
+### From inside a container
+
+A scan that runs in a container, such as a CI job that runs in a container image, reaches the daemon
+only through a socket mounted into that container. Mount it with
+`-v /var/run/docker.sock:/var/run/docker.sock`; Trivy reads the image through it, with no `docker`
+CLI installed in the container. Where the socket is elsewhere, set `DOCKER_HOST` to it, such as
+`unix:///run/user/1000/docker.sock` for a rootless daemon.
+
+Without a daemon, Trivy asks the registry, and Docker Hub answers `401 unauthorized` for an image it
+does not hold as it does for one that needs a login. **Errors** lists both causes, with the fix for
+each.
+
 [`grype`](../scanners/grype.md) reads registries only. With Grype alone, an image only the daemon
 holds is reported under **Errors** as in the local Docker daemon only, with the two ways to read
 it: enable `trivy`, or push the image to a registry first. A registry on `localhost`, such as a CI
