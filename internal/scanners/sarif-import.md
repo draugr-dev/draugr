@@ -682,13 +682,23 @@ native copy counts keeps counting, and an alert's dismissal never sets a native 
 | aliases | `security_advisory.cve_id` and the other `identifiers`, so KEV and EPSS reach it through the CVE |
 | location | `dependency.manifest_path` |
 | package | `dependency.package.name` and `ecosystem` |
+| affected versions | `security_vulnerability.vulnerable_version_range`, such as `>= 2.0-beta9, < 2.15.0` |
 | fixed version | `security_vulnerability.first_patched_version.identifier`, which makes it an upgrade |
 | score | `security_advisory.cvss_severities.cvss_v3.score`, else `cvss_v4`, else `cvss`; with none, `security_advisory.severity` as a level |
 
 The alert's own `epss` is not read: the CVE reaches Draugr's EPSS data, so a finding is not ranked by
-two copies of one feed from different days. The alert names no installed version, and correlation
-keys a package on its name and version, so a Dependabot finding is counted beside the control's own
-scanner's copy of the same advisory rather than merged into it.
+two copies of one feed from different days.
+
+The alert names no installed version, only the versions the advisory affects. A Dependabot finding is
+counted once with the control's own scanner's copy of the same advisory where all of these hold: the
+same advisory, by its GHSA id or its CVE; the same package and ecosystem; the same manifest file, in
+the same repository; and the installed version the scanner reports is inside the alert's affected
+versions. The finding counts at whichever copy ranks higher; where both rank the same, the scanner's
+copy counts, because it names the version to upgrade from. The other copy is listed as also found by.
+Where any condition can't be shown, such as a version outside the range, another manifest, a version
+that is a [range's minimum](trivy-fs.md#version-ranges) rather than a pin, a range or version that
+does not parse, or two installed versions in one file both inside the range, both findings are
+counted.
 
 ### Dismissed alerts
 

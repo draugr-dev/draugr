@@ -39,8 +39,9 @@ var byPURLType = map[string]string{
 	"rpm":      "Red Hat",
 }
 
-// byReported maps the ecosystem a scanner names, Trivy's result type, Grype's package type or an OSV
-// ecosystem such as Go, to the one whose rules order it, for a finding that carries no package URL.
+// byReported maps the ecosystem a scanner names, Trivy's result type, Grype's package type, a
+// Dependabot alert's ecosystem or an OSV ecosystem such as Go, to the one whose rules order it, for a
+// finding that carries no package URL.
 var byReported = map[string]string{
 	"alpine": "Alpine", "apk": "Alpine", "chainguard": "Alpine", "wolfi": "Alpine",
 	"debian": "Debian", "ubuntu": "Debian", "deb": "Debian",
@@ -48,13 +49,13 @@ var byReported = map[string]string{
 	"amazon": "Red Hat", "oracle": "Red Hat", "suse": "Red Hat", "rpm": "Red Hat",
 	"npm": "npm", "yarn": "npm", "pnpm": "npm", "bun": "npm", "node-pkg": "npm",
 	"pip": "PyPI", "pipenv": "PyPI", "poetry": "PyPI", "uv": "PyPI", "pylock": "PyPI", "python-pkg": "PyPI", "python": "PyPI",
-	"gem": "RubyGems", "gemspec": "RubyGems", "bundler": "RubyGems",
+	"gem": "RubyGems", "rubygems": "RubyGems", "gemspec": "RubyGems", "bundler": "RubyGems",
 	"gomod": "Go", "gobinary": "Go", "go-module": "Go", "go": "Go",
-	"cargo": "crates.io", "rust-crate": "crates.io", "rustbinary": "crates.io",
+	"cargo": "crates.io", "rust": "crates.io", "rust-crate": "crates.io", "rustbinary": "crates.io",
 	"composer": "Packagist", "php-composer": "Packagist",
 	"nuget": "NuGet", "dotnet-core": "NuGet", "packages-props": "NuGet", "dotnet": "NuGet",
-	"jar": "Maven", "pom": "Maven", "gradle": "Maven", "sbt": "Maven", "java-archive": "Maven",
-	"pub": "Pub", "dart-pub": "Pub", "hex": "Hex", "conan": "ConanCenter",
+	"jar": "Maven", "maven": "Maven", "pom": "Maven", "gradle": "Maven", "sbt": "Maven", "java-archive": "Maven",
+	"pub": "Pub", "dart-pub": "Pub", "hex": "Hex", "erlang": "Hex", "conan": "ConanCenter",
 }
 
 // purlTypeOf maps an ecosystem back to its package URL type, the inverse of byPURLType.

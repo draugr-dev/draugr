@@ -3860,6 +3860,11 @@ func purlType(purl string) string {
 // A copy whose version is a range's minimum joins the copy a file pinning the package in the same
 // directory reports, whichever scanner reported each (joinRangeMinimums): both are one scanner's
 // account of the same requirement, read once from the manifest and once from its lockfile.
+//
+// An alert that names no installed version, only the versions its advisory affects, such as a
+// Dependabot alert, joins the one native copy of the same advisory in the same package and manifest
+// whose installed version is inside that range (alertCopies). Without a version it has no key of its
+// own, so an alert that matches nothing is in no group, as before.
 func correlationGroups(results []sarif.Result) [][]int {
 	parent := make([]int, len(results))
 	keys := make([]correlationKey, len(results))
@@ -3949,6 +3954,13 @@ func correlationGroups(results []sarif.Result) [][]int {
 	}
 
 	joinRangeMinimums(results, keys, keyed, parent, root)
+
+	for _, p := range alertCopies(results, keys, keyed, root) {
+		native, alert := p[0], p[1]
+		keyed[alert] = true
+		tools[alert] = map[string]bool{results[alert].Reporter(): true}
+		join(native, alert)
+	}
 
 	var groups [][]int
 	at := map[int]int{}
@@ -4053,6 +4065,134 @@ func joinRangeMinimums(results []sarif.Result, keys []correlationKey, keyed []bo
 			}
 		}
 	}
+}
+
+// alertPlace is where an alert and a native copy of its advisory must both be to be one flaw: the
+// same component, repository or image, manifest file, and package.
+type alertPlace struct {
+	component, repository, image, file, pkg string
+}
+
+// alertCopies pairs each alert (affectedOnly) with the native copy of the same flaw, as {native,
+// alert}, in the alerts' order. A native copy is one correlationKeyOf keyed, which names the version
+// installed, in the alert's place (alertPlace), naming the alert's advisory under any of the ids
+// either reports (advisoryIDs), and with its installed version inside the alert's range
+// (inAffected).
+//
+// Each condition holds the join to what the alert itself says. The manifest because the same
+// package can be installed at two versions by two lockfiles, and the alert is about one of them. The
+// range because an advisory's affected versions are what tie it to an installation: a copy outside
+// them is another flaw, or a scanner's mistake, and counting the two once would hide one of them.
+// A copy whose version is a range's minimum is left out, as its version is not what installs.
+//
+// An alert joins only where its matches are one flaw. Two would be two installed versions of the
+// package in one file, both inside the range, and joining the alert to both would count two flaws as
+// one; picking one would be a guess. Where nothing matches, or a version or a range does not parse,
+// the alert stays a finding of its own.
+func alertCopies(results []sarif.Result, keys []correlationKey, keyed []bool, root func(int) int) [][2]int {
+	natives := map[alertPlace][]int{}
+	for j := range results {
+		if !keyed[j] || readFromRange(results[j]) || results[j].Location.URI == "" {
+			continue
+		}
+		id, ok := packageIdentity(results[j].Package)
+		if !ok {
+			continue
+		}
+		k := keys[j]
+		p := alertPlace{k.component, k.repository, k.image, path.Clean(results[j].Location.URI), id}
+		natives[p] = append(natives[p], j)
+	}
+	var pairs [][2]int
+	for i := range results {
+		a := results[i]
+		if keyed[i] || !affectedOnly(a) || a.Location.URI == "" {
+			continue
+		}
+		id, ok := packageIdentity(a.Package)
+		if !ok {
+			continue
+		}
+		ids := advisoryIDs(a)
+		match, many := -1, false
+		for _, j := range natives[alertPlace{a.Component, placedRepository(a), a.Image, path.Clean(a.Location.URI), id}] {
+			if !slices.ContainsFunc(advisoryIDs(results[j]), func(v string) bool { return slices.Contains(ids, v) }) {
+				continue
+			}
+			if in, ok := inAffected(results[j].Package, a.Package.Affected); !ok || !in {
+				continue
+			}
+			if match >= 0 && root(match) != root(j) {
+				many = true
+				break
+			}
+			match = j
+		}
+		if match >= 0 && !many {
+			pairs = append(pairs, [2]int{match, i})
+		}
+	}
+	return pairs
+}
+
+// affectedOnly reports whether a finding names an advisory and a package by the versions the advisory
+// affects rather than the version installed.
+func affectedOnly(res sarif.Result) bool {
+	return res.VulnerabilityID() != "" && res.Package != nil && res.Package.Version == "" && res.Package.Affected != ""
+}
+
+// advisoryIDs are every id a finding names its advisory by: its own and the ones it joins another
+// scanner's copy on (correlationAliases).
+func advisoryIDs(res sarif.Result) []string {
+	return append([]string{res.VulnerabilityID()}, correlationAliases(res)...)
+}
+
+// inAffected reports whether the package's installed version is inside affected, a range written as
+// GitHub's advisories write one: comma-separated bounds, each an operator (=, <, <=, >, >=) and a
+// version, such as `>= 2.0-beta9, < 2.15.0`. ok is false where the range or a version does not parse,
+// or the package's ecosystem has no order, and then whether it is inside is unknown.
+func inAffected(p *sarif.Package, affected string) (in, ok bool) {
+	eco := versionorder.Ecosystem(p.PURL, p.Ecosystem)
+	golang := packageKind(p) == "golang"
+	parse := func(s string) (versionorder.Version, bool) {
+		if golang {
+			s = versionorder.GoModuleVersion(s)
+		}
+		return versionorder.Parse(eco, s)
+	}
+	installed, ok := parse(p.Version)
+	if !ok {
+		return false, false
+	}
+	in, bounds := true, 0
+	for bound := range strings.SplitSeq(affected, ",") {
+		bound = strings.TrimSpace(bound)
+		op := strings.TrimRight(bound[:len(bound)-len(strings.TrimLeft(bound, "<>="))], " ")
+		v, ok := parse(strings.TrimSpace(bound[len(op):]))
+		if !ok {
+			return false, false
+		}
+		order, ok := installed.Compare(v)
+		if !ok {
+			return false, false
+		}
+		switch op {
+		case "=":
+			in = in && order == 0
+		case "<":
+			in = in && order < 0
+		case "<=":
+			in = in && order <= 0
+		case ">":
+			in = in && order > 0
+		case ">=":
+			in = in && order >= 0
+		default:
+			return false, false
+		}
+		bounds++
+	}
+	return in, bounds > 0
 }
 
 // readFromRange reports whether a finding's package version is a range's minimum rather than a pin.
@@ -4179,6 +4319,14 @@ func strongestOf(results []sarif.Result, idxs []int) int {
 		// which says what installs. Only between copies in the same band: a range copy ranked higher
 		// keeps the count, so preferring the pin never ranks the flaw lower.
 		if a, b := !readFromRange(results[i]), !readFromRange(results[best]); a != b && samePriority(results[i], results[best]) {
+			if a {
+				best = i
+			}
+			continue
+		}
+		// Then a copy naming the version installed over an alert naming only the versions affected, so
+		// the counted row says what to upgrade from. Only between copies in the same band, as above.
+		if a, b := !affectedOnly(results[i]), !affectedOnly(results[best]); a != b && samePriority(results[i], results[best]) {
 			if a {
 				best = i
 			}

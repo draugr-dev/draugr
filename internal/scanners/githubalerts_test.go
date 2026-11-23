@@ -432,10 +432,10 @@ func TestDependabotAlertsAreDependencyFindings(t *testing.T) {
 	log4j := got["GHSA-jfh8-c2jp-5v3q"]
 	if log4j.Tool != "Dependabot" || !log4j.HasScore || log4j.Score != 10 || log4j.Package == nil ||
 		log4j.Package.Name != "org.apache.logging.log4j:log4j-core" || log4j.Package.Ecosystem != "maven" ||
-		log4j.Package.FixedVersion != "2.15.0" || log4j.Location.URI != "pom.xml" ||
+		log4j.Package.FixedVersion != "2.15.0" || log4j.Package.Affected != ">= 2.0-beta9, < 2.15.0" || log4j.Location.URI != "pom.xml" ||
 		len(log4j.Aliases) != 1 || log4j.Aliases[0] != "CVE-2021-44228" || log4j.Suppressed() ||
 		log4j.Remediation() != sarif.RemediationUpgrade {
-		t.Errorf("log4j = %+v, want the advisory, CVE alias, score, package, manifest and fix, counted", log4j)
+		t.Errorf("log4j = %+v, want the advisory, CVE alias, score, package, affected range, manifest and fix, counted", log4j)
 	}
 	if s := got["GHSA-35jh-r3h4-6jhm"].Suppression; s == nil || s.Author != "octocat" || s.Service != "Dependabot" ||
 		s.Justification != "tolerable risk (Only the build uses this template helper)" || s.Asserted != "2026-10-02" {
