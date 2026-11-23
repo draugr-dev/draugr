@@ -32,7 +32,12 @@ type repoScanner struct {
 	// here, which is different from failing and is reported as such. entry is the target's Entry,
 	// where a call-graph analysis starts, and empty for a target that names none.
 	argsList func(dir string, entry []string, cfg plugin.Config) [][]string
-	checkout func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
+	// unreadOnFailure, where set, names the files a failed run of argsList leaves unanalyzed, each as
+	// an unread input. The scan still fails, and the report beside the failure lists them where every
+	// other file a scanner did not read is listed: a reader, or a script, looking there for what was
+	// not checked would otherwise find nothing, with the failure one level away.
+	unreadOnFailure func(dir string, err error) []sarif.Input
+	checkout        func(ctx context.Context, url, revision string, scope git.Scope) (git.Tree, func(), error)
 	// parse decodes the tool's output. Nil means the tool emits SARIF.
 	parse func(out []byte, dir string, cfg plugin.Config) (sarif.Report, error)
 	run   func(ctx context.Context, dir string, argv []string) ([]byte, error)
@@ -359,7 +364,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		for _, argv := range s.argsList(dir, repo.Entry, cfg) {
 			part, err := s.runReporting(ctx, dir, argv)
 			if err != nil {
-				return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
+				return s.failedRun(dir, repo, tree, fmt.Errorf("run %s: %w", s.info.Name, err))
 			}
 			out = append(out, part...)
 		}
@@ -477,6 +482,26 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		return report, &plugin.PartialScanError{Report: report, Err: historyErr}
 	}
 	return report, nil
+}
+
+// failedRun is the scan's answer when a run of argsList fails: the failure, with a report naming the
+// files left unread beside it where the scanner names them (unreadOnFailure), and the failure alone
+// where it names none.
+func (s repoScanner) failedRun(dir string, repo plugin.RepositoryTarget, tree git.Tree, err error) (sarif.Report, error) {
+	if s.unreadOnFailure == nil {
+		return sarif.Report{}, err
+	}
+	inputs := s.unreadOnFailure(dir, err)
+	if len(inputs) == 0 {
+		return sarif.Report{}, err
+	}
+	for i := range inputs {
+		inputs[i].Scanner = s.info.Name
+		inputs[i].Repository = repo.Source()
+	}
+	report := sarif.Report{Tool: s.info.Name, Inputs: inputs,
+		Provenance: []sarif.Provenance{repoProvenance(s.info.Name, repo.Source(), tree)}}
+	return report, &plugin.PartialScanError{Report: report, Err: err}
 }
 
 // historyFailed is the error of a history pass that did not finish, naming the repository and the
