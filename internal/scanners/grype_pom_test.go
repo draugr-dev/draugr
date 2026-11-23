@@ -244,7 +244,7 @@ func TestEveryPomGrypeReadIsReadInPart(t *testing.T) {
 		{"type":"library","name":"lib","properties":[{"name":"syft:package:foundBy","value":"java-archive-cataloger"},{"name":"syft:location:0:path","value":"/lib/app.jar"}]},
 		{"type":"file","name":"/checkout/modules/pom.xml"}
 	]}`
-	got, err := parseGrypeInventory([]byte(inventory), "/checkout")
+	got, _, err := parseGrypeInventory([]byte(inventory), "/checkout")
 	if err != nil {
 		t.Fatal(err)
 	}

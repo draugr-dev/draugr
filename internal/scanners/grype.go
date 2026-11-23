@@ -102,7 +102,11 @@ func grypeInventoryArgs(path string) []string {
 // syft:package:foundBy names it.
 const grypePomCataloger = "java-pom-cataloger"
 
-// parseGrypeInventory counts the packages Grype read from each file.
+// parseGrypeInventory counts the packages Grype read from each file, and lists each package with a
+// package URL at the first file it was found in, so dependency health can ask about a package no
+// finding names, as trivy-fs's list lets it. An operating system's package (deb, rpm, apk) is not
+// a checkout's dependency and is left out of the list, as trivy-fs leaves it out. CycloneDX carries
+// no line, so a listed package's line is 0.
 //
 // Syft records where it found a package as properties numbered from zero, rooted at the scanned
 // directory as the SARIF paths are. A component of type file is a file Syft cataloged, not a
@@ -120,10 +124,11 @@ const grypePomCataloger = "java-pom-cataloger"
 // The reason names no action, because none clears it. Where Trivy read the same pom in part, the
 // row shows Trivy's reason, which names the one that clears Trivy's; where Trivy read all of it,
 // the row clears.
-func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
+func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, []sarif.InventoryPackage, error) {
 	var doc struct {
 		Components []struct {
 			Type       string `json:"type"`
+			PURL       string `json:"purl"`
 			Properties []struct {
 				Name  string `json:"name"`
 				Value string `json:"value"`
@@ -131,10 +136,11 @@ func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
 		} `json:"components"`
 	}
 	if err := json.Unmarshal(out, &doc); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	counts := map[string]int{}
 	poms := map[string]bool{}
+	var packages []sarif.InventoryPackage
 	for _, c := range doc.Components {
 		if c.Type == "file" {
 			continue
@@ -155,6 +161,9 @@ func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
 				poms[path] = true
 			}
 		}
+		if c.PURL != "" && len(paths) > 0 && !osPackage(c.PURL) {
+			packages = append(packages, sarif.InventoryPackage{PURL: c.PURL, Path: paths[0]})
+		}
 	}
 	inputs := make([]sarif.Input, 0, len(counts))
 	for path, n := range counts {
@@ -165,7 +174,17 @@ func parseGrypeInventory(out []byte, dir string) ([]sarif.Input, error) {
 		inputs = append(inputs, in)
 	}
 	slices.SortFunc(inputs, func(a, b sarif.Input) int { return strings.Compare(a.Path, b.Path) })
-	return inputs, nil
+	return inputs, packages, nil
+}
+
+// osPackage reports whether purl names an operating system's package.
+func osPackage(purl string) bool {
+	for _, prefix := range []string{"pkg:deb/", "pkg:rpm/", "pkg:apk/"} {
+		if strings.HasPrefix(purl, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // grypeFSArgs builds `grype dir:<dir> -o sarif` for a checked-out repository.

@@ -323,7 +323,7 @@ func TestGrypeFSReportsARunFailureBeforeItsInventory(t *testing.T) {
 }
 
 func TestParseGrypeInventoryCountsEveryLocation(t *testing.T) {
-	got, err := parseGrypeInventory([]byte(`{"components":[
+	got, _, err := parseGrypeInventory([]byte(`{"components":[
 		{"type":"library","properties":[
 			{"name":"syft:location:0:path","value":"/web/package-lock.json"},
 			{"name":"syft:location:1:path","value":"/web/package.json"},

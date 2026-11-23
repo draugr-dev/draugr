@@ -441,7 +441,7 @@ config:
 ```
 
 Off by default. The lookup sends the name and version of every package the run found to
-[deps.dev](https://deps.dev) during the scan, those `trivy-fs` listed without a finding included,
+[deps.dev](https://deps.dev) during the scan, those `trivy-fs` or `grype-fs` listed without a finding included,
 and nothing else: no source, no findings, no descriptor. It covers the ecosystems deps.dev indexes
 (Cargo, Go, Maven, npm, NuGet, PyPI, RubyGems), so it reaches the ledger CVE's Go module, but not
 operating-system packages in an image. Health scores never move a band. A package on the OSSF Malicious

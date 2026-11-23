@@ -1,0 +1,1 @@
+- **With `sca` on `grype-fs`, dependency health now asks about every package it read.** A package on the OSSF Malicious Packages list that no advisory names is reported as a `malicious-package` finding, as it already was with `trivy-fs`.
