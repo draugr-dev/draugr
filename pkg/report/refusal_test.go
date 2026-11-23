@@ -241,3 +241,43 @@ func TestAnImageOnlyTheLocalDaemonHoldsIsNotOfferedALogin(t *testing.T) {
 		t.Errorf("the page does not say what the console says about a local image")
 	}
 }
+
+// An image a registry refused with no credential, where no Docker daemon was reachable from the
+// scan, may need a login or may be an image built here and never pushed: Docker Hub answers both the
+// same way. The block names both causes and both fixes, on the console and the page alike. Where a
+// daemon answered, or a credential was held, the block is as it was.
+func TestARefusalWithNoDaemonReachableNamesBothCauses(t *testing.T) {
+	t.Setenv("COLUMNS", "")
+	run := func(r *engine.Refusal) Data {
+		return Data{
+			Run:     engine.Result{Targets: []engine.TargetOutcome{failedImage("app:1", "run trivy: exit status 1", r, "app")}},
+			Verdict: norn.Result{Verdict: norn.Fail},
+		}
+	}
+	r := refused("docker.io", http.StatusUnauthorized, noneHeld)
+	r.DaemonUnreachable = true
+	out := renderWith(t, consoleReporter{}, run(r))
+	for _, want := range []string{"docker login", "then scan again", "built here and never pushed",
+		"no Docker daemon was reachable", "push it to a registry the scan can reach",
+		"control of this machine:", "-v /var/run/docker.sock:/var/run/docker.sock"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	page := renderWith(t, htmlReporter{}, run(r))
+	for _, want := range []string{"docker login", "no Docker daemon was reachable", "full control of this machine", "/var/run/docker.sock"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page is missing %q", want)
+		}
+	}
+
+	reachable := refused("docker.io", http.StatusUnauthorized, noneHeld)
+	withCredential := refused("docker.io", http.StatusUnauthorized, held)
+	withCredential.DaemonUnreachable = true
+	for name, r := range map[string]*engine.Refusal{"a daemon answered": reachable, "a credential was held": withCredential} {
+		out := renderWith(t, consoleReporter{}, run(r))
+		if strings.Contains(out, "Docker daemon") || !strings.Contains(out, "docker login") {
+			t.Errorf("%s: the block changed:\n%s", name, out)
+		}
+	}
+}

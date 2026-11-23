@@ -178,10 +178,12 @@ type htmlTiming struct {
 type htmlError struct{ Control, Message string }
 
 // htmlRegistry is one registry that refused images, with its answer and the command that changes
-// it, or no command where logging in would not.
+// it, or no command where logging in would not. NoDaemon is the second cause and its fix where no
+// Docker daemon was reachable, Socket the other way to read the image and what it grants, and Mount
+// the flag that way takes.
 type htmlRegistry struct {
-	Host, Said, Login, Local string
-	Images                   []htmlUnreached
+	Host, Said, Login, Local, NoDaemon, Socket, Mount string
+	Images                                            []htmlUnreached
 }
 
 // htmlUnreached is one target no scanner could read. Name is as the console names it, an image's
@@ -2428,7 +2430,7 @@ prints each scanner's full output.</p>
 <ul class="errors">
 {{range .Registries}}<li><strong>{{.Host}}</strong> · {{.Said}}
 <ul class="unreached">{{range .Images}}<li><code title="{{.Full}}">{{.Name}}</code> · {{.Components}}</li>{{end}}</ul>
-{{with .Login}}<code class="cmd">{{.}}</code> then scan again{{end}}{{with .Local}}{{.}}{{end}}</li>
+{{with .Login}}<code class="cmd">{{.}}</code> then scan again{{end}}{{with .Local}}{{.}}{{end}}{{if .NoDaemon}}<br>{{.NoDaemon}}<br>{{.Socket}} <code class="cmd">{{.Mount}}</code>{{end}}</li>
 {{end}}{{range .Unreached}}<li><strong>{{.Kind}}</strong> <code title="{{.Full}}">{{.Name}}</code> · {{.Components}} · {{.Why}}</li>
 {{end}}{{range .Errors}}<li><strong>{{.Control}}</strong> · {{.Message}}</li>{{end}}
 </ul>

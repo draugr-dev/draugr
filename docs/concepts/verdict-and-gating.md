@@ -137,6 +137,11 @@ line, because a new login replaces a credential the registry rejected. `403 forb
 because the registry accepted the credential and still declined the pull, and logging in again
 would not change its answer.
 
+With no credential held and no Docker daemon reachable, an image built on this machine and never
+pushed is refused the same way. Errors says so beside the login: push the image to a registry the
+scan can reach, or mount the daemon's socket into the container the scan runs in, which gives
+anything in that container root on the host.
+
 The scanner's whole message is in `report.json`, under `targets[]`, with the whole digest, and the
 registry's answer under `targets[].refusal`.
 
