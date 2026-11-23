@@ -242,6 +242,9 @@ type Found struct {
 	Kind string
 	// Files are the files, joined into one list.
 	Files string
+	// Paths are the same files, every one of them, from which a console too narrow for Files cuts
+	// a shorter list.
+	Paths []string
 	// Did is what the run did with them: the controls and scanners it turned on, and each one it
 	// left off, written `<name> off`.
 	Did string

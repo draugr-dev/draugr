@@ -370,3 +370,36 @@ func TestInitCommandWritesAFragmentIntoTheDirectory(t *testing.T) {
 		t.Errorf("fragment not written into %s: %v", dir, err)
 	}
 }
+
+// On a 120-column terminal, no FOUND row is wider than the terminal: a row with deep paths is cut
+// to fewer of them with the rest counted, and the rows beside it are not padded out to its width.
+// Off a terminal, the list is whole.
+func TestInitFoundFitsTheTerminal(t *testing.T) {
+	deep := ".config/mise/locks/mise.dev/pypi-docker-hosts/0.2.1/"
+	tree := map[string]string{
+		deep + "pyproject.toml": "[project]\nname = \"hosts\"\nversion = \"0.2.1\"\ndependencies = [\"requests==2.19.1\"]\n",
+		deep + "uv.lock":        "version = 1\n",
+		"infra/azure/main.tf":   "resource \"azurerm_resource_group\" \"rg\" {\n  name     = \"rg\"\n  location = \"westeurope\"\n}\n",
+	}
+	t.Setenv("COLUMNS", "120")
+	_, console := runInitIn(t, tree, initOptions{})
+	_, block, ok := strings.Cut(console, "FOUND\n")
+	if !ok {
+		t.Fatalf("no FOUND block:\n%s", console)
+	}
+	block, _, _ = strings.Cut(block, "\n\n")
+	for _, l := range strings.Split(block, "\n") {
+		if n := len([]rune(l)); n > 120 {
+			t.Errorf("a %d-cell FOUND row on a 120-column terminal: %q", n, l)
+		}
+	}
+	if !strings.Contains(block, "infra/azure  ") {
+		t.Errorf("FOUND should name infra/azure:\n%s", block)
+	}
+
+	t.Setenv("COLUMNS", "0")
+	_, whole := runInitIn(t, tree, initOptions{})
+	if !strings.Contains(whole, deep+"pyproject.toml · "+deep+"uv.lock") {
+		t.Errorf("off a terminal the list should be whole:\n%s", whole)
+	}
+}

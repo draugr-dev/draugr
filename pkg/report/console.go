@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/scaffold"
 	"github.com/draugr-dev/draugr/pkg/ci"
 	"github.com/draugr-dev/draugr/pkg/dephealth"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -2127,7 +2128,7 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		// rest of it is: a compact list of the first few findings is the view most likely to have
 		// left most of them out.
 		if wantsReport(s, d, listed) {
-			t := tui.NewTable(col).Indent("  ")
+			t := tui.NewTable(col).Indent("  ").Fit(tui.Columns(w)).MoveLast()
 			t.Row(tui.Styled(cDim, htmlReportFlags(d)), tui.Styled(cDim, reportRowSays))
 			_, _ = fmt.Fprintln(w, heading(col, "Try"))
 			t.Render(w)
@@ -2140,7 +2141,9 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	// A row each, rather than a sentence naming two flags with a comma between them. A reader
 	// scanning for something to type finds it in a column; the same two flags inside a sentence
 	// have to be read whole to find out neither of them applies.
-	t := tui.NewTable(col).Indent("  ")
+	// Bounded to the terminal, and a command too long to sit beside the others gets its description
+	// on the next line, rather than pushing every description over the edge.
+	t := tui.NewTable(col).Indent("  ").Fit(tui.Columns(w)).MoveLast()
 	rows := 0
 	row := func(what, does string) {
 		t.Row(tui.Styled(cDim, what), tui.Styled(cDim, does))
@@ -2289,9 +2292,13 @@ func writeFound(w io.Writer, col tui.Painter, d Data) {
 		return
 	}
 	_, _ = fmt.Fprintf(w, "%s  %s\n", heading(col, "Found"), col.Paint(cDim, foundNote))
-	t := tui.NewTable(col).Indent("  ")
+	t := tui.NewTable(col).Indent("  ").Fit(tui.Columns(w))
 	for _, f := range d.Found {
-		t.Row(tui.PlainCell(f.Kind), tui.PlainCell(f.Files), tui.Styled(cDim, f.Did))
+		files := tui.PlainCell(f.Files)
+		if len(f.Paths) > 0 {
+			files.Shorten = func(n int) string { return scaffold.PathListWithin(f.Paths, n) }
+		}
+		t.Row(tui.PlainCell(f.Kind), files, tui.Styled(cDim, f.Did))
 	}
 	t.Render(w)
 	_, _ = fmt.Fprintln(w)

@@ -1,0 +1,1 @@
+- **FOUND and TRY fit your terminal.** `draugr init` and a scan with no descriptor cut a long file list to the paths that fit and count the rest, and a TRY command too long for its column puts its description on the next line. Output to a file or a pipe is unchanged.
