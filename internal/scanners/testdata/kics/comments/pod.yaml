@@ -1,0 +1,16 @@
+# iac: intentionally misconfigured Kubernetes manifest for Draugr's `iac` control (Trivy config).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-api
+spec:
+  containers:
+    - name: api
+      image: demo/api:latest # iac: mutable 'latest' tag
+      securityContext:
+        privileged: true # iac: privileged container
+        runAsNonRoot: false # iac: runs as root
+        allowPrivilegeEscalation: true # iac: privilege escalation allowed
+      ports:
+        - containerPort: 5000
+      # iac: no resource limits, no readiness/liveness probes

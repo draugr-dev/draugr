@@ -198,7 +198,6 @@ func kicsImagePresent(ctx context.Context) error {
 type kicsReport struct {
 	FilesFailedToScan      int         `json:"files_failed_to_scan"`
 	QueriesFailedToExecute int         `json:"queries_failed_to_execute"`
-	LinesIgnored           int         `json:"lines_ignored"`
 	Queries                []kicsQuery `json:"queries"`
 }
 
@@ -257,10 +256,7 @@ func parseKICSReport(out []byte, dir string, _ plugin.Config) (sarif.Report, err
 			rep.Results = append(rep.Results, res)
 		}
 	}
-	rep.Inputs = kicsUnread(doc)
-	if doc.LinesIgnored > 0 {
-		rep.Inputs = append(rep.Inputs, kicsDirectives(dir, doc.LinesIgnored)...)
-	}
+	rep.Inputs = append(kicsUnread(doc), kicsDirectives(dir)...)
 	return rep, nil
 }
 
@@ -270,13 +266,13 @@ var kicsDirective = regexp.MustCompile(`kics-scan\s+(ignore-line|ignore-block|ig
 
 // kicsDirectives names each file under dir holding a `kics-scan` comment, and the comments it holds,
 // as unread: KICS skips a file, a block, a line or a query's results where such a comment says to,
-// reports none of it, and has no flag to stop. Its report counts the lines it ignored and names no
-// file, and the count is not what was skipped (a whole file set aside counts one line), so the files
-// are found by reading the checkout, and only when KICS counted something.
+// reports none of it, and has no flag to stop. Its report names no file, so the files are found by
+// reading the checkout, on every run.
 //
-// Where none can be found, the count is reported against the repository root, so the skip is not
-// lost.
-func kicsDirectives(dir string, ignored int) []sarif.Input {
+// The report's lines_ignored is not read for this. KICS's YAML and Dockerfile parsers add every
+// ordinary comment line to the lines that count, so a manifest holding a plain `#` comment and no
+// directive counts above zero, and the count cannot tell a skip from a note.
+func kicsDirectives(dir string) []sarif.Input {
 	var out []sarif.Input
 	if root, err := os.OpenRoot(dir); err == nil {
 		defer func() { _ = root.Close() }()
@@ -308,14 +304,6 @@ func kicsDirectives(dir string, ignored int) []sarif.Input {
 				Unread: "kics-scan " + strings.Join(found, ", ") + " comment; KICS did not check what it marks"})
 			return nil
 		})
-	}
-	if len(out) == 0 {
-		noun := "line"
-		if ignored > 1 {
-			noun = "lines"
-		}
-		out = append(out, sarif.Input{Path: ".",
-			Unread: fmt.Sprintf("%d %s ignored by KICS for a kics-scan comment, not checked by KICS", ignored, noun)})
 	}
 	return out
 }

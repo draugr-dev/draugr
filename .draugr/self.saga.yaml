@@ -95,3 +95,6 @@ components:
           # The npm audit converter's test input: a lockfile pinning vulnerable versions on purpose,
           # so the converter has advisories to convert. Nothing installs from it.
           - contrib/converters/npm-audit/testdata
+          # The KICS parser's test input: a privileged pod manifest with ordinary comments, copied
+          # with the report KICS wrote for it, so the test reads a real report. Nothing deploys it.
+          - internal/scanners/testdata/kics/comments

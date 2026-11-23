@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -134,7 +135,7 @@ func TestKICSParsesItsReport(t *testing.T) {
 	}
 }
 
-// A kics-scan comment makes KICS skip what it marks and leave nothing but a count in its report.
+// A kics-scan comment makes KICS skip what it marks and name nothing it skipped in its report.
 // ignored.json is KICS's report over a Deployment with `privileged: true` under such a comment.
 func TestKICSReportsWhatACommentSkipped(t *testing.T) {
 	t.Parallel()
@@ -149,15 +150,6 @@ func TestKICSReportsWhatACommentSkipped(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []sarif.Input{{Path: "k8s/web.yaml", Unread: "kics-scan ignore-line comment; KICS did not check what it marks"}}
-	if !slices.Equal(rep.Inputs, want) {
-		t.Errorf("inputs = %+v, want %+v", rep.Inputs, want)
-	}
-	// Where no file holding the comment can be found, KICS's count stands against the root.
-	rep, err = parseKICSReport(out, "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want = []sarif.Input{{Path: ".", Unread: "2 lines ignored by KICS for a kics-scan comment, not checked by KICS"}}
 	if !slices.Equal(rep.Inputs, want) {
 		t.Errorf("inputs = %+v, want %+v", rep.Inputs, want)
 	}
@@ -191,8 +183,8 @@ func TestKICSUnreadNamesEachKindOfGap(t *testing.T) {
 	}
 }
 
-// KICS obeys a kics-scan comment wherever it sits and says only how many lines it ignored, a whole
-// file counting one. Each file holding one is named, with the comments it holds; .git is not read.
+// KICS obeys a kics-scan comment wherever it sits and names no file holding one. Each file holding
+// one is named, with the comments it holds; .git is not read.
 func TestKICSNamesEachFileHoldingADirective(t *testing.T) {
 	t.Parallel()
 	dir := writeTree(t, map[string]string{
@@ -203,7 +195,7 @@ func TestKICSNamesEachFileHoldingADirective(t *testing.T) {
 		".git/config.tf": "# kics-scan ignore\n",
 		"e/enable.tf":    "# kics-scan enable=x\n",
 	})
-	got := kicsDirectives(dir, 3)
+	got := kicsDirectives(dir)
 	want := []sarif.Input{
 		{Path: "a.tf", Unread: "kics-scan ignore comment; KICS did not check what it marks"},
 		{Path: "b/web.yaml", Unread: "kics-scan disable, ignore-block comment; KICS did not check what it marks"},
@@ -212,9 +204,37 @@ func TestKICSNamesEachFileHoldingADirective(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("inputs = %+v\nwant %+v", got, want)
 	}
-	if got := kicsDirectives(t.TempDir(), 1); !slices.Equal(got, []sarif.Input{
-		{Path: ".", Unread: "1 line ignored by KICS for a kics-scan comment, not checked by KICS"}}) {
-		t.Errorf("with no file found: %+v", got)
+	if got := kicsDirectives(t.TempDir()); len(got) != 0 {
+		t.Errorf("a tree with no kics-scan comment is unread: %+v", got)
+	}
+}
+
+// KICS's lines_ignored counts ordinary comment lines in YAML, so a commented manifest with no
+// kics-scan comment reports lines ignored. comments.json is KICS v2.2.1's report over
+// comments/pod.yaml, which carries six `#` comments and no directive: it says 1 line ignored and
+// lists 23 findings, as many as the same manifest with its comments removed. Nothing was skipped,
+// so nothing is reported unread.
+func TestKICSReportsNoSkipForAnOrdinaryComment(t *testing.T) {
+	t.Parallel()
+	out, err := os.ReadFile(filepath.Join("testdata", "kics", "comments.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		LinesIgnored int `json:"lines_ignored"`
+	}
+	if err := json.Unmarshal(out, &doc); err != nil || doc.LinesIgnored == 0 {
+		t.Fatalf("the fixture no longer counts a comment line as ignored (lines_ignored %d, %v)", doc.LinesIgnored, err)
+	}
+	rep, err := parseKICSReport(out, filepath.Join("testdata", "kics", "comments"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Inputs) != 0 {
+		t.Errorf("inputs = %+v, want none", rep.Inputs)
+	}
+	if len(rep.Results) != 23 {
+		t.Errorf("%d findings, want the 23 KICS listed", len(rep.Results))
 	}
 }
 

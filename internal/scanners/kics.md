@@ -208,15 +208,20 @@ and `KSV-0017` are one id.
 - **`kics-scan` comments.** KICS obeys a comment in the scanned file that tells it to skip the file
   (`kics-scan ignore`), a block (`ignore-block`), a line (`ignore-line`) or some queries
   (`disable=<id>`, `enable=<id>`), as its documentation describes under *Using commands on scanned files as comments*
-  (https://docs.kics.io/latest/running-kics/), and has no flag to stop. Its report names no file and no finding, only a count of lines
-  ignored, in which a whole file counts one. Where that count is above zero, Draugr reads the checkout
-  for the comments and records each file holding one as not checked by KICS, with the reason
+  (https://docs.kics.io/latest/running-kics/), and has no flag to stop. Its report names no file and
+  no finding the comment skipped. Draugr reads the checkout for the comments on every run and records
+  each file holding one as not checked by KICS, with the reason
   `kics-scan ignore-line comment; KICS did not check what it marks`, so a skip someone wrote in a
   file is visible rather than gone. Where [`trivy-config`](trivy-config.md) checked the file, the
   file is not unread for `iac`: Trivy still checked what the
   comment marks, and the report's evidence lists the gap as KICS's alone, as
   `iac: kics · shop · k8s/web.yaml · kics-scan ignore-line comment; …`. Where Trivy did not check
   it, the file is unread for `iac`. `config.exclude` is the way to set a finding aside and keep it.
+- **`lines_ignored` in KICS's report is not read.** KICS v2.2.1 counts every ordinary comment line
+  of a YAML file or a Dockerfile there, alongside the lines a `kics-scan` comment skips, as the
+  [source of its YAML comment handling](https://github.com/Checkmarx/kics/blob/v2.2.1/pkg/model/comment_yaml.go)
+  shows. A manifest holding a plain `#` note and no directive counts lines ignored while KICS checked
+  all of it, so the count cannot say whether anything was skipped.
 - Files KICS could not scan, and queries that failed to run, are reported unread against the
   repository root the same way, from the counts in its report, and the `iac` control lists each
   under [unread](../controllers/iac.md#unread).
