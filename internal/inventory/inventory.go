@@ -290,15 +290,15 @@ func isDockerfile(base string) bool {
 // vendor, or minified or named for a release. Code written in the repository is none of these, and
 // a lockfile already accounts for a library installed through one.
 //
-// The name is not trusted for a test: a file named `*.test.js` or `*.spec.js`, or one under a test
-// directory, carries a version or `.min` in its name as often to say what it tests as because it is
-// a library, so only vendor/ marks one of those as a copy.
+// The name is not trusted for a file named as a test, `*.test.js` or `*.spec.js`: a version in its
+// name says what it tests, so only vendor/ marks one of those as a copy. A library copied into a test
+// directory under its own name is still one, and still read.
 func isVendoredJS(rel string) bool {
 	if slices.Contains(strings.Split(path.Dir(rel), "/"), "vendor") {
 		return true
 	}
 	base := path.Base(rel)
-	if strings.HasSuffix(base, ".test.js") || strings.HasSuffix(base, ".spec.js") || nonshipping.KindOf(rel) == nonshipping.Test {
+	if strings.HasSuffix(base, ".test.js") || strings.HasSuffix(base, ".spec.js") {
 		return false
 	}
 	return strings.HasSuffix(base, ".min.js") || versioned.MatchString(base)

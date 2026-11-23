@@ -264,8 +264,8 @@ func TestInitFoundRowNamesEveryGoModule(t *testing.T) {
 	}
 }
 
-// A test file whose name carries a version is the project's own code, so it turns retire.js on
-// neither by its name nor under a test directory; a library named for its release still does.
+// A file named as a test whose name carries a version is the project's own code, so it does not
+// turn retire.js on; a library named for its release still does, in a test directory too.
 func TestInitTurnsOnRetireJSForACopiedLibraryAndNotForATest(t *testing.T) {
 	t.Parallel()
 	npm := map[string]string{
@@ -281,7 +281,6 @@ func TestInitTurnsOnRetireJSForACopiedLibraryAndNotForATest(t *testing.T) {
 	got, console := runInitIn(t, with(map[string]string{
 		"tests/release-2.2-notes.test.js": "test('notes', () => {})\n",
 		"src/upgrade-1.4.spec.js":         "it('upgrades', () => {})\n",
-		"spec/fixtures/jquery-3.0.min.js": "",
 	}), initOptions{})
 	if strings.Contains(got, "retirejs") || strings.Contains(console, "copied JavaScript") {
 		t.Errorf("init read a test file as a copied library:\n%s\n%s", got, console)
@@ -290,12 +289,13 @@ func TestInitTurnsOnRetireJSForACopiedLibraryAndNotForATest(t *testing.T) {
 	got, console = runInitIn(t, with(map[string]string{
 		"tests/release-2.2-notes.test.js": "test('notes', () => {})\n",
 		"static/jquery-1.8.3.js":          "",
+		"spec/fixtures/jquery-3.0.min.js": "",
 	}), initOptions{})
-	if !strings.Contains(got, "retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · static/jquery-1.8.3.js\n") {
-		t.Errorf("init did not turn retire.js on for the library alone:\n%s", got)
+	if !strings.Contains(got, "retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · spec/fixtures/jquery-3.0.min.js · static/jquery-1.8.3.js\n") {
+		t.Errorf("init did not turn retire.js on for the libraries alone:\n%s", got)
 	}
-	if !regexp.MustCompile(`\n  copied JavaScript +static/jquery-1\.8\.3\.js +retirejs\n`).MatchString(console) {
-		t.Errorf("console does not name the library alone under FOUND:\n%s", console)
+	if !regexp.MustCompile(`\n  copied JavaScript +spec/fixtures/jquery-3\.0\.min\.js · static/jquery-1\.8\.3\.js +retirejs\n`).MatchString(console) {
+		t.Errorf("console does not name the libraries alone under FOUND:\n%s", console)
 	}
 }
 
