@@ -242,6 +242,22 @@ func TestAScanRefusesAURLTheEnvironmentDoesNotAllowBeforeAnythingRuns(t *testing
 	}
 }
 
+// An address without its token stops the scan before any scanner runs, and the refusal says so,
+// because the person reading it needs to know nothing was scanned, not only which variable is empty.
+func TestAScanMissingItsTokenSaysNoScannerRan(t *testing.T) {
+	t.Setenv("DRAUGR_API_URL", "https://draugr.example")
+	t.Setenv("DRAUGR_API_TOKEN", "")
+	t.Setenv("DRAUGR_API_ORIGINS", "")
+	var out bytes.Buffer
+	err := runScan(context.Background(), writeSaga(t, scanPublishingSaga), scanOptions{failOn: "error"}, fakeRegistry(sarif.LevelNote), &out)
+	if err == nil || !strings.HasPrefix(err.Error(), "no scanner ran: draugr-api publisher: $DRAUGR_API_TOKEN is not set") {
+		t.Fatalf("err = %v", err)
+	}
+	if strings.Contains(out.String(), "CONTROLS") {
+		t.Errorf("the scan ran:\n%s", out.String())
+	}
+}
+
 func TestRequirePolicy(t *testing.T) {
 	if err := requirePolicy(nil); err == nil || !strings.Contains(err.Error(), "publishes to no draugr-api server") {
 		t.Errorf("err = %v", err)

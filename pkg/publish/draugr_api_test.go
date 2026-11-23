@@ -412,6 +412,61 @@ func TestHalfConfiguredIsAMistakeRatherThanAnIntention(t *testing.T) {
 	}
 }
 
+// Somebody who copied the address and not the token, or the other way round, reads which variable
+// is missing and both ways on: supply it, or stop the half that is set and run without publishing.
+func TestAHalfConfiguredRefusalNamesBothWaysOn(t *testing.T) {
+	for name, tc := range map[string]struct {
+		url, token, origins string
+		cfg                 saga.PublisherConfig
+		want                []string
+	}{
+		"address from the environment, no token": {
+			url: "https://plane.example",
+			cfg: saga.PublisherConfig{Kind: "draugr-api"},
+			want: []string{"$DRAUGR_API_TOKEN is not set", "$DRAUGR_API_URL sends the run to https://plane.example",
+				"set $DRAUGR_API_TOKEN to the token the server issued", "unset $DRAUGR_API_URL to run without publishing"},
+		},
+		"address from the machine's configuration, no token": {
+			cfg: saga.PublisherConfig{Kind: "draugr-api", DefaultURL: "https://plane.example"},
+			want: []string{"$DRAUGR_API_TOKEN is not set", "publish.apiUrl in the machine's configuration sends the run",
+				"remove publish.apiUrl from the machine's configuration to run without publishing"},
+		},
+		"a descriptor url an origin list allows, no token": {
+			origins: "https://plane.example",
+			cfg:     saga.PublisherConfig{Kind: "draugr-api", URL: "https://plane.example"},
+			want:    []string{"$DRAUGR_API_ORIGINS sends the run to https://plane.example", "take its origin off $DRAUGR_API_ORIGINS"},
+		},
+		"address, and the token variable the descriptor names is empty": {
+			url:  "https://plane.example",
+			cfg:  saga.PublisherConfig{Kind: "draugr-api", TokenEnv: "PLANE_TOKEN"},
+			want: []string{"$PLANE_TOKEN is not set", "set $PLANE_TOKEN to the token"},
+		},
+		"token, no address": { // #nosec G101 -- a placeholder token for a request this test never sends
+			token: "drgr_ci_test",
+			cfg:   saga.PublisherConfig{Kind: "draugr-api"},
+			want: []string{"$DRAUGR_API_TOKEN is set, and no server address is",
+				"set $DRAUGR_API_URL to the server's address", "unset $DRAUGR_API_TOKEN to run without publishing"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(apiURLEnv, tc.url)
+			t.Setenv(apiTokenEnv, tc.token)
+			t.Setenv(apiOriginsEnv, tc.origins)
+			t.Setenv("PLANE_TOKEN", "")
+			t.Setenv(credential.TokenEnvsVar, "PLANE_TOKEN")
+			_, _, err := ResolveAPI(tc.cfg)
+			if err == nil {
+				t.Fatal("a half-configured publisher was accepted")
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("err = %q\nwant it to say %q", err, w)
+				}
+			}
+		})
+	}
+}
+
 func TestTheKeyIsTheJobWhereThereIsOneAndTheReportOtherwise(t *testing.T) {
 	// A retried job and a deliberate re-run of the same commit are different events, and only the
 	// pipeline can tell them apart: identical inputs produce identical reports.

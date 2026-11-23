@@ -137,22 +137,36 @@ func ResolveAPI(cfg saga.PublisherConfig) (dest APIDestination, skip string, err
 	if dest.Endpoint == "" && dest.Token == "" {
 		return APIDestination{}, "no $" + apiURLEnv + " or $" + tokenEnv, nil
 	}
-	var missing []string
-	if dest.Endpoint == "" {
-		missing = append(missing, "$"+apiURLEnv)
-	}
+	// Half-configured is a mistake rather than an intention, and a scan that silently did not publish
+	// is one somebody believes was published. The refusal names both ways on, because either one is
+	// what the person meant.
 	if dest.Token == "" {
-		missing = append(missing, "$"+tokenEnv)
+		from, stop := endpointSource(cfg)
+		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: $%s is not set, and %s sends the run to %s, "+
+			"which needs it; set $%s to the token the server issued for this project, or %s to run without publishing",
+			tokenEnv, from, dest.Endpoint, tokenEnv, stop)
 	}
-	if len(missing) > 0 {
-		// Half-configured is a mistake rather than an intention, and a scan that silently did not
-		// publish is one somebody believes was published.
-		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: %s", strings.Join(missing, ", "))
+	if dest.Endpoint == "" {
+		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: $%s is set, and no server address is; "+
+			"set $%s to the server's address, or unset $%s to run without publishing", tokenEnv, apiURLEnv, tokenEnv)
 	}
 	if err := credential.RequireTLS(dest.Endpoint); err != nil {
 		return APIDestination{}, "", fmt.Errorf("draugr-api publisher: $%s: %w", tokenEnv, err)
 	}
 	return dest, "", nil
+}
+
+// endpointSource is where an endpoint resolved without a token came from, and what stops it, in the
+// order apiEndpointAllowing consults them. With no token, an endpoint is the environment's address,
+// the machine's, or a url the repository wrote that $DRAUGR_API_ORIGINS allows.
+func endpointSource(cfg saga.PublisherConfig) (from, stop string) {
+	switch {
+	case os.Getenv(apiURLEnv) != "":
+		return "$" + apiURLEnv, "unset $" + apiURLEnv
+	case cfg.DefaultURL != "":
+		return "publish.apiUrl in the machine's configuration", "remove publish.apiUrl from the machine's configuration"
+	}
+	return "$" + apiOriginsEnv, "take its origin off $" + apiOriginsEnv
 }
 
 // apiEndpoint is the server a run goes to.
