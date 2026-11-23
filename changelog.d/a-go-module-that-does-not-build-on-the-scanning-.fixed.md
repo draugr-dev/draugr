@@ -1,1 +1,0 @@
-- **A Go module that does not build on the scanning machine no longer has findings ranked down by another platform.** When govulncheck cannot load a module for the machine's own platform, its findings keep their band and carry no reachability verdict, even where the windows/amd64 or darwin/arm64 run loaded it, and no verdict names a platform whose run failed.

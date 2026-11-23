@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.187.1] - 2026-11-23
+
+### Fixed
+
+- **A Go module that does not build on the scanning machine no longer has findings ranked down by another platform.** When govulncheck cannot load a module for the machine's own platform, its findings keep their band and carry no reachability verdict, even where the windows/amd64 or darwin/arm64 run loaded it, and no verdict names a platform whose run failed.
+
 ## [0.187.0] - 2026-11-22
 
 ### Added
@@ -7457,7 +7463,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.187.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.187.1...HEAD
+[0.187.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.1
 [0.187.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.0
 [0.186.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.2
 [0.186.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.1
