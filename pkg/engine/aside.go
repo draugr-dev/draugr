@@ -9,8 +9,8 @@ import (
 
 // markToolDependencies marks each dependency finding in a file a developer tool's dependencies are
 // pinned in, such as a lockfile under `.config/mise/`, so the report lists it after the
-// application's own and names it as a tool's. It still counts: the tool runs in CI and on
-// developers' machines.
+// application's own and names it as a tool's. It still counts: wherever the tool runs, it runs with
+// the access of the developer or the pipeline running it.
 //
 // Only sca, which reads a repository's dependency files. The path is read below the repository
 // path the component declares, as the non-shipping mark's is, and a finding already marked as

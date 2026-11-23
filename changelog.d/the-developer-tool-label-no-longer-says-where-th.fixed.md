@@ -1,0 +1,1 @@
+- **The developer-tool label no longer says where the tool runs.** A finding in a developer tool's dependencies, such as a lockfile under `.config/mise/`, is labeled `developer tool`. The old label said the tool runs in CI, which Draugr cannot know.

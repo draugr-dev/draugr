@@ -128,10 +128,10 @@ lists the directories.
 ## Developer tools
 
 A finding in a dependency file of a tool the developers install, rather than of the application,
-is labeled `developer tool, runs in CI` beside its location and listed after the application's
-dependencies. It still counts at its priority: the tool runs on developers' machines and in CI, so a
-flaw in it is a risk to those even where the program does not ship it. A file is read as a tool's
-in two cases:
+is labeled `developer tool` beside its location and listed after the application's dependencies.
+It still counts at its priority. A developer tool runs on a developer's machine or in a pipeline,
+with the credentials and files that place gives it, so a flaw in it puts them at risk even where
+the program does not ship the tool. A file is read as a tool's in two cases:
 
 - It sits under `.config/mise/`, where mise keeps the lockfiles of the tools it installs.
 - It is the `go.mod` or `go.sum` of a Go module that builds nothing but tools. Either every `.go`
