@@ -1,1 +1,0 @@
-- **KICS and Trivy now count a whole-Dockerfile check once.** With KICS on beside trivy-config, a Dockerfile with no `HEALTHCHECK` or no `USER` that does not start with its `FROM` was counted twice. Each such finding is now counted once and names the other tool's copy.

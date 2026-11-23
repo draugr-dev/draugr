@@ -1,1 +1,0 @@
-- **`draugr diff` and `draugr scan --base` no longer report a flaw as fixed when another scanner still finds it.** Turning a scanner off, or a scanner dropping an advisory, moves a flaw's count to another scanner's copy; the diff now reads that as unchanged. A flaw is fixed only when no scanner reports it at the head.

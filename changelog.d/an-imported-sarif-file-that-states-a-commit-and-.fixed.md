@@ -1,1 +1,0 @@
-- **An imported SARIF file that states a commit and no repository is no longer held to the repository declared as `.`.** In a component with several repositories, it stops the run, naming the repositories the component declares, so you add `repositoryUri` to the file. With one repository it binds as before.

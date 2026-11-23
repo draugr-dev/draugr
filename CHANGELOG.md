@@ -12,6 +12,52 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.188.0] - 2026-11-23
+
+### Changed
+
+- **`draugr init` writes `iac` commented out when the repository has no infrastructure code.** The `hosts:` example appears only where something serves, such as an OpenAPI document or a Dockerfile with `EXPOSE`. A scan with no descriptor turns on `iac` and shows `hosts` under the same conditions.
+
+### Fixed
+
+- **A Dependabot alert and your own scanner's finding of the same flaw now count once.** Where both name the same advisory, package and manifest, and the installed version is inside the versions the alert says are affected, the higher-priority copy counts and the other is listed as also found by. Before, each such advisory counted twice.
+
+- **OSV-Scanner's Go findings now merge with Trivy's and Grype's.** OSV-Scanner's Go module versions now carry the leading `v` go.mod writes, so a Go advisory is no longer counted, gated and listed twice. Imported Grype and OSV-Scanner files that name one Go module version now give one upgrade, not two.
+
+- **A govulncheck run that does not finish names the modules it left unchecked.** When govulncheck is killed, usually for lack of memory, or fails partway, the scan still fails, and every `go.mod` it was given is now listed as unread with the reason. `failOnCaveats: [unread-files]` reads them like any other unread file.
+
+- **A scan of an image built here and never pushed now says why when no Docker daemon is reachable.** The error suggests pushing the image to a registry the scan can reach, or mounting the daemon's socket, which gives the scan's container full control of the host.
+
+- **A scan that stops because the draugr-api publisher has its address and no token, or a token and no address, now says so.** The message names the missing variable and says no scanner ran. To go on, set the missing variable, or unset the one that is set to scan without publishing.
+
+- **A secret in a text file whose name looks like an archive's is now found.** Gitleaks skips a file whose name holds an archive extension, such as `notes.zip.txt`, unread. Draugr now searches such a file at its own path when it is text, with your Gitleaks allowlists and `.gitleaksignore` applied. A real archive is still listed unread.
+
+- **An imported SARIF file that states a commit and no repository is no longer held to the repository declared as `.`.** In a component with several repositories, it stops the run, naming the repositories the component declares, so you add `repositoryUri` to the file. With one repository it binds as before.
+
+- **`draugr diff` and `draugr scan --base` judge a flaw across scanners.** A flaw is new only when no scanner's copy was in the base, and fixed only when none reports it at the head. Turning a scanner on or off no longer reads as a new or fixed flaw, so a `failOnNew` gate passes on flaws main already had.
+
+- **`draugr doctor` now fails an imported file written for another commit.** It holds the file to the commit the scan reads, from the file or the import's `commit:`, and fails it with the scan's message, so you find it before `draugr scan` stops on it. A file with no commit passes and names the `unbound-imports` caveat the scan lists.
+
+- **`draugr init` and a zero-config scan no longer list a Dockerfile's own ignore file as a Dockerfile.** `Dockerfile.agent.dockerignore` stays out of the Dockerfile row under FOUND and out of the count before `+N`.
+
+- **`draugr init` and a zero-config scan no longer turn on retire.js for a test file whose name carries a version**, such as `release-2.2.test.js`. A `*.test.js` or `*.spec.js` file counts as copied JavaScript only under `vendor/`. A library copied into a test directory is still read.
+
+- **FOUND and TRY fit your terminal.** `draugr init` and a scan with no descriptor cut a long file list to the paths that fit and count the rest, and a TRY command too long for its column puts its description on the next line. Output to a file or a pipe is unchanged.
+
+- **KICS and Trivy now count a whole-Dockerfile check once.** With KICS on beside trivy-config, a Dockerfile with no `HEALTHCHECK` or no `USER` that does not start with its `FROM` was counted twice. Each such finding is now counted once and names the other tool's copy.
+
+- **A Go advisory id and its CVE now count as one flaw.** A finding named only by its GitHub advisory id, such as a govulncheck import's, and another scanner's copy named by its CVE now count as one flaw when the Go vulnerability database lists that CVE as the record's only one. The flaw keeps the higher band.
+
+- **The developer-tool label no longer says where the tool runs.** A finding in a developer tool's dependencies, such as a lockfile under `.config/mise/`, is labeled `developer tool`. The old label said the tool runs in CI, which Draugr cannot know.
+
+- **The first scan after `draugr init` no longer counts the new descriptor as uncommitted.** The descriptor a scan is given, its fragments and its configuration file, such as `draugr.config.yaml`, are left out of the `uncommitted-files` count, because Draugr reads them from disk whether or not they are committed.
+
+- **Turning KICS on no longer fails a run over an ordinary comment.** A manifest or Dockerfile with a plain `#` comment and no `kics-scan` comment was reported as having lines KICS ignored, which failed a descriptor with `failOnCaveats: [unread-files]`. A file holding a `kics-scan` comment is still named as not checked by KICS.
+
+- **Two components that import the same file each get their own account of it.** The import's row under the control named only one of them, whichever read the file first, on a fresh run and from the cache alike. Each now names its own component.
+
+- **With `sca` on `grype-fs`, dependency health now asks about every package it read.** A package on the OSSF Malicious Packages list that no advisory names is reported as a `malicious-package` finding, as it already was with `trivy-fs`.
+
 ## [0.187.1] - 2026-11-23
 
 ### Fixed
@@ -7463,7 +7509,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.187.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.188.0...HEAD
+[0.188.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.0
 [0.187.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.1
 [0.187.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.0
 [0.186.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.2

@@ -1,1 +1,0 @@
-- **`draugr init` turns on `iac` only where there is infrastructure code to check.** Without any, the control is written commented out, and the `hosts:` example appears only where something serves, such as an OpenAPI document or a Dockerfile with `EXPOSE`. A scan with no descriptor follows the same rules.

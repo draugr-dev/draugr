@@ -1,1 +1,0 @@
-- **A scan that stops because the draugr-api publisher has its address and no token, or a token and no address, now says so.** The message names the missing variable, says no scanner ran, and gives both ways on: supply it, or unset the half that is set to scan without publishing.
