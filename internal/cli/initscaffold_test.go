@@ -59,8 +59,8 @@ func runInitIn(t *testing.T, files map[string]string, opts initOptions) (descrip
 	return string(data), buf.String()
 }
 
-// A tree holding none of what adds a scanner gets the four controls that are always on, and no
-// line claiming a file behind it.
+// A tree holding none of what adds a scanner gets the three controls that are always on, iac
+// offered commented out, and no line claiming a file behind it.
 func TestInitOnAnEmptyTreeWritesTheBaseline(t *testing.T) {
 	t.Parallel()
 	got, console := runInitIn(t, map[string]string{"README.md": "shop\n"}, initOptions{})

@@ -65,8 +65,8 @@ func propose(t *testing.T, root string, in ProposeInput) ProposeOutput {
 	return out
 }
 
-// A Go module and a package.json propose the controls init enables for them, and the tool writes
-// nothing.
+// A Go module and a package.json propose the controls init enables for them, iac left off with no
+// infrastructure file to read, and the tool writes nothing.
 func TestProposeSagaReturnsWhatInitWouldWrite(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "Shop.API")
@@ -79,7 +79,7 @@ func TestProposeSagaReturnsWhatInitWouldWrite(t *testing.T) {
 
 	out := propose(t, root, ProposeInput{Path: "Shop.API"})
 
-	if want := []string{"iac", "sast", "sca", "secrets"}; !slices.Equal(out.Controls, want) {
+	if want := []string{"sast", "sca", "secrets"}; !slices.Equal(out.Controls, want) {
 		t.Errorf("controls = %v, want %v", out.Controls, want)
 	}
 	if !slices.Equal(out.Components, []string{"shop-api"}) {

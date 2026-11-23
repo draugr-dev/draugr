@@ -1,7 +1,7 @@
 # A Go module below the repository root. gosec and govulncheck both analyze it; the gosec
 # expectations are the ruleid: comments in repo/service/main.go.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sast.gosec]
   reachability: [govulncheck]
   components:
@@ -10,7 +10,7 @@ init:
   # --per-directory: a component for each directory with its own dependency file, carved
   # out of the root component.
   perDirectory:
-    controls: [sca, secrets, sast, iac]
+    controls: [sca, secrets, sast]
     scanners: [sast.gosec]
     reachability: [govulncheck]
     components:

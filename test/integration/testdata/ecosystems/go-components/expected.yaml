@@ -6,7 +6,7 @@ initScan:
   skip: the components and their paths are the subject, and init proposes one component for the repository
 
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sast.gosec]
   reachability: [govulncheck]
   components:
@@ -15,7 +15,7 @@ init:
   # --per-directory: a component for each directory with its own dependency file, carved
   # out of the root component.
   perDirectory:
-    controls: [sca, secrets, sast, iac]
+    controls: [sca, secrets, sast]
     scanners: [sast.gosec]
     reachability: [govulncheck]
     components:

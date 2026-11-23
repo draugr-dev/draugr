@@ -1,7 +1,7 @@
 # A pom.xml scanned offline. Draugr passes --offline-scan, so Trivy reads the dependencies the pom
 # declares without resolving them against Maven Central.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: jvm-maven
       repositories: ["."]

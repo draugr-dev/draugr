@@ -1,7 +1,7 @@
 # A setup.py, which Trivy does not open and grype-fs does. The descriptor turns grype-fs on, as init
 # does, and the finding is Grype's, matched against the sealed Grype database.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sca.grypeFs]
   components:
     - name: python-setuptools

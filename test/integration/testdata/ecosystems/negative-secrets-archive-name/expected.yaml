@@ -7,7 +7,7 @@
 # the unread entries then disappear while every unit test still passes. It also fails if a release
 # stops treating these names as archives, which reports the two keys here.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: negative-secrets-archive-name
       repositories: ["."]

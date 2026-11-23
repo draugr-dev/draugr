@@ -3,7 +3,7 @@
 proves: [trivy-fs.detectionPriority]
 
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: python-pip-ranges
       repositories: ["."]

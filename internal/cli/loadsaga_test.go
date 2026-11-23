@@ -57,7 +57,7 @@ func TestZeroConfigControlsMatchSyntheticSaga(t *testing.T) {
 	if !slices.Equal(enabled, zeroConfigControls()) {
 		t.Errorf("an empty tree enables %v, the list names %v", enabled, zeroConfigControls())
 	}
-	if got := ZeroConfigControls(); got != "iac, sast, sca and secrets" {
+	if got := ZeroConfigControls(); got != "sast, sca and secrets" {
 		t.Errorf("ZeroConfigControls = %q", got)
 	}
 }

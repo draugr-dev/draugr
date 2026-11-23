@@ -71,14 +71,24 @@ func GoModules(t inventory.Tree) []string {
 	return out
 }
 
-// iacInputs are what the iac control reads in a tree: Terraform, Helm, Kubernetes and Dockerfiles.
+// iacInputs are what the iac control reads in a tree: what Trivy's misconfiguration scanners read.
 func iacInputs(t inventory.Tree) []string {
 	var out []string
 	out = append(out, t.Terraform...)
 	out = append(out, t.Helm...)
 	out = append(out, t.Kubernetes...)
 	out = append(out, t.Dockerfiles...)
+	out = append(out, t.CloudFormation...)
+	out = append(out, t.AzureARM...)
+	out = append(out, t.TerraformPlans...)
+	out = append(out, t.Ansible...)
 	return out
+}
+
+// servesInputs are the files that say a tree runs something reached over a network, which is what
+// a hosts entry declares.
+func servesInputs(t inventory.Tree) []string {
+	return append(slices.Clone(t.OpenAPI), t.Serves...)
 }
 
 // trivyUnreadNames are the distinct file names in TrivyUnread, for the reason a comment gives.
@@ -184,7 +194,13 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 	if len(t.Go) > 0 {
 		fmt.Fprintf(&b, "      gosec:\n        enabled: true     # Go-specific checks%s\n", note(PathList(GoModules(t))))
 	}
-	fmt.Fprintf(&b, "    iac:\n      enabled: true       # IaC misconfiguration (Trivy config)%s\n", note(PathList(iacInputs(t))))
+	// Turned on where Trivy has a file to read. Elsewhere the control runs and reads nothing, and a
+	// descriptor that enables it says something about the tree that is not so.
+	if inputs := iacInputs(t); len(inputs) > 0 {
+		fmt.Fprintf(&b, "    iac:\n      enabled: true       # IaC misconfiguration (Trivy config)%s\n", note(PathList(inputs)))
+	} else {
+		b.WriteString("    # iac:\n    #   enabled: true     # IaC misconfiguration (Trivy config). No Dockerfile, Terraform, Kubernetes or other infrastructure file found\n")
+	}
 	if len(t.Dockerfiles) > 0 {
 		b.WriteString("    # images:\n    #   enabled: true     # container CVEs (Trivy). Add your built image below\n")
 	}
@@ -222,12 +238,17 @@ func Model(t inventory.Tree, name string) (*saga.Model, error) {
 
 // writeSurfaceStubs comments out the images and hosts a component may declare, pre-filled from a
 // Dockerfile and an OpenAPI document where the tree holds one. images says whether the component
-// holds a Dockerfile of its own.
+// holds a Dockerfile of its own. The hosts stub is written only where a file says the tree serves
+// something, because a library has no address to put in it.
 func writeSurfaceStubs(b *strings.Builder, t inventory.Tree, name string, images bool) {
 	if images {
 		writeImageStub(b, name)
 	}
-	b.WriteString("    # hosts:            # for the headers/DAST controls\n")
+	serves := servesInputs(t)
+	if len(serves) == 0 {
+		return
+	}
+	fmt.Fprintf(b, "    # hosts:            # for the headers/DAST controls · something is served, per %s\n", PathList(serves))
 	b.WriteString("    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n")
 	if len(t.OpenAPI) > 0 {
 		fmt.Fprintf(b, "    #     spec:\n    #       path: ./%s\n", OneLine(t.OpenAPI[0]))

@@ -54,9 +54,9 @@ func TestSagaProposesAnImportForEachSARIFFile(t *testing.T) {
 		"    #   - control: sast   # CodeQL · .github/workflows/scan.yml\n" +
 		"    #     file: \"\"   # the step names no file · point it at where the CI writes one; an import reads a local file\n" +
 		"    #   - control: sca    # Trivy · .github/workflows/scan.yml\n" +
-		"    #     file: trivy.sarif   # not in the tree · point it at where the CI writes it; an import reads a local file\n" +
-		"    # hosts:"
-	if !strings.Contains(got, want) {
+		"    #     file: trivy.sarif   # not in the tree · point it at where the CI writes it; an import reads a local file\n"
+	// The proposals end the component: a tree that serves nothing gets no hosts stub after them.
+	if !strings.HasSuffix(got, want) {
 		t.Errorf("descriptor missing\n%s\nin\n%s", want, got)
 	}
 	if strings.Contains(got, "results.sarif") {

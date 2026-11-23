@@ -3,7 +3,7 @@
 proves: [sca.devDependencies]
 
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: js-npm-dev
       repositories: ["."]

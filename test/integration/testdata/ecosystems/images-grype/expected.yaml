@@ -3,7 +3,7 @@
 # distribution in it has an advisory in the sealed Grype database. Trivy is off, so the finding is
 # Grype's alone.
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: images-grype
       repositories: ["."]

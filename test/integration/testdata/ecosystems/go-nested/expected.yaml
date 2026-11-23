@@ -2,7 +2,7 @@
 # vulnerable Get and the tools module only calls Valid, so each finding carries its own module's
 # verdict.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sast.gosec]
   reachability: [govulncheck]
   components:
@@ -11,7 +11,7 @@ init:
   # --per-directory: a component for each directory with its own dependency file, carved
   # out of the root component.
   perDirectory:
-    controls: [sca, secrets, sast, iac]
+    controls: [sca, secrets, sast]
     scanners: [sast.gosec]
     reachability: [govulncheck]
     components:

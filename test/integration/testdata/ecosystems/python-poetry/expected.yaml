@@ -1,7 +1,7 @@
 # A sealed scan of the python-poetry scenario reports the one vulnerable dependency in the lockfile
 # Poetry generated, at the line of its own entry.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: python-poetry
       repositories: ["."]

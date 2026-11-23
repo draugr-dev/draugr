@@ -7,7 +7,7 @@ initScan:
   skip: the components and their paths are the subject, and init proposes one component for the repository
 
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: monorepo-js-workspaces
       repositories: ["."]
@@ -15,7 +15,7 @@ init:
   # descriptor declares. The members under packages/ hold a package.json and no lockfile, and stay
   # with the root whose lockfile resolves them.
   perDirectory:
-    controls: [iac, sast, sca, secrets]
+    controls: [sast, sca, secrets]
     components:
       - name: monorepo-js-workspaces
         repositories: ["."]

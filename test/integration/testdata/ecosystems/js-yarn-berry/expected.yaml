@@ -1,7 +1,7 @@
 # A sealed scan of the js-yarn-berry scenario reports the one vulnerable dependency in the lockfile
 # Yarn 4 generated, at the line of its own entry.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: js-yarn-berry
       repositories: ["."]

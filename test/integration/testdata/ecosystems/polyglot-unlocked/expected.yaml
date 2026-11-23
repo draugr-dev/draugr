@@ -3,14 +3,14 @@
 # golden report.json pins each under dependencyFiles with its reason; requirements.txt is the one
 # file read.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: polyglot-unlocked
       repositories: ["."]
   # --per-directory: a component for each directory with its own dependency file, carved
   # out of the root component.
   perDirectory:
-    controls: [sca, secrets, sast, iac]
+    controls: [sca, secrets, sast]
     components:
       - name: polyglot-unlocked
         repositories: ["."]

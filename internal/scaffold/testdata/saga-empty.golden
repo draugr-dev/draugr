@@ -9,13 +9,9 @@ config:
       enabled: true       # leaked credentials (Gitleaks)
     sast:
       enabled: true       # code security (Semgrep)
-    iac:
-      enabled: true       # IaC misconfiguration (Trivy config)
+    # iac:
+    #   enabled: true     # IaC misconfiguration (Trivy config). No Dockerfile, Terraform, Kubernetes or other infrastructure file found
 components:
   - name: shop
     repositories:
       - url: .
-    # hosts:            # for the headers/DAST controls
-    #   - name: api
-    #     url: https://api.example.com
-    #     type: api

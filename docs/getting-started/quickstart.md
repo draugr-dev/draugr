@@ -26,8 +26,8 @@ draugr scan .          # scans the current repo, no descriptor needed
 ```
 
 That's the whole path to a verdict. Nothing to write first. The scan reads the tree as
-`draugr init` does, so a `go.mod` adds `gosec` and `govulncheck` and copied JavaScript adds
-retire.js. The report's `FOUND` section lists each kind of file it read and what it turned on, and a
+`draugr init` does: a `go.mod` adds `gosec` and `govulncheck`, copied JavaScript adds retire.js,
+and a Dockerfile or Terraform adds `iac`, the infrastructure-code check. The report's `FOUND` section lists each kind of file it read and what it turned on, and a
 scanner that cannot run on this machine appears under `CAVEATS` with what it is missing. When you
 want to pick controls, add container images or endpoints, or classify components for
 prioritization, scaffold a descriptor:

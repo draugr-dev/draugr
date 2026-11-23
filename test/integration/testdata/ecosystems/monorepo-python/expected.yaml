@@ -7,13 +7,13 @@ initScan:
   skip: the components and their paths are the subject, and init proposes one component for the repository
 
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   scanners: [sca.grypeFs]
   components:
     - name: monorepo-python
       repositories: ["."]
   perDirectory:
-    controls: [iac, sast, sca, secrets]
+    controls: [sast, sca, secrets]
     scanners: [sca.grypeFs]
     components:
       - name: monorepo-python

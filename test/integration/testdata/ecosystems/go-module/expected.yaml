@@ -2,7 +2,7 @@
 # repo/main.go. govulncheck reads the Go advisories from the local database the harness writes,
 # and folds a verdict onto each of Trivy's findings rather than reporting its own.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sast.gosec]
   reachability: [govulncheck]
   components:

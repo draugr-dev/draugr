@@ -310,7 +310,7 @@ func TestRunScanZeroConfigDirectory(t *testing.T) {
 }
 
 func TestScanModelSynthesizesForDir(t *testing.T) {
-	dir := t.TempDir()
+	dir := withADockerfile(t)
 	m, synth, err := scanModel(dir)
 	if err != nil || !synth {
 		t.Fatalf("dir should synthesize: synth=%v err=%v", synth, err)

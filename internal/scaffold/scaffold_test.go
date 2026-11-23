@@ -98,8 +98,6 @@ func TestSagaPerDirectoryScopesEachPart(t *testing.T) {
 	want := "components:\n" +
 		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [services/api/, web/]\n" +
 		"    # images:\n    #   - image: myorg/shop:latest\n" +
-		"    # hosts:            # for the headers/DAST controls\n" +
-		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
 		"  - name: api\n    repositories:\n      - url: .\n        paths: [services/api]\n        ignore: [services/api/worker/]\n" +
 		"  - name: worker\n    repositories:\n      - url: .\n        paths: [services/api/worker]\n" +
 		"    # Unread · services/api/worker/package.json no lockfile · its packages are not checked\n" +
@@ -127,8 +125,6 @@ func TestSagaPerDirectoryPutsEachImageStubWithItsDockerfile(t *testing.T) {
 	got := scaffoldIn(t, files, true)
 	want := "components:\n" +
 		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [docs/, services/api/, services/worker/]\n" +
-		"    # hosts:            # for the headers/DAST controls\n" +
-		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
 		"  - name: docs\n    repositories:\n      - url: .\n        paths: [docs]\n" +
 		"    # Unread · docs/package.json no lockfile · its packages are not checked\n" +
 		"  - name: api\n    repositories:\n      - url: .\n        paths: [services/api]\n" +
@@ -184,8 +180,6 @@ func TestSagaPerDirectoryKeepsWorkspaceMembersWithTheirRoot(t *testing.T) {
 	got := scaffoldIn(t, files, true)
 	want := "components:\n" +
 		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [api/, web/]\n" +
-		"    # hosts:            # for the headers/DAST controls\n" +
-		"    #   - name: api\n    #     url: https://api.example.com\n    #     type: api\n" +
 		"  - name: api\n    repositories:\n      - url: .\n        paths: [api]\n" +
 		"  - name: web\n    repositories:\n      - url: .\n        paths: [web]\n"
 	if !strings.HasSuffix(got, want) {
@@ -561,5 +555,50 @@ func TestAPathCannotWriteIntoTheDescriptor(t *testing.T) {
 	}
 	if got := OneLine("web/static/jquery.min.js"); got != "web/static/jquery.min.js" {
 		t.Errorf("an ordinary path is changed: %q", got)
+	}
+}
+
+// A Go library with nothing else, the tree the field test found most often: iac is offered
+// commented out, since Trivy would read nothing, and no hosts stub is written, since nothing
+// serves. A CloudFormation template turns iac on and is named, and a Dockerfile that exposes a
+// port brings the hosts stub, naming the file that called for it.
+func TestSagaTurnsOnIaCAndOffersHostsOnlyWhereTheTreeCallsForThem(t *testing.T) {
+	t.Parallel()
+	library := map[string]string{"go.mod": "module nolint\n", "main.go": "package nolint\n"}
+	for name, tc := range map[string]struct {
+		files     map[string]string
+		want, not []string
+	}{
+		"a Go library": {
+			files: library,
+			want:  []string{"    # iac:\n    #   enabled: true     # IaC misconfiguration (Trivy config). No Dockerfile, Terraform, Kubernetes or other infrastructure file found\n"},
+			not:   []string{"    iac:\n", "hosts:"},
+		},
+		"a CloudFormation template": {
+			files: map[string]string{"go.mod": "module nolint\n",
+				"stack.yaml": "Resources:\n  Bucket:\n    Type: AWS::S3::Bucket\n"},
+			want: []string{"    iac:\n      enabled: true       # IaC misconfiguration (Trivy config) · stack.yaml\n"},
+			not:  []string{"# iac:", "hosts:"},
+		},
+		"a Dockerfile that exposes a port": {
+			files: map[string]string{"go.mod": "module nolint\n", "Dockerfile": "FROM scratch\nEXPOSE 8080\n"},
+			want: []string{"    iac:\n      enabled: true       # IaC misconfiguration (Trivy config) · Dockerfile\n",
+				"    # hosts:            # for the headers/DAST controls · something is served, per Dockerfile\n    #   - name: api\n"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			got := scaffoldIn(t, tc.files, false)
+			for _, w := range tc.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("missing %q in:\n%s", w, got)
+				}
+			}
+			for _, n := range tc.not {
+				if strings.Contains(got, n) {
+					t.Errorf("holds %q:\n%s", n, got)
+				}
+			}
+		})
 	}
 }

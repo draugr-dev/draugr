@@ -2,7 +2,7 @@
 # dependencyFiles as having no lockfile, so its flask 0.12.2 is reported unchecked rather than
 # passed.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: python-poetry-unlocked
       repositories: ["."]
