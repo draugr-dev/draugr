@@ -258,13 +258,14 @@ func TestARefusalWithNoDaemonReachableNamesBothCauses(t *testing.T) {
 	r.DaemonUnreachable = true
 	out := renderWith(t, consoleReporter{}, run(r))
 	for _, want := range []string{"docker login", "then scan again", "built here and never pushed",
-		"no Docker daemon was reachable", "push the image first", "-v /var/run/docker.sock:/var/run/docker.sock"} {
+		"no Docker daemon was reachable", "push it to a registry the scan can reach",
+		"control of this machine:", "-v /var/run/docker.sock:/var/run/docker.sock"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
 	page := renderWith(t, htmlReporter{}, run(r))
-	for _, want := range []string{"docker login", "no Docker daemon was reachable", "/var/run/docker.sock"} {
+	for _, want := range []string{"docker login", "no Docker daemon was reachable", "full control of this machine", "/var/run/docker.sock"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page is missing %q", want)
 		}

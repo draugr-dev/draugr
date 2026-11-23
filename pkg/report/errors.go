@@ -677,6 +677,7 @@ func writeErrors(w io.Writer, col tui.Painter, d Data) {
 		}
 		if g.noDaemon {
 			writeAdvice(w, col, noDaemonAdvice)
+			writeAdvice(w, col, socketAdvice)
 			_, _ = fmt.Fprintf(w, "  %s\n", col.Paint(cAccent, socketMount))
 		}
 	}

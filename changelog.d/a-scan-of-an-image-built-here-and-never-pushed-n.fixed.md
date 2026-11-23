@@ -1,1 +1,1 @@
-- **A scan of an image built here and never pushed now says so when no Docker daemon is reachable.** With no credential held, Errors names that cause beside the login line: push the image, or mount the daemon's socket into the container the scan runs in.
+- **A scan of an image built here and never pushed now says why when no Docker daemon is reachable.** Errors suggests pushing the image to a registry the scan can reach, or mounting the daemon's socket, which gives the scan's container full control of the host.

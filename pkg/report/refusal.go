@@ -38,11 +38,18 @@ const localAdvice = "in the local Docker daemon only, and Grype reads registries
 
 // noDaemonAdvice is the line said once under a registry that refused images with no credential where
 // no Docker daemon answered: the second cause, and its fix, beside the login line.
-const noDaemonAdvice = "or, if the image was built here and never pushed, no Docker daemon was reachable " +
-	"to read it from: push the image first, or mount the daemon's socket into the scan's container"
+const noDaemonAdvice = "If the image was built here and never pushed, no Docker daemon was reachable to " +
+	"read it. Either push it to a registry the scan can reach (one on localhost works)"
+
+// socketAdvice is the second way to read such an image, said after the push because it costs more
+// than it looks: whatever runs in a container holding the daemon's socket can start containers on
+// the host as root. Said in the line that offers it, because an error message is where a command
+// is copied from without reading anything around it.
+const socketAdvice = "or mount the daemon's socket into the scan's container. That gives anything " +
+	"running in it full control of this machine:"
 
 // socketMount is the docker run flag that mounts the daemon's socket, printed on a line of its own
-// under noDaemonAdvice so a terminal never wraps it in two.
+// under socketAdvice so a terminal never wraps it in two.
 const socketMount = "-v /var/run/docker.sock:/var/run/docker.sock"
 
 // registryRefusal reports whether a target is an image its registry refused to serve, and the
@@ -120,7 +127,7 @@ func htmlUnreachedTargets(d Data) (regs []htmlRegistry, rest []htmlUnreached, co
 			r.Local = localAdvice
 		}
 		if g.noDaemon {
-			r.NoDaemon, r.Mount = noDaemonAdvice, socketMount
+			r.NoDaemon, r.Socket, r.Mount = noDaemonAdvice, socketAdvice, socketMount
 		}
 		for _, m := range g.images {
 			r.Images = append(r.Images, htmlUnreached{Kind: m.Kind, Name: inRegistry(m.Target, g.host), Full: m.Target,

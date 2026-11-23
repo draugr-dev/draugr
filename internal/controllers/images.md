@@ -38,10 +38,16 @@ See [Substitution](../../docs/reference/saga-schema.md#substitution).
 
 ### From inside a container
 
-A scan that runs in a container, such as a CI job that runs in a container image, reaches the daemon
-only through a socket mounted into that container. Mount it with
-`-v /var/run/docker.sock:/var/run/docker.sock`; Trivy reads the image through it, with no `docker`
-CLI installed in the container. Where the socket is elsewhere, set `DOCKER_HOST` to it, such as
+A scan that runs in a container, such as a CI job that runs in a container image, cannot see the
+daemon that built the image. Push the image to a registry the scan can reach before scanning it. A
+registry on `localhost`, such as a CI service container, is enough, and the image need not leave
+the runner.
+
+The other way is to mount the daemon's socket into the scan's container, with
+`-v /var/run/docker.sock:/var/run/docker.sock`. Trivy then reads the image through it, with no
+`docker` CLI installed in the container. Anything that runs in that container can then control
+every container on the host and gain root on it, so mount it only into a container you would trust
+with the host itself. Where the socket is elsewhere, set `DOCKER_HOST` to it, such as
 `unix:///run/user/1000/docker.sock` for a rootless daemon.
 
 Without a daemon, Trivy asks the registry, and Docker Hub answers `401 unauthorized` for an image it
