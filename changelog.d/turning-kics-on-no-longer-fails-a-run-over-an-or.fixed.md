@@ -1,1 +1,0 @@
-- **Turning KICS on no longer fails a run over an ordinary comment.** A manifest or Dockerfile with a plain `#` comment and no `kics-scan` comment was reported as having lines KICS ignored, which failed a descriptor with `failOnCaveats: [unread-files]`. A file holding a `kics-scan` comment is still named as not checked by KICS.

@@ -1,1 +1,0 @@
-- **A Dependabot alert and your own scanner's finding of the same flaw now count once.** Where both name the same advisory, package and manifest, and the installed version is inside the versions the alert says are affected, the higher-priority copy counts and the other is listed as also found by. Before, each such advisory counted twice.

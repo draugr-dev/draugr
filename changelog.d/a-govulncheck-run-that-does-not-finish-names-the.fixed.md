@@ -1,1 +1,0 @@
-- **A govulncheck run that does not finish names the modules it left unchecked.** When govulncheck is killed, usually for lack of memory, or fails partway, the scan still fails, and every `go.mod` it was given is now listed as unread with the reason. `failOnCaveats: [unread-files]` reads them like any other unread file.

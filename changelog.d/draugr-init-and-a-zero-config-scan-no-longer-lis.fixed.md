@@ -1,1 +1,0 @@
-- **`draugr init` and a zero-config scan no longer list a Dockerfile's own ignore file as a Dockerfile.** `Dockerfile.agent.dockerignore` stays out of the Dockerfile row under FOUND and out of the count before `+N`.
