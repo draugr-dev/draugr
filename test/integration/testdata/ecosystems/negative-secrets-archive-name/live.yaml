@@ -7,3 +7,7 @@
 files:
   - file: config/aws.env
     foundBy: [secrets/gitleaks]
+  - file: notes.zip.txt
+    foundBy: [secrets/gitleaks]
+  - file: release.brief.md
+    foundBy: [secrets/gitleaks]

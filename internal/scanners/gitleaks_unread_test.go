@@ -49,10 +49,11 @@ func gitleaksTreeScanner(dir string, log []byte, calls *[]string) repoScanner {
 	return s
 }
 
-// Every file Gitleaks skipped as an archive is named unread, at its path in its own repository,
-// whatever else the name holds: a real zip, a text file whose name only contains `.zip`, and a path
-// with a space. Two repositories holding the same path, because the path alone would name one file
-// where there are two.
+// Every file Gitleaks skipped as an archive and that is not text is named unread, at its path in its
+// own repository, whatever else the name holds: a real zip, a binary file whose name only contains
+// `.zip`, and a path with a space. Two repositories holding the same path, because the path alone
+// would name one file where there are two. A text file so named is read instead (see
+// gitleaks_named_test.go).
 func TestGitleaksNamesTheFilesItSkippedAsArchives(t *testing.T) {
 	cases := []struct {
 		repo, log string
@@ -62,15 +63,15 @@ func TestGitleaksNamesTheFilesItSkippedAsArchives(t *testing.T) {
 		repo: "./api",
 		log:  "gitleaks-skipped-archives.log",
 		files: map[string]string{
-			"README.md": "# Service\n", "notes.zip.txt": "note\n", "bundle.zip": "PK",
-			"docs/release notes.tar.md": "note\n",
+			"README.md": "# Service\n", "notes.zip.txt": "note\x00", "bundle.zip": "PK\x03\x04\x00",
+			"docs/release notes.tar.md": "note\x00",
 		},
 		want: []string{"bundle.zip", "docs/release notes.tar.md", "notes.zip.txt"},
 	}, {
 		// Nothing read and one file named: the file is the answer, and the tree is not named too.
 		repo:  "./web",
 		log:   "gitleaks-only-archive.log",
-		files: map[string]string{"notes.zip.txt": "note\n"},
+		files: map[string]string{"notes.zip.txt": "note\x00"},
 		want:  []string{"notes.zip.txt"},
 	}}
 	var reports []sarif.Report
@@ -187,7 +188,7 @@ func TestGitleaksTreeReportsAFailedPass(t *testing.T) {
 
 // NewGitleaks runs the tree pass through the exec that keeps secrets out of Draugr's log.
 func TestGitleaksTreeRunsThroughTheFilteredExec(t *testing.T) {
-	dir := writeTree(t, map[string]string{"notes.zip.txt": "note\n"})
+	dir := writeTree(t, map[string]string{"notes.zip.txt": "note\x00"})
 	prev := gitleaksExec
 	t.Cleanup(func() { gitleaksExec = prev })
 	var ran int
