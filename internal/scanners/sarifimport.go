@@ -326,6 +326,14 @@ func (s sarifImport) bind(ctx context.Context, ft plugin.FileTarget, meta import
 					ft.Path, short(vcp.RevisionID), short(declared))
 			}
 			repo, ok := matchRepository(vcp.RepositoryURI, ft.Repositories)
+			if !ok && vcp.RepositoryURI == "" {
+				names := make([]string, len(ft.Repositories))
+				for i, r := range ft.Repositories {
+					names[i] = repoName(r.URL)
+				}
+				return "", fmt.Errorf("%s: names no repository, and component %s has several: %s",
+					ft.Path, ft.Component, strings.Join(slices.Compact(names), ", "))
+			}
 			if !ok {
 				// The repository by name, not by address: the report's errors block keeps the last
 				// clause of an error and cannot show one that is mostly a URL.
@@ -615,11 +623,6 @@ func repositoryOf(named []string, repos []plugin.RepositoryTarget) (plugin.Repos
 	if len(named) == 1 {
 		uri = named[0]
 	}
-	// Checked before matching: an empty address would be matched by name against a repository
-	// declared as ".".
-	if uri == "" && !singleCheckout(repos) {
-		return plugin.RepositoryTarget{}, false
-	}
 	return matchRepository(uri, repos)
 }
 
@@ -652,6 +655,11 @@ func matchRepository(uri string, repos []plugin.RepositoryTarget) (plugin.Reposi
 	}
 	if len(distinct) == 1 {
 		return repos[0], true
+	}
+	// No address names no repository. Matched by name, it would read as ".", the name of a
+	// repository declared by its local path.
+	if uri == "" {
+		return plugin.RepositoryTarget{}, false
 	}
 	want := repoName(uri)
 	for _, r := range repos {

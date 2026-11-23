@@ -158,6 +158,11 @@ func TestSARIFImportHoldsAFileToTheRevisionScanned(t *testing.T) {
 		{"one of two repositories, by name", two, vcp("git@github.com:acme/web.git", head), "0123456789ab", false},
 		{"one repository listed per subtree", subtrees, vcp("https://github.com/acme/demo", head), "0123456789ab", false},
 		{"a repository the component does not declare", two, vcp("https://github.com/acme/other", head), "names repository other, which component api does not declare", true},
+		// A provenance with a revision and no address names no repository, so it binds only where the
+		// component has one, and is never matched by name to a repository declared as ".".
+		{"no address, one repository", one, vcp("", head), "0123456789ab", false},
+		{"no address, '.' and another", []plugin.RepositoryTarget{{URL: "."}, {URL: "https://github.com/acme/tools"}},
+			vcp("", head), "names no repository, and component api has several: ., tools", true},
 		{"a revision that cannot be resolved", []plugin.RepositoryTarget{{URL: "./broken"}}, vcp("x", head), "could not be resolved", true},
 	} {
 		ft := plugin.FileTarget{Path: writeFile(t, exampleLog(scoredResult, c.extra)), Component: "api", Repositories: c.repos}

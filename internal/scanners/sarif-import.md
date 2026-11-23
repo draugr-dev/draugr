@@ -557,7 +557,9 @@ than failing the load.
 A component with one repository is held to it whatever address the file gives, because a tool
 records the remote it saw and the descriptor may name the same repository by a local path. Entries
 that list one repository at one revision, a subtree each, count as one. With several distinct
-repositories, the address has to name one of them. The import's `commit` names no repository, so
+repositories, the address has to name one of them, and a file that states a commit with no address
+stops the run, as `names no repository, and component api has several: ., tools`. Add
+`repositoryUri` to the file's `versionControlProvenance`. The import's `commit` names no repository, so
 with several it is held to the one the file's `repositoryUri` names, and a file that names none of
 them, or more than one, stays unbound.
 
