@@ -57,13 +57,27 @@ func (zc *zeroConfig) turnOffUnrunnable(reg *engine.Registry, scope engine.Scope
 			continue
 		}
 		turnOff(zc.model, u.Info)
-		zc.turnedOff = append(zc.turnedOff, u.Info.Name)
+		keys := foundKeys(u, base)
+		zc.turnedOff = append(zc.turnedOff, keys...)
 		out = append(out, report.Unexamined{
-			Component: zc.model.Components[0].Name, Files: foundFiles(rows, u.Info.Name),
-			Paths: foundPaths(rows, u.Info.Name), Why: why,
+			Component: zc.model.Components[0].Name, Files: foundFiles(rows, keys...),
+			Paths: foundPaths(rows, keys...), Why: why,
 		})
 	}
 	return out
+}
+
+// foundKeys are the names a FOUND row may give for what turned a scanner on: the scanner's own, and
+// each of its controls the base leaves off, which only the tree can have turned on. A row names iac
+// for an infrastructure file, and trivy-config is the scanner iac runs.
+func foundKeys(u needs.Use, base *saga.Model) []string {
+	keys := []string{u.Info.Name}
+	for _, c := range u.Controls {
+		if !base.Config.ControllerEnabled(c) {
+			keys = append(keys, c)
+		}
+	}
+	return keys
 }
 
 // cannotRun says what this machine lacks to run the scanner, or "" when it lacks nothing: the

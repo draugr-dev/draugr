@@ -7,14 +7,14 @@ initScan:
   skip: the components and their paths are the subject, and init proposes one component for the repository
 
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   scanners: [sast.gosec]
   reachability: [govulncheck]
   components:
     - name: monorepo-go-reachability
       repositories: ["."]
   perDirectory:
-    controls: [iac, sast, sca, secrets]
+    controls: [sast, sca, secrets]
     scanners: [sast.gosec]
     reachability: [govulncheck]
     components:

@@ -149,7 +149,7 @@ func TestEveryScannerTheTreeChoosesHasAFoundRow(t *testing.T) {
 			continue
 		}
 		chosen++
-		if foundFiles(rows, u.Info.Name) == "" {
+		if foundFiles(rows, foundKeys(u, base)...) == "" {
 			t.Errorf("%s runs because of the tree, and no FOUND row names it", u.Info.Name)
 		}
 	}
@@ -196,8 +196,15 @@ func TestZeroConfigTurnsOffWhatCannotRunHere(t *testing.T) {
 			want:    []string{"checkout/go.mod: gosec needs Go"},
 			off:     []string{"gosec"},
 		},
-		"a base scanner missing": {missing: []string{"trivy", "semgrep"}},
-		"everything here":        {},
+		"a base scanner missing": {missing: []string{"semgrep"}},
+		// trivy-config runs because the tree holds infrastructure code, so it is turned off and
+		// named, while trivy-fs, which sca runs on any tree, is left to fail its control.
+		"trivy missing": {
+			missing: []string{"trivy", "semgrep"},
+			want:    []string{"deploy/terraform · app/Dockerfile: trivy not installed · draugr tools install trivy"},
+			off:     []string{"trivy-config"},
+		},
+		"everything here": {},
 	} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()

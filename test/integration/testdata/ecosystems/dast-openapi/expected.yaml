@@ -5,7 +5,7 @@
 # the scan runs is home/nuclei-templates/sealed, and the response it matches is served/items. It is
 # a fuzzing template, so the scan's first run, the default templates at the URL, has none to run.
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   specs: [./openapi.yaml]
   components:
     - name: dast-openapi

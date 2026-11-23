@@ -8,7 +8,7 @@
 proves: [trivy-fs.resolveMaven]
 
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: jvm-maven-repository
       repositories: ["."]

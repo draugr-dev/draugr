@@ -7,7 +7,7 @@
 # and its reasons, because the unread entry then disappears while every unit test still passes. It
 # also fails if a release scans the file, which reports the eval on its second line.
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: negative-semgrep-oversize
       repositories: ["."]

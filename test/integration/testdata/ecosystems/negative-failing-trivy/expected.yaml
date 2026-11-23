@@ -1,7 +1,7 @@
 # Trivy exits 2 with a message. The control reports the exit status and the message rather than
 # passing with no findings.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: negative-failing-trivy
       repositories: ["."]
@@ -12,11 +12,3 @@ sealed:
 errors:
   - control: sca
     contains: "exit status 2: sealed fixture: this program failed on purpose"
-
-# init enables iac as well, which Trivy also serves, and it reports the failure the same way.
-initScan:
-  errors:
-    - control: sca
-      contains: "exit status 2: sealed fixture: this program failed on purpose"
-    - control: iac
-      contains: "exit status 2: sealed fixture: this program failed on purpose"

@@ -11,9 +11,7 @@ package inventory
 
 import (
 	"bytes"
-	"io"
 	"io/fs"
-	"os"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -41,7 +39,7 @@ type Tree struct {
 	Go []string
 	// VendoredJS are JavaScript files committed as copies of a library rather than written here.
 	VendoredJS []string
-	// Terraform are the directories holding a .tf file.
+	// Terraform are the directories holding Terraform or OpenTofu code or variables.
 	Terraform []string
 	// Kubernetes are manifests outside a Helm chart.
 	Kubernetes []string
@@ -49,8 +47,20 @@ type Tree struct {
 	Helm []string
 	// Dockerfiles are the files an image is built from.
 	Dockerfiles []string
+	// CloudFormation are AWS CloudFormation templates.
+	CloudFormation []string
+	// AzureARM are Azure Resource Manager templates.
+	AzureARM []string
+	// TerraformPlans are Terraform plans written as JSON.
+	TerraformPlans []string
+	// Ansible are the entries that make a directory an Ansible project to Trivy: an ansible.cfg, an
+	// inventory, group_vars, host_vars, roles or playbooks, or a playbook.
+	Ansible []string
 	// OpenAPI are OpenAPI and Swagger documents.
 	OpenAPI []string
+	// Serves are the files that say the tree runs something reached over a network: a Dockerfile
+	// that exposes a port, a Kubernetes Service or Ingress, and a Compose file that publishes ports.
+	Serves []string
 	// Parts are the directories below the root that hold their own dependency file or go.mod, the
 	// units a monorepo is made of. A JavaScript workspace member, a directory the root package.json
 	// or pnpm-workspace.yaml names, is not one by its package.json alone: the lockfile at the
@@ -116,11 +126,20 @@ func Read(root string) Tree {
 			if p != root && slices.Contains(skipDirs, d.Name()) {
 				return filepath.SkipDir
 			}
+			if p == root {
+				return nil
+			}
+			rel, err := filepath.Rel(root, p)
+			if err != nil {
+				return nil //nolint:nilerr // outside the root cannot happen under WalkDir
+			}
+			rel = filepath.ToSlash(rel)
 			// Recorded and still walked: a Dockerfile under tests/ is still something iac reads.
-			if p != root && nonshipping.DirKind(d.Name()) != "" {
-				if rel, err := filepath.Rel(root, p); err == nil {
-					nonShipping = append(nonShipping, filepath.ToSlash(rel))
-				}
+			if nonshipping.DirKind(d.Name()) != "" {
+				nonShipping = append(nonShipping, rel)
+			}
+			if isAnsibleAnchor(rel) {
+				t.Ansible = append(t.Ansible, rel)
 			}
 			return nil
 		}
@@ -133,6 +152,9 @@ func Read(root string) Tree {
 		}
 		rel = filepath.ToSlash(rel)
 		base := d.Name()
+		if isAnsibleAnchor(rel) {
+			t.Ansible = append(t.Ansible, rel)
+		}
 		switch {
 		case base == "go.mod":
 			// Found here rather than taken from Dependencies: manifests leaves out a go.mod that
@@ -143,9 +165,12 @@ func Read(root string) Tree {
 			}
 		case isDockerfile(base):
 			t.Dockerfiles = append(t.Dockerfiles, rel)
+			if exposes(readUpTo(p, dockerfileBytes)) {
+				t.Serves = append(t.Serves, rel)
+			}
 		case base == "Chart.yaml":
 			helm[path.Dir(rel)] = true
-		case strings.HasSuffix(base, ".tf"):
+		case isTerraform(base):
 			terraform[path.Dir(rel)] = true
 		case strings.HasSuffix(base, ".sarif"):
 			sarifs = append(sarifs, rel)
@@ -182,15 +207,39 @@ func Read(root string) Tree {
 	t.Parts = sortedKeys(parts)
 
 	for _, rel := range yamls {
-		head := readHead(filepath.Join(root, filepath.FromSlash(rel)))
+		data := readUpTo(filepath.Join(root, filepath.FromSlash(rel)), sniffBytes)
+		head := data[:min(len(data), headBytes)]
 		switch {
 		case isOpenAPI(rel, head):
 			t.OpenAPI = append(t.OpenAPI, rel)
 		case isKubernetes(rel, head) && !insideAny(rel, t.Helm):
 			t.Kubernetes = append(t.Kubernetes, rel)
+		default:
+			switch iacKind(rel, data) {
+			case kindCloudFormation:
+				t.CloudFormation = append(t.CloudFormation, rel)
+			case kindAzureARM:
+				t.AzureARM = append(t.AzureARM, rel)
+			case kindTerraformPlan:
+				t.TerraformPlans = append(t.TerraformPlans, rel)
+			case kindKubernetes:
+				if !insideAny(rel, t.Helm) {
+					t.Kubernetes = append(t.Kubernetes, rel)
+				}
+			case kindAnsible:
+				t.Ansible = append(t.Ansible, rel)
+			}
+		}
+		if !strings.HasSuffix(rel, ".json") && (declaresService(data) || isCompose(path.Base(rel)) && publishesPorts(data)) {
+			t.Serves = append(t.Serves, rel)
 		}
 	}
 	slices.Sort(t.Dockerfiles)
+	slices.Sort(t.CloudFormation)
+	slices.Sort(t.AzureARM)
+	slices.Sort(t.TerraformPlans)
+	slices.Sort(t.Ansible)
+	slices.Sort(t.Serves)
 	slices.Sort(t.VendoredJS)
 	slices.Sort(t.OpenAPI)
 	slices.Sort(t.Kubernetes)
@@ -220,10 +269,15 @@ func outermost(dirs []string) []string {
 	return out
 }
 
-// isDockerfile matches Dockerfile, Dockerfile.prod, api.Dockerfile and Containerfile.
+// isDockerfile matches the names Trivy reads as a Dockerfile: Dockerfile, Dockerfile.prod,
+// api.Dockerfile and api.dockerfile, and the same with Containerfile.
 func isDockerfile(base string) bool {
-	return base == "Dockerfile" || base == "Containerfile" ||
-		strings.HasPrefix(base, "Dockerfile.") || strings.HasSuffix(base, ".Dockerfile")
+	for _, name := range []string{"Dockerfile", "Containerfile"} {
+		if base == name || strings.HasPrefix(base, name+".") || strings.EqualFold(path.Ext(base), "."+name) {
+			return true
+		}
+	}
+	return false
 }
 
 // isVendoredJS reports whether a .js file is a copy of a library: minified, named for a release,
@@ -273,16 +327,6 @@ func insideAny(rel string, dirs []string) bool {
 		}
 	}
 	return false
-}
-
-func readHead(p string) []byte {
-	f, err := os.Open(p) // #nosec G304 -- a file under the tree being initialized
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = f.Close() }()
-	head, _ := io.ReadAll(io.LimitReader(f, headBytes))
-	return head
 }
 
 func sortedKeys(m map[string]bool) []string {

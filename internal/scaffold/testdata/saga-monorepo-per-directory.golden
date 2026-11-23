@@ -24,10 +24,6 @@ components:
     repositories:
       - url: .
         ignore: [services/api/, web/]
-    # hosts:            # for the headers/DAST controls
-    #   - name: api
-    #     url: https://api.example.com
-    #     type: api
   - name: api
     repositories:
       - url: .

@@ -13,8 +13,8 @@ config:
       enabled: true       # code security (Semgrep)
       gosec:
         enabled: true     # Go-specific checks · go.mod
-    iac:
-      enabled: true       # IaC misconfiguration (Trivy config)
+    # iac:
+    #   enabled: true     # IaC misconfiguration (Trivy config). No Dockerfile, Terraform, Kubernetes or other infrastructure file found
 components:
   - name: shop
     repositories:
@@ -30,7 +30,3 @@ components:
     #     file: ""   # the step names no file · point it at where the CI writes one; an import reads a local file
     #   - control: sca    # Trivy · .github/workflows/scan.yml
     #     file: trivy.sarif   # not in the tree · point it at where the CI writes it; an import reads a local file
-    # hosts:            # for the headers/DAST controls
-    #   - name: api
-    #     url: https://api.example.com
-    #     type: api

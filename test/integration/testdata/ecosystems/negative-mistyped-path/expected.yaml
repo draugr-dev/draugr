@@ -10,7 +10,7 @@ initScan:
   skip: a mistyped path is the subject, and init proposes one component for the repository with no paths
 
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: negative-mistyped-path
       repositories: ["."]

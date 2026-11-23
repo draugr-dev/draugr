@@ -28,7 +28,3 @@ components:
     # `draugr init --per-directory` writes a component for each.
     # images:
     #   - image: myorg/shop:latest
-    # hosts:            # for the headers/DAST controls
-    #   - name: api
-    #     url: https://api.example.com
-    #     type: api

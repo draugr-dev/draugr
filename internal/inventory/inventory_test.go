@@ -1,9 +1,11 @@
 package inventory
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/manifests"
@@ -242,4 +244,87 @@ func paths(files []manifests.File) []string {
 		out[i] = f.Path
 	}
 	return out
+}
+
+// cfnParameters pushes a CloudFormation template's Resources past the head read to name an OpenAPI
+// document, as a long Parameters section does.
+var cfnParameters = func() string {
+	var b strings.Builder
+	b.WriteString("Parameters:\n")
+	for i := range 80 {
+		fmt.Fprintf(&b, "  Param%d: {Type: String, Description: a parameter the template takes}\n", i)
+	}
+	return b.String()
+}()
+
+// The infrastructure code Trivy's default misconfiguration scanners read is found, each kind in its
+// own field, and the files that look like it and are not are left out.
+func TestReadFindsTheInfrastructureTrivyReads(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	write(t, root, map[string]string{
+		"cfn/stack.yaml": "AWSTemplateFormatVersion: '2010-09-09'\n" + cfnParameters +
+			"Resources:\n  Bucket:\n    Type: AWS::S3::Bucket\n    Properties:\n      BucketName: !Ref Param0\n",
+		"cfn/stack.json":     `{"Resources": {"Bucket": {"Type": "AWS::S3::Bucket"}}}`,
+		"azure/main.json":    `{"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#", "resources": [{"type": "Microsoft.Storage/storageAccounts"}]}`,
+		"azure/comment.json": "{\n  // a comment, which ARM allows\n  \"$schema\": \"https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#\",\n  \"parameters\": {\"name\": {\"type\": \"string\"}}\n}\n",
+		"azure/ui.json":      `{"$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#", "handler": "Microsoft.Azure.CreateUIDef", "parameters": {"basics": []}}`,
+		"plan/tfplan.json":   `{"format_version": "1.2", "terraform_version": "1.9.0", "planned_values": {}}`,
+		"k8s/service.json":   `{"apiVersion": "v1", "kind": "Service", "metadata": {"name": "web"}}`,
+		"tf/vars.tfvars":     "region = \"us-east-1\"\n",
+		"tf/main.tf.json":    `{"resource": {}}`,
+		"tofu/main.tofu":     "",
+		"ops/ansible.cfg":    "[defaults]\n",
+		"ops/site.yml":       "- hosts: web\n  tasks:\n    - name: ping\n      ping:\n",
+		"play/deploy.yaml":   "---\n# deploy the app\n- name: deploy\n  hosts: all\n  roles: [app]\n",
+		"lists/steps.yaml":   "- name: a list item that is no play\n  run: make\n",
+		"settings/app.yaml":  "resources:\n  cpu: 1\n",
+		"package.json":       `{"name": "shop", "Resources": "not an object"}`,
+		"svc/app.dockerfile": "FROM scratch\n",
+		"Containerfile.prod": "FROM scratch\n",
+	})
+	if err := os.MkdirAll(filepath.Join(root, "infra", "group_vars"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	got := Read(root)
+
+	for _, c := range []struct {
+		field     string
+		got, want []string
+	}{
+		{"CloudFormation", got.CloudFormation, []string{"cfn/stack.json", "cfn/stack.yaml"}},
+		{"AzureARM", got.AzureARM, []string{"azure/comment.json", "azure/main.json"}},
+		{"TerraformPlans", got.TerraformPlans, []string{"plan/tfplan.json"}},
+		{"Kubernetes", got.Kubernetes, []string{"k8s/service.json"}},
+		{"Terraform", got.Terraform, []string{"tf", "tofu"}},
+		{"Ansible", got.Ansible, []string{"infra/group_vars", "ops/ansible.cfg", "ops/site.yml", "play/deploy.yaml"}},
+		{"Dockerfiles", got.Dockerfiles, []string{"Containerfile.prod", "svc/app.dockerfile"}},
+	} {
+		if !slices.Equal(c.got, c.want) {
+			t.Errorf("%s = %q, want %q", c.field, c.got, c.want)
+		}
+	}
+}
+
+// What says a tree serves something: a Dockerfile that exposes a port, a Kubernetes Service or
+// Ingress (a Helm template's included), and a Compose file that publishes a port. A Dockerfile,
+// a Deployment and a Compose file without those do not.
+func TestReadFindsWhatSaysTheTreeServes(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	write(t, root, map[string]string{
+		"api/Dockerfile":                      "FROM golang:1.26\nexpose 8080/tcp\n",
+		"worker/Dockerfile":                   "FROM golang:1.26\n# EXPOSE nothing; a comment is no instruction\n",
+		"deploy/k8s/web.yaml":                 deployment + "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: web\n",
+		"deploy/k8s/job.yaml":                 deployment,
+		"deploy/chart/Chart.yaml":             "apiVersion: v2\nname: web\n",
+		"deploy/chart/templates/ingress.yaml": "{{- if .Values.ingress.enabled }}\napiVersion: networking.k8s.io/v1\nkind: Ingress\n",
+		"compose.yaml":                        "services:\n  web:\n    image: shop\n    ports:\n      - \"8080:8080\"\n",
+		"docker-compose.test.yml":             "services:\n  db:\n    image: postgres\n",
+	})
+	want := []string{"api/Dockerfile", "compose.yaml", "deploy/chart/templates/ingress.yaml", "deploy/k8s/web.yaml"}
+	if got := Read(root).Serves; !slices.Equal(got, want) {
+		t.Errorf("Serves = %q, want %q", got, want)
+	}
 }

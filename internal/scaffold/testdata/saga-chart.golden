@@ -21,7 +21,3 @@ components:
           # - "**/testdata"   # tests · internal/render/testdata · internal/values/testdata
           # - docs/           # documentation
           # - tests/          # tests
-    # hosts:            # for the headers/DAST controls
-    #   - name: api
-    #     url: https://api.example.com
-    #     type: api

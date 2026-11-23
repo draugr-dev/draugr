@@ -130,9 +130,10 @@ func newScanCommand() *cobra.Command {
 			"pass/fail evidence. Exits non-zero when the policy verdict is fail.\n\n" +
 			"Zero-config: with no Saga, point it at a directory (or omit the argument for the\n" +
 			"current one). Draugr scans that repository with " + ZeroConfigControls() + ",\n" +
-			"plus the scanners `draugr init` would enable for its files, such as gosec and\n" +
-			"govulncheck for a go.mod. The report's FOUND section lists what it read, and a\n" +
-			"scanner the tree calls for that cannot run here is reported as a not-checked caveat.\n\n" +
+			"plus the controls and scanners `draugr init` would enable for its files, such as\n" +
+			"iac for a Dockerfile or Terraform, and gosec and govulncheck for a go.mod. The\n" +
+			"report's FOUND section lists what it read, and a scanner the tree calls for that\n" +
+			"cannot run here is reported as a not-checked caveat.\n\n" +
 			"Answers you give every time, the cache, scanner builds, how you like the report,\n" +
 			"belong in draugr.config.yaml rather than on this command line. `draugr config show`\n" +
 			"prints what is in effect and where each setting came from.",

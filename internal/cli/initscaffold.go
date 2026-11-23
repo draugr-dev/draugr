@@ -117,6 +117,18 @@ func foundRows(t inventory.Tree) []foundRow {
 		rows = append(rows, foundRow{kind: "Dockerfile", paths: t.Dockerfiles, on: iac,
 			commented: "images", off: "images"})
 	}
+	if len(t.CloudFormation) > 0 {
+		rows = append(rows, foundRow{kind: "CloudFormation", paths: t.CloudFormation, on: iac})
+	}
+	if len(t.AzureARM) > 0 {
+		rows = append(rows, foundRow{kind: "Azure ARM", paths: t.AzureARM, on: iac})
+	}
+	if len(t.TerraformPlans) > 0 {
+		rows = append(rows, foundRow{kind: "Terraform plan", paths: t.TerraformPlans, on: iac})
+	}
+	if len(t.Ansible) > 0 {
+		rows = append(rows, foundRow{kind: "Ansible", paths: t.Ansible, on: iac})
+	}
 	if len(t.OpenAPI) > 0 {
 		// The scaffold comments out a host whose spec is this document, and dast is the control that
 		// reads a host's spec.
@@ -147,11 +159,11 @@ func foundRows(t inventory.Tree) []foundRow {
 	return rows
 }
 
-// foundFiles are the files of every row that turned scanner on, as one list.
-func foundFiles(rows []foundRow, scanner string) string {
+// foundFiles are the files of every row that turned on a scanner, by any of its names, as one list.
+func foundFiles(rows []foundRow, names ...string) string {
 	var where []string
 	for _, r := range rows {
-		if slices.Contains(r.on, scanner) {
+		if slices.ContainsFunc(names, func(n string) bool { return slices.Contains(r.on, n) }) {
 			where = append(where, r.where())
 		}
 	}
@@ -159,10 +171,10 @@ func foundFiles(rows []foundRow, scanner string) string {
 }
 
 // foundPaths are the same files as foundFiles, every one of them by its own path.
-func foundPaths(rows []foundRow, scanner string) []string {
+func foundPaths(rows []foundRow, names ...string) []string {
 	var paths []string
 	for _, r := range rows {
-		if slices.Contains(r.on, scanner) {
+		if slices.ContainsFunc(names, func(n string) bool { return slices.Contains(r.on, n) }) {
 			paths = append(paths, r.paths...)
 		}
 	}

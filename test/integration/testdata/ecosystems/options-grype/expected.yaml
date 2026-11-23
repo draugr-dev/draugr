@@ -8,7 +8,7 @@ initScan:
   skip: the options proves names are the subject, and init writes none of them
 
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: options-grype
       repositories: ["."]

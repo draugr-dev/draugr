@@ -2,7 +2,7 @@
 # descriptor turns grype-fs on, as init does, and the finding is Grype's, matched against the sealed
 # Grype database. Grype reports no line, and names the package in its rule id.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sca.grypeFs]
   components:
     - name: python-pdm

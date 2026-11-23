@@ -29,10 +29,18 @@ func notInstalled(missing ...string) func(string) (string, error) {
 	}
 }
 
+// withADockerfile is a tree whose zero-config scan runs iac as well as the controls every tree gets.
+func withADockerfile(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	layout(t, dir, map[string]string{"Dockerfile": "FROM scratch\n"})
+	return dir
+}
+
 // The zero-config scan's controls, with trivy and semgrep missing: each tool once, with every
 // control it would leave unrun, and nothing for a tool that is present.
 func TestMissingForScanNamesEachToolWithTheControlsItBlocks(t *testing.T) {
-	model := zeroConfigModel(t, t.TempDir())
+	model := zeroConfigModel(t, withADockerfile(t))
 	got := missingForScan(builtins.Registry(), model, engine.Scope{}, notInstalled("trivy", "semgrep"))
 	want := []missingScanner{{tool: "semgrep", controls: []string{"sast"}}, {tool: "trivy", controls: []string{"iac", "sca"}}}
 	if !reflect.DeepEqual(got, want) {
@@ -70,7 +78,7 @@ func offerWith(answer string, missing ...string) (installOffer, *bytes.Buffer, *
 
 func runOffer(t *testing.T, o installOffer, cfg config.File, scope engine.Scope) {
 	t.Helper()
-	o.run(context.Background(), builtins.Registry(), zeroConfigModel(t, t.TempDir()), scope, cfg)
+	o.run(context.Background(), builtins.Registry(), zeroConfigModel(t, withADockerfile(t)), scope, cfg)
 }
 
 func TestTheOfferNamesWhatIsMissingAndInstallsItOnYes(t *testing.T) {

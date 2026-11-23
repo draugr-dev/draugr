@@ -179,8 +179,9 @@ and which change it is looking at. You do not set those; the platform does.
 ## `draugr init [dir]`
 
 Scaffold a `draugr.saga.yaml` for a project (default: the current directory) from what its tree
-holds. `sca`, `secrets`, `sast` and `iac` are always on; the tree adds scanners and stubs to them,
-each with a comment naming the files behind it. Edit it, then `draugr scan`.
+holds. `sca`, `secrets` and `sast` are always on; the tree adds `iac`, scanners and stubs to them,
+each with a comment naming the files behind it. With no infrastructure code, `iac` is written
+commented out, and with nothing that serves, no host is written. Edit it, then `draugr scan`.
 
 | Found in the tree | Written |
 |---|---|
@@ -188,9 +189,9 @@ each with a comment naming the files behind it. Edit it, then `draugr scan`.
 | Copied JavaScript: `*.min.js`, a file named for its release, anything under `vendor/` | `sca.retirejs` |
 | `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
 | A requirements file named other than `requirements.txt`: `requirements-dev.txt`, `requirements/test.txt` | `sca.trivyFs.filePatterns` reaching it |
-| Terraform, Helm, Kubernetes, a Dockerfile | named in the `iac` comment |
+| Terraform or OpenTofu, a Terraform plan, Helm, Kubernetes, a Dockerfile, CloudFormation, an Azure Resource Manager template, an Ansible project | `iac`, naming them in its comment |
 | A Dockerfile | a commented `images` control and image entry |
-| An OpenAPI or Swagger document | a commented host with `spec: path:` pointing at it |
+| An OpenAPI or Swagger document, a Dockerfile with `EXPOSE`, a Kubernetes Service or Ingress, a Compose file with `ports:` | a commented host naming them, with `spec: path:` pointing at the OpenAPI document |
 | A dependency file with no lockfile, or with no exact version | a comment on the component, and a row under `UNREAD` |
 | A directory of docs, examples or tests, by the names [Non-shipping paths](saga-schema.md#non-shipping-paths) lists | an `ignore` line for it, with a comment |
 | A `*.sarif` file, or a CI step that writes or uploads SARIF | a commented [`imports`](saga-schema.md#componentsimports) entry, with the control its findings go in |
@@ -552,10 +553,11 @@ The scope flags change **what runs**, and so the verdict.
 
 **Zero-config.** A directory with no descriptor is scanned with the descriptor
 [`draugr init`](#draugr-init-dir) would write for it, read from the same tree: one component with
-`sca`, `secrets`, `sast` and `iac`, and the scanners the files call for.
+`sca`, `secrets` and `sast`, and the controls and scanners the files call for.
 
 | In the tree | Turned on |
 |---|---|
+| infrastructure code, such as a Dockerfile, Terraform or a CloudFormation template | `iac` |
 | a `go.mod` | `sast.gosec`, and `govulncheck` as the reachability analyzer |
 | copied JavaScript, such as `jquery.min.js` | `sca.retirejs` |
 | a requirements file Trivy opens only by pattern, such as `requirements-dev.txt` | `sca.trivyFs.filePatterns` |
@@ -572,7 +574,8 @@ runs on is missing, is turned off for the run after the
 `sca · gosec off · govulncheck off`, and `CAVEATS` lists it as `not-checked` with the files that
 called for it and what is missing, such as `govulncheck needs Go` or
 `gosec not installed · draugr tools install gosec`. The run is not marked incomplete for it. A
-missing `trivy`, `semgrep` or `gitleaks` fails its control.
+missing `trivy`, `semgrep` or `gitleaks` fails the control that needs it, except for `iac`, which is
+turned off and listed the same way.
 
 The line `No *.saga.yaml here, scanning <dir>.` is printed to stderr, with the directory's absolute
 path, so machine formats on stdout stay clean. The project, component and repository names are the

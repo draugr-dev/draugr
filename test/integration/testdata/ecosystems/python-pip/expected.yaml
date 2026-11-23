@@ -3,7 +3,7 @@
 proves: [semgrep.config]
 
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: python-pip
       repositories: ["."]

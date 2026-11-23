@@ -8,12 +8,12 @@ initScan:
   skip: the components and their paths are the subject, and init proposes one component for the repository
 
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: monorepo-paths
       repositories: ["."]
   perDirectory:
-    controls: [iac, sast, sca, secrets]
+    controls: [sast, sca, secrets]
     components:
       - name: monorepo-paths
         repositories: ["."]

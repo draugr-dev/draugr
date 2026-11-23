@@ -1,7 +1,7 @@
 # A sealed scan of the dotnet-nuget scenario reports the one vulnerable dependency in the lockfile
 # the .NET SDK generated, at the line of its own entry.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   components:
     - name: dotnet-nuget
       repositories: ["."]

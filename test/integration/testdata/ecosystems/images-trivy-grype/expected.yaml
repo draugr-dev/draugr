@@ -4,7 +4,7 @@
 # purl pkg:pypi/flask@0.12.2, so the golden records one finding counted and the other correlated
 # under it.
 init:
-  controls: [iac, sast, sca, secrets]
+  controls: [sast, sca, secrets]
   components:
     - name: images-trivy-grype
       repositories: ["."]

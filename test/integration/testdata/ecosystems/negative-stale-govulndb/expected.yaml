@@ -4,7 +4,7 @@
 # nothing, and init still proposes gosec and govulncheck for it, so the descriptor init writes
 # consults the stale database too and reports the same error.
 init:
-  controls: [sca, secrets, sast, iac]
+  controls: [sca, secrets, sast]
   scanners: [sast.gosec]
   reachability: [govulncheck]
   components:
