@@ -190,7 +190,11 @@ tests the setting a Trivy check tests, that check, and Draugr counts the two fin
 - both are in the same file of the same repository and component, and
 - KICS's line falls inside the lines Trivy reported. Trivy reports a Kubernetes container's checks
   at the container's lines and KICS reports the setting at one line inside it, which is what tells
-  two containers in one file apart.
+  two containers in one file apart. A Dockerfile check about the file as a whole, such as no
+  `HEALTHCHECK` or no `USER`, covers every line of the file, so it meets KICS's copy at the `FROM`
+  line wherever that is. A check Trivy reports at one instruction keeps that instruction's line.
+  This needs a Trivy recent enough to list what `.trivyignore` excluded (0.53.0 or later), whose
+  report says which checks are about the whole file.
 
 A finding that could match two copies on the other side, such as a KICS query reported twice inside
 one Trivy region, is matched to neither and counted on its own. A pair missing from the table costs a

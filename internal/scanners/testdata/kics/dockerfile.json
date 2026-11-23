@@ -1,0 +1,109 @@
+{
+	"kics_version": "v2.2.1",
+	"files_scanned": 1,
+	"lines_scanned": 12,
+	"files_parsed": 1,
+	"lines_parsed": 9,
+	"lines_ignored": 3,
+	"files_failed_to_scan": 0,
+	"queries_total": 48,
+	"queries_failed_to_execute": 0,
+	"queries_failed_to_compute_similarity_id": 0,
+	"scan_id": "console",
+	"severity_counters": {
+		"CRITICAL": 0,
+		"HIGH": 1,
+		"INFO": 0,
+		"LOW": 2,
+		"MEDIUM": 0,
+		"TRACE": 0
+	},
+	"total_counter": 3,
+	"total_bom_resources": 0,
+	"start": "2026-11-23T01:39:48.861709907Z",
+	"end": "2026-11-23T01:39:49.13835179Z",
+	"paths": [
+		"/src"
+	],
+	"queries": [
+		{
+			"query_name": "Missing User Instruction",
+			"query_id": "fd54f200-402c-4333-a5a4-36ef6709af2f",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#user",
+			"severity": "HIGH",
+			"platform": "Dockerfile",
+			"cwe": "250",
+			"risk_score": "7.7",
+			"cloud_provider": "COMMON",
+			"category": "Build Process",
+			"experimental": false,
+			"description": "Always set a user in the runtime stage of your Dockerfile. Without it, the container defaults to root, even if earlier build stages define a user.",
+			"description_id": "eb49caf6",
+			"files": [
+				{
+					"file_name": "../../src/Dockerfile",
+					"similarity_id": "b1f88eddf986d68ad59f3101e3a962a32597ae4050d56abb2835786a2d27717d",
+					"line": 3,
+					"issue_type": "MissingAttribute",
+					"search_key": "FROM={{python:3.8-slim}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "The 'Dockerfile' should contain the 'USER' instruction",
+					"actual_value": "The 'Dockerfile' does not contain any 'USER' instruction"
+				}
+			]
+		},
+		{
+			"query_name": "Healthcheck Instruction Missing",
+			"query_id": "b03a748a-542d-44f4-bb86-9199ab4fd2d5",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#healthcheck",
+			"severity": "LOW",
+			"platform": "Dockerfile",
+			"cwe": "710",
+			"risk_score": "3.6",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Ensure that HEALTHCHECK is being used. The HEALTHCHECK instruction tells Docker how to test a container to check that it is still working",
+			"description_id": "426121ee",
+			"files": [
+				{
+					"file_name": "../../src/Dockerfile",
+					"similarity_id": "afe4402cf2229979bed5f6c4e8ba969c2fdda784c3b55397f7b7b2a12ac59e5e",
+					"line": 3,
+					"issue_type": "MissingAttribute",
+					"search_key": "FROM={{python:3.8-slim}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Dockerfile should contain instruction 'HEALTHCHECK'",
+					"actual_value": "Dockerfile doesn't contain instruction 'HEALTHCHECK'"
+				}
+			]
+		},
+		{
+			"query_name": "Pip install Keeping Cached Packages",
+			"query_id": "f2f903fb-b977-461e-98d7-b3e2185c6118",
+			"query_url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+			"severity": "LOW",
+			"platform": "Dockerfile",
+			"cwe": "459",
+			"risk_score": "0.9",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "When installing packages with pip, the '--no-cache-dir' flag should be set to make Docker images smaller",
+			"description_id": "a6eb5f34",
+			"files": [
+				{
+					"file_name": "../../src/Dockerfile",
+					"similarity_id": "00c7035edb1d89f3876da2ef241a6304b91fd1e3b0422e3e1de9d5227a816c22",
+					"line": 8,
+					"issue_type": "IncorrectValue",
+					"search_key": "FROM={{python:3.8-slim}}.{{pip install -r requirements.txt}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "The '--no-cache-dir' flag should be set when running 'pip/pip3 install'",
+					"actual_value": "The '--no-cache-dir' flag isn't set when running 'pip/pip3 install'"
+				}
+			]
+		}
+	]
+}

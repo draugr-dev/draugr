@@ -28,7 +28,8 @@ const trivyConfigExclusionsArg = "--show-suppressed"
 
 // trivyConfigRun wraps the run of a misconfiguration scan. A command asking for what Trivy excluded
 // writes JSON, which is converted to SARIF with the exclusions added; any other command's output is
-// returned as Trivy wrote it. Either way a DS-0002 finding whose entrypoint script drops root carries
+// returned as Trivy wrote it. Converted SARIF also gives a check of a Dockerfile as a whole the
+// region of the whole file (see withWholeFileRegions). Either way a DS-0002 finding whose entrypoint script drops root carries
 // that line (see withEntrypointDrops), and the Terraform modules Trivy's log says it could not load or did not
 // evaluate, and the Helm charts it could not render, are returned beside it (see
 // trivyUnloadedModules, trivyUnevaluatedModules and trivySkippedCharts).
@@ -80,6 +81,9 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 		if err != nil {
 			return nil, nil, err
 		}
+		if out, err = withWholeFileRegions(out, excluded, dir); err != nil {
+			return nil, nil, err
+		}
 		if out, err = withEntrypointDrops(out, dir); err != nil {
 			return nil, nil, err
 		}
@@ -87,8 +91,9 @@ func trivyConfigRun(run func(ctx context.Context, dir string, argv []string) (st
 	}
 }
 
-// trivyConfigReport reads Trivy's JSON report once, for the two things the run needs of it: the
-// report for `trivy convert` with each result's Packages removed, and what Trivy excluded.
+// trivyConfigReport reads Trivy's JSON report once, for what the run needs of it: the report for
+// `trivy convert` with each result's Packages removed, what Trivy excluded, and which Dockerfile
+// checks it reported about the file as a whole.
 //
 // The packages go because `trivy fs` runs the dependency analyzers whatever --scanners says, so a
 // misconfiguration report lists the repository's packages too, and convert rejects the whole
@@ -120,6 +125,9 @@ func trivyConfigReport(report []byte) ([]byte, trivyMisconfigDoc, []string, erro
 		if _, ok := res["Packages"]; ok {
 			delete(res, "Packages")
 			removed = true
+		}
+		if err := excluded.readWholeFileChecks(res); err != nil {
+			return nil, trivyMisconfigDoc{}, nil, err
 		}
 		// Only a result that lists exclusions is read further, and only the fields that name them.
 		if _, ok := res["ExperimentalModifiedFindings"]; !ok {
@@ -188,9 +196,13 @@ func trivyConfigRead(checked []string, unread []sarif.Input) []sarif.Input {
 	return out
 }
 
-// trivyMisconfigDoc is the slice of Trivy's JSON report that names what it excluded.
+// trivyMisconfigDoc is the slice of Trivy's JSON report that names what it excluded, and which
+// Dockerfile checks it reported about the file as a whole.
 type trivyMisconfigDoc struct {
 	Results []trivyMisconfigResult `json:"Results"`
+	// wholeFile holds, for each check a Dockerfile failed, whether it is about the file as a whole
+	// (see readWholeFileChecks and withWholeFileRegions).
+	wholeFile map[trivyFileCheck]bool
 }
 
 // trivyMisconfigResult is one file's exclusions.

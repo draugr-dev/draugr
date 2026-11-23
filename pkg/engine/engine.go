@@ -3533,7 +3533,8 @@ type sameCheckKey struct {
 // Trivy reports a Kubernetes container's checks at the lines of the whole container, and KICS
 // reports the same setting at one line inside it, so a finding is the other tool's copy where its
 // line falls inside that finding's region, in the same file of the same repository and component.
-// A finding with no end line is a region of one line.
+// A finding with no end line is a region of one line. A check of a file as a whole arrives with
+// the whole file as its region, as trivy-config gives Trivy's no-HEALTHCHECK check of a Dockerfile.
 //
 // A pair is made only where each side has exactly one match. Two containers in one region, two
 // statements on one rule, or a tool reporting a rule twice at one place cannot be paired copy to copy,

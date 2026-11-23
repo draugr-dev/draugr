@@ -6,13 +6,19 @@ type kicsSameCheck struct{ trivy, title string }
 // kicsSameChecks names, for each KICS query that tests the setting one of Trivy's checks tests, that
 // check. A KICS query's rule carries it as a sarif.SameCheckAs taxon, and the engine counts KICS's
 // finding and Trivy's once where they are in one file and KICS's line falls inside the region Trivy
-// reported (sameCheckGroups in pkg/engine).
+// reported (sameCheckGroups in pkg/engine). A check of a Dockerfile as a whole, such as no
+// HEALTHCHECK, has the whole file as its region (see withWholeFileRegions), so KICS's copy at the
+// FROM line meets it wherever that line is.
 //
 // One Trivy check per query, and one query per check, because the engine pairs a finding with
 // exactly one copy or none. Where two of one tool's rules test overlapping settings (Trivy's
 // KSV-0030 and KSV-0104 both read the seccomp profile; KICS has three queries about a security group
 // open to the internet), only the pair that tests the same condition is listed, and the rest stay
-// findings of their own.
+// findings of their own. The one exception is DS-0002, which fails a Dockerfile whose final image
+// runs as root by either path, and KICS splits in two: no USER in the final stage (Missing User
+// Instruction) or a last USER that is root (Last User Is 'root'). Where both report in one file,
+// Trivy's finding could be either copy and pairs with neither, which is the duplicate the table
+// would have left without the second query.
 //
 // Each pair was read in both tools' rule text and seen on one resource in a run of KICS 2.2.1 and
 // Trivy 0.76.1 over manifests, Terraform and a Dockerfile written to fail them. A pair missing from
@@ -60,6 +66,7 @@ var kicsSameChecks = map[string]kicsSameCheck{
 	"22fbfeac-7b5a-421a-8a27-7a2178bb910b": {"AWS-0065", "A KMS key is not configured to auto-rotate."},
 	// Dockerfile.
 	"67fd0c4a-68cf-46d7-8c41-bc9fba7e40ae": {"DS-0002", "Image user should not be 'root'"},
+	"fd54f200-402c-4333-a5a4-36ef6709af2f": {"DS-0002", "Image user should not be 'root'"},
 	"f45ea400-6bbe-4501-9fc7-1c3d75c32067": {"DS-0001", "':latest' tag used"},
 	"b03a748a-542d-44f4-bb86-9199ab4fd2d5": {"DS-0026", "No HEALTHCHECK defined"},
 	"7384dfb2-fcd1-4fbf-91cd-6c44c318c33c": {"DS-0029", "'apt-get' missing '--no-install-recommends'"},

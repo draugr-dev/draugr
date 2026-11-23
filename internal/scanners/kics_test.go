@@ -412,10 +412,13 @@ func TestKICSRefusesToRunWithoutTheImage(t *testing.T) {
 }
 
 // Every pair in the table is one KICS query to one Trivy check, because the engine pairs a finding
-// with exactly one copy or none: a check named twice would match neither query.
+// with exactly one copy or none: a check named by two queries that both report one file matches
+// neither. The exception is DS-0002, named by KICS's two queries for the two ways a final image runs
+// as root, which kics_same.go explains.
 func TestKICSSameChecksAreOneToOne(t *testing.T) {
 	t.Parallel()
-	seen := map[string]string{}
+	shared := map[string][]string{"DS-0002": {"67fd0c4a-68cf-46d7-8c41-bc9fba7e40ae", "fd54f200-402c-4333-a5a4-36ef6709af2f"}}
+	seen := map[string][]string{}
 	for query, same := range kicsSameChecks {
 		if len(query) != 36 || strings.Count(query, "-") != 4 {
 			t.Errorf("%q is not a KICS query id", query)
@@ -423,10 +426,18 @@ func TestKICSSameChecksAreOneToOne(t *testing.T) {
 		if same.trivy == "" || same.title == "" {
 			t.Errorf("%s names %+v", query, same)
 		}
-		if other, dup := seen[same.trivy]; dup {
-			t.Errorf("%s is named by both %s and %s", same.trivy, other, query)
+		seen[same.trivy] = append(seen[same.trivy], query)
+	}
+	for check, queries := range seen {
+		slices.Sort(queries)
+		if want, ok := shared[check]; len(queries) > 1 && (!ok || !slices.Equal(queries, want)) {
+			t.Errorf("%s is named by %v", check, queries)
 		}
-		seen[same.trivy] = query
+	}
+	for check, want := range shared {
+		if !slices.Equal(seen[check], want) {
+			t.Errorf("%s is named by %v, want %v", check, seen[check], want)
+		}
 	}
 }
 

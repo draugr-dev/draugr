@@ -98,3 +98,6 @@ components:
           # The KICS parser's test input: a privileged pod manifest with ordinary comments, copied
           # with the report KICS wrote for it, so the test reads a real report. Nothing deploys it.
           - internal/scanners/testdata/kics/comments
+          # The KICS and Trivy pairing test's input: a Dockerfile with no USER or HEALTHCHECK on
+          # purpose, copied with the reports both tools wrote for it. Nothing builds it.
+          - internal/scanners/testdata/kics/dockerfile
