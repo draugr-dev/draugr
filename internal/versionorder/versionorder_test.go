@@ -124,22 +124,23 @@ func TestEcosystemPrefersThePackageURL(t *testing.T) {
 
 // The fix list keys an upgrade on the ecosystem this names, so every name scanners write for one
 // ecosystem has to give the same answer, or a package two scanners report is two upgrades. Each list
-// holds the result types Trivy writes for the ecosystem and the package type Grype writes; Go's also holds
-// the ecosystem an OSV record names.
+// holds the result types Trivy writes for the ecosystem, the package type Grype writes and the ecosystem a
+// Dependabot alert names; Go's also holds the ecosystem an OSV record names.
 func TestEveryScannersSpellingNamesOneEcosystem(t *testing.T) {
 	for want, spellings := range map[string][]string{
 		"Go":        {"gomod", "go-module", "gobinary", "Go"},
 		"npm":       {"npm", "yarn", "pnpm", "bun", "node-pkg"},
 		"PyPI":      {"pip", "pipenv", "poetry", "uv", "pylock", "python", "python-pkg"},
-		"Maven":     {"pom", "gradle", "java-archive", "jar"},
-		"crates.io": {"cargo", "rust-crate", "rustbinary"},
-		"RubyGems":  {"bundler", "gem", "gemspec"},
+		"Maven":     {"pom", "gradle", "java-archive", "jar", "maven"},
+		"crates.io": {"cargo", "rust-crate", "rustbinary", "rust"},
+		"RubyGems":  {"bundler", "gem", "gemspec", "rubygems"},
 		"Packagist": {"composer", "php-composer"},
 		"NuGet":     {"nuget", "dotnet", "dotnet-core"},
 		"Debian":    {"debian", "ubuntu", "deb"},
 		"Alpine":    {"alpine", "apk"},
 		"Red Hat":   {"redhat", "rpm"},
 		"Pub":       {"pub", "dart-pub"},
+		"Hex":       {"hex", "erlang"},
 	} {
 		for _, s := range spellings {
 			if got := Ecosystem("", s); got != want {
@@ -153,12 +154,13 @@ func TestEveryScannersSpellingNamesOneEcosystem(t *testing.T) {
 // ecosystem has to give the type that ecosystem's URLs carry.
 func TestPURLTypeOfEachScannersSpelling(t *testing.T) {
 	for want, spellings := range map[string][]string{
-		"cargo":    {"cargo", "rust-crate", "rustbinary"},
+		"cargo":    {"cargo", "rust-crate", "rustbinary", "rust"},
 		"npm":      {"npm", "yarn", "pnpm", "bun", "node-pkg"},
 		"pypi":     {"pip", "poetry", "python", "python-pkg"},
-		"golang":   {"gomod", "go-module", "gobinary", "Go"},
-		"maven":    {"pom", "java-archive"},
-		"gem":      {"bundler", "gem"},
+		"golang":   {"gomod", "go-module", "gobinary", "Go", "go"},
+		"maven":    {"pom", "java-archive", "maven"},
+		"gem":      {"bundler", "gem", "rubygems"},
+		"hex":      {"hex", "erlang"},
 		"composer": {"composer", "php-composer"},
 		"nuget":    {"nuget", "dotnet", "dotnet-core"},
 		"pub":      {"pub", "dart-pub"},

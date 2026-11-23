@@ -595,6 +595,12 @@ type Package struct {
 	// lockfile beside the manifest says what does. Empty where the version was pinned, and wherever
 	// the scanner read no range.
 	Range string `json:"range,omitempty"`
+	// Affected is the range of versions an advisory affects, as the service that reported the
+	// finding wrote it, on a finding that names no installed version: a Dependabot alert's
+	// `>= 2.0-beta9, < 2.15.0`. Correlation reads it to tell whether a native scanner's copy of the
+	// same advisory, which names the version installed, is the same flaw. Empty wherever a version
+	// was read.
+	Affected string `json:"affected,omitempty"`
 }
 
 // Escalation records that exploitability data raised a finding's severity, and on what grounds.

@@ -765,7 +765,8 @@ type dependabotAlert struct {
 		} `json:"cvss_severities"`
 	} `json:"security_advisory"`
 	SecurityVulnerability struct {
-		FirstPatchedVersion *struct {
+		VulnerableVersionRange string `json:"vulnerable_version_range"`
+		FirstPatchedVersion    *struct {
 			Identifier string `json:"identifier"`
 		} `json:"first_patched_version"`
 	} `json:"security_vulnerability"`
@@ -800,8 +801,9 @@ var advisoryLevels = map[string]sarif.Level{
 // The score is CVSS v3 where the advisory states one, as Draugr's bands are read from v3 scores, and
 // else v4, else the older single score. The EPSS the alert carries is not read: the CVE alias reaches
 // Draugr's own EPSS data, so a finding is not ranked by two copies of the feed from different days.
-// The alert names no installed version, so its package is never keyed for correlation with a native
-// copy, which needs one.
+// The alert names no installed version, only the range of versions the advisory affects, which the
+// package keeps as Affected. Correlation joins the alert to a native scanner's copy of the same
+// advisory in the same package and manifest whose installed version is inside that range.
 func readDependabotAlerts(raw []json.RawMessage) (githubAlerts, error) {
 	var out githubAlerts
 	for _, msg := range raw {
@@ -819,6 +821,7 @@ func readDependabotAlerts(raw []json.RawMessage) (githubAlerts, error) {
 			Package: &sarif.Package{
 				Name:      a.Dependency.Package.Name,
 				Ecosystem: a.Dependency.Package.Ecosystem,
+				Affected:  strings.TrimSpace(a.SecurityVulnerability.VulnerableVersionRange),
 			},
 		}
 		if fix := a.SecurityVulnerability.FirstPatchedVersion; fix != nil {
