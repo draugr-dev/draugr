@@ -1,0 +1,1 @@
+- **`draugr diff --view actions` names the version each upgrade goes to**, `Upgrade urllib3 1.26.5 → 2.6.0`, as `draugr scan` does. Where the findings one upgrade clears are fixed in different releases, it names the one that clears them all.
