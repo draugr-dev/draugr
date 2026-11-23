@@ -382,7 +382,7 @@ func TestCaveatsSayWhatEveryGroupSharesOnce(t *testing.T) {
 // A group whose rows do not fit the terminal says each reason once, with the rows it covers under
 // it, so no line runs past the edge and no path or reason is cut. Rows that fit stay a table.
 func TestCaveatRowsThatDoNotFitSayTheReasonOnce(t *testing.T) {
-	const reason = "archive extension, not read · rename it if it is text, or add to ignore"
+	const reason = "archive extension, not read · add to ignore to accept it unread"
 	var rows []caveat
 	for _, p := range []string{"s2/testdata/4f9e1a0da7915a3d69632f5613ed78bc998a8a23.zst", "zip/testdata/dd.zip"} {
 		rows = append(rows, caveat{what: p, detail: reason + " (secrets)", by: "secrets", key: saga.CaveatUnreadFiles})

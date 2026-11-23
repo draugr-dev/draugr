@@ -152,32 +152,37 @@ again.
 
 ## Skipped
 
-Gitleaks judges by a file's name, not its content, whether the file is an archive, and skips every
-file so named without reading it. A name counts when it contains an archive extension such as
-`.zip`, `.tar`, `.gz` or `.br` anywhere, so `notes.zip.txt` is skipped, and so is
-`release.brief.md`, for `.br`. A secret in either is not looked for, and the run reports no leaks.
-The rule is in [Gitleaks' source](https://github.com/gitleaks/gitleaks/blob/v8.30.1/sources/file.go)
-at the version Draugr installs.
+Gitleaks judges by a file's name, not its content, whether the file is an archive, and its tree
+pass skips every file so named without reading it. A name counts when it contains an archive
+extension such as `.zip`, `.tar`, `.gz` or `.br` anywhere, so `notes.zip.txt` is skipped, and so is
+`release.brief.md`, for `.br`. The rule is in
+[Gitleaks' source](https://github.com/gitleaks/gitleaks/blob/v8.30.1/sources/file.go) at the version
+Draugr installs.
 
 The SARIF report does not list these files. Gitleaks names each one in its log at trace level, so
-the tree pass runs with `--log-level trace` and each file named gets an `unread-files` caveat with
-the reason `archive extension, not read · rename it if it is text, or add to ignore`. Where
-Gitleaks reports scanning 0 bytes of a tree that holds a file with content, and names no file it
-skipped, the repository root `.` gets `no files read`. The
+the tree pass runs with `--log-level trace` and Draugr reads the names from it.
+
+A named file that is text, such as `notes.zip.txt`, is searched at its own path in a second pass,
+with the tree pass's configuration and the checkout's `.gitleaksignore`. A finding in it is reported
+at `notes.zip.txt`, and your path allowlists and ignore entries apply as they do elsewhere. For that
+pass, Draugr copies the files to the system's temporary directory, readable only by the user running
+the scan, and removes the copies when the pass ends. If the pass cannot run, the scan warns and the
+text files are listed unread.
+
+A file that is not text, such as `bundle.zip`, stays unread: Draugr does not have Gitleaks open
+archives. A real archive whose name holds no archive extension is skipped as a binary file and is
+not named. A named one gets an `unread-files` caveat with the reason
+`archive extension, not read · add to ignore to accept it unread`. If the archive cannot hold a
+secret you answer for, add it to the repository's
+[`ignore`](../../docs/reference/saga-schema.md#scoping-a-repository) and the caveat goes. To fail the run on a skipped file, set `config.gate.failOnCaveats: [unread-files]`.
+
+Where Gitleaks reports scanning 0 bytes of a tree that holds a file with content, and names no file
+it skipped, the repository root `.` gets `no files read`. The
 [`secrets`](../controllers/secrets.md#unread) control shows the caveat.
 
-Rename `notes.zip.txt` to `notes.txt` and it is read. Draugr does not have Gitleaks open archives,
-so a real archive is not read under any name; renamed, it is skipped as a binary file and named
-nowhere. Where an archive cannot hold a secret you answer for, such as a test fixture, add it to the
-repository's [`ignore`](../../docs/reference/saga-schema.md#scoping-a-repository) and the caveat
-goes. To fail the run on a skipped file, set `config.gate.failOnCaveats: [unread-files]`.
-
-A real archive such as `bundle.zip` is not opened either, so it is named too. A real archive whose
-name holds no archive extension is skipped as a binary file and is not named.
-
 The history pass reads the text of each commit whatever the file is called, so with `history: true`
-the commits of a text file such as `notes.zip.txt` are searched. The tree pass still did not read
-the file, and the caveat stays. A binary file named as an archive is skipped by both passes.
+the commits of a text file such as `notes.zip.txt` are searched too. A binary file named as an
+archive is skipped by both passes.
 
 Draugr does not relay Gitleaks' trace or debug lines, which can hold candidate secret values.
 

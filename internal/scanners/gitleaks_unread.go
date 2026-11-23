@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"io/fs"
+	"log/slog"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -26,20 +27,21 @@ import (
 // the archive holds is read.
 //
 // The only record is a line Gitleaks logs at trace level naming the path. So the tree pass runs at
-// trace level and its log is read for those lines, each file named reported unread. Reading the
-// tool's own account rather than repeating its name rule keeps the answer right when a release
-// changes the rule.
+// trace level and its log is read for those lines. Each file named that is text is then searched in
+// a second pass (gitleaks_named.go), and each that is not is reported unread. Reading the tool's own
+// account rather than repeating its name rule keeps the answer right when a release changes the
+// rule.
 //
 // What the log says it scanned in bytes is read too. A tree holding a file with content of which
 // Gitleaks read nothing, and named no file it skipped, is reported unread at its root, so a skip
 // recorded some other way still does not read as a pass.
 
 // gitleaksArchiveReason is the reason a file skipped as an archive is unread, and what a reader can
-// do about it. No setting has Gitleaks open an archive, so a real archive is either accepted unread,
-// by the repository's ignore, or left as a caveat. A text file whose name only looks like an
-// archive's is read once renamed. Renaming a real archive is no answer: Gitleaks skips it as a
-// binary file and names it nowhere.
-const gitleaksArchiveReason = "archive extension, not read · rename it if it is text, or add to ignore"
+// do about it. A text file whose name only looks like an archive's is read in a second pass (see
+// gitleaks_named.go), so what stays unread for this reason is not text. No setting has Gitleaks
+// open an archive, so a real archive is either accepted unread, by the repository's ignore, or left
+// as a caveat.
+const gitleaksArchiveReason = "archive extension, not read · add to ignore to accept it unread"
 
 // gitleaksArchiveSkipped is the message Gitleaks 8.30.1 logs for each file it skips as an archive.
 const gitleaksArchiveSkipped = "skipping archive: exceeds max archive depth"
@@ -121,7 +123,27 @@ func gitleaksTree(exec func(ctx context.Context, dir string, argv []string) ([]b
 		if err != nil {
 			return nil, nil, err
 		}
-		return out, gitleaksUnread(log, dir), nil
+		unread := gitleaksUnread(log, dir)
+		text, rest := gitleaksNamedText(dir, unread)
+		if len(text) == 0 {
+			return out, unread, nil
+		}
+		scratchRun := func(ctx context.Context, dir string, argv []string) ([]byte, error) {
+			out, _, err := exec(ctx, dir, argv)
+			return out, err
+		}
+		results, err := gitleaksReadNamed(ctx, dir, argv, text, gitleaksRun(scratchRun, version))
+		if err != nil {
+			// The files stay listed unread, as the tree pass left them, and the scan says why.
+			slog.WarnContext(ctx, "could not read the text files Gitleaks skipped for an archive's name; they are listed unread",
+				"repository", dir, "files", len(text), "error", err.Error())
+			return out, unread, nil
+		}
+		merged, err := withGitleaksResults(out, results)
+		if err != nil {
+			return nil, nil, err
+		}
+		return merged, rest, nil
 	}
 }
 

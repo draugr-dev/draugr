@@ -1,0 +1,1 @@
+- **A secret in a text file whose name looks like an archive's is now found.** Gitleaks skips a file such as `notes.zip.txt` or `release.brief.md` by its name. Draugr now searches such a file at its own path when it is text, with your Gitleaks allowlists and `.gitleaksignore` applied. A real archive is still listed unread.

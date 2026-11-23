@@ -18,7 +18,7 @@
                 {
                   "physicalLocation": {
                     "artifactLocation": {
-                      "uri": "notes.zip.txt",
+                      "uri": "bundle.zip",
                       "uriBaseId": "%SRCROOT%"
                     }
                   },
@@ -28,36 +28,7 @@
                 }
               ],
               "message": {
-                "text": "notes.zip.txt: archive extension, not read · rename it if it is text, or add to ignore"
-              },
-              "properties": {
-                "component": "negative-secrets-archive-name",
-                "controls": [
-                  "secrets"
-                ],
-                "kind": "unread-files"
-              }
-            },
-            {
-              "descriptor": {
-                "id": "unread-files"
-              },
-              "level": "warning",
-              "locations": [
-                {
-                  "physicalLocation": {
-                    "artifactLocation": {
-                      "uri": "release.brief.md",
-                      "uriBaseId": "%SRCROOT%"
-                    }
-                  },
-                  "properties": {
-                    "repository": "./negative-secrets-archive-name"
-                  }
-                }
-              ],
-              "message": {
-                "text": "release.brief.md: archive extension, not read · rename it if it is text, or add to ignore"
+                "text": "bundle.zip: archive extension, not read · add to ignore to accept it unread"
               },
               "properties": {
                 "component": "negative-secrets-archive-name",
@@ -107,6 +78,84 @@
           ],
           "message": {
             "text": "aws-access-token has detected secret for file config/aws.env."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "negative-secrets-archive-name",
+            "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
+            "fingerprint": "<cleared>",
+            "priority": "P1",
+            "repository": "./negative-secrets-archive-name",
+            "scanner": "gitleaks",
+            "severityFloor": "high",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "notes.zip.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file notes.zip.txt."
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "negative-secrets-archive-name",
+            "control": "secrets",
+            "draugr/rating": {
+              "fields": {
+                "level": "warning"
+              },
+              "severity": "medium"
+            },
+            "fingerprint": "<cleared>",
+            "priority": "P1",
+            "repository": "./negative-secrets-archive-name",
+            "scanner": "gitleaks",
+            "severityFloor": "high",
+            "tool": "gitleaks"
+          },
+          "ruleId": "aws-access-token"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "release.brief.md",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "aws-access-token has detected secret for file release.brief.md."
           },
           "partialFingerprints": {
             "primaryLocationLineHash/v1": "<cleared>"

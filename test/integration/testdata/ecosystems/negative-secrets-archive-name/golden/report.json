@@ -1,7 +1,7 @@
 {
   "actions": [
     {
-      "clears": 1,
+      "clears": 3,
       "component": "negative-secrets-archive-name",
       "control": "secrets",
       "findings": "<cleared>",
@@ -12,6 +12,18 @@
           "kind": "file",
           "line": 1,
           "path": "config/aws.env",
+          "repository": "./negative-secrets-archive-name"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "notes.zip.txt",
+          "repository": "./negative-secrets-archive-name"
+        },
+        {
+          "kind": "file",
+          "line": 1,
+          "path": "release.brief.md",
           "repository": "./negative-secrets-archive-name"
         }
       ],
@@ -24,7 +36,9 @@
       "summary": "Identified a pattern that may indicate AWS credentials, risking unauthorized cloud resource access and data breaches on AWS platforms",
       "title": "Remove and rotate the AWS access key if it is real",
       "where": [
-        "config/aws.env:1"
+        "config/aws.env:1",
+        "notes.zip.txt:1",
+        "release.brief.md:1"
       ]
     }
   ],
@@ -33,13 +47,13 @@
   },
   "controls": [
     {
-      "errors": 1,
+      "errors": 3,
       "highest": "high",
       "highestPriority": "P1",
       "name": "secrets",
       "notes": 0,
       "threshold": "",
-      "total": 1,
+      "total": 3,
       "verdict": "fail",
       "warnings": 0
     }
@@ -54,13 +68,8 @@
       ],
       "unread": [
         {
-          "path": "notes.zip.txt",
-          "reason": "archive extension, not read · rename it if it is text, or add to ignore",
-          "repository": "./negative-secrets-archive-name"
-        },
-        {
-          "path": "release.brief.md",
-          "reason": "archive extension, not read · rename it if it is text, or add to ignore",
+          "path": "bundle.zip",
+          "reason": "archive extension, not read · add to ignore to accept it unread",
           "repository": "./negative-secrets-archive-name"
         }
       ]
@@ -87,7 +96,7 @@
     "failOnPriority": "P1"
   },
   "priorities": {
-    "p1": 1,
+    "p1": 3,
     "p2": 0,
     "p3": 0,
     "p4": 0

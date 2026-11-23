@@ -1,11 +1,12 @@
 # A key in config/aws.env, and the same kind of key in notes.zip.txt and release.brief.md, text
-# files whose names contain `.zip` and `.br`. Gitleaks skips both as archives without reading them
-# and reports only the first key. The golden report.json names both files under dependencyFiles as
-# not read, rather than the scan passing over them.
+# files whose names contain `.zip` and `.br`. Gitleaks's tree pass skips both as archives without
+# reading them, and Draugr reads them in a second pass and reports all three keys. bundle.zip is a
+# real archive, which Gitleaks does not open: the golden report.json names it under dependencyFiles
+# as not read, rather than the scan passing over it.
 #
 # The golden is what fails if a Gitleaks release rewords the trace line the detection reads, because
-# the unread entries then disappear while every unit test still passes. It also fails if a release
-# stops treating these names as archives, which reports the two keys here.
+# the two text files are then left unread and bundle.zip's unread entry disappears, while every unit
+# test still passes.
 init:
   controls: [sca, secrets, sast]
   components:
@@ -16,6 +17,6 @@ secrets:
   - file: config/aws.env
     rules: [aws-access-token]
   - file: notes.zip.txt
-    rules: []
+    rules: [aws-access-token]
   - file: release.brief.md
-    rules: []
+    rules: [aws-access-token]
