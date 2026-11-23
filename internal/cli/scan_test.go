@@ -1589,3 +1589,19 @@ func TestComponentLabelsHasAnEntryForEveryComponent(t *testing.T) {
 		t.Errorf("an unlabeled component has no entry: %v", got)
 	}
 }
+
+// The files a scan leaves out of its uncommitted count are the ones on this machine: the descriptor,
+// a fragment named by path and a configuration file. A fragment fetched from another repository is
+// in no checkout the run reads.
+func TestLocalSourcesAreTheFilesOnThisMachine(t *testing.T) {
+	got := localSources([]saga.Source{
+		{Path: "draugr.saga.yaml", Root: true},
+		{Path: ".draugr/components/platform.saga-fragment.yaml"},
+		{Path: "shared.saga-fragment.yaml", URL: "https://github.com/acme/platform", Revision: "main"},
+		{Path: "draugr.config.yaml", Config: "project"},
+	})
+	want := []string{"draugr.saga.yaml", ".draugr/components/platform.saga-fragment.yaml", "draugr.config.yaml"}
+	if !slices.Equal(got, want) {
+		t.Errorf("localSources = %q, want %q", got, want)
+	}
+}

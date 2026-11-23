@@ -1,0 +1,1 @@
+- **The first scan after `draugr init` no longer warns about an uncommitted file.** The descriptor a scan is given, its fragments and its configuration file, such as `draugr.config.yaml`, are left out of the `uncommitted-files` count, because Draugr reads them from disk whether or not they are committed.

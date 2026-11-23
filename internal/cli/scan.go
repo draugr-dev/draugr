@@ -293,6 +293,10 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	for _, c := range supplied {
 		resolved.AddConfig(c.source, c.settings)
 	}
+	// The descriptor, its fragments and the configuration files say how to scan, and are not code
+	// the scan reads. Uncommitted, as the descriptor `draugr init` just wrote is, they are no file
+	// the scan left out.
+	ctx = git.WithOwnInputs(ctx, localSources(resolved.Sources)...)
 	cacheOptionsFrom(&opts, cfg.Cache)
 	outputOptionsFrom(&opts, cfg.Output)
 	opts.limits.Configure(cfg.Scan, opts.setFlags)
@@ -1549,4 +1553,17 @@ func markCaveatComponents(components []report.ComponentVerdict, failed []report.
 			}
 		}
 	}
+}
+
+// localSources are the files on this machine a descriptor was assembled from: the descriptor, each
+// fragment it named by path, and each configuration file that supplied a default. A fragment from
+// another repository is not in any repository this run reads uncommitted.
+func localSources(sources []saga.Source) []string {
+	var out []string
+	for _, s := range sources {
+		if s.URL == "" {
+			out = append(out, s.Path)
+		}
+	}
+	return out
 }

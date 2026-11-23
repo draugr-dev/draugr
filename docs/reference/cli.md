@@ -957,7 +957,10 @@ CAVEATS  do not fail the run · config.gate.failOnCaveats lists the kinds that d
     2 uncommitted files  not in commit b447e384 · --working-tree reads them
 ```
 
-Draugr's own reports folder is not counted: `.draugr/out`, and the folder the run's `-o` names.
+Files Draugr itself loads from disk are not counted, whether or not they are committed: the
+descriptor the scan was given, its fragments and its configuration file, such as
+`draugr.config.yaml`. Its reports folder is not counted either, which is `.draugr/out` and the folder
+`-o` names.
 
 Under `--evidence`, the `scanned` row marks the revision with `+` and counts the uncommitted files:
 
