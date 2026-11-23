@@ -73,7 +73,10 @@ findings inside the tool, where Draugr cannot mark them suppressed or record who
 finding, so the scan also asks for `-o cyclonedx-json` into a temporary file and counts the
 `syft:location` paths in it. Those are the files the report counts as read, and every other
 dependency file in the checkout is listed as unread, see [`sca`](../controllers/sca.md#unread).
-A run that writes no inventory is an error rather than a scan that read nothing.
+Each package in it with a package URL, other than an operating system's, is listed at the first
+file it was found in, so [dependency health](../../docs/reference/saga-schema.md#dependency-health-configdependencyhealth)
+asks about it whether or not it has a finding. A run that writes no inventory is an error rather
+than a scan that read nothing.
 
 **Every `pom.xml` it reads is read in part.** Grype reads the dependencies a pom declares and none
 of their own poms, and its configuration has no setting that changes this. A dependency whose

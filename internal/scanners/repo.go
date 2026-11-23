@@ -94,8 +94,9 @@ type repoScanner struct {
 type inventoryOutput struct {
 	// args are the arguments that make the tool write it to path.
 	args func(path string) []string
-	// parse reads it into the files the tool took packages from, repository-relative.
-	parse func(out []byte, dir string) ([]sarif.Input, error)
+	// parse reads it into the files the tool took packages from, repository-relative, and the
+	// packages it listed, for dependency health to ask about the ones no finding names.
+	parse func(out []byte, dir string) ([]sarif.Input, []sarif.InventoryPackage, error)
 }
 
 // ReportPathToken marks the argv slot where a tool wants a path to write its report to. The
@@ -197,7 +198,9 @@ func (s repoScanner) readHistory(path, dir string, cfg plugin.Config) (sarif.Rep
 //
 // A tool that ran and wrote no inventory is an error rather than an empty list: an empty list says
 // the tool read nothing, which would report every file in the tree as unread.
-func (s repoScanner) runInventoried(ctx context.Context, dir string, argv []string, inputs *[]sarif.Input) ([]byte, error) {
+func (s repoScanner) runInventoried(ctx context.Context, dir string, argv []string, inputs *[]sarif.Input,
+	packages *[]sarif.InventoryPackage,
+) ([]byte, error) {
 	if s.inventory == nil {
 		return s.runReporting(ctx, dir, argv)
 	}
@@ -222,7 +225,7 @@ func (s repoScanner) runInventoried(ctx context.Context, dir string, argv []stri
 	if len(data) == 0 {
 		return nil, errors.New("wrote no inventory, so what it read cannot be accounted for")
 	}
-	*inputs, err = s.inventory.parse(data, dir)
+	*inputs, *packages, err = s.inventory.parse(data, dir)
 	if err != nil {
 		return nil, fmt.Errorf("read its inventory: %w", err)
 	}
@@ -360,6 +363,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 
 	var out []byte
 	var inputs []sarif.Input
+	var packages []sarif.InventoryPackage
 	if s.argsList != nil {
 		for _, argv := range s.argsList(dir, repo.Entry, cfg) {
 			part, err := s.runReporting(ctx, dir, argv)
@@ -373,7 +377,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		if s.runLogged != nil {
 			out, inputs, err = s.runLogged(ctx, dir, s.args(dir, cfg))
 		} else {
-			out, err = s.runInventoried(ctx, dir, s.args(dir, cfg), &inputs)
+			out, err = s.runInventoried(ctx, dir, s.args(dir, cfg), &inputs, &packages)
 		}
 		if err != nil {
 			return sarif.Report{}, fmt.Errorf("run %s: %w", s.info.Name, err)
@@ -390,6 +394,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	switch {
 	case s.inventory != nil:
 		report.Inputs = inputs
+		report.Inventory = append(report.Inventory, packages...)
 	case s.runLogged != nil:
 		// Beside what the parser read from the report: the log names what the tool could not read,
 		// and the report what it did.
