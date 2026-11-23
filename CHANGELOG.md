@@ -16,27 +16,25 @@ _Nothing yet._
 
 ### Changed
 
-- **`draugr init` turns on `iac` only where there is infrastructure code to check.** Without any, the control is written commented out, and the `hosts:` example appears only where something serves, such as an OpenAPI document or a Dockerfile with `EXPOSE`. A scan with no descriptor follows the same rules.
+- **`draugr init` writes `iac` commented out when the repository has no infrastructure code.** The `hosts:` example appears only where something serves, such as an OpenAPI document or a Dockerfile with `EXPOSE`. A scan with no descriptor turns on `iac` and shows `hosts` under the same conditions.
 
 ### Fixed
 
 - **A Dependabot alert and your own scanner's finding of the same flaw now count once.** Where both name the same advisory, package and manifest, and the installed version is inside the versions the alert says are affected, the higher-priority copy counts and the other is listed as also found by. Before, each such advisory counted twice.
 
-- **A Go advisory is counted once when OSV-Scanner runs beside Trivy.** OSV-Scanner's Go module versions now carry the leading `v` go.mod writes, so its findings merge with Trivy's and Grype's instead of being counted, gated and listed twice. An imported Grype file and OSV-Scanner file naming one Go module version now give one upgrade.
+- **OSV-Scanner's Go findings now merge with Trivy's and Grype's.** OSV-Scanner's Go module versions now carry the leading `v` go.mod writes, so a Go advisory is no longer counted, gated and listed twice. Imported Grype and OSV-Scanner files that name one Go module version now give one upgrade, not two.
 
 - **A govulncheck run that does not finish names the modules it left unchecked.** When govulncheck is killed, usually for lack of memory, or fails partway, the scan still fails, and every `go.mod` it was given is now listed as unread with the reason. `failOnCaveats: [unread-files]` reads them like any other unread file.
 
-- **A scan of an image built here and never pushed now says why when no Docker daemon is reachable.** Errors suggests pushing the image to a registry the scan can reach, or mounting the daemon's socket, which gives the scan's container full control of the host.
+- **A scan of an image built here and never pushed now says why when no Docker daemon is reachable.** The error suggests pushing the image to a registry the scan can reach, or mounting the daemon's socket, which gives the scan's container full control of the host.
 
-- **A scan that stops because the draugr-api publisher has its address and no token, or a token and no address, now says so.** The message names the missing variable, says no scanner ran, and gives both ways on: supply it, or unset the half that is set to scan without publishing.
+- **A scan that stops because the draugr-api publisher has its address and no token, or a token and no address, now says so.** The message names the missing variable and says no scanner ran. To go on, set the missing variable, or unset the one that is set to scan without publishing.
 
-- **A secret in a text file whose name looks like an archive's is now found.** Gitleaks skips a file such as `notes.zip.txt` or `release.brief.md` by its name. Draugr now searches such a file at its own path when it is text, with your Gitleaks allowlists and `.gitleaksignore` applied. A real archive is still listed unread.
+- **A secret in a text file whose name looks like an archive's is now found.** Gitleaks skips a file whose name holds an archive extension, such as `notes.zip.txt`, unread. Draugr now searches such a file at its own path when it is text, with your Gitleaks allowlists and `.gitleaksignore` applied. A real archive is still listed unread.
 
 - **An imported SARIF file that states a commit and no repository is no longer held to the repository declared as `.`.** In a component with several repositories, it stops the run, naming the repositories the component declares, so you add `repositoryUri` to the file. With one repository it binds as before.
 
-- **`draugr diff` and `draugr scan --base` no longer call a flaw new because a second scanner's copy of it is now the one counted.** A finding is new only when no scanner's copy of it was in the base, so turning on OSV-Scanner or KICS no longer fails a `failOnNew` gate on flaws main already had.
-
-- **`draugr diff` and `draugr scan --base` no longer report a flaw as fixed when another scanner still finds it.** Turning a scanner off, or a scanner dropping an advisory, moves a flaw's count to another scanner's copy; the diff now reads that as unchanged. A flaw is fixed only when no scanner reports it at the head.
+- **`draugr diff` and `draugr scan --base` judge a flaw across scanners.** A flaw is new only when no scanner's copy was in the base, and fixed only when none reports it at the head. Turning a scanner on or off no longer reads as a new or fixed flaw, so a `failOnNew` gate passes on flaws main already had.
 
 - **`draugr doctor` now fails an imported file written for another commit.** It holds the file to the commit the scan reads, from the file or the import's `commit:`, and fails it with the scan's message, so you find it before `draugr scan` stops on it. A file with no commit passes and names the `unbound-imports` caveat the scan lists.
 
@@ -48,11 +46,11 @@ _Nothing yet._
 
 - **KICS and Trivy now count a whole-Dockerfile check once.** With KICS on beside trivy-config, a Dockerfile with no `HEALTHCHECK` or no `USER` that does not start with its `FROM` was counted twice. Each such finding is now counted once and names the other tool's copy.
 
-- **One Go flaw named two ways counts once.** A finding named only by its GitHub advisory id, such as a govulncheck import's, and another scanner's copy named by its CVE now count as one flaw when the Go vulnerability database lists that CVE as the record's only one. The flaw keeps the higher band.
+- **A Go advisory id and its CVE now count as one flaw.** A finding named only by its GitHub advisory id, such as a govulncheck import's, and another scanner's copy named by its CVE now count as one flaw when the Go vulnerability database lists that CVE as the record's only one. The flaw keeps the higher band.
 
 - **The developer-tool label no longer says where the tool runs.** A finding in a developer tool's dependencies, such as a lockfile under `.config/mise/`, is labeled `developer tool`. The old label said the tool runs in CI, which Draugr cannot know.
 
-- **The first scan after `draugr init` no longer warns about an uncommitted file.** The descriptor a scan is given, its fragments and its configuration file, such as `draugr.config.yaml`, are left out of the `uncommitted-files` count, because Draugr reads them from disk whether or not they are committed.
+- **The first scan after `draugr init` no longer counts the new descriptor as uncommitted.** The descriptor a scan is given, its fragments and its configuration file, such as `draugr.config.yaml`, are left out of the `uncommitted-files` count, because Draugr reads them from disk whether or not they are committed.
 
 - **Turning KICS on no longer fails a run over an ordinary comment.** A manifest or Dockerfile with a plain `#` comment and no `kics-scan` comment was reported as having lines KICS ignored, which failed a descriptor with `failOnCaveats: [unread-files]`. A file holding a `kics-scan` comment is still named as not checked by KICS.
 
