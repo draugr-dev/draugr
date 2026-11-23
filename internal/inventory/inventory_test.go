@@ -53,14 +53,17 @@ func TestReadFindsWhatATreeHolds(t *testing.T) {
 		"deploy/chart/templates/deployment.yaml":   deployment,
 		"deploy/k8s/deployment.yml":                deployment,
 
-		"Dockerfile":          "FROM scratch\n",
-		"Dockerfile.prod":     "FROM scratch\n",
-		"svc/api.Dockerfile":  "FROM scratch\n",
-		"svc/Containerfile":   "FROM scratch\n",
-		"api/openapi.yaml":    "openapi: 3.0.0\ninfo:\n  title: shop\n",
-		"api/v1/swagger.json": `{"swagger": "2.0"}`,
-		"config.yaml":         "name: shop\n",
-		"config.json":         `{"name": "shop"}`,
+		"Dockerfile":      "FROM scratch\n",
+		"Dockerfile.prod": "FROM scratch\n",
+		// An ignore file named for a Dockerfile is not one.
+		"Dockerfile.prod.dockerignore":      "*.md\n",
+		"svc/Containerfile.containerignore": "*.md\n",
+		"svc/api.Dockerfile":                "FROM scratch\n",
+		"svc/Containerfile":                 "FROM scratch\n",
+		"api/openapi.yaml":                  "openapi: 3.0.0\ninfo:\n  title: shop\n",
+		"api/v1/swagger.json":               `{"swagger": "2.0"}`,
+		"config.yaml":                       "name: shop\n",
+		"config.json":                       `{"name": "shop"}`,
 	})
 
 	got := Read(root)

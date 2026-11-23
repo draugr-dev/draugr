@@ -270,8 +270,14 @@ func outermost(dirs []string) []string {
 }
 
 // isDockerfile matches the names Trivy reads as a Dockerfile: Dockerfile, Dockerfile.prod,
-// api.Dockerfile and api.dockerfile, and the same with Containerfile.
+// api.Dockerfile and api.dockerfile, and the same with Containerfile. An ignore file named for the
+// Dockerfile beside it, such as Dockerfile.agent.dockerignore, is left out: Trivy's name match takes
+// it too, but it holds paths to leave out of a build, and the Dockerfile it belongs to is counted.
 func isDockerfile(base string) bool {
+	lower := strings.ToLower(base)
+	if strings.HasSuffix(lower, ".dockerignore") || strings.HasSuffix(lower, ".containerignore") {
+		return false
+	}
 	for _, name := range []string{"Dockerfile", "Containerfile"} {
 		if base == name || strings.HasPrefix(base, name+".") || strings.EqualFold(path.Ext(base), "."+name) {
 			return true
