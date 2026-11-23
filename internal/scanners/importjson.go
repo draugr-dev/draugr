@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"cmp"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -505,7 +506,8 @@ var importFormatNames = map[string]string{
 
 // DescribeImport reads data as an import of format would, empty being SARIF, and says what it is and
 // how much it holds: "SARIF 2.1.0, 3 results", "Trivy JSON, 4 findings". A file the scan would
-// refuse returns the scan's error. Nothing is held to a commit or placed in a repository.
+// refuse returns the scan's error. Nothing is held to a commit or placed in a repository; DescribeBound
+// does that.
 func DescribeImport(data []byte, format string) (string, error) {
 	return DescribeFile(data, plugin.FileTarget{Format: format})
 }
@@ -514,15 +516,44 @@ func DescribeImport(data []byte, format string) (string, error) {
 // converter the descriptor declares and what it may set, both of which decide whether the file is
 // read.
 func DescribeFile(data []byte, ft plugin.FileTarget) (string, error) {
+	detail, _, err := describeRead(data, ft)
+	return detail, err
+}
+
+// DescribeBound is DescribeFile followed by the commit the scan holds the file to, worked out by the
+// scan's own rule (sarifImport.bind), with resolve turning a repository's revision into a commit:
+// "SARIF 2.1.0, 1 result, commit 0123456789ab", or the scan's account of a file nothing binds,
+// "…, commit not stated, ${{ GITHUB_SHA }} is not set". A file the scan would refuse as written for
+// another commit returns the scan's error, so a preflight fails it in the scan's words before the
+// scan runs. An error resolve returns reaches the caller wrapped, for errors.Is.
+func DescribeBound(ctx context.Context, data []byte, ft plugin.FileTarget,
+	resolve func(ctx context.Context, url, revision string) (string, error)) (string, error) {
+	detail, read, err := describeRead(data, ft)
+	if err != nil {
+		return "", err
+	}
+	commit, err := sarifImport{resolve: resolve}.bind(ctx, ft, read.meta)
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(commit, notStated) {
+		// Read and held to no commit, which the row would otherwise show as a plain pass.
+		return detail + ", commit " + commit + ". The scan lists it under unbound-imports", nil
+	}
+	return detail + ", commit " + commit, nil
+}
+
+// describeRead reads data as the import ft plans and says what it is and how much it holds.
+func describeRead(data []byte, ft plugin.FileTarget) (string, importRead, error) {
 	format := cmp.Or(ft.Format, saga.ImportFormatSARIF)
 	ft.Format = format
 	read, err := readImport(data, ft)
 	if err != nil {
-		return "", err
+		return "", importRead{}, err
 	}
 	noun := "finding"
 	if format == saga.ImportFormatSARIF {
 		noun = "result"
 	}
-	return importFormatNames[format] + ", " + english.Count(len(read.rep.Results), noun), nil
+	return importFormatNames[format] + ", " + english.Count(len(read.rep.Results), noun), read, nil
 }

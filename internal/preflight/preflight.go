@@ -169,9 +169,10 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 				units = append(units, func(context.Context) []Check { return []Check{sourceCheck(target)} })
 				continue
 			}
-			// A file read in place: present and readable is the question, and it needs no network.
-			// Once per file and format, as one file imported twice is read by each import's reader.
-			key := "file:" + t.Format + ":" + t.Path
+			// A file read in place: whether it is there, reads as its format, and is the commit's the
+			// scan holds it to. Once per file, format and what binds it, as one file imported twice is
+			// read by each import's reader, and two components can hold it to two repositories.
+			key := "file:" + t.Format + ":" + t.Path + ":" + t.Component + ":" + t.Commit + ":" + t.CommitUnset
 			if t.Converter != nil {
 				key += ":" + t.Converter.Name + ":" + strings.Join(t.Converter.Sets, ",")
 			}
@@ -179,10 +180,8 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 				continue
 			}
 			seen[key] = true
-			// What the scan's reader is given, less the repositories: a converter's file is read only
-			// with the converter the descriptor declares for it.
-			target := plugin.FileTarget{Path: t.Path, Format: t.Format, Converter: t.Converter}
-			units = append(units, func(context.Context) []Check { return []Check{fileCheck(target)} })
+			target := t
+			units = append(units, func(ctx context.Context) []Check { return []Check{fileCheck(ctx, p, target, opts.Offline)} })
 		default:
 			id := string(t.Kind()) + ":" + t.Identity()
 			if seen[id] {
@@ -587,19 +586,42 @@ func sourceCheck(t plugin.FileTarget) Check {
 	return c
 }
 
-// fileCheck is whether an imported file is there to read, and whether it is the format the import
-// names, SARIF 2.1.0 where it names none: the scan stops on either, so the preflight says so first.
-func fileCheck(t plugin.FileTarget) Check {
+// fileCheck is whether an imported file is there to read, whether it is the format the import names,
+// SARIF 2.1.0 where it names none, and whether it was written for the commit the scan reads, from its
+// own provenance or the descriptor's commit: the scan stops on each, so the preflight says so first.
+//
+// The commit is worked out by the scan's own rule, so a file it would refuse fails here in its words
+// and a file nothing binds is reported as the scan reports it. Under --offline a revision that only
+// the network can resolve is not resolved, and the check says the commit was not checked.
+func fileCheck(ctx context.Context, p Probes, t plugin.FileTarget, offline bool) Check {
 	c := Check{Kind: string(plugin.TargetFile), Target: t.Path}
+	if t.Component != "" {
+		// One file imported by two components is checked for each, against its own repositories.
+		c.Target += " · " + t.Component
+	}
 	data, err := os.ReadFile(t.Path) // #nosec G304 -- a file the descriptor names for import
 	if err != nil {
 		c.Status, c.Detail = Failed, err.Error()
 		return c
 	}
-	// The reader the scan uses, so a file the scan would refuse fails here with the same words.
-	detail, err := scanners.DescribeFile(data, t)
+	resolve := func(ctx context.Context, url, revision string) (string, error) {
+		if offline && !git.IsLocalPath(url) && !git.IsCommitSHA(revision) {
+			return "", errNotChecked
+		}
+		return p.Revision(ctx, url, revision)
+	}
+	detail, err := scanners.DescribeBound(ctx, data, t, resolve)
+	if errors.Is(err, errNotChecked) {
+		// The file read; only its commit is left, and that needs the network.
+		detail, err = scanners.DescribeFile(data, t)
+		if err == nil {
+			c.Status, c.Detail = NotChecked, detail+", commit not checked under "+offlineReason
+			return c
+		}
+	}
 	if err != nil {
-		c.Status, c.Detail = Failed, err.Error()
+		// The scan's message opens with the file, which the row already names.
+		c.Status, c.Detail = Failed, strings.TrimPrefix(err.Error(), t.Path+": ")
 		return c
 	}
 	c.Status, c.Detail = Passed, detail

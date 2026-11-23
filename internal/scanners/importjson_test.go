@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -460,5 +461,40 @@ func TestDescribeImportReadsEachFormat(t *testing.T) {
 	if _, err := DescribeImport([]byte(exampleLog(scoredResult, "")), saga.ImportFormatTrivyJSON); err == nil ||
 		!strings.Contains(err.Error(), "not Trivy JSON") {
 		t.Errorf("SARIF described as Trivy JSON: %v", err)
+	}
+}
+
+// DescribeBound adds the commit the scan holds a file to, and refuses one written for another
+// commit with the scan's error, a file that does not read with its reader's, and passes on what
+// resolving the commit returned.
+func TestDescribeBoundHoldsAFileToTheCommit(t *testing.T) {
+	const head = "0123456789abcdef0123456789abcdef01234567"
+	resolve := func(context.Context, string, string) (string, error) { return head, nil }
+	data := []byte(exampleLog(scoredResult, ""))
+	ft := plugin.FileTarget{Component: "api", Repositories: []plugin.RepositoryTarget{{URL: "."}}}
+	for _, c := range []struct {
+		commit, want string
+	}{
+		{head[:7], "SARIF 2.1.0, 1 result, commit 0123456789ab"},
+		{"", "SARIF 2.1.0, 1 result, commit not stated. The scan lists it under unbound-imports"},
+	} {
+		ft.Commit = c.commit
+		if got, err := DescribeBound(context.Background(), data, ft, resolve); err != nil || got != c.want {
+			t.Errorf("commit %q: %q, %v, want %q", c.commit, got, err, c.want)
+		}
+	}
+	ft.Commit = "fedcba9876543210"
+	if _, err := DescribeBound(context.Background(), data, ft, resolve); err == nil ||
+		!strings.Contains(err.Error(), "scanned fedcba987654, this run reads 0123456789ab") {
+		t.Errorf("another commit: %v", err)
+	}
+	if _, err := DescribeBound(context.Background(), []byte("junk"), ft, resolve); err == nil {
+		t.Error("junk described")
+	}
+	offline := errors.New("not checked")
+	refuse := func(context.Context, string, string) (string, error) { return "", offline }
+	ft.Commit = head
+	if _, err := DescribeBound(context.Background(), data, ft, refuse); !errors.Is(err, offline) {
+		t.Errorf("resolve's error: %v, want it wrapped", err)
 	}
 }

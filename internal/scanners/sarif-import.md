@@ -610,11 +610,15 @@ that found nothing:
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key
   at fault.
 
-`draugr doctor` reads the file with the same reader, so a file the scan would refuse fails doctor
-with the same message, and a file that passes reports how many results it holds, as
-`SARIF 2.1.0, 3 results` or `Trivy JSON, 4 findings`. Doctor does not
-compare paths with the component's checkout, and does not hold the file to a commit: the scan lists
-a path it cannot place under `unread-files`, and stops on a file named for another commit.
+`draugr doctor` reads the file with the same reader and holds it to the commit the scan reads, so a
+file the scan would refuse fails doctor with the same message, including one written for another
+commit. A file that passes shows how many results it holds and its commit, as
+`SARIF 2.1.0, 3 results, commit 0123456789ab`. A file with no commit shows `commit not stated`, the
+reason, and that the scan lists it under `unbound-imports`. Each row names its component, since two
+components can hold one file to different repositories. Under `--offline`, a revision only the
+network can resolve, such as a branch of a remote repository, is not checked, and the row says
+`not checked`. Doctor does not compare paths with the component's checkout: the scan lists a path it
+cannot place under `unread-files`.
 
 ## GitHub's alerts
 
