@@ -194,3 +194,76 @@ func TestInAffectedReadsGitHubRanges(t *testing.T) {
 		}
 	}
 }
+
+// dismissedInGitHub is the suppression a person's dismissal of an alert in GitHub becomes on import,
+// as settleDismissal writes it.
+func dismissedInGitHub() *sarif.Suppression {
+	return &sarif.Suppression{Kind: "external", Origin: sarif.OriginScanner, Justification: "tolerable risk",
+		Author: "octocat", Asserted: "2026-10-02", Source: "https://github.com/acme/web/security/dependabot/7",
+		Service: "Dependabot"}
+}
+
+// A person's dismissal of a Dependabot alert in GitHub sets that alert aside and never the control's
+// own scanners' copies of the flaw: the native copy counts whichever copy ranks higher, and with a
+// second scanner's copy the two are counted once between them, and the alert stays a finding of its
+// own saying who dismissed it.
+func TestADependabotDismissalLeavesTheNativeCopyCounting(t *testing.T) {
+	for name, tc := range map[string]struct {
+		alertBand, nativeBand string
+		withGrype             bool
+	}{
+		"the alert ranks higher": {"P1", "P2", false},
+		"the same band":          {"P2", "P2", false},
+		"two native copies":      {"P1", "P2", true},
+	} {
+		alert := lodashAlert("repo-web", "package-lock.json", lodashGHSA, "< 4.17.21", lodashCVE)
+		alert.Priority, alert.Score, alert.Suppression = tc.alertBand, 9.1, dismissedInGitHub()
+		native := lodashNative("repo-web", "package-lock.json", lodashCVE, "4.17.20")
+		native.Priority = tc.nativeBand
+		results := []sarif.Result{alert, native}
+		if tc.withGrype {
+			second := native
+			second.Tool = "grype"
+			results = append(results, second)
+		}
+		ctrls := controlsWith(results...)
+		groups, excused := applyCorrelation(ctrls)
+		if want := map[bool]int{false: 0, true: 1}[tc.withGrype]; groups != want || excused != 0 {
+			t.Errorf("%s: groups %d, excused %d; want %d groups and none excused", name, groups, excused, want)
+		}
+		for _, r := range ctrls["sca"].Report.Results {
+			switch r.Tool {
+			case "Dependabot":
+				if s := r.Suppression; s == nil || s.Author != "octocat" || s.Service != "Dependabot" || r.Correlation != nil {
+					t.Errorf("%s: alert suppression %+v, correlation %+v; want octocat's dismissal on its own", name, s, r.Correlation)
+				}
+			default:
+				if r.Suppressed() {
+					t.Errorf("%s: %s suppression %+v, want it counting", name, r.Tool, r.Suppression)
+				}
+				if r.Correlated() && r.Correlation.CountedUnder == "imported Dependabot (github-dependabot)" {
+					t.Errorf("%s: %s counted under the dismissed alert", name, r.Tool)
+				}
+			}
+		}
+		if got := ctrls["sca"].Summary.Errors; got != 1 {
+			t.Errorf("%s: errors = %d, want the native flaw counted once", name, got)
+		}
+	}
+}
+
+// A decision written in the descriptor is about the flaw, whichever copy it names, so an exclusion
+// matching the alert still sets the native copy aside with it.
+func TestAnExclusionOfTheAlertStillExcusesTheFlaw(t *testing.T) {
+	alert := lodashAlert("repo-web", "package-lock.json", lodashGHSA, "< 4.17.21", lodashCVE)
+	alert.Suppression = &sarif.Suppression{Kind: "external", Origin: sarif.OriginSaga, Justification: "build only"}
+	ctrls := controlsWith(alert, lodashNative("repo-web", "package-lock.json", lodashCVE, "4.17.20"))
+	if _, excused := applyCorrelation(ctrls); excused != 1 {
+		t.Errorf("excused = %d, want the native copy", excused)
+	}
+	for _, r := range ctrls["sca"].Report.Results {
+		if !r.Suppressed() {
+			t.Errorf("%s counted, want the exclusion on every copy", r.Tool)
+		}
+	}
+}

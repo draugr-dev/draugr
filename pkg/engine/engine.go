@@ -3119,8 +3119,11 @@ func countSilenced(controls map[string]plugin.ControlResult) int {
 //
 // A setting's suppression is the exception, because it is about one copy rather than the flaw: a
 // development dependency in one lockfile says nothing about the same package shipped from another.
-// Where a group has no decision about the whole flaw, its copies a setting set aside are correlated
-// apart from the ones that count. The counted row then lists only copies that count, and the
+// So is an alert's dismissal in the service it was imported from, such as a Dependabot alert a
+// person dismissed in GitHub: it was made about that service's alert, in that service, and nothing
+// in this repository records it, so it never sets the control's own scanners' copies aside (see
+// aboutOneCopy). Where a group has no decision about the whole flaw, its copies set aside for
+// themselves are correlated apart from the ones that count. The counted row then lists only copies that count, and the
 // set-aside ones stay a finding of their own under ACCEPTED, rather than being counted under a row
 // they do not belong to and leaving ACCEPTED to report locations with no finding.
 //
@@ -3187,12 +3190,12 @@ func correlateGroup(results []sarif.Result, idxs []int, pick func([]sarif.Result
 	return groups, extraSuppressed
 }
 
-// apartSetAside splits one flaw's copies into those that count and those a setting set aside,
-// leaving out a part with no copies.
+// apartSetAside splits one flaw's copies into those that count and those set aside for themselves
+// alone (aboutOneCopy), leaving out a part with no copies.
 func apartSetAside(results []sarif.Result, idxs []int) [][]int {
 	var counted, setAside []int
 	for _, i := range idxs {
-		if results[i].SetAsideBySetting() {
+		if aboutOneCopy(results[i]) {
 			setAside = append(setAside, i)
 		} else {
 			counted = append(counted, i)
@@ -4366,16 +4369,32 @@ func strongerFinding(a, b sarif.Result) bool {
 
 // suppressionIn returns the decision already made about this flaw, or nil when none was.
 //
-// A setting's is not one. It sets a copy aside for what that copy is, a development dependency in
-// its own file, and the same package can be a runtime dependency in another file the group holds.
-// Spread to that copy it would take a shipped flaw out of the count.
+// A suppression aboutOneCopy names is not one.
 func suppressionIn(results []sarif.Result, idxs []int) *sarif.Suppression {
 	for _, i := range idxs {
-		if results[i].Suppression != nil && !results[i].SetAsideBySetting() {
+		if results[i].Suppression != nil && !aboutOneCopy(results[i]) {
 			return results[i].Suppression
 		}
 	}
 	return nil
+}
+
+// aboutOneCopy reports whether a finding's suppression sets aside that copy alone, never the
+// other copies of its flaw.
+//
+// A setting's does. It sets a copy aside for what that copy is, a development dependency in its own
+// file, and the same package can be a runtime dependency in another file the group holds. Spread to
+// that copy it would take a shipped flaw out of the count.
+//
+// So does a dismissal in the service an alert was imported from (Suppression.Service), such as a
+// Dependabot or code-scanning alert a person dismissed in GitHub. It is recorded only in that
+// service, about that alert, by whoever may dismiss alerts there, and the descriptor names it
+// nowhere. Spread to the control's own scanners' copies it would set a flaw aside on a decision the
+// repository holds no record of, and a dismissed alert that ranked higher would carry the flaw out of
+// the count with it. The alert stays set aside on its own, saying who dismissed it; a reader who
+// means the decision for every copy writes it in config.exclude.
+func aboutOneCopy(res sarif.Result) bool {
+	return res.SetAsideBySetting() || (res.Suppression != nil && res.Suppression.Service != "")
 }
 
 // commitOf returns the commit a target was read at, and whether that is known.
