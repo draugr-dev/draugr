@@ -129,6 +129,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 			Base:       sarif.RepositoriesIn([]sarif.Report{g.base}),
 			Introduced: compared.Counted().New,
 			Tripped:    compared.Tripped,
+			Dropped:    droppedControls(compared.Held.Dropped),
 		},
 		result:  compared,
 		tripped: len(compared.Tripped),
@@ -229,4 +230,13 @@ func scopeReport(scope engine.Scope) sarif.Report {
 		r.Provenance = []sarif.Provenance{p}
 	}
 	return r
+}
+
+// droppedControls is the comparison's dropped controls as report.json states them, nil where none.
+func droppedControls(dropped []diff.Dropped) []skald.DroppedControl {
+	var out []skald.DroppedControl
+	for _, d := range dropped {
+		out = append(out, skald.DroppedControl{Component: d.Component, Control: d.Control})
+	}
+	return out
 }

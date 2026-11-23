@@ -579,6 +579,18 @@ type NewFindings struct {
 	// Tripped are the introduced findings that met FailOnNew, the ones the gate failed the run on.
 	// Empty where none did, and where FailOnNew is empty.
 	Tripped []sarif.Result
+	// Dropped are the controls the base's descriptor turned on that this run's does not. Each fails
+	// the gate on new findings by itself: what the change adds where the control ran was never
+	// looked for, so no count of new findings can say the change is clean.
+	Dropped []DroppedControl
+}
+
+// DroppedControl is a control the base scan ran that this run does not.
+type DroppedControl struct {
+	// Component is the base's component the control was on, absent for a project-wide control.
+	Component string `json:"component,omitempty"`
+	// Control is the control's name.
+	Control string `json:"control"`
 }
 
 // gateReport is the gate as the JSON document states it.
@@ -620,6 +632,8 @@ type newReport struct {
 	Base baseReport `json:"base"`
 	// Introduced counts the new findings by band.
 	Introduced priorityCounts `json:"introduced"`
+	// Dropped are the controls the base ran and this run does not, absent where there are none.
+	Dropped []DroppedControl `json:"dropped,omitempty"`
 	// Verdict is the gate on new findings' outcome, pass or fail. Absent where no threshold was
 	// set: the comparison is then reported and decides nothing, and a verdict nobody asked for
 	// would be one the document invented.
@@ -641,7 +655,7 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	if n == nil {
 		return nil
 	}
-	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}}
+	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}, Dropped: n.Dropped}
 	for _, f := range n.Introduced {
 		switch prioritization.Priority(f.Priority) {
 		case prioritization.P1:
@@ -656,7 +670,7 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	}
 	if failOnNew != "" {
 		out.Verdict = string(norn.Pass)
-		if len(n.Tripped) > 0 {
+		if len(n.Tripped) > 0 || len(n.Dropped) > 0 {
 			out.Verdict = string(norn.Fail)
 		}
 	}

@@ -128,7 +128,8 @@ top-level `verdict` is the whole run's outcome and `gate.wholeRun` is absent.
 | `gate.new.base.commit` | the revision the base read, where it read one repository. Absent where it read several |
 | `gate.new.base.repositories[]` | each repository the base read, with `url` and `revision`, as its `results.sarif` records them |
 | `gate.new.introduced` | the new findings by band, `p1` to `p4`, without a second scanner's copy of a finding already counted |
-| `gate.new.verdict` | the gate on new findings' outcome, `pass` or `fail`. Absent where no `failOnNew` is set |
+| `gate.new.dropped[]` | each control the base's descriptor turned on and this run's does not, with `control` and, for a component's control, `component`. Absent where the change stops none |
+| `gate.new.verdict` | the gate on new findings' outcome, `pass` or `fail`. A dropped control fails it whatever was introduced, since what the change adds there was never looked for. Absent where no `failOnNew` is set |
 | `gate.wholeRun` | the outcome of `failOnPriority` or `threshold` over every finding, `pass` or `fail`, on a run whose `verdict` the gate on new findings gave. Absent on any other run |
 
 `failOnNew` with no `new` is a gate on new findings that was asked for and had no base to apply to.

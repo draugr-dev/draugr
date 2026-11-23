@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -160,5 +161,24 @@ func TestTheSettingAndTheComparisonAreStatedApart(t *testing.T) {
 		if _, there := plain[key]; there {
 			t.Errorf("%s = %v on a run that set no gate on new findings", key, plain[key])
 		}
+	}
+}
+
+// A control the base ran and this run does not fails the gate on new findings by itself, and the
+// document names it: no count of new findings covers what was never looked for.
+func TestADroppedControlFailsTheGateOnNewFindings(t *testing.T) {
+	got := describeNew(&NewFindings{Dropped: []DroppedControl{{Component: "api", Control: "sca"}, {Control: "secrets"}}}, "P1")
+	if got.Verdict != string(norn.Fail) {
+		t.Errorf("verdict = %q, want fail with no new finding but a dropped control", got.Verdict)
+	}
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `"dropped":[{"component":"api","control":"sca"},{"control":"secrets"}]`; !strings.Contains(string(data), want) {
+		t.Errorf("new = %s, want %s", data, want)
+	}
+	if data, _ := json.Marshal(describeNew(&NewFindings{}, "P1")); strings.Contains(string(data), "dropped") {
+		t.Errorf("new = %s: nothing dropped should leave the field out", data)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -130,6 +131,22 @@ func TestAChangeThatTurnsAControlOffFails(t *testing.T) {
 	}
 	if want := "The base ran sca on api and this change does not, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed."; !strings.Contains(console, want) {
 		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+
+	// report.json says what the exit code said: the dropped control fails the gate on new findings,
+	// though no new finding met it, since none could be looked for.
+	judged := t.TempDir()
+	if err := runScan(context.Background(), head,
+		scanOptions{outputDir: judged, noPublish: true, base: base, failOnNew: "P4"}, reg, &bytes.Buffer{}); err == nil {
+		t.Fatal("the scan passed")
+	}
+	newBlock, _ := gateOf(t, judged)["new"].(map[string]any)
+	if newBlock["verdict"] != "fail" {
+		t.Errorf("gate.new.verdict = %v, want fail", newBlock["verdict"])
+	}
+	if dropped, _ := newBlock["dropped"].([]any); len(dropped) != 1 ||
+		!reflect.DeepEqual(dropped[0], map[string]any{"component": "api", "control": "sca"}) {
+		t.Errorf("gate.new.dropped = %v, want sca on api", newBlock["dropped"])
 	}
 
 	headOut := t.TempDir()

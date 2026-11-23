@@ -118,11 +118,12 @@ func jsonList[T any](items []T) string {
 	return string(b)
 }
 
-// readList decodes a list jsonList encoded, nil for a value that does not decode. The value is one
-// a scan wrote with jsonList, so it decodes unless somebody edited the file by hand.
+// readList decodes a list jsonList encoded, nil for an empty list and for a value that does not
+// decode. The value is one a scan wrote with jsonList, so it decodes unless somebody edited the
+// file by hand.
 func readList[T any](value string) []T {
 	var items []T
-	if value == "" || json.Unmarshal([]byte(value), &items) != nil {
+	if value == "" || json.Unmarshal([]byte(value), &items) != nil || len(items) == 0 {
 		return nil
 	}
 	return items
