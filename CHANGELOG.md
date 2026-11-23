@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.187.1] - 2026-11-23
+
+### Fixed
+
+- **Go findings are no longer ranked lower as unreachable when govulncheck could not load their module on the scanning machine.** A windows/amd64 or darwin/arm64 run that loaded it used to decide, and its findings were marked `↓ unreachable`. They now keep their priority, with no mark. A severity or priority gate may newly fail.
+
 ## [0.187.0] - 2026-11-22
 
 ### Added
@@ -7457,7 +7463,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.187.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.187.1...HEAD
+[0.187.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.1
 [0.187.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.0
 [0.186.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.2
 [0.186.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.186.1
