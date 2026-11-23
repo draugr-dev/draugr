@@ -147,7 +147,7 @@ steps:
             # one correcting the descriptor included. The target branch is scanned with this pull
             # request's copy instead, which compares the two trees under one descriptor.
             if ! refusal=$(draugr validate "${{ parameters.saga }}" 2>&1 >/dev/null); then
-              echo "##vso[task.logissue type=warning]This Draugr release refuses the target branch's ${{ parameters.saga }}, so the target branch is scanned with this pull request's copy. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
+              echo "##vso[task.logissue type=warning]This Draugr release refuses the target branch's ${{ parameters.saga }}, so the target branch is scanned with this pull request's copy, whose config.gate.failOnNew then stands for the target branch's. Refusal: $(printf '%s\n' "$refusal" | sed -n 1p)"
               git show "$BUILD_SOURCEVERSION:./${{ parameters.saga }}" > "${{ parameters.saga }}"
             fi
             draugr scan "${{ parameters.saga }}" --no-gate --no-publish --report sarif -o "$(Pipeline.Workspace)/draugr-base"

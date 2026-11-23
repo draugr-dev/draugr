@@ -1542,6 +1542,45 @@ func MinPriorityProvenance(band string) (sarif.Provenance, bool) {
 	}, true
 }
 
+// GateProvenanceTool is the provenance entry a scan stamps on its SARIF to record its
+// descriptor's config.gate.failOnNew.
+const GateProvenanceTool = "draugr/gate"
+
+// GateProvenance renders the gate on new findings a descriptor set, its config.gate.failOnNew, as a
+// SARIF provenance entry, and reports whether there was one to render.
+//
+// A report compared later as somebody's base carries the gate of the commit it scanned. A pull
+// request is judged against what its base already enforces: its own descriptor is part of the change
+// under review, and a change that deletes or loosens the gate would otherwise be judged by the
+// weaker gate it introduces. Recorded from the descriptor rather than from --fail-on-new, because the
+// descriptor is what the base commit committed to.
+func GateProvenance(failOnNew string) (sarif.Provenance, bool) {
+	if failOnNew == "" {
+		return sarif.Provenance{}, false
+	}
+	return sarif.Provenance{
+		Tool:   GateProvenanceTool,
+		Fields: []sarif.Field{{Key: "failOnNew", Value: failOnNew}},
+	}, true
+}
+
+// GateOfReport is the config.gate.failOnNew a loaded report's scan was run under, and whether it
+// recorded one. The inverse of GateProvenance. A report written before scans recorded it, or by a
+// scan whose descriptor set none, reads as none.
+func GateOfReport(rep sarif.Report) (string, bool) {
+	for _, p := range rep.Provenance {
+		if p.Tool != GateProvenanceTool {
+			continue
+		}
+		for _, f := range p.Fields {
+			if f.Key == "failOnNew" && f.Value != "" {
+				return f.Value, true
+			}
+		}
+	}
+	return "", false
+}
+
 // MinPriorityOfReport reports the band a loaded report was narrowed to, and whether it was
 // narrowed at all. The inverse of MinPriorityProvenance, for a consumer reading a file somebody
 // else wrote.

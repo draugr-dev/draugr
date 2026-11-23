@@ -113,7 +113,11 @@ func changeNote(g GateSettings) string {
 	if n := len(g.New.Introduced); n > 0 {
 		news = fmt.Sprintf("%d new", n)
 	}
-	return "Change since " + g.baseName() + " · " + news + " · fails on " + ThresholdWords(g.FailOnNew)
+	note := "Change since " + g.baseName() + " · " + news + " · fails on " + ThresholdWords(g.FailOnNew)
+	if g.HeldToBase {
+		note += ", the base's gate, which this scan's descriptor weakens"
+	}
+	return note
 }
 
 // ThresholdWords is a gate setting as the report states it: a band as it is written, and a

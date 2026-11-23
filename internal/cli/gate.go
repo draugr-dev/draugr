@@ -9,8 +9,10 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
+	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/skald"
 )
 
 // resolveGate settles which of the two questions this run is asking, from the flags and the
@@ -191,4 +193,53 @@ func resolveFailOnCaveats(flag []string, set bool, gate *saga.GateConfig) ([]sag
 		}
 	}
 	return kinds, "--fail-on-caveats", nil
+}
+
+// declaredNew is a descriptor's config.gate.failOnNew as a scan records it in its sarif report,
+// empty where it sets none.
+func declaredNew(gate *saga.GateConfig) string {
+	_, value := gate.ResolvedNew()
+	return value
+}
+
+// withBaseGate holds a comparison to at least the gate its base scan recorded, where no
+// --fail-on-new was typed.
+//
+// The head's descriptor is part of the change being judged. Read alone, a pull request that deletes
+// config.gate.failOnNew, or loosens it, is judged by the weaker gate it introduces, and passes a
+// finding its base would have failed. So the base's recorded gate applies beside the head's, and the
+// stricter of the two decides: in one vocabulary the lower threshold, in two both. A typed
+// --fail-on-new is the pipeline's own decision and replaces both, as it replaces the descriptor's.
+//
+// It returns the gate in force, with Base and Head set where the base's decides more than the head's
+// alone.
+func withBaseGate(failOn sarif.Severity, band string, typed bool, head *saga.GateConfig, base sarif.Report) diff.Gate {
+	g := diff.Gate{FailOn: failOn, FailOnPriority: band}
+	if typed {
+		return g
+	}
+	recorded, ok := skald.GateOfReport(base)
+	if !ok {
+		return g
+	}
+	kind, value, err := saga.ParseGate(recorded)
+	if err != nil {
+		return g
+	}
+	stricter := false
+	switch kind {
+	case saga.GateSeverity:
+		sev := sarif.Severity(value)
+		if failOn == "" || (failOn.AtLeast(sev) && failOn != sev) {
+			g.FailOn, stricter = sev, true
+		}
+	case saga.GatePriority:
+		if band == "" || rankOf(value) < rankOf(band) {
+			g.FailOnPriority, stricter = value, true
+		}
+	}
+	if stricter {
+		g.Base, g.Head = value, declaredNew(head)
+	}
+	return g
 }

@@ -755,7 +755,11 @@ func writeGate(w io.Writer, col tui.Painter, r Result) {
 	if !r.Gate.Stated() {
 		return
 	}
-	_, _ = fmt.Fprintf(w, "%s\n\n", col.Paint(tui.StyleMuted, "Gate: "+r.Gate.Sentence()+"."))
+	_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleMuted, "Gate: "+r.Gate.Sentence()+"."))
+	if note := r.Gate.BaseNote(); note != "" {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleMuted, note+"."))
+	}
+	_, _ = fmt.Fprintln(w)
 }
 
 // writeTry offers what else this run can be asked, and only what applies to it.
@@ -883,6 +887,9 @@ func writeMarkdownVerdict(w io.Writer, r Result) {
 	writeMarkdownBands(w, r)
 	if r.Gate.Stated() {
 		_, _ = fmt.Fprintf(w, "_Gate: %s._\n\n", r.Gate.Sentence())
+		if note := r.Gate.BaseNote(); note != "" {
+			_, _ = fmt.Fprintf(w, "_%s._\n\n", note)
+		}
 	}
 	if r.NoBase {
 		_, _ = fmt.Fprintf(w, "_%s._\n\n", noBaseNote)

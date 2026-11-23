@@ -270,7 +270,8 @@ func TestTheActionScansARefusedBaseWithTheHeadsDescriptor(t *testing.T) {
 		t.Fatalf("the step failed:\n%s", out)
 	}
 	want := "::warning::This Draugr release refuses the base commit's draugr.saga.yaml, so the base is " +
-		"scanned with this pull request's copy. Refusal: draugr: parse saga: config.exclude.acceptedBy was removed"
+		"scanned with this pull request's copy, whose config.gate.failOnNew then stands for the base's. " +
+		"Refusal: draugr: parse saga: config.exclude.acceptedBy was removed"
 	if !strings.Contains(out, want) {
 		t.Errorf("no warning naming the refusal and its reason:\n%s", out)
 	}
@@ -294,7 +295,7 @@ func TestTheActionScansAnAcceptedBaseWithItsOwnDescriptor(t *testing.T) {
 }
 
 // Every shipped pipeline that scans a base validates its descriptor first and scans a refused one
-// with the head's copy. A pipeline that does not fails on every change while the base carries a
+// with the head's copy, saying that the copy's gate on new findings then stands for the base's. A pipeline that does not fails on every change while the base carries a
 // key a release removed, and nothing about the template looks wrong until a release removes one.
 func TestEveryPipelineScansARefusedBaseWithTheHeadsDescriptor(t *testing.T) {
 	t.Parallel()
@@ -305,8 +306,8 @@ func TestEveryPipelineScansARefusedBaseWithTheHeadsDescriptor(t *testing.T) {
 			t.Errorf("%s: %v", path, err)
 			continue
 		}
-		if !strings.Contains(string(body), "draugr validate") || !strings.Contains(string(body), "copy. Refusal: $(printf") {
-			t.Errorf("%s scans the base without validating its descriptor, or says nothing when it is refused", path)
+		if !strings.Contains(string(body), "draugr validate") || !strings.Contains(string(body), "copy, whose config.gate.failOnNew then stands for") {
+			t.Errorf("%s scans the base without validating its descriptor, or does not say when it is refused and whose gate then applies", path)
 		}
 	}
 }
