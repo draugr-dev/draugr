@@ -15,7 +15,7 @@ vulnerable shop, in four steps:
 3. open one finding in the HTML report;
 4. see how a pull request is gated, and run the same gate on your machine.
 
-Every block of output comes from Draugr 0.187.1 on demo commit `bb729745`, run on 2026-11-23. A
+Every block of output comes from Draugr 0.188.0 on demo commit `bb729745`, run on 2026-11-23. A
 newer release or commit prints different counts, and so can a later day, because the scanners read
 advisory databases that change over time. A line reading `…` stands for lines cut from the output.
 
@@ -25,14 +25,14 @@ advisory databases that change over time. A line reading `…` stands for lines 
 
 ## 1. Scan with nothing declared
 
-Install Draugr 0.187.1 into `~/.local/bin`, which [install](install.md) covers in full, and check
+Install Draugr 0.188.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
 the version.
 
 ```console
-$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.187.1 sh
+$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.188.0 sh
 …
 $ draugr version
-draugr 0.187.1 (commit …)
+draugr 0.188.0 (commit …)
 ```
 
 Clone the demo at the commit this page was written against.
@@ -69,7 +69,7 @@ The demo is deliberately vulnerable, so this scan fails. That is the expected re
 ```console
 $ draugr scan .
 …
-DRAUGR  FAIL  draugr-demo  10.012s
+DRAUGR  FAIL  draugr-demo  11.683s
 
  37 P1 28 P2 18 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -169,7 +169,7 @@ is still written.
 ```console
 $ draugr scan --no-publish --report sarif -o before
 …
-DRAUGR  FAIL  draugr-demo 1.0  11.977s
+DRAUGR  FAIL  draugr-demo 1.0  16.667s
 
  302 P1 712 P2 257 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -178,7 +178,7 @@ DRAUGR  FAIL  draugr-demo 1.0  11.977s
 CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
 …
     uncommitted-files
-      4 uncommitted files  not in commit bb729745 · --working-tree reads them
+      2 uncommitted files  not in commit bb729745 · --working-tree reads them
 
 COMPONENTS
   api         ERROR  287 P1 702 P2 246 P3
@@ -188,9 +188,9 @@ COMPONENTS
 …
 ```
 
-The uncommitted files are the ones `git status` listed, which the scanners did not read because they
-read the repository at its commit. The edit counts all the same, because Draugr loads the descriptor
-and its fragments from disk, apart from what the scanners read. `--no-publish` leaves out the demo's
+The two uncommitted files are the `.bak` copies `git status` listed, which the scanners did not read
+because they read the repository at its commit. The descriptor and its fragment are not counted:
+Draugr loads them from disk, apart from what the scanners read, so the edit counts. `--no-publish` leaves out the demo's
 publishers, which write into `.draugr/out` and deliver to GitHub. `--report sarif -o before` writes
 the findings to `before/results.sarif`, in SARIF, a standard file format for scanner results.
 
@@ -211,7 +211,7 @@ Scan again.
 ```console
 $ draugr scan --no-publish --report sarif -o after --top 1
 …
-DRAUGR  FAIL  draugr-demo 1.0  11.896s
+DRAUGR  FAIL  draugr-demo 1.0  11.884s
 
  295 P1 704 P2 252 P3 20 P4
 …
