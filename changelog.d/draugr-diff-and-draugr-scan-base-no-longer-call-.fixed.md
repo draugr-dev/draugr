@@ -1,0 +1,1 @@
+- **`draugr diff` and `draugr scan --base` no longer call a flaw new because a second scanner's copy of it is now the one counted.** A finding is new only when no scanner's copy of it was in the base, so turning on OSV-Scanner or KICS no longer fails a `failOnNew` gate on flaws main already had.
