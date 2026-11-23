@@ -4,7 +4,7 @@
       "clears": 1,
       "component": "rust-cargo",
       "control": "sca",
-      "ecosystem": "cargo",
+      "ecosystem": "crates.io",
       "findings": "<cleared>",
       "fixedVersions": [
         "1.6.1"
@@ -15,7 +15,7 @@
       "locations": [
         {
           "kind": "lockfile",
-          "line": 12,
+          "line": 13,
           "path": "Cargo.lock",
           "repository": "./rust-cargo"
         }
@@ -25,12 +25,12 @@
       "ruleIds": [
         "CVE-2021-25900"
       ],
-      "severity": "high",
+      "severity": "critical",
       "target": "1.6.1",
       "title": "Upgrade smallvec 1.6.0",
       "versioning": "crates.io",
       "where": [
-        "Cargo.lock:12"
+        "Cargo.lock:13"
       ]
     }
   ],
@@ -40,7 +40,7 @@
   "controls": [
     {
       "errors": 1,
-      "highest": "high",
+      "highest": "critical",
       "highestPriority": "P1",
       "name": "sca",
       "notes": 0,
@@ -65,7 +65,7 @@
     "effective": "<cleared>",
     "sources": [
       {
-        "digest": "sha256:d0ffdcce4c734211bd96cbc4ce11333cd39c9f7bc26a56f0d801ebcdbb77aa4a",
+        "digest": "sha256:f01eeb20f711a589691bb8d7e876b5125c83408338c46a3eb4254716eddfe2fb",
         "path": "draugr.saga.yaml",
         "root": true
       }
@@ -103,9 +103,18 @@
       "published": "<cleared>",
       "tool": "trivy",
       "version": "<cleared>"
+    },
+    {
+      "data": "vulnerability database, one archive per ecosystem",
+      "downloaded": "<cleared>",
+      "tool": "osv-scanner"
     }
   ],
   "scanners": [
+    {
+      "name": "osv-scanner",
+      "version": "<cleared>"
+    },
     {
       "name": "trivy-fs",
       "version": "<cleared>"
@@ -121,9 +130,9 @@
     "concurrency": "<cleared>",
     "deduped": 0,
     "durationMs": "<cleared>",
-    "jobs": 1,
+    "jobs": 2,
     "peakToolMemoryBytes": "<cleared>",
-    "scans": 1
+    "scans": 2
   },
   "targets": [
     {

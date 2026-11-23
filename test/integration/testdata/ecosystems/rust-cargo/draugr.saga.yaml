@@ -5,6 +5,8 @@ config:
   controls:
     sca:
       enabled: true
+      osvScanner:
+        enabled: true
 components:
   - name: rust-cargo
     repositories:

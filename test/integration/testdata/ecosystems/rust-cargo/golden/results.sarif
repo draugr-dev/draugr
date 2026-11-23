@@ -19,6 +19,14 @@
               "repository": "./rust-cargo",
               "revision": "<cleared>"
             },
+            "tool": "osv-scanner",
+            "version": "<cleared>"
+          },
+          {
+            "fields": {
+              "repository": "./rust-cargo",
+              "revision": "<cleared>"
+            },
             "tool": "trivy-fs",
             "version": "<cleared>"
           }
@@ -49,6 +57,9 @@
           "properties": {
             "component": "rust-cargo",
             "control": "sca",
+            "correlation": {
+              "countedUnder": "osv-scanner"
+            },
             "fingerprint": "<cleared>",
             "package": {
               "ecosystem": "cargo",
@@ -61,6 +72,61 @@
             "repository": "./rust-cargo",
             "scanner": "trivy-fs",
             "tool": "trivy"
+          },
+          "ruleId": "CVE-2021-25900"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "Cargo.lock",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "smallvec 1.6.0 → 1.6.1: Fixture: buffer overflow in SmallVec::insert_many"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "<cleared>"
+          },
+          "properties": {
+            "component": "rust-cargo",
+            "control": "sca",
+            "correlation": {
+              "alsoFoundBy": [
+                {
+                  "ruleId": "CVE-2021-25900",
+                  "severity": "high",
+                  "tool": "trivy"
+                }
+              ]
+            },
+            "draugr/rating": {
+              "detail": "severity CRITICAL",
+              "fields": {
+                "severity": "CRITICAL"
+              },
+              "severity": "critical"
+            },
+            "fingerprint": "<cleared>",
+            "package": {
+              "ecosystem": "crates.io",
+              "fixedVersion": "1.6.1",
+              "name": "smallvec",
+              "purl": "pkg:cargo/smallvec@1.6.0",
+              "version": "1.6.0"
+            },
+            "priority": "P1",
+            "repository": "./rust-cargo",
+            "scanner": "osv-scanner",
+            "tool": "osv-scanner"
           },
           "ruleId": "CVE-2021-25900"
         }
@@ -78,6 +144,7 @@
               "name": "CVE-2021-25900",
               "properties": {
                 "tags": [
+                  "scanner:osv-scanner",
                   "scanner:trivy"
                 ]
               },

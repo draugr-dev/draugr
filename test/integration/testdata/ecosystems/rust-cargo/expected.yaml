@@ -1,7 +1,9 @@
 # A sealed scan of the rust-cargo scenario reports the one vulnerable dependency in the lockfile
-# Cargo generated, at the line of its own entry.
+# Cargo generated, from Trivy and from OSV-Scanner, which init turns on beside it for a Cargo.lock.
+# Trivy points at the entry's opening line and OSV-Scanner at its name.
 init:
   controls: [sca, secrets, sast]
+  scanners: [sca.osvScanner]
   components:
     - name: rust-cargo
       repositories: ["."]
@@ -12,3 +14,8 @@ findings:
     rule: CVE-2021-25900
     location: Cargo.lock:12
     package: cargo smallvec 1.6.0
+  - control: sca
+    tool: osv-scanner
+    rule: CVE-2021-25900
+    location: Cargo.lock:13
+    package: crates.io smallvec 1.6.0
