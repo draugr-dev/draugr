@@ -1,1 +1,0 @@
-- **A pull request can no longer turn off the gate on its own new findings by editing the descriptor.** `draugr diff` and `draugr scan --base` apply the stricter of the base's `config.gate.failOnNew` and the change's own, and say when the base's decided. `results.sarif` now records the setting. A typed `--fail-on-new` still replaces both.

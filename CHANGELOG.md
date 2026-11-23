@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.188.1] - 2026-11-23
+
+### Security
+
+- **These changes fix [GHSA-qjj2-j3rr-4fq8](https://github.com/draugr-dev/draugr/security/advisories/GHSA-qjj2-j3rr-4fq8), which affects 0.164.0 through 0.188.0.** Upgrade if a pipeline on those versions takes its gate on new findings only from `config.gate.failOnNew` in the descriptor, with no `--fail-on-new` (the GitHub Action's `fail-on-new` input is empty by default). Check the pull requests it passed for one that removed or loosened that setting.
+
+- **A pull request can no longer turn off the new-findings gate by editing the descriptor.** `draugr diff` and `draugr scan --base` apply the stricter of the base's `config.gate.failOnNew` and the change's own, and print when the base's setting decided. `results.sarif` now records it, so scan the base with 0.188.1 or later. An explicit `--fail-on-new` still replaces both.
+
 ## [0.188.0] - 2026-11-23
 
 ### Changed
@@ -7509,7 +7517,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.188.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.188.1...HEAD
+[0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
 [0.188.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.0
 [0.187.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.1
 [0.187.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.0
