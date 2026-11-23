@@ -816,9 +816,11 @@ func (l *lineIndex) find(relPath, pkg, version string) int {
 }
 
 // versionFollowsName reports whether version comes right after a whole-name occurrence of name in
-// line, with only separators between them.
+// line, with only separators between them. A leading "v" counts as a separator on both sides, so Go's
+// `golang.org/x/text v0.3.0` matches the version written either way.
 func versionFollowsName(line, name, version string) bool {
 	lower, want := strings.ToLower(line), strings.ToLower(name)
+	version = strings.TrimPrefix(strings.ToLower(version), "v")
 	for from := 0; ; {
 		i := strings.Index(lower[from:], want)
 		if i < 0 {
@@ -830,7 +832,7 @@ func versionFollowsName(line, name, version string) bool {
 			continue
 		}
 		rest := strings.TrimLeft(lower[end:], "@=:~^<>!( \t\"'v")
-		if strings.HasPrefix(rest, strings.ToLower(version)) {
+		if strings.HasPrefix(rest, version) {
 			return true
 		}
 	}

@@ -90,6 +90,37 @@ func TestForeignSARIFReadsAFixFromTheRulesHelpOnlyForItsPackage(t *testing.T) {
 	}
 }
 
+// A Go module's version is read as go.mod writes it, with its "v", wherever the file states it and
+// whether or not the file wrote the "v": OSV-Scanner's message, a package URL, a logical location and
+// Draugr's own package property. A package URL agreeing with the message but for the "v" is kept. The
+// fix and every other ecosystem's version are kept as written.
+func TestForeignSARIFReadsAGoModuleVersionAsGoModWritesIt(t *testing.T) {
+	rep, _ := readForeign(t, `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"x"}},"results":[
+		{"ruleId":"message","message":{"text":"Package 'golang.org/x/text@0.3.5' is vulnerable to 'GO-1'."},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"go.mod"}}}]},
+		{"ruleId":"message and URL","message":{"text":"Package 'golang.org/x/text@0.3.5' is vulnerable to 'GO-1'."},
+		 "properties":{"purls":["pkg:golang/golang.org/x/text@v0.3.5"]}},
+		{"ruleId":"URL","properties":{"purls":["pkg:golang/golang.org/x/text@0.3.5?type=module"]}},
+		{"ruleId":"pseudo-version","locations":[{"physicalLocation":{"artifactLocation":{"uri":"go.mod"}},
+			"logicalLocations":[{"name":"golang.org/x/net@0.0.0-20210226172049-e18ecbb05110"}]}]},
+		{"ruleId":"property","properties":{"package":{"name":"golang.org/x/text","version":"0.3.5","fixedVersion":"0.3.7","ecosystem":"gomod"}}},
+		{"ruleId":"npm","message":{"text":"Package 'lodash@4.17.15' is vulnerable to 'GHSA-1'."},
+		 "locations":[{"physicalLocation":{"artifactLocation":{"uri":"package-lock.json"}}}]}]}]}`)
+	want := []Package{
+		{Name: "golang.org/x/text", Version: "v0.3.5", Ecosystem: "gomod"},
+		{Name: "golang.org/x/text", Version: "v0.3.5", PURL: "pkg:golang/golang.org/x/text@v0.3.5", Ecosystem: "golang"},
+		{Name: "golang.org/x/text", Version: "v0.3.5", PURL: "pkg:golang/golang.org/x/text@v0.3.5?type=module", Ecosystem: "golang"},
+		{Name: "golang.org/x/net", Version: "v0.0.0-20210226172049-e18ecbb05110", Ecosystem: "gomod"},
+		{Name: "golang.org/x/text", Version: "v0.3.5", FixedVersion: "0.3.7", Ecosystem: "gomod"},
+		{Name: "lodash", Version: "4.17.15", Ecosystem: "npm"},
+	}
+	for i, w := range want {
+		if got := rep.Results[i].Package; got == nil || *got != w {
+			t.Errorf("%s: package = %+v, want %+v", rep.Results[i].RuleID, got, w)
+		}
+	}
+}
+
 func TestForeignSARIFReadsAdvisoryIdentifiersFromTagsAndDeprecatedIDs(t *testing.T) {
 	rep, _ := readForeign(t, `{"version":"2.1.0","runs":[{
 		"tool":{"driver":{"name":"x","rules":[

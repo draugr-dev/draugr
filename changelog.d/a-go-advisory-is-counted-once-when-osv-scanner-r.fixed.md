@@ -1,0 +1,1 @@
+- **A Go advisory is counted once when OSV-Scanner runs beside Trivy.** OSV-Scanner's Go module versions now carry the leading `v` go.mod writes, so its findings merge with Trivy's and Grype's instead of being counted, gated and listed twice. An imported Grype file and OSV-Scanner file naming one Go module version now give one upgrade.

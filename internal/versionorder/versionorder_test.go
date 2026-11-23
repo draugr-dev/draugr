@@ -124,10 +124,11 @@ func TestEcosystemPrefersThePackageURL(t *testing.T) {
 
 // The fix list keys an upgrade on the ecosystem this names, so every name scanners write for one
 // ecosystem has to give the same answer, or a package two scanners report is two upgrades. Each list
-// holds the result types Trivy writes for the ecosystem and the package type Grype writes.
+// holds the result types Trivy writes for the ecosystem and the package type Grype writes; Go's also holds
+// the ecosystem an OSV record names.
 func TestEveryScannersSpellingNamesOneEcosystem(t *testing.T) {
 	for want, spellings := range map[string][]string{
-		"Go":        {"gomod", "go-module", "gobinary"},
+		"Go":        {"gomod", "go-module", "gobinary", "Go"},
 		"npm":       {"npm", "yarn", "pnpm", "bun", "node-pkg"},
 		"PyPI":      {"pip", "pipenv", "poetry", "uv", "pylock", "python", "python-pkg"},
 		"Maven":     {"pom", "gradle", "java-archive", "jar"},
@@ -155,7 +156,7 @@ func TestPURLTypeOfEachScannersSpelling(t *testing.T) {
 		"cargo":    {"cargo", "rust-crate", "rustbinary"},
 		"npm":      {"npm", "yarn", "pnpm", "bun", "node-pkg"},
 		"pypi":     {"pip", "poetry", "python", "python-pkg"},
-		"golang":   {"gomod", "go-module", "gobinary"},
+		"golang":   {"gomod", "go-module", "gobinary", "Go"},
 		"maven":    {"pom", "java-archive"},
 		"gem":      {"bundler", "gem"},
 		"composer": {"composer", "php-composer"},
@@ -174,6 +175,49 @@ func TestPURLTypeOfEachScannersSpelling(t *testing.T) {
 	}
 	if got := PURLType(" Rust-Crate "); got != "cargo" {
 		t.Errorf("PURLType ignores case and space: got %q", got)
+	}
+}
+
+// A Go module version gains the "v" go.mod writes where it starts with a digit, and nothing else
+// about it changes: a pseudo-version and a +incompatible version keep the rest as written, and what is
+// not a version is kept whole.
+func TestGoModuleVersion(t *testing.T) {
+	for in, want := range map[string]string{
+		"0.3.0":                              "v0.3.0",
+		"v0.3.0":                             "v0.3.0",
+		"0.0.0-20221128193559-754e69321358":  "v0.0.0-20221128193559-754e69321358",
+		"v0.0.0-20221128193559-754e69321358": "v0.0.0-20221128193559-754e69321358",
+		"20.10.7+incompatible":               "v20.10.7+incompatible",
+		"v2.0.0+incompatible":                "v2.0.0+incompatible",
+		"1.22.0":                             "v1.22.0",
+		"":                                   "",
+		"latest":                             "latest",
+		"(devel)":                            "(devel)",
+	} {
+		if got := GoModuleVersion(in); got != want {
+			t.Errorf("GoModuleVersion(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// A Go package URL's version is written as GoModuleVersion writes it, its qualifiers and subpath
+// kept; any other package URL, and a Go one naming no version, is returned as it came.
+func TestGoPURL(t *testing.T) {
+	for in, want := range map[string]string{
+		"pkg:golang/golang.org/x/text@0.3.0":                         "pkg:golang/golang.org/x/text@v0.3.0",
+		"pkg:golang/golang.org/x/text@v0.3.0":                        "pkg:golang/golang.org/x/text@v0.3.0",
+		"PKG:Golang/golang.org/x/text@0.3.0":                         "PKG:Golang/golang.org/x/text@v0.3.0",
+		"pkg:golang/golang.org/x/text@0.3.0?type=module#sub":         "pkg:golang/golang.org/x/text@v0.3.0?type=module#sub",
+		"pkg:golang/github.com/docker/docker@20.10.7%2Bincompatible": "pkg:golang/github.com/docker/docker@v20.10.7%2Bincompatible",
+		"pkg:golang/golang.org/x/text":                               "pkg:golang/golang.org/x/text",
+		"pkg:golang/golang.org/x/text?type=module":                   "pkg:golang/golang.org/x/text?type=module",
+		"pkg:npm/lodash@4.17.20":                                     "pkg:npm/lodash@4.17.20",
+		"pkg:go":                                                     "pkg:go",
+		"":                                                           "",
+	} {
+		if got := GoPURL(in); got != want {
+			t.Errorf("GoPURL(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

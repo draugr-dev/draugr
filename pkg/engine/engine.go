@@ -3771,24 +3771,36 @@ func correlationKeyOf(res sarif.Result) (correlationKey, bool) {
 // calls it rust-crate, and both mean pkg:cargo. An ecosystem with no known URL type is kept as the
 // scanner wrote it, so its copies meet only those reported the same way. A Go module's path and a
 // Python package's name are folded as their package URLs fold them, since one scanner may write the
-// name as published and another as the URL spells it.
+// name as published and another as the URL spells it. A Go module's version is compared with its
+// leading "v", which some scanners leave off, as correlationPURL compares it.
 func packageNameKey(p *sarif.Package) (string, bool) {
 	id, ok := packageIdentity(p)
 	if !ok || p.Version == "" {
 		return "", false
 	}
-	return id + "\x00" + p.Version, true
+	version := p.Version
+	if packageKind(p) == "golang" {
+		version = versionorder.GoModuleVersion(version)
+	}
+	return id + "\x00" + version, true
 }
 
-// packageIdentity is a package's URL type and name as packageNameKey keys them, without the
-// version, and false for a package short of either.
-func packageIdentity(p *sarif.Package) (string, bool) {
+// packageKind is a package's URL type: its package URL's where it has one, else the type of the
+// ecosystem its scanner reported, else that ecosystem as written.
+func packageKind(p *sarif.Package) string {
 	kind := purlType(p.PURL)
 	if kind == "" {
 		if kind = versionorder.PURLType(p.Ecosystem); kind == "" {
 			kind = p.Ecosystem
 		}
 	}
+	return kind
+}
+
+// packageIdentity is a package's URL type and name as packageNameKey keys them, without the
+// version, and false for a package short of either.
+func packageIdentity(p *sarif.Package) (string, bool) {
+	kind := packageKind(p)
 	if kind == "" || p.Name == "" {
 		return "", false
 	}
@@ -4045,8 +4057,11 @@ func sharesTool(a, b map[string]bool) bool {
 // Trivy lowercases a Go module's path in the package URL and Grype keeps its case, so
 // `github.com/Azure/go-ntlmssp` arrives as two URLs differing only by case. Within one component,
 // repository and vulnerability, two Go package URLs differing only by case are one dependency
-// reported twice, so the comparison ignores case. Every other ecosystem is compared as written.
-// The finding keeps the URL its scanner wrote; only the key is folded.
+// reported twice, so the comparison ignores case. A Go module's version is compared with its leading
+// "v" too, as go.mod writes it, so `golang.org/x/text@0.3.0` from a tool that leaves the "v" off is
+// the same dependency as `golang.org/x/text@v0.3.0`. A pseudo-version and a +incompatible suffix are
+// kept as written. Every other ecosystem is compared as written. The finding keeps the URL its
+// scanner wrote; only the key is folded.
 //
 // An operating system's package (deb, rpm, apk) is written differently by the two image scanners,
 // and every difference is one of notation. Grype adds `upstream=` naming the source package where
@@ -4057,7 +4072,7 @@ func sharesTool(a, b map[string]bool) bool {
 func correlationPURL(purl string) string {
 	switch {
 	case strings.HasPrefix(purl, "pkg:golang/"):
-		return strings.ToLower(purl)
+		return strings.ToLower(versionorder.GoPURL(purl))
 	case strings.HasPrefix(purl, "pkg:deb/"), strings.HasPrefix(purl, "pkg:rpm/"), strings.HasPrefix(purl, "pkg:apk/"):
 		return osPackagePURL(purl)
 	}
