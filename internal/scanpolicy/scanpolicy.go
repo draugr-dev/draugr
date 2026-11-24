@@ -132,31 +132,7 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 				sev, rankedAs = lowered, lowered
 			}
 		}
-		// The context tier first, so a control that declares exposure does not bound its findings
-		// replaces the component's tier rather than second-guessing the band that came out of it.
-		// Severity still decides the row: a critical secret and a high one must not collapse into
-		// one band because they share a control.
-		tier := matrices.ContextOf(exposure, criticality)
-		var floorReason string
-		if floor, reason := controllers.ContextFloor(control); floor.Rank() > tier.Rank() {
-			tier, floorReason = floor, reason
-		}
-		band := matrices.PriorityOf(tier, sev)
-		// A mutable action tag the repository's actions.lock pins to a commit, for that workflow or
-		// for every workflow that calls the composite action it is in, is held at P3: GitHub runs the locked commit for a workflow the lockfile covers, so the tag
-		// moving no longer changes what runs. Still counted and listed, below the gate's default.
-		var capped string
-		if res.Aside == sarif.AsidePinned && band.Rank() > prioritization.P3.Rank() {
-			band, capped = prioritization.P3, PinnedCap
-		}
-		// A declared converter's raise, last, so it is a floor under everything above: it moves a band
-		// up to the one it names and never down. The engine keeps a stamp only on a finding read from
-		// a file the descriptor declares a converter for.
-		if r := converterRaise(res); r != nil {
-			if want := prioritization.Priority(r.Priority); want.Rank() > band.Rank() {
-				band, floorReason = want, res.Converter.RaiseNote()
-			}
-		}
+		band, floorReason, capped := bandOf(matrices, control, exposure, criticality, sev, res)
 		return engine.Priority{
 			Cap:           capped,
 			Band:          string(band),
@@ -168,6 +144,48 @@ func PrioritizerWith(expl *exploit.Source, health *dephealth.Source) engine.Prio
 			SeverityFloor: held,
 		}
 	}
+}
+
+// bandOf is the band a finding of the ranked severity sev takes on a component of the given
+// classification, with the reason a control's floor or a converter's raise decided it and the cap
+// that held it, each empty where none did.
+func bandOf(matrices prioritization.Matrices, control string, exposure saga.Exposure, criticality saga.Criticality,
+	sev sarif.Severity, res sarif.Result) (band prioritization.Priority, floorReason, capped string) {
+	// The context tier first, so a control that declares exposure does not bound its findings
+	// replaces the component's tier rather than second-guessing the band that came out of it.
+	// Severity still decides the row: a critical secret and a high one must not collapse into
+	// one band because they share a control.
+	tier := matrices.ContextOf(exposure, criticality)
+	if floor, reason := controllers.ContextFloor(control); floor.Rank() > tier.Rank() {
+		tier, floorReason = floor, reason
+	}
+	band = matrices.PriorityOf(tier, sev)
+	// A mutable action tag the repository's actions.lock pins to a commit, for that workflow or
+	// for every workflow that calls the composite action it is in, is held at P3: GitHub runs the locked commit for a workflow the lockfile covers, so the tag
+	// moving no longer changes what runs. Still counted and listed, below the gate's default.
+	if res.Aside == sarif.AsidePinned && band.Rank() > prioritization.P3.Rank() {
+		band, capped = prioritization.P3, PinnedCap
+	}
+	// A declared converter's raise, last, so it is a floor under everything above: it moves a band
+	// up to the one it names and never down. The engine keeps a stamp only on a finding read from
+	// a file the descriptor declares a converter for.
+	if r := converterRaise(res); r != nil {
+		if want := prioritization.Priority(r.Priority); want.Rank() > band.Rank() {
+			band, floorReason = want, res.Converter.RaiseNote()
+		}
+	}
+	return band, floorReason, capped
+}
+
+// RankUnder is the band a finding read back from a report takes on a component classified with
+// exposure and criticality, from what the finding recorded about its ranking: the ranked severity,
+// after every signal and the control's minimum, and the control that reported it.
+//
+// For a comparison that holds a change to its base's classification. It ranks the finding as the
+// scan did, with the classification swapped, so the two cannot disagree about any other input.
+func RankUnder(res sarif.Result, exposure saga.Exposure, criticality saga.Criticality) string {
+	band, _, _ := bandOf(prioritization.DefaultMatrices(), res.Control, exposure, criticality, res.RankedSeverity(), res)
+	return string(band)
 }
 
 // converterRaise is the raise a converter asked for on res, nil where none did.

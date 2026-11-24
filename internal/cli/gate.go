@@ -163,6 +163,25 @@ func errNewFindings(n int) error {
 	return fmt.Errorf("differential gate: %s at or above the threshold", english.Count(n, "new finding"))
 }
 
+// gateFailure is what `draugr diff` exits with when its gate fails, nil where it passed: the new
+// findings that met the threshold, and any control the base ran that the head does not, which fails
+// the change because nothing it adds there was looked for.
+func gateFailure(r diff.Result) error {
+	if !r.Gate.Stated() {
+		return nil
+	}
+	switch {
+	case len(r.Tripped) > 0 && r.Held.Fails():
+		return fmt.Errorf("differential gate: %s at or above the threshold, and %s",
+			english.Count(len(r.Tripped), "new finding"), r.Held.DroppedSentence())
+	case len(r.Tripped) > 0:
+		return errNewFindings(len(r.Tripped))
+	case r.Held.Fails():
+		return fmt.Errorf("differential gate: %s", r.Held.DroppedSentence())
+	}
+	return nil
+}
+
 var errBothDiffGates = errors.New(
 	"--fail-on-new and --fail-on-new-priority are two spellings of one decision and a run has " +
 		"one gate. --fail-on-new now takes either vocabulary: a band (P1-P4) or a severity " +

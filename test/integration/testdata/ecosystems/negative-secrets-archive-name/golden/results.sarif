@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "negative-secrets-archive-name",
+            "fields": {
+              "controls": "[\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-secrets-archive-name\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./negative-secrets-archive-name",
               "revision": "<cleared>"

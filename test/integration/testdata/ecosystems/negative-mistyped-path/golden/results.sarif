@@ -52,6 +52,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "api",
+            "fields": {
+              "controls": "[\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-mistyped-path\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "web",
+            "fields": {
+              "controls": "[\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-mistyped-path\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./negative-mistyped-path",
               "revision": "<cleared>"

@@ -34,6 +34,9 @@ type baseGate struct {
 	// basePath is --base, and base the report it names. Empty where no --base was passed.
 	basePath string
 	base     sarif.Report
+	// trust is --trust-descriptor-change: the digest of the descriptor that decides the comparison
+	// in the base's place, where this run's is that one.
+	trust string
 }
 
 // newBaseGate resolves the gate on new findings and reads the base, before anything is scanned.
@@ -47,9 +50,12 @@ func newBaseGate(opts scanOptions, gate *saga.GateConfig, scope engine.Scope) (b
 	if err != nil {
 		return baseGate{}, err
 	}
-	g := baseGate{failOn: failOn, band: band, from: "config.gate.failOnNew", basePath: opts.base}
+	g := baseGate{failOn: failOn, band: band, from: "config.gate.failOnNew", basePath: opts.base, trust: opts.trustDescriptorChange}
 	if opts.failOnNew != "" {
 		g.from = "--fail-on-new"
+	}
+	if err := checkTrust(g.trust, opts.base != ""); err != nil {
+		return baseGate{}, err
 	}
 	if opts.base == "" {
 		return g, nil
@@ -118,7 +124,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 	if err != nil {
 		return comparison{}, err
 	}
-	compared, err := compareWithBase(g.basePath, g.base, thisScan, head)
+	compared, err := compareWithBase(g.basePath, g.base, thisScan, head, g.trust)
 	if err != nil {
 		return comparison{}, err
 	}
@@ -129,6 +135,8 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 			Base:       sarif.RepositoriesIn([]sarif.Report{g.base}),
 			Introduced: compared.Counted().New,
 			Tripped:    compared.Tripped,
+			Dropped:    droppedControls(compared.Held.Dropped),
+			Trusted:    compared.Held.Trusted,
 		},
 		result:  compared,
 		tripped: len(compared.Tripped),
@@ -156,11 +164,21 @@ func (g baseGate) failure(c comparison, policy *skald.PolicyCheck) error {
 	if !g.judges(c) {
 		return errors.New("policy verdict: fail")
 	}
-	if c.tripped == 0 {
+	if c.tripped == 0 && !c.result.Held.Fails() {
 		return policyFailure(policy)
 	}
-	err := fmt.Errorf("fails on %s: %s since %s", report.ThresholdWords(g.setting()),
-		english.Count(c.tripped, "new finding"), report.BaseName(c.findings.Base, g.basePath))
+	since := report.BaseName(c.findings.Base, g.basePath)
+	var err error
+	switch {
+	case c.tripped == 0:
+		err = fmt.Errorf("fails: %s since %s", c.result.Held.DroppedSentence(), since)
+	case c.result.Held.Fails():
+		err = fmt.Errorf("fails on %s: %s, and %s since %s", report.ThresholdWords(g.setting()),
+			english.Count(c.tripped, "new finding"), c.result.Held.DroppedSentence(), since)
+	default:
+		err = fmt.Errorf("fails on %s: %s since %s", report.ThresholdWords(g.setting()),
+			english.Count(c.tripped, "new finding"), since)
+	}
 	if policyFails(policy) {
 		return fmt.Errorf("policy verdict: fail; %w", err)
 	}
@@ -219,4 +237,13 @@ func scopeReport(scope engine.Scope) sarif.Report {
 		r.Provenance = []sarif.Provenance{p}
 	}
 	return r
+}
+
+// droppedControls is the comparison's dropped controls as report.json states them, nil where none.
+func droppedControls(dropped []diff.Dropped) []skald.DroppedControl {
+	var out []skald.DroppedControl
+	for _, d := range dropped {
+		out = append(out, skald.DroppedControl{Component: d.Component, Control: d.Control})
+	}
+	return out
 }

@@ -79,6 +79,9 @@ func renderChange(w io.Writer, d Data) error {
 	// verdict, which stays the verdict, what was scanned and how long it took.
 	d.Change.WriteStrips(w, "whole run", [4]int{s.p1, s.p2, s.p3, s.p4})
 	_, _ = fmt.Fprintf(w, " %s\n", changeNote(d.Gate))
+	for _, note := range d.Gate.HeldNotes {
+		_, _ = fmt.Fprintf(w, "%s\n", col.Paint(tui.StyleMuted, note+"."))
+	}
 	writeCoverageNotes(w, col, d)
 	_, _ = fmt.Fprintln(w)
 	if d.Gate.Disabled {

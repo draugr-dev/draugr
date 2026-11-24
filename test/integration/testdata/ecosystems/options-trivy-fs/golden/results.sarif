@@ -51,6 +51,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "default",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-fs\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "os-only",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-trivy-fs\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./options-trivy-fs",
               "revision": "<cleared>"

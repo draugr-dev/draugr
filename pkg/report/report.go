@@ -2261,6 +2261,10 @@ type GateSettings struct {
 	// HeldToBase is set where FailOnNew is the base scan's recorded config.gate.failOnNew, applied
 	// because this scan's descriptor sets a weaker one or none.
 	HeldToBase bool
+	// HeldNotes say what the base's declaration decided beyond this scan's, a sentence each: a
+	// control the base ran that this scan does not, new findings ranked by the base's
+	// classification, and findings excused by an exclusion the change adds. Empty where nothing.
+	HeldNotes []string
 	// New is the run's comparison with a base scan, nil where none ran.
 	New *skald.NewFindings
 	// BasePath is the file --base named, which names the base where its SARIF records no revision.

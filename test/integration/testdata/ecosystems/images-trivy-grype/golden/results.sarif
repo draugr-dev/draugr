@@ -34,6 +34,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "images-trivy-grype",
+            "fields": {
+              "controls": "[\"images\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./images-trivy-grype\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "tool": "grype",
             "version": "<cleared>"
           },

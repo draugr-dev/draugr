@@ -121,6 +121,12 @@ inputs:
       Deprecated: write the band in fail-on-new, which now takes either vocabulary.
     required: false
     default: ""
+  trust-descriptor-change:
+    description: >-
+      (diff mode) The digest a failing diff printed for the pull request's descriptor, which then
+      decides the gate in place of the base's. Names one descriptor; remove it once merged.
+    required: false
+    default: ""
   diff-view:
     description: >-
       (diff mode) What the pull-request comment says. "findings" (default) is a row per finding.
@@ -429,6 +435,7 @@ runs:
         FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'true' || '' }}
         INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
         INPUT_FAIL_ON_NEW_PRIORITY: ${{ inputs.fail-on-new-priority }}
+        INPUT_TRUST_DESCRIPTOR_CHANGE: ${{ inputs.trust-descriptor-change }}
         INPUT_DIFF_VIEW: ${{ inputs.diff-view }}
         INPUT_CODE_SCANNING: ${{ inputs.code-scanning }}
         INPUT_CODE_SCANNING_MIN_PRIORITY: ${{ inputs.code-scanning-min-priority }}
@@ -558,6 +565,15 @@ runs:
         fi
         [ -n "$INPUT_FAIL_ON_NEW" ]          && diff_args+=(--fail-on-new "$INPUT_FAIL_ON_NEW")
         [ -n "$INPUT_FAIL_ON_NEW_PRIORITY" ] && diff_args+=(--fail-on-new-priority "$INPUT_FAIL_ON_NEW_PRIORITY")
+        # Asked for, as --saga is below. A release whose diff has no such flag does not hold a change
+        # to its base's descriptor, so there is nothing for the input to set aside.
+        if [ -n "${INPUT_TRUST_DESCRIPTOR_CHANGE:-}" ]; then
+          if draugr help diff 2>&1 | grep -- '--trust-descriptor-change' >/dev/null; then
+            diff_args+=(--trust-descriptor-change "$INPUT_TRUST_DESCRIPTOR_CHANGE")
+          else
+            echo "::warning::trust-descriptor-change has no effect: this Draugr release does not hold a pull request to its base's descriptor. Update Draugr or remove the input."
+          fi
+        fi
         # The descriptor the head was scanned with, so its config.gate.failOnNew is the gate when
         # neither input sets one. Asked for, as --view is below, because a pinned release may
         # predate the flag, and diff then reads only a descriptor alone in this directory.

@@ -17,6 +17,16 @@
           {
             "component": "api",
             "fields": {
+              "controls": "[\"sast\",\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-polyglot\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "api",
+            "fields": {
               "coverage": "no go.mod found, so nothing here carries a verdict"
             },
             "tool": "govulncheck",
@@ -25,10 +35,37 @@
           {
             "component": "web",
             "fields": {
+              "controls": "[\"sast\",\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-polyglot\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "web",
+            "fields": {
               "coverage": "no go.mod found, so nothing here carries a verdict"
             },
             "tool": "govulncheck",
             "version": "<cleared>"
+          },
+          {
+            "component": "worker",
+            "fields": {
+              "controls": "[\"sast\",\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-polyglot\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
           },
           {
             "fields": {

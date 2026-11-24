@@ -291,6 +291,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "polyglot-unlocked",
+            "fields": {
+              "controls": "[\"licenses\",\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./polyglot-unlocked\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./polyglot-unlocked",
               "revision": "<cleared>"

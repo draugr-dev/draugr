@@ -51,6 +51,43 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "api",
+            "fields": {
+              "controls": "[\"sast\",\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-python\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "legacy",
+            "fields": {
+              "controls": "[\"sast\",\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-python\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "tools",
+            "fields": {
+              "controls": "[\"sast\",\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-python\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./monorepo-python",
               "revision": "<cleared>"

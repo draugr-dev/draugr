@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "go-nested",
+            "fields": {
+              "controls": "[\"sast\",\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./go-nested\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "database": "local copy, fetched <today>"
             },

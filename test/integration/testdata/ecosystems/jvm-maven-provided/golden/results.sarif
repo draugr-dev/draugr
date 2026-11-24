@@ -15,6 +15,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "default",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./jvm-maven-provided\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "report",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./jvm-maven-provided\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./jvm-maven-provided",
               "revision": "<cleared>"

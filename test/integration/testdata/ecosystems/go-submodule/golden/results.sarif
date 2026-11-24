@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "go-submodule",
+            "fields": {
+              "controls": "[\"sast\",\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./go-submodule\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "database": "local copy, fetched <today>"
             },

@@ -53,6 +53,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "by-advisory",
+            "fields": {
+              "controls": "[\"images\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-grype\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "default",
+            "fields": {
+              "controls": "[\"images\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-grype\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "tool": "grype",
             "version": "<cleared>"
           }

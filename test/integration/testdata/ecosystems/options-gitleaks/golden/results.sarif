@@ -15,6 +15,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "options-gitleaks",
+            "fields": {
+              "controls": "[\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-gitleaks\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./options-gitleaks",
               "revision": "<cleared>"

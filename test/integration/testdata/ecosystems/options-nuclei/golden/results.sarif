@@ -119,6 +119,63 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "custom",
+            "fields": {
+              "controls": "[\"dast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "default",
+            "fields": {
+              "controls": "[\"dast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./options-nuclei\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "exclude",
+            "fields": {
+              "controls": "[\"dast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "intrusive",
+            "fields": {
+              "controls": "[\"dast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "tagged",
+            "fields": {
+              "controls": "[\"dast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "endpoint": "http://127.0.0.1:18080",
               "excludeTags": "sealed-extra",

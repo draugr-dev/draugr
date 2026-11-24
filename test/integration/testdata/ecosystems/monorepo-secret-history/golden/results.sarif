@@ -15,6 +15,33 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "api",
+            "fields": {
+              "controls": "[\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-secret-history\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "web",
+            "fields": {
+              "controls": "[\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-secret-history\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./monorepo-secret-history",
               "revision": "<cleared>"

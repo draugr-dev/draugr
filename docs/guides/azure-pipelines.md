@@ -44,6 +44,7 @@ compared against no findings instead: every finding is new and the gate applies 
 | `tools` | `true` | provision the scanners the controls need |
 | `failOnNewPriority` | `P1` | fail a pull request on a new finding at or above this priority. Set it empty to apply the descriptor's [`config.gate.failOnNew`](../reference/saga-schema.md#configgate) instead, which a release without `draugr diff --saga` ignores |
 | `diffView` | `findings` | what the pull-request comment says: a row per finding, or `actions` grouped into the things somebody would do |
+| `trustDescriptorChange` | | the digest a failing diff printed for the pull request's descriptor, which then decides the gate in place of the base's. See [when a pull request changes its own descriptor](pr-diff.md#when-a-pull-request-changes-its-own-descriptor) |
 | `publishResults` | `true` | Tests tab and build artifacts |
 
 **Copy it rather than referencing it remotely.** Azure can pull a template from a GitHub

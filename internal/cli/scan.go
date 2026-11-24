@@ -94,7 +94,10 @@ type scanOptions struct {
 	base string
 	// failOnNew is --fail-on-new as typed, which replaces config.gate.failOnNew for this run.
 	failOnNew string
-	view      string
+	// trustDescriptorChange is --trust-descriptor-change: the digest of the descriptor that decides
+	// the comparison with --base instead of the base's, where this run's is that one.
+	trustDescriptorChange string
+	view                  string
 	// group and compact are the two flags --view replaces, kept so a pipeline written against
 	// them keeps working while it says so.
 	group   string
@@ -110,7 +113,7 @@ type scanOptions struct {
 var scanFlagGroups = []flagGroup{
 	{"What is scanned", []string{"components", "labels", "exposure", "criticality", "controls", "working-tree"}},
 	{"What fails the build", []string{
-		"fail-on", "fail-on-priority", "fail-on-caveats", "base", "fail-on-new", "no-gate", "allow-scan-errors",
+		"fail-on", "fail-on-priority", "fail-on-caveats", "base", "fail-on-new", "trust-descriptor-change", "no-gate", "allow-scan-errors",
 	}},
 	{"Exploitability data", []string{"kev", "epss", "epss-threshold"}},
 	{"Output", []string{
@@ -171,6 +174,9 @@ func newScanCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"the gate on new findings: a priority band (P1-P4) or a severity (critical, high, medium, "+
 			"low); overrides config.gate.failOnNew")
+	cmd.Flags().StringVar(&opts.trustDescriptorChange, "trust-descriptor-change", "",
+		"`digest` of the descriptor that decides the comparison in place of the base's; a comparison "+
+			"held to its base prints it")
 	cmd.Flags().BoolVar(&opts.evidence, "evidence", false,
 		"also print what stands behind the verdict: tool provenance, what each control measured "+
 			"against, the scanned revision, and what the run cost")
@@ -549,7 +555,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	var wholeRun norn.Verdict
 	if againstBase.judges(compared) {
 		wholeRun, verdict.Verdict = verdict.Verdict, norn.Pass
-		if compared.tripped > 0 {
+		if compared.tripped > 0 || compared.result.Held.Fails() {
 			verdict.Verdict = norn.Fail
 		}
 	}
@@ -606,6 +612,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			FailOnNewFrom:  againstBase.from,
 			DeclaredNew:    declaredNew(model.Config.Gate),
 			HeldToBase:     againstBase.gate.Base != "",
+			HeldNotes:      compared.result.Held.Notes(),
 			New:            compared.findings,
 			BasePath:       againstBase.basePath,
 			WholeRun:       wholeRun,

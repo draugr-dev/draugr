@@ -27,6 +27,27 @@
           ]
         }
       ],
+      "properties": {
+        "draugr/provenance": [
+          {
+            "component": "negative-without-trivy-db",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./negative-without-trivy-db\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          }
+        ]
+      },
       "results": [],
       "tool": {
         "driver": {

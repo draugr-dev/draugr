@@ -51,6 +51,23 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "dast-openapi",
+            "fields": {
+              "controls": "[\"dast\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./dast-openapi\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "endpoint": "http://127.0.0.1:18080",
               "excluded": "1 operation not scanned: delete (1)",

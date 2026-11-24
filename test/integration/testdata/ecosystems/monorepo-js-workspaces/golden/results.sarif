@@ -15,6 +15,43 @@
       "properties": {
         "draugr/provenance": [
           {
+            "component": "npm",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-js-workspaces\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "pnpm",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-js-workspaces\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "component": "yarn",
+            "fields": {
+              "controls": "[\"sca\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./monorepo-js-workspaces\"]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]"
+            },
+            "tool": "draugr/declared"
+          },
+          {
             "fields": {
               "repository": "./monorepo-js-workspaces",
               "revision": "<cleared>"

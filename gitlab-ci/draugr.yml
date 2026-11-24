@@ -38,6 +38,9 @@ variables:
   # the things somebody would do, so six advisories in one library are one upgrade. Which one a team
   # wants is a property of how they review rather than of the change, which is why it is set here.
   DRAUGR_DIFF_VIEW: findings
+  # The digest a failing diff printed for a merge request's descriptor, which then decides the gate in
+  # place of the base's. Names one descriptor; remove it once merged.
+  DRAUGR_TRUST_DESCRIPTOR_CHANGE: ""
   # Gate the default branch on the descriptor's own policy. On by default, because a gate that does
   # not fail is not a gate.
   #
@@ -165,6 +168,14 @@ draugr:
       # Asked for rather than assumed: DRAUGR_VERSION pins any published release and this template
       # moves independently of them, so the binary may predate the flag. Without it the comment is
       # what it always was.
+      trust=""
+      if [ -n "${DRAUGR_TRUST_DESCRIPTOR_CHANGE:-}" ]; then
+        if draugr help diff 2>&1 | grep -- '--trust-descriptor-change' >/dev/null; then
+          trust="--trust-descriptor-change ${DRAUGR_TRUST_DESCRIPTOR_CHANGE}"
+        else
+          echo "DRAUGR_TRUST_DESCRIPTOR_CHANGE has no effect: this Draugr release does not hold a merge request to its base's descriptor. Update Draugr or remove the variable."
+        fi
+      fi
       view=""
       if [ -n "${DRAUGR_DIFF_VIEW:-}" ] && [ "${DRAUGR_DIFF_VIEW}" != "findings" ]; then
         if draugr help diff 2>&1 | grep -- '--view' >/dev/null; then
@@ -175,7 +186,7 @@ draugr:
       fi
       # --publish selects gitlab-mr-comment from the runner's own environment, and no-ops with an
       # explanation rather than an error when GITLAB_TOKEN is not set.
-      draugr diff ${base_report} draugr-out/results.sarif --publish ${gate} ${saga} ${view}
+      draugr diff ${base_report} draugr-out/results.sarif --publish ${gate} ${saga} ${trust} ${view}
   artifacts:
     # A blocked merge request is exactly when a reviewer needs to see why, and reports produced
     # only on success are reports nobody reads.
