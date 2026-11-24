@@ -12,6 +12,30 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.0] - 2026-11-24
+
+### Added
+
+- **A pull request that changes its descriptor on purpose can pass the gate.** A diff held to the base's descriptor prints a digest of the pull request's. Pass it as `--trust-descriptor-change` in that pull request's pipeline (the Action's `trust-descriptor-change`, GitLab's `DRAUGR_TRUST_DESCRIPTOR_CHANGE`, Azure's `trustDescriptorChange`), and that descriptor decides. A later edit changes the digest, so it is held again.
+
+### Changed
+
+- **`draugr init` turns on OSV-Scanner beside Trivy where the tree holds a `Cargo.lock`, and so does a scan with no descriptor.** On a Rust project it reported five flaws in pinned versions that Trivy missed, for about 0.3s more per scan. Its database is a 4 MB download from `osv-vulnerabilities.storage.googleapis.com`, so scan once online before scanning offline. Python stays opt-in.
+
+- **The GitHub workflows in the docs gate pull requests.** Each one is a file under `examples/` and sets `fail-on-new: P1`, so a pull request fails on a new P1 finding with the descriptor `draugr init` writes. `examples/github-actions-code-scanning.yml` now gates a push at the action's default, any P1 finding, instead of `fail-on: error`.
+
+### Fixed
+
+- **`draugr diff` no longer says a change sets no gate when it read no descriptor for it.** Where no descriptor is in reach, its note on why the base's gate applies now says no descriptor was read for the change.
+
+- **`draugr diff --view actions` names the version each upgrade goes to**, `Upgrade urllib3 1.26.5 → 2.6.0`, as `draugr scan` does. Where the findings one upgrade clears are fixed in different releases, it names the one that clears them all.
+
+### Security
+
+- **A pull request is held to its base's descriptor until it merges.** `draugr diff` and `draugr scan --base` rank a new finding by the two descriptors' higher exposure and criticality, fail where the change turns off a control the base ran, and gate a finding it excludes. Rescan the base with this release: an older `results.sarif` records no descriptor.
+
+- **Fixes [GHSA-3wqw-wvq7-v4rf](https://github.com/draugr-dev/draugr/security/advisories/GHSA-3wqw-wvq7-v4rf), which affects 0.20.0 through 0.188.1.** Upgrade if a pull request can edit the descriptor without the review the pipeline files get. Then check the pull requests the gate passed on those versions for a descriptor change that lowered a component's `exposure` or `criticality`, turned a control off, or excluded a finding the pull request added.
+
 ## [0.188.1] - 2026-11-23
 
 ### Security
@@ -7517,7 +7541,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.188.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.0...HEAD
+[0.189.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.0
 [0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
 [0.188.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.0
 [0.187.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.187.1

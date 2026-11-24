@@ -1,1 +1,0 @@
-- **A pull request is held to its base's descriptor until it merges.** `draugr diff` and `draugr scan --base` rank new findings by the stricter of the two classifications, fail where the change stops a control the base ran, and count a new finding the change excludes itself. `results.sarif` now records the declaration, so scan the base with this release.

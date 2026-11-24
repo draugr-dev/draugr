@@ -1,1 +1,0 @@
-- **Let a pull request that changes its descriptor on purpose through.** Its failing diff prints a digest of its descriptor: add it as `--trust-descriptor-change`, or the GitHub Action's `trust-descriptor-change` input, in that pull request's pipeline, and its own descriptor decides the gate. The digest names that descriptor alone, so a later edit is held to its base again.

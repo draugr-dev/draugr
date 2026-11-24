@@ -1,1 +1,0 @@
-- **`draugr diff` no longer says a change sets no gate when it read no descriptor for it.** Run where no descriptor is in reach, the line explaining why the base's gate applies now says no descriptor was read for the change, instead of claiming the change sets no `config.gate.failOnNew`.
