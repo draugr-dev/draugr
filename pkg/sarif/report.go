@@ -1209,6 +1209,17 @@ func (r Result) ImportedPackage() string {
 type Report struct {
 	Tool    string   `json:"tool,omitempty"`
 	Results []Result `json:"results"`
+	// AutomationID is the analysis the log's first run names in automationDetails.id, read back by
+	// FromSARIF and FromSARIFFile, and empty where it names none. A file made from this report, the
+	// new findings of a pull request among them, can then be filed in code scanning under the same
+	// category as the scan it came from.
+	//
+	// Read only: MarshalSARIF writes no automationDetails from it, and MarshalOptions.AutomationID
+	// does, because which analysis a file is belongs to whoever writes the file. A report read from an
+	// imported log would otherwise file the scan that merged it under the imported tool's category.
+	// Left out of Draugr's own JSON, since it describes the log the report was read from rather than
+	// any finding.
+	AutomationID string `json:"-"`
 	// Rules is the metadata the scanner published about the rules it applied, keyed by rule id. A
 	// result names its rule; the rule is what explains it. Carrying this through is what lets a
 	// reader, in a terminal, an editor, or a pull request. Find out what "DS-0002" means. Not every

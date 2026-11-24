@@ -67,6 +67,11 @@ type Result struct {
 	// published both. Keeping the rules is what lets a reader click the finding instead of looking it
 	// up.
 	Rules map[string]sarif.Rule
+	// AutomationID is the head report's automationDetails.id, which analysis the head scan is, empty
+	// where it names none. The sarif format writes it, so code scanning files a pull request's new
+	// findings under the category of the scan the branch will receive once the change merges, and
+	// compares them with that analysis rather than finding none to compare with.
+	AutomationID string
 	// Gate is the differential rule this run applied, so every rendering can say what the verdict
 	// was measured against rather than leaving a reader to assume it.
 	Gate Gate
@@ -190,6 +195,7 @@ func Compare(base, head sarif.Report) Result {
 			r.Rules[id] = rule
 		}
 	}
+	r.AutomationID = head.AutomationID
 	return r
 }
 

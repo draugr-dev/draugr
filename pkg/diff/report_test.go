@@ -225,6 +225,71 @@ func TestRenderSARIFCarriesOnlyTheNewFindings(t *testing.T) {
 	}
 }
 
+// automationIDOf is the automationDetails.id of the diff's SARIF of base and head, and whether it
+// wrote automationDetails at all.
+func automationIDOf(t *testing.T, base, head sarif.Report) (string, bool) {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := Render(&buf, "sarif", Compare(base, head), Options{}); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	var doc struct {
+		Runs []struct {
+			AutomationDetails *struct {
+				ID string `json:"id"`
+			} `json:"automationDetails"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, buf.String())
+	}
+	if len(doc.Runs) != 1 {
+		t.Fatalf("%d runs, want 1:\n%s", len(doc.Runs), buf.String())
+	}
+	if doc.Runs[0].AutomationDetails == nil {
+		return "", false
+	}
+	return doc.Runs[0].AutomationDetails.ID, true
+}
+
+// The SARIF a pull request uploads is filed under the head scan's category, so code scanning
+// compares its new findings with the analysis of the same category on the branch it merges into.
+// A head that names no category writes none, and the base's is never taken in its place: the base
+// is the branch before the change, and the file describes the change.
+func TestRenderSARIFCarriesTheHeadsCategory(t *testing.T) {
+	found := []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError, Message: "openssl"}}
+	for _, tc := range []struct {
+		name, base, head string
+	}{
+		{name: "the head's category", base: "acme/", head: "acme/"},
+		{name: "a scoped category", head: "acme-azure/components:web/controls:sca/"},
+		{name: "a head with no category", base: "acme/"},
+		{name: "neither with one"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, written := automationIDOf(t, sarif.Report{AutomationID: tc.base},
+				sarif.Report{AutomationID: tc.head, Results: found})
+			if tc.head == "" && written {
+				t.Errorf("wrote automationDetails %q for a head with none", got)
+			}
+			if tc.head != "" && got != tc.head {
+				t.Errorf("automationDetails.id = %q (written %v), want %q", got, written, tc.head)
+			}
+		})
+	}
+}
+
+// Two products in one repository each upload a pull request's new findings under their own
+// category. One category for both would have each upload replace the other's.
+func TestRenderSARIFKeepsTwoProductsApart(t *testing.T) {
+	found := []sarif.Result{{RuleID: "CVE-1", Level: sarif.LevelError, Message: "openssl"}}
+	azure, _ := automationIDOf(t, sarif.Report{}, sarif.Report{AutomationID: "acme-azure/", Results: found})
+	gcp, _ := automationIDOf(t, sarif.Report{}, sarif.Report{AutomationID: "acme-gcp/", Results: found})
+	if azure != "acme-azure/" || gcp != "acme-gcp/" {
+		t.Errorf("categories %q and %q, want acme-azure/ and acme-gcp/", azure, gcp)
+	}
+}
+
 // sarif is in the advertised list, so `--format` help and the unknown-format error stay true.
 func TestFormatsAdvertisesSARIF(t *testing.T) {
 	if !slices.Contains(Formats(), "sarif") {

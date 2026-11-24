@@ -1314,6 +1314,46 @@ func TestMarshalSARIFAutomationDetails(t *testing.T) {
 	}
 }
 
+// A log's automation id is read back, from the whole document and from the file alike, so a file
+// made from the report can name the same analysis. A log with none reads as none.
+func TestFromSARIFReadsTheAutomationID(t *testing.T) {
+	r := Report{Tool: "trivy", Results: []Result{{RuleID: "CVE-1", Level: LevelError}}}
+	for _, id := range []string{"acme-azure/", "acme-azure/components:web/controls:sca/", ""} {
+		data, err := r.MarshalSARIFWith(MarshalOptions{AutomationID: id})
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		whole, err := FromSARIF(data)
+		if err != nil {
+			t.Fatalf("%q: %v", id, err)
+		}
+		file, err := FromSARIFFile(writeSARIF(t, string(data)))
+		if err != nil {
+			t.Fatalf("%q: %v", id, err)
+		}
+		if whole.AutomationID != id || file.AutomationID != id {
+			t.Errorf("read %q whole and %q from the file, want %q", whole.AutomationID, file.AutomationID, id)
+		}
+	}
+}
+
+// A report's own automation id is what it was read with, and writing it names no analysis: only
+// the writer's options do, so a report read from another tool's log cannot file a Draugr run under
+// that tool's category.
+func TestMarshalSARIFWritesNoAutomationIDItWasNotGiven(t *testing.T) {
+	r := Report{Tool: "trivy", AutomationID: "imported/", Results: []Result{{RuleID: "CVE-1", Level: LevelError}}}
+	data, err := r.MarshalSARIF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "automationDetails") {
+		t.Errorf("wrote the category it was read with:\n%s", data)
+	}
+	if data, _ := json.Marshal(r); strings.Contains(string(data), "imported/") {
+		t.Errorf("Draugr's JSON carries the log's category: %s", data)
+	}
+}
+
 // The run says which Draugr produced it, in SARIF's own field for it.
 func TestMarshalSARIFToolVersion(t *testing.T) {
 	r := Report{Tool: "trivy", Results: []Result{{RuleID: "CVE-1", Level: LevelError}}}

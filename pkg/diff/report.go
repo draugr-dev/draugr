@@ -57,7 +57,11 @@ func renderSARIF(w io.Writer, r Result, declared sarif.Declarations) error {
 		}
 	}
 	rep := sarif.Report{Tool: "draugr-diff", Results: r.New, Rules: rules}
-	data, err := rep.MarshalSARIF()
+	// Filed under the head scan's category. Code scanning compares a pull request's analysis with the
+	// base branch's analysis in the same category, so a file with none is compared with nothing, and
+	// code scanning warns on the pull request that the branch's analysis was not found. A head with no
+	// category writes none, as the head did.
+	data, err := rep.MarshalSARIFWith(sarif.MarshalOptions{AutomationID: r.AutomationID})
 	if err != nil {
 		return err
 	}
