@@ -56,7 +56,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./jvm-maven\"]"
+              "repositories": "[\"./jvm-maven\"]",
+              "repositoryScopes": "[{\"url\":\"./jvm-maven\"}]"
             },
             "tool": "draugr/declared"
           },

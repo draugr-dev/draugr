@@ -56,7 +56,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./dotnet-csproj\"]"
+              "repositories": "[\"./dotnet-csproj\"]",
+              "repositoryScopes": "[{\"url\":\"./dotnet-csproj\"}]"
             },
             "tool": "draugr/declared"
           },

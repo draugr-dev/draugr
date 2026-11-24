@@ -1,0 +1,1 @@
+- **A monorepo pull request that turns a control off for one component now fails the gate on new findings.** Where components split one repository by `paths`, `draugr diff` and `draugr scan --base` counted the control as running while any component ran it there, and the base's findings read as fixed. Narrowing `paths` now counts too.

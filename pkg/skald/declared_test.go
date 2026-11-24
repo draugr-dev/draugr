@@ -31,6 +31,10 @@ func TestTheDeclarationSurvivesTheReportFile(t *testing.T) {
 				Name: "api", Exposure: saga.Exposure("public"), Criticality: saga.Criticality("high"),
 				Controls:     []string{"code", "deps"},
 				Repositories: []string{"https://example.com/api.git", "https://example.com/api-worker.git"},
+				Scopes: []engine.RepositoryScope{
+					{URL: "https://example.com/api.git", Paths: []string{"services/api", "go.mod"}},
+					{URL: "https://example.com/api-worker.git"},
+				},
 			},
 			// A component that declares no classification and turns nothing on: it reads back with
 			// both empty, which the ranking takes as the most exposed and most critical levels.

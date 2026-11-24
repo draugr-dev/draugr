@@ -20,7 +20,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"acme\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +42,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"derived\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -50,7 +53,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"trivyignore\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -60,7 +64,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"user\"]}]"
             },
             "tool": "draugr/declared"
           },

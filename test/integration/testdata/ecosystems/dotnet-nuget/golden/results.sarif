@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./dotnet-nuget\"]"
+              "repositories": "[\"./dotnet-nuget\"]",
+              "repositoryScopes": "[{\"url\":\"./dotnet-nuget\"}]"
             },
             "tool": "draugr/declared"
           },

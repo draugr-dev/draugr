@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "supporting",
               "exposure": "restricted",
-              "repositories": "[\"./go-carved-module\"]"
+              "repositories": "[\"./go-carved-module\"]",
+              "repositoryScopes": "[{\"url\":\"./go-carved-module\",\"paths\":[\"go.mod\",\"go.sum\",\"cmd/admin\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sca\"]",
               "criticality": "critical",
               "exposure": "public",
-              "repositories": "[\"./go-carved-module\"]"
+              "repositories": "[\"./go-carved-module\"]",
+              "repositoryScopes": "[{\"url\":\"./go-carved-module\",\"paths\":[\"go.mod\",\"go.sum\",\"cmd/api\"]}]"
             },
             "tool": "draugr/declared"
           },

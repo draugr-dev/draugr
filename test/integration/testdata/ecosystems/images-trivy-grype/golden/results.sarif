@@ -39,7 +39,8 @@
               "controls": "[\"images\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./images-trivy-grype\"]"
+              "repositories": "[\"./images-trivy-grype\"]",
+              "repositoryScopes": "[{\"url\":\"./images-trivy-grype\"}]"
             },
             "tool": "draugr/declared"
           },

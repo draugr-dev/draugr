@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./js-npm-dev\"]"
+              "repositories": "[\"./js-npm-dev\"]",
+              "repositoryScopes": "[{\"url\":\"./js-npm-dev\"}]"
             },
             "tool": "draugr/declared"
           },

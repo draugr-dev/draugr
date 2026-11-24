@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./ruby-bundler\"]"
+              "repositories": "[\"./ruby-bundler\"]",
+              "repositoryScopes": "[{\"url\":\"./ruby-bundler\"}]"
             },
             "tool": "draugr/declared"
           },

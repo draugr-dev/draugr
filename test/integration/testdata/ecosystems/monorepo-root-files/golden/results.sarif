@@ -20,7 +20,8 @@
               "controls": "[\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-root-files\"]"
+              "repositories": "[\"./monorepo-root-files\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-root-files\",\"paths\":[\"services/api\",\"requirements.txt\",\"shared.env\",\"api.env\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-root-files\"]"
+              "repositories": "[\"./monorepo-root-files\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-root-files\",\"paths\":[\"services/web\",\"requirements.txt\",\"shared.env\"]}]"
             },
             "tool": "draugr/declared"
           },

@@ -146,6 +146,65 @@ func TestAControlTheBaseRanIsDroppedWhereTheHeadDoesNot(t *testing.T) {
 	}
 }
 
+// scoped is a component on repository "." reading paths, its scopes recorded as a scan records them.
+func scoped(name string, controls []string, paths ...string) engine.ComponentDeclaration {
+	c := comp(name, "", "", controls, []string{"."})
+	c.Scopes = []engine.RepositoryScope{{URL: ".", Paths: paths}}
+	return c
+}
+
+// Components that split one repository by paths each cover their own part of it. A control is
+// dropped where no component running it at the head still selects what the base component selected,
+// read the way a checkout reads paths; a report that recorded only URLs is compared by URL.
+func TestAControlIsReadByThePartOfTheRepositoryItCovered(t *testing.T) {
+	sast := []string{"sast"}
+	base := engine.Declarations{Components: []engine.ComponentDeclaration{
+		scoped("api", sast, "app"), scoped("web", sast, "web/"), scoped("worker", sast, "worker", "go.mod"),
+	}}
+	for _, tc := range []struct {
+		name string
+		head []engine.ComponentDeclaration
+		want string
+	}{
+		{name: "nothing changed", head: base.Components, want: ""},
+		{name: "off on one part", want: "sast on worker",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("web", sast, "web"), scoped("worker", nil, "worker", "go.mod")}},
+		{name: "a part narrowed", want: "sast on worker",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("web", sast, "web"), scoped("worker", sast, "worker/cmd", "go.mod")}},
+		{name: "the same parts written as globs", want: "",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app/**"), scoped("web", sast, "/web/"), scoped("worker", sast, "worker/*", "go.mod")}},
+		{name: "a part widened to the whole repository", want: "",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("web", sast, "web"), scoped("worker", sast, ".")}},
+		{name: "merged into a neighbor", want: "",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app", "worker", "go.mod"), scoped("web", sast, "web")}},
+		{name: "taken whole by one component", want: "",
+			head: []engine.ComponentDeclaration{scoped("all", sast)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := droppedList(dropped(base, engine.Declarations{Components: tc.head})); got != tc.want {
+				t.Errorf("dropped = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	// A component that read the whole repository is covered only by one that still reads it whole:
+	// paths cannot show that subtrees add up to every file.
+	whole := engine.Declarations{Components: []engine.ComponentDeclaration{scoped("mono", sast)}}
+	split := engine.Declarations{Components: []engine.ComponentDeclaration{scoped("a", sast, "a"), scoped("b", sast, "b")}}
+	if got := droppedList(dropped(whole, split)); got != "sast on mono" {
+		t.Errorf("whole repository split into parts: dropped = %q", got)
+	}
+
+	// A base report from a release that recorded only URLs is compared by URL, as that release did.
+	unscoped := engine.Declarations{Components: []engine.ComponentDeclaration{
+		comp("api", "", "", sast, []string{"."}), comp("worker", "", "", sast, []string{"."}),
+	}}
+	off := engine.Declarations{Components: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("worker", nil, "worker")}}
+	if got := droppedList(dropped(unscoped, off)); got != "" {
+		t.Errorf("an unscoped base: dropped = %q, want the URL comparison's answer", got)
+	}
+}
+
 // A finding the change excused with an exclusion of its own is listed as accepted and gated as new;
 // one an exclusion the base had excused is accepted; and a finding that was counting at the base and
 // is excused now was already there, so it is not the change's to gate.

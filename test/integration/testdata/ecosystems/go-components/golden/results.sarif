@@ -20,7 +20,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./go-components\"]"
+              "repositories": "[\"./go-components\"]",
+              "repositoryScopes": "[{\"url\":\"./go-components\"}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./go-components\"]"
+              "repositories": "[\"./go-components\"]",
+              "repositoryScopes": "[{\"url\":\"./go-components\"}]"
             },
             "tool": "draugr/declared"
           },

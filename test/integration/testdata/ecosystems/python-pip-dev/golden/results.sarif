@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-pip-dev\"]"
+              "repositories": "[\"./python-pip-dev\"]",
+              "repositoryScopes": "[{\"url\":\"./python-pip-dev\"}]"
             },
             "tool": "draugr/declared"
           },
