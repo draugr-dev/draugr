@@ -15,7 +15,7 @@ vulnerable shop, in four steps:
 3. open one finding in the HTML report;
 4. see how a pull request is gated, and run the same gate on your machine.
 
-Every block of output comes from Draugr 0.189.0 on demo commit `bb729745`, run on 2026-11-24. A
+Every block of output comes from Draugr 0.189.1 on demo commit `bb729745`, run on 2026-11-24. A
 newer release or commit prints different counts, and so can a later day, because the scanners read
 advisory databases that change over time. A line reading `…` stands for lines cut from the output.
 
@@ -25,14 +25,14 @@ advisory databases that change over time. A line reading `…` stands for lines 
 
 ## 1. Scan with nothing declared
 
-Install Draugr 0.189.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
+Install Draugr 0.189.1 into `~/.local/bin`, which [install](install.md) covers in full, and check
 the version.
 
 ```console
-$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.189.0 sh
+$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.189.1 sh
 …
 $ draugr version
-draugr 0.189.0 (commit …)
+draugr 0.189.1 (commit …)
 ```
 
 Clone the demo at the commit this page was written against.
@@ -69,7 +69,7 @@ The demo is deliberately vulnerable, so this scan fails. That is the expected re
 ```console
 $ draugr scan .
 …
-DRAUGR  FAIL  draugr-demo  10.573s
+DRAUGR  FAIL  draugr-demo  16.234s
 
  37 P1 28 P2 18 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -169,9 +169,9 @@ is still written.
 ```console
 $ draugr scan --no-publish --report sarif -o before
 …
-DRAUGR  FAIL  draugr-demo 1.0  11.78s
+DRAUGR  FAIL  draugr-demo 1.0  10.3s
 
- 304 P1 714 P2 257 P3 0 P4
+ 303 P1 712 P2 257 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
  These bands rank severity alone. `draugr classify` makes them describe this application.
 …
@@ -181,7 +181,7 @@ CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
       2 uncommitted files  not in commit bb729745 · --working-tree reads them
 
 COMPONENTS
-  api         ERROR  289 P1 704 P2 246 P3
+  api         ERROR  288 P1 702 P2 246 P3
   platform    FAIL   3 P1 7 P2 11 P3
   storefront  ERROR  8 P1 1 P2
   worker      FAIL   4 P1 2 P2
@@ -211,9 +211,9 @@ Scan again.
 ```console
 $ draugr scan --no-publish --report sarif -o after --top 1
 …
-DRAUGR  FAIL  draugr-demo 1.0  10.475s
+DRAUGR  FAIL  draugr-demo 1.0  11.899s
 
- 297 P1 706 P2 252 P3 20 P4
+ 296 P1 704 P2 252 P3 20 P4
 …
 CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
   ✗ unread-files · licenses · api
@@ -222,7 +222,7 @@ CAVEATS  2 fail the run · config.gate.failOnCaveats: unread-files
       web/package-lock.json  records no license for 1 package
 …
 COMPONENTS
-  api         ERROR  289 P1 704 P2 246 P3
+  api         ERROR  288 P1 702 P2 246 P3
   storefront  ERROR  8 P1 1 P2
   platform    pass   3 P3 18 P4
   worker      pass   1 P2 3 P3 2 P4
@@ -235,7 +235,7 @@ SIGNALS
   floor         nothing raised
   reachability  govulncheck · 2 reachable, 3 unreachable
 …
-FIX FIRST  1 of 1275 findings, by priority
+FIX FIRST  1 of 1272 findings, by priority
   P1  critical  CVE-2020-11023
       Untrusted code execution via <option> tag in HTML passed to DOM manipulation methods
       ↑ KEV · scanner trivy · jquery 1.8.3 → 3.5.0
@@ -258,10 +258,10 @@ FIX FIRST  1 of 1275 findings, by priority
 
 ```console
 $ draugr diff before/results.sarif after/results.sarif
-DRAUGR DIFF  pass  27 reranked (27 lowered)  1250 unchanged
+DRAUGR DIFF  pass  27 reranked (27 lowered)  1247 unchanged
 
  reranked        0 P1 1 P2 6 P3 20 P4
- unchanged       297 P1 705 P2 246 P3 0 P4
+ unchanged       296 P1 703 P2 246 P3 0 P4
  still accepted  2 P1 0 P2 0 P3 0 P4
 
 Gate: fails on any P1 this change introduces.
@@ -292,7 +292,7 @@ RERANKED  27 · 27 lowered
 Every finding is in both runs, so the declarations moved bands and fixed nothing. The worker's
 critical lodash flaw went from P1 to P2, its highs to P3 and its mediums to P4. The rows cut here
 are more worker and platform findings that moved the same way. The diff's unchanged count includes
-the two findings the descriptor accepts, which the scan's `1 of 1275` leaves out. Both runs read KEV
+the two findings the descriptor accepts, which the scan's `1 of 1272` leaves out. Both runs read KEV
 and EPSS, so the diff shows only what the declarations did.
 [Reranked findings](../guides/pr-diff.md#reranked-findings) covers the table, and
 [classify components](../guides/classify-components.md) helps you choose the two values for your
@@ -329,10 +329,10 @@ The comment is the diff in Markdown. Render it from the two runs of step 2.
 $ draugr diff before/results.sarif after/results.sarif --format markdown
 ## Draugr diff
 
-✅ **pass** · ↕️ 27 reranked (27 lowered) · 1250 unchanged
+✅ **pass** · ↕️ 27 reranked (27 lowered) · 1247 unchanged
 
 _reranked_ · 0 P1 · **1 P2** · **6 P3** · **20 P4**<br>
-_unchanged_ · **297 P1** · **705 P2** · **246 P3** · 0 P4<br>
+_unchanged_ · **296 P1** · **703 P2** · **246 P3** · 0 P4<br>
 _still accepted_ · **2 P1** · 0 P2 · 0 P3 · 0 P4
 
 _Gate: fails on any P1 this change introduces._
@@ -345,10 +345,10 @@ Run the gate itself, and read its exit code.
 
 ```console
 $ draugr diff before/results.sarif after/results.sarif --fail-on-new P1 --view compact --top 1
-DRAUGR DIFF  pass  27 reranked (27 lowered)  1250 unchanged
+DRAUGR DIFF  pass  27 reranked (27 lowered)  1247 unchanged
 
  reranked        0 P1 1 P2 6 P3 20 P4
- unchanged       297 P1 705 P2 246 P3 0 P4
+ unchanged       296 P1 703 P2 246 P3 0 P4
  still accepted  2 P1 0 P2 0 P3 0 P4
 
 Gate: fails on any P1 this change introduces.
