@@ -39,6 +39,17 @@ type Held struct {
 	// SelfAccepted are new findings set aside by an exclusion the base did not have. They are listed
 	// as accepted, and the gate counts them as new until the exclusion merges.
 	SelfAccepted []sarif.Result
+	// Trusted is set where the run was told to trust the change's descriptor, as
+	// --trust-descriptor-change tells it. The head's declaration then decides the gate: Raised,
+	// Dropped and SelfAccepted say what the base's would have decided, and decide nothing.
+	Trusted bool
+	// Digest names the head's declaration, the value --trust-descriptor-change takes to trust it.
+	// Empty where the caller did not set it.
+	Digest string
+	// TrustNamedOther is a --trust-descriptor-change value that names another declaration than the
+	// head's, so the base's decided. A switch left in a pipeline after its pull request merged
+	// names the descriptor that merged, and the next change to it is held to the base again.
+	TrustNamedOther string
 }
 
 // Dropped is a control the base ran that the head does not.
@@ -50,8 +61,9 @@ type Dropped struct {
 }
 
 // Fails reports whether what the base held decides the verdict by itself: a control the base ran
-// is not running, so what the change adds where it ran was never looked for.
-func (h Held) Fails() bool { return len(h.Dropped) > 0 }
+// is not running, so what the change adds where it ran was never looked for. Never on a run told to
+// trust the change's descriptor.
+func (h Held) Fails() bool { return len(h.Dropped) > 0 && !h.Trusted }
 
 // HoldToBase holds the comparison to the declaration its base recorded, as Held describes.
 //
@@ -63,6 +75,8 @@ func (r Result) HoldToBase(base, head engine.Declarations, baseRecorded bool, ra
 		return r
 	}
 	var h Held
+	// Copied before any rank is raised in place, so the caller's result keeps the head's ranks.
+	r.New = slices.Clone(r.New)
 	from := r.movedFrom()
 	baseOf := byName(base.Components)
 	headOf := byName(head.Components)
@@ -117,6 +131,18 @@ func (r Result) HoldToBase(base, head engine.Declarations, baseRecorded bool, ra
 	sortResults(h.SelfAccepted)
 	sortResults(h.Unscanned)
 	r.Held = h
+	return r
+}
+
+// TrustChange is the comparison judged by the head's declaration, as --trust-descriptor-change asks
+// for a change that edits its own descriptor on purpose. Held still says what the base's
+// declaration would have decided, so the run states what the trust waived, and a base finding from a
+// dropped control still reads as not scanned rather than fixed, because nobody looked for it.
+func (r Result) TrustChange(base, head engine.Declarations, baseRecorded bool, rank Ranker) Result {
+	held := r.HoldToBase(base, head, baseRecorded, rank)
+	r.Fixed = held.Fixed
+	r.Held = held.Held
+	r.Held.Trusted = true
 	return r
 }
 
@@ -258,6 +284,13 @@ func (h Held) Notes() []string {
 		return []string{"The base report records no exposure, criticality, controls or exclusions, " +
 			"so this change's own decide"}
 	}
+	if h.Trusted {
+		return h.trustedNotes()
+	}
+	if h.TrustNamedOther != "" {
+		notes = append(notes, "--trust-descriptor-change "+h.TrustNamedOther+
+			" names another descriptor than this change's ("+h.Digest+"), so the base's decides")
+	}
 	if len(h.Dropped) > 0 {
 		note := "The base ran " + droppedList(h.Dropped) + " and this change does not, so nothing it adds there was looked for"
 		if n := len(h.Unscanned); n > 0 {
@@ -272,6 +305,34 @@ func (h Held) Notes() []string {
 	if n := len(h.SelfAccepted); n > 0 {
 		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "is", "are")+
 			" excused by an exclusion this change adds, and "+english.Choose(n, "counts", "count")+" as new until it merges")
+	}
+	if h.Digest != "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted) > 0 {
+		notes = append(notes, "If this change to the descriptor is intended, add --trust-descriptor-change "+h.Digest+
+			" to the pipeline file in this pull request; it trusts this descriptor only, not a later edit")
+	}
+	return notes
+}
+
+// trustedNotes are Notes for a run told to trust the change's descriptor: that it was told, and what
+// the base's declaration would have decided had it not been.
+func (h Held) trustedNotes() []string {
+	if len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted) == 0 {
+		return []string{"--trust-descriptor-change changed nothing: this change declares what the base did, " +
+			"so the switch can come out of the pipeline"}
+	}
+	notes := []string{"--trust-descriptor-change: this change's descriptor decides the gate, not the base's"}
+	if len(h.Dropped) > 0 {
+		note := "This change stops " + droppedList(h.Dropped) + ", which the base ran, so nothing it adds there was looked for"
+		if n := len(h.Unscanned); n > 0 {
+			note += ", and " + english.Count(n, "finding") + " from the base " + english.Choose(n, "reads", "read") + " as not scanned rather than fixed"
+		}
+		notes = append(notes, note)
+	}
+	if n := len(h.Raised); n > 0 {
+		notes = append(notes, english.Count(n, "new finding")+" would rank higher by the base's exposure and criticality, which this change lowers")
+	}
+	if n := len(h.SelfAccepted); n > 0 {
+		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "is", "are")+" excused by an exclusion this change adds")
 	}
 	return notes
 }

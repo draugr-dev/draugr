@@ -1,6 +1,8 @@
 package skald
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -65,6 +67,19 @@ func DeclaredProvenance(d engine.Declarations) []sarif.Provenance {
 		})
 	}
 	return out
+}
+
+// DeclaredDigest names a declaration in sixteen hex characters: the first eight bytes of the SHA-256
+// of its provenance entries. --trust-descriptor-change takes it, so the switch typed in a pipeline
+// trusts one descriptor and no later edit of it. Two reads of one declaration give one digest, since
+// the entries hold only what a report reads back.
+func DeclaredDigest(d engine.Declarations) string {
+	b, err := json.Marshal(DeclaredProvenance(d))
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:8])
 }
 
 // DeclaredOfReport is what a loaded report's descriptor declared, and whether the report recorded

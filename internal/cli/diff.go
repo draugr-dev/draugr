@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -44,6 +46,9 @@ type diffOptions struct {
 	// declared is where that descriptor declares each image in this repository, read for the sarif
 	// format, and nil where no descriptor was read.
 	declared sarif.Declarations
+	// trustDescriptorChange is --trust-descriptor-change: the digest of the descriptor that decides
+	// the comparison instead of the base's, where the head's is that one.
+	trustDescriptorChange string
 }
 
 func newDiffCommand() *cobra.Command {
@@ -123,6 +128,9 @@ func newDiffCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.failOnNew, "fail-on-new", "",
 		"fail if the change introduces a finding at or above this: a priority band (P1-P4) or a "+
 			"severity (critical, high, medium, low); overrides config.gate.failOnNew")
+	cmd.Flags().StringVar(&opts.trustDescriptorChange, "trust-descriptor-change", "",
+		"`digest` of the descriptor that decides the comparison in place of the base's; a comparison "+
+			"held to its base prints it")
 	cmd.Flags().StringVar(&opts.saga, "saga", "",
 		"descriptor, or directory holding one, whose config.gate.failOnNew applies when "+
 			"--fail-on-new is not passed, and on whose image: lines --format sarif places new "+
@@ -176,6 +184,9 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 	// No base path is a head with nothing to compare against. A base path that names nothing is
 	// still an error: leaving the base out is a choice, and a missing file is a mistake.
 	noBase := basePath == ""
+	if err := checkTrust(opts.trustDescriptorChange, !noBase); err != nil {
+		return err
+	}
 	var base sarif.Report
 	if !noBase {
 		if base, err = loadSARIF(basePath); err != nil {
@@ -195,7 +206,7 @@ func runDiff(ctx context.Context, basePath, headPath string, opts diffOptions, w
 		if err := comparableBands(basePath, base, headPath, headBand, minPriority); err != nil {
 			return err
 		}
-		if compared, err = compareWithBase(basePath, base, headPath, head); err != nil {
+		if compared, err = compareWithBase(basePath, base, headPath, head, opts.trustDescriptorChange); err != nil {
 			return err
 		}
 	}
@@ -303,7 +314,13 @@ func loadSARIF(path string) (sarif.Report, error) {
 // compareWithBase is the comparison `draugr diff` makes and `draugr scan --base` makes, one
 // function so the two cannot classify one pair of reports differently: refused where the reports
 // did not cover the same ground, and otherwise every finding classified by diff.Compare.
-func compareWithBase(baseName string, base sarif.Report, headName string, head sarif.Report) (diff.Result, error) {
+//
+// trust is --trust-descriptor-change, the digest of a declaration to let decide in the base's place,
+// for a change that edits its descriptor on purpose. It is typed in the pipeline, which a pull
+// request's descriptor cannot reach, and it names one declaration: a switch left in the pipeline
+// once its pull request merges trusts no later edit. The comparison still says what the base's
+// declaration would have decided.
+func compareWithBase(baseName string, base sarif.Report, headName string, head sarif.Report, trust string) (diff.Result, error) {
 	if err := comparableScopes(baseName, base, headName, head); err != nil {
 		return diff.Result{}, err
 	}
@@ -311,7 +328,34 @@ func compareWithBase(baseName string, base sarif.Report, headName string, head s
 	// lower the rank of what the change adds, stop a control the base ran, or excuse its own finding.
 	baseDeclared, recorded := skald.DeclaredOfReport(base)
 	headDeclared, _ := skald.DeclaredOfReport(head)
-	return diff.Compare(base, head).HoldToBase(baseDeclared, headDeclared, recorded, scanpolicy.RankUnder), nil
+	digest := skald.DeclaredDigest(headDeclared)
+	compared := diff.Compare(base, head)
+	if trust != "" && trust == digest {
+		compared = compared.TrustChange(baseDeclared, headDeclared, recorded, scanpolicy.RankUnder)
+	} else {
+		compared = compared.HoldToBase(baseDeclared, headDeclared, recorded, scanpolicy.RankUnder)
+		compared.Held.TrustNamedOther = trust
+	}
+	compared.Held.Digest = digest
+	return compared, nil
+}
+
+// checkTrust refuses a --trust-descriptor-change value that cannot apply: one typed with no base
+// report to compare against, which would set aside nothing and say nothing, and one that is not a
+// digest a comparison prints.
+func checkTrust(trust string, haveBase bool) error {
+	if trust == "" {
+		return nil
+	}
+	if !haveBase {
+		return errors.New("--trust-descriptor-change needs a base to compare against: pass the base " +
+			"report to draugr diff, or --base to draugr scan, or remove the flag")
+	}
+	if _, err := hex.DecodeString(trust); err != nil || len(trust) != 16 || strings.ToLower(trust) != trust {
+		return fmt.Errorf("--trust-descriptor-change %q is not a digest: copy the 16 lowercase hexadecimal "+
+			"characters the failing run printed", trust)
+	}
+	return nil
 }
 
 // diffDescriptor is the descriptor whose config.gate.failOnNew a diff applies: the one --saga

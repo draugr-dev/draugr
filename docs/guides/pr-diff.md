@@ -394,6 +394,37 @@ the base, and scan a refused one with the head's copy, with a warning that quote
 pull request that removes the key is gated like any other, and both trees are read with the head's
 descriptor.
 
+### When a pull request changes its own descriptor
+
+A pull request is held to the descriptor its base declared until it merges, as the
+[reference](../reference/cli.md#draugr-diff-basesarif-headsarif) describes. Sometimes a descriptor
+change is the point: a control the team no longer wants, or a component that really is less exposed
+than declared. The failing run prints a digest of the pull request's descriptor:
+
+```console
+The base ran sca on api and this change does not, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed.
+If this change to the descriptor is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file in this pull request; it trusts this descriptor only, not a later edit.
+```
+
+Add it to the pipeline in the same pull request, `trust-descriptor-change` in the GitHub Action,
+`DRAUGR_TRUST_DESCRIPTOR_CHANGE` in the GitLab template, `trustDescriptorChange` in the Azure
+DevOps one:
+
+```yaml
+- uses: draugr-dev/draugr@v0
+  with:
+    saga: draugr.saga.yaml
+    fail-on-new: P1
+    trust-descriptor-change: 57a32d4c7cbd861d   # turns off sca on api; remove once merged
+```
+
+The run is then judged by the pull request's own descriptor and still lists what the base's would
+have decided. The digest names this descriptor only, so a later edit is held to its base again;
+remove the line once the pull request merges.
+
+The switch is as strong as the review your pipeline files get. Put the workflow or template file
+under `CODEOWNERS` with a required review, as the descriptor should be.
+
 ## Do not pay for the base scan twice
 
 Scanning the base on every pull request is the honest way to get a comparable pair, and it is also

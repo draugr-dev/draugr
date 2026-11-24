@@ -34,6 +34,9 @@ type baseGate struct {
 	// basePath is --base, and base the report it names. Empty where no --base was passed.
 	basePath string
 	base     sarif.Report
+	// trust is --trust-descriptor-change: the digest of the descriptor that decides the comparison
+	// in the base's place, where this run's is that one.
+	trust string
 }
 
 // newBaseGate resolves the gate on new findings and reads the base, before anything is scanned.
@@ -47,9 +50,12 @@ func newBaseGate(opts scanOptions, gate *saga.GateConfig, scope engine.Scope) (b
 	if err != nil {
 		return baseGate{}, err
 	}
-	g := baseGate{failOn: failOn, band: band, from: "config.gate.failOnNew", basePath: opts.base}
+	g := baseGate{failOn: failOn, band: band, from: "config.gate.failOnNew", basePath: opts.base, trust: opts.trustDescriptorChange}
 	if opts.failOnNew != "" {
 		g.from = "--fail-on-new"
+	}
+	if err := checkTrust(g.trust, opts.base != ""); err != nil {
+		return baseGate{}, err
 	}
 	if opts.base == "" {
 		return g, nil
@@ -118,7 +124,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 	if err != nil {
 		return comparison{}, err
 	}
-	compared, err := compareWithBase(g.basePath, g.base, thisScan, head)
+	compared, err := compareWithBase(g.basePath, g.base, thisScan, head, g.trust)
 	if err != nil {
 		return comparison{}, err
 	}
@@ -130,6 +136,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 			Introduced: compared.Counted().New,
 			Tripped:    compared.Tripped,
 			Dropped:    droppedControls(compared.Held.Dropped),
+			Trusted:    compared.Held.Trusted,
 		},
 		result:  compared,
 		tripped: len(compared.Tripped),

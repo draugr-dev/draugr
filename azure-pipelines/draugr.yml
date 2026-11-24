@@ -62,6 +62,12 @@ parameters:
     default: findings
     values: [findings, actions, compact]
 
+  # The digest a failing diff printed for a pull request's descriptor, which then decides the gate in
+  # place of the base's. Names one descriptor; remove it once merged.
+  - name: trustDescriptorChange
+    type: string
+    default: ""
+
   # Publish the JUnit findings to the Tests tab and the reports as a build artifact.
   - name: publishResults
     type: boolean
@@ -172,6 +178,14 @@ steps:
           # Asked for rather than assumed: `version` pins any published release and this template
           # moves independently of them, so the binary may predate the flag. Without it the comment
           # is what it always was, and the step carries on rather than dying under set -e.
+          trust=""
+          if [ -n "${TRUST_DESCRIPTOR_CHANGE:-}" ]; then
+            if draugr help diff 2>&1 | grep -- '--trust-descriptor-change' >/dev/null; then
+              trust="--trust-descriptor-change $TRUST_DESCRIPTOR_CHANGE"
+            else
+              echo "##vso[task.logissue type=warning]trustDescriptorChange has no effect: this Draugr release does not hold a pull request to its base's descriptor. Update Draugr or remove the parameter."
+            fi
+          fi
           view=""
           if [ -n "${DIFF_VIEW:-}" ] && [ "${DIFF_VIEW}" != "findings" ]; then
             if draugr help diff 2>&1 | grep -- '--view' >/dev/null; then
@@ -180,15 +194,16 @@ steps:
               echo "##vso[task.logissue type=warning]diffView needs a Draugr release with 'diff --view'; this one is older, so the comment lists findings."
             fi
           fi
-          # shellcheck disable=SC2086 # base_report, gate, saga and view are deliberate word-splits, empty when unset
+          # shellcheck disable=SC2086 # base_report, gate, saga, trust and view are deliberate word-splits, empty when unset
           draugr diff $base_report \
                       "$(Pipeline.Workspace)/draugr-head/results.sarif" \
-                      --publish $gate $saga $view
+                      --publish $gate $saga $trust $view
         displayName: Gate on new findings
         condition: eq(variables['Build.Reason'], 'PullRequest')
         env:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
           FAIL_ON_NEW_PRIORITY: ${{ parameters.failOnNewPriority }}
+          TRUST_DESCRIPTOR_CHANGE: ${{ parameters.trustDescriptorChange }}
           DIFF_VIEW: ${{ parameters.diffView }}
 
   - ${{ if eq(parameters.publishResults, true) }}:

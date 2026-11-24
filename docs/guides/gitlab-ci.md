@@ -78,6 +78,9 @@ merge request. Set it empty and the descriptor's
 [`config.gate.failOnNew`](../reference/saga-schema.md#configgate) is the gate, which a release
 without `draugr diff --saga` ignores. `DRAUGR_DIFF_VIEW` decides what the comment says. See [gate PRs on new
 findings](pr-diff.md) for what the states mean and how findings are matched across two scans.
+`DRAUGR_TRUST_DESCRIPTOR_CHANGE` takes the digest a failing diff prints for a merge request that
+changes its descriptor on purpose; see [when a pull request changes its own
+descriptor](pr-diff.md#when-a-pull-request-changes-its-own-descriptor).
 
 A merge request that adds the project's first descriptor has none at the merge base, and is compared
 against no findings instead: every finding is new and the gate applies to them.

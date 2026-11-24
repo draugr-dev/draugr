@@ -252,3 +252,90 @@ func renderJSONString(t *testing.T, r Result) string {
 	}
 	return buf.String()
 }
+
+// A run told to trust the change's descriptor is judged by the head's declaration, and still says
+// what the base's would have decided. A base finding from the dropped control is still not fixed.
+func TestATrustedChangeIsJudgedByItsOwnDescriptor(t *testing.T) {
+	self := suppressed(on(res("trivy", "CVE-SELF", sarif.LevelError, "go.mod", 2, "P2"), "api", "restricted", "supporting"))
+	low := on(res("trivy", "CVE-NEW", sarif.LevelError, "go.mod", 1, "P4"), "api", "restricted", "supporting")
+	gone := on(res("trivy", "CVE-GONE", sarif.LevelError, "go.mod", 1, "P1"), "api", "", "")
+	gone.Control = "sca"
+	compared := Compare(sarif.Report{Results: []sarif.Result{gone}}, sarif.Report{Results: []sarif.Result{low, self}})
+	base := engine.Declarations{Components: []engine.ComponentDeclaration{
+		comp("api", "public", "critical", []string{"sca", "sast"}, []string{"r/api"})}}
+	head := engine.Declarations{Components: []engine.ComponentDeclaration{
+		comp("api", "restricted", "supporting", []string{"sast"}, []string{"r/api"})}}
+
+	r := compared.TrustChange(base, head, true, matrixRank)
+	r.Gate = Gate{FailOnPriority: "P1"}
+	r.Tripped = r.GateNew("", "P1")
+	if len(r.Tripped) != 0 || r.New[0].Priority != "P4" {
+		t.Errorf("tripped = %+v, new at %s: the head's classification and exclusion should decide", r.Tripped, r.New[0].Priority)
+	}
+	if compared.New[0].Priority != "P4" {
+		t.Errorf("the comparison passed in was raised to %s in place", compared.New[0].Priority)
+	}
+	if v, failed := verdict(r); v != "pass" || failed {
+		t.Errorf("verdict = %q, %v: a trusted change that stops a control passes", v, failed)
+	}
+	if len(r.Fixed) != 0 || len(r.Held.Unscanned) != 1 {
+		t.Errorf("fixed = %+v: the dropped control's finding was not looked for", r.Fixed)
+	}
+	notes := []string{
+		"--trust-descriptor-change: this change's descriptor decides the gate, not the base's",
+		"This change stops sca on api, which the base ran, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed",
+		"2 new findings would rank higher by the base's exposure and criticality, which this change lowers",
+		"1 new finding is excused by an exclusion this change adds",
+	}
+	for _, format := range []string{"console", "markdown"} {
+		var buf bytes.Buffer
+		if err := Render(&buf, format, r, Options{}); err != nil {
+			t.Fatal(err)
+		}
+		for _, n := range notes {
+			if !strings.Contains(buf.String(), n) {
+				t.Errorf("%s does not say %q:\n%s", format, n, buf.String())
+			}
+		}
+		if strings.Contains(buf.String(), "until it merges") {
+			t.Errorf("%s says the base still holds the change:\n%s", format, buf.String())
+		}
+	}
+	if !strings.Contains(renderJSONString(t, r), `"trusted": true`) {
+		t.Error("the JSON does not say the change's descriptor was trusted")
+	}
+
+	// Typed where the descriptors agree, the switch says it changed nothing.
+	plain := Compare(sarif.Report{}, sarif.Report{})
+	same := plain.TrustChange(head, head, true, matrixRank)
+	if notes := same.Held.Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "--trust-descriptor-change changed nothing") {
+		t.Errorf("notes = %q", notes)
+	}
+}
+
+// A comparison held to its base prints the digest that would trust the change, and a digest that
+// names another descriptor says so and changes nothing.
+func TestTheDigestToTrustIsSaid(t *testing.T) {
+	low := on(res("trivy", "CVE-NEW", sarif.LevelError, "go.mod", 1, "P4"), "api", "restricted", "supporting")
+	base := engine.Declarations{Components: []engine.ComponentDeclaration{comp("api", "public", "critical", nil, []string{"r/api"})}}
+	head := engine.Declarations{Components: []engine.ComponentDeclaration{comp("api", "restricted", "supporting", nil, []string{"r/api"})}}
+	r := Compare(sarif.Report{}, sarif.Report{Results: []sarif.Result{low}}).HoldToBase(base, head, true, matrixRank)
+	r.Held.Digest, r.Held.TrustNamedOther = "57a32d4c7cbd861d", "0123456789abcdef"
+	notes := r.Held.Notes()
+	if len(notes) != 3 ||
+		notes[0] != "--trust-descriptor-change 0123456789abcdef names another descriptor than this change's (57a32d4c7cbd861d), so the base's decides" ||
+		!strings.HasPrefix(notes[2], "If this change to the descriptor is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file") {
+		t.Errorf("notes = %q", notes)
+	}
+	js := renderJSONString(t, r)
+	if !strings.Contains(js, `"digest": "57a32d4c7cbd861d"`) || !strings.Contains(js, `"trustNamedOther": "0123456789abcdef"`) {
+		t.Errorf("the JSON does not carry the digests:\n%s", js)
+	}
+
+	// Nothing held, nothing to trust: no hint.
+	quiet := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(head, head, true, matrixRank)
+	quiet.Held.Digest = "57a32d4c7cbd861d"
+	if notes := quiet.Held.Notes(); len(notes) != 0 {
+		t.Errorf("notes = %q with nothing held", notes)
+	}
+}

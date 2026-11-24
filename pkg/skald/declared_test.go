@@ -97,3 +97,26 @@ func TestAnEditedListReadsAsEmpty(t *testing.T) {
 		t.Errorf("components = %+v, want %+v (another tool's entry ignored)", got.Components, want)
 	}
 }
+
+// The digest names a declaration as a report reads it back, so the scan that prints it and the
+// comparison that checks it agree, and any edit to what was declared gives another.
+func TestTheDigestNamesOneDeclaration(t *testing.T) {
+	declared := engine.Declarations{
+		Components: []engine.ComponentDeclaration{{Name: "api", Exposure: "public", Controls: []string{"sca"},
+			Repositories: []string{"https://example.com/api.git"}}},
+		Exclusions: []saga.ExcludeRule{{Rules: []string{"G104"}, Reason: "not reachable", Expires: "2099-01-01"}},
+	}
+	run := sampleRun()
+	run.Declared = declared
+	readBackDeclared, _ := DeclaredOfReport(readBack(t, run))
+	digest := DeclaredDigest(declared)
+	if len(digest) != 16 || DeclaredDigest(readBackDeclared) != digest {
+		t.Errorf("digest %q, read back %q: one declaration should give one 16-character digest", digest, DeclaredDigest(readBackDeclared))
+	}
+	edited := declared
+	edited.Components = []engine.ComponentDeclaration{{Name: "api", Exposure: "internal", Controls: []string{"sca"},
+		Repositories: []string{"https://example.com/api.git"}}}
+	if DeclaredDigest(edited) == digest {
+		t.Error("a lowered exposure kept the digest")
+	}
+}

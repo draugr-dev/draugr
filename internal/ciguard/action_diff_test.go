@@ -24,7 +24,8 @@ case "$1" in
   version) echo "draugr stub" ;;
   help)
     if [ -n "$STUB_OLD" ]; then echo "  draugr diff <base.sarif> <head.sarif> [flags]"
-    else echo "  draugr diff [base.sarif] <head.sarif> [flags]"; echo "  --saga string   the descriptor"; fi
+    else echo "  draugr diff [base.sarif] <head.sarif> [flags]"; echo "  --saga string   the descriptor"
+      echo "  --trust-descriptor-change digest   the descriptor to trust"; fi
     echo "  --format string   console, markdown, json, sarif"
     echo "  --repository string"
     # As long as the real help, and longer: a reader that stops at the first match closes the pipe
@@ -341,6 +342,53 @@ func TestTheActionNamesTheDescriptorToTheDiff(t *testing.T) {
 	}
 	if strings.Contains(diffs, "--saga") {
 		t.Errorf("an older release was handed --saga:\n%s", diffs)
+	}
+}
+
+// The trust-descriptor-change input reaches the gating diff as the flag, and a release whose diff
+// has no such flag is not handed it: it holds nothing to the base's descriptor, so the step says
+// the input sets nothing aside rather than failing on a flag it refuses.
+func TestTheActionHandsTheDiffTheDigestToTrust(t *testing.T) {
+	t.Parallel()
+	base, head := []string{"draugr.saga.yaml"}, []string{"draugr.saga.yaml", "app.js"}
+	out, diffs, ok := runActionDiff(t, base, head, "INPUT_TRUST_DESCRIPTOR_CHANGE=57a32d4c7cbd861d")
+	if !ok {
+		t.Fatalf("the step failed:\n%s", out)
+	}
+	if !strings.Contains(diffs, "--publish --fail-on-new P1 --trust-descriptor-change 57a32d4c7cbd861d") {
+		t.Errorf("the gating diff was not given the digest:\n%s", diffs)
+	}
+	out, diffs, ok = runActionDiff(t, base, head, "INPUT_TRUST_DESCRIPTOR_CHANGE=57a32d4c7cbd861d", "STUB_OLD=1")
+	if !ok {
+		t.Fatalf("the step failed on an older release:\n%s", out)
+	}
+	if strings.Contains(diffs, "--trust-descriptor-change") {
+		t.Errorf("an older release was handed --trust-descriptor-change:\n%s", diffs)
+	}
+	if !strings.Contains(out, "::warning::trust-descriptor-change has no effect") {
+		t.Errorf("the step does not say the input set nothing aside:\n%s", out)
+	}
+	if _, diffs, _ = runActionDiff(t, base, head); strings.Contains(diffs, "--trust-descriptor-change") {
+		t.Errorf("the digest was passed with the input empty:\n%s", diffs)
+	}
+}
+
+// Every shipped pipeline takes the digest to trust and hands it to its diff behind a check that the
+// release has the flag, so a team on any of the three has the same way through.
+func TestEveryPipelineTakesADigestToTrust(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"action.yml", "azure-pipelines/draugr.yml", "gitlab-ci/draugr.yml"} {
+		// #nosec G304 -- path comes from the hardcoded list above, inside this repository.
+		body, err := os.ReadFile(filepath.Join("../..", path))
+		if err != nil {
+			t.Errorf("%s: %v", path, err)
+			continue
+		}
+		if !strings.Contains(string(body), "grep -- '--trust-descriptor-change'") ||
+			!strings.Contains(string(body), "--trust-descriptor-change \"$") && !strings.Contains(string(body), "--trust-descriptor-change ${") &&
+				!strings.Contains(string(body), "--trust-descriptor-change $TRUST") {
+			t.Errorf("%s does not hand draugr diff a digest to trust behind a check for the flag", path)
+		}
 	}
 }
 

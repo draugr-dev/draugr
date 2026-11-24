@@ -583,6 +583,9 @@ type NewFindings struct {
 	// the gate on new findings by itself: what the change adds where the control ran was never
 	// looked for, so no count of new findings can say the change is clean.
 	Dropped []DroppedControl
+	// Trusted is set where --trust-descriptor-change let this run's descriptor decide: Dropped then
+	// says what the base ran and fails nothing.
+	Trusted bool
 }
 
 // DroppedControl is a control the base scan ran that this run does not.
@@ -634,6 +637,9 @@ type newReport struct {
 	Introduced priorityCounts `json:"introduced"`
 	// Dropped are the controls the base ran and this run does not, absent where there are none.
 	Dropped []DroppedControl `json:"dropped,omitempty"`
+	// DescriptorChangeTrusted is true where --trust-descriptor-change let this run's descriptor
+	// decide, so a dropped control fails nothing and the ranking and exclusions are this run's.
+	DescriptorChangeTrusted bool `json:"descriptorChangeTrusted,omitempty"`
 	// Verdict is the gate on new findings' outcome, pass or fail. Absent where no threshold was
 	// set: the comparison is then reported and decides nothing, and a verdict nobody asked for
 	// would be one the document invented.
@@ -655,7 +661,7 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	if n == nil {
 		return nil
 	}
-	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}, Dropped: n.Dropped}
+	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}, Dropped: n.Dropped, DescriptorChangeTrusted: n.Trusted}
 	for _, f := range n.Introduced {
 		switch prioritization.Priority(f.Priority) {
 		case prioritization.P1:
@@ -670,7 +676,7 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	}
 	if failOnNew != "" {
 		out.Verdict = string(norn.Pass)
-		if len(n.Tripped) > 0 || len(n.Dropped) > 0 {
+		if len(n.Tripped) > 0 || (len(n.Dropped) > 0 && !n.Trusted) {
 			out.Verdict = string(norn.Fail)
 		}
 	}

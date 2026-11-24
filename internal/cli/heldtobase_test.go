@@ -187,3 +187,101 @@ func TestAChangeCannotExcuseWhatItAdds(t *testing.T) {
 		t.Errorf("an exclusion the base had: err = %v\n%s", err, console)
 	}
 }
+
+// digestIn is the digest a run held to its base printed for the change's descriptor.
+func digestIn(t *testing.T, console string) string {
+	t.Helper()
+	const lead = "add --trust-descriptor-change "
+	_, rest, ok := strings.Cut(console, lead)
+	if !ok {
+		t.Fatalf("the run prints no digest to trust:\n%s", console)
+	}
+	digest, _, _ := strings.Cut(rest, " ")
+	return digest
+}
+
+// A pull request that turns a control off on purpose gets through with the digest the failing run
+// printed, typed in the pipeline. The digest names that descriptor alone: a later edit is held to
+// its base again, and says why.
+func TestADescriptorChangeIsTrustedByItsDigest(t *testing.T) {
+	s, reg := stagedPair()
+	base := scanBase(t, shopSaga(t, "", ""), reg)
+	introduce(s)
+	sweeping := `
+    exposure: restricted
+    criticality: supporting
+    controls:
+      sca:
+        enabled: false`
+	head := shopSaga(t, sweeping, "")
+
+	console, err := scanAgainst(t, head, base, "P4", reg)
+	if err == nil {
+		t.Fatalf("the change passed untrusted:\n%s", console)
+	}
+	digest := digestIn(t, console)
+
+	trusted := t.TempDir()
+	var out bytes.Buffer
+	err = runScan(context.Background(), head, scanOptions{outputDir: trusted, noPublish: true, base: base,
+		failOnNew: "P4", trustDescriptorChange: digest}, reg, &out)
+	if err != nil {
+		t.Fatalf("the trusted change failed: %v\n%s", err, out.String())
+	}
+	for _, want := range []string{
+		"--trust-descriptor-change: this change's descriptor decides the gate, not the base's.",
+		"This change stops sca on api, which the base ran, so nothing it adds there was looked for",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("console does not say %q:\n%s", want, out.String())
+		}
+	}
+	newBlock, _ := gateOf(t, trusted)["new"].(map[string]any)
+	if newBlock["verdict"] != "pass" || newBlock["descriptorChangeTrusted"] != true || newBlock["dropped"] == nil {
+		t.Errorf("gate.new = %v, want a pass that says the change was trusted and what it dropped", newBlock)
+	}
+
+	// draugr diff takes the same digest for the same two reports.
+	headOut := t.TempDir()
+	if err := runScan(context.Background(), head, scanOptions{outputDir: headOut, noPublish: true}, reg, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	headSARIF := filepath.Join(headOut, "results.sarif")
+	if out, err := diffIn(t, t.TempDir(), base, headSARIF, "--fail-on-new", "P4", "--trust-descriptor-change", digest); err != nil {
+		t.Errorf("draugr diff with the digest: %v\n%s", err, out)
+	}
+
+	// The switch left in the pipeline trusts no later edit of the descriptor.
+	edited := shopSaga(t, strings.Replace(sweeping, "supporting", "important", 1), "")
+	console, err = runScanTrusting(t, edited, base, digest, reg)
+	if err == nil {
+		t.Fatalf("a later edit passed on the old digest:\n%s", console)
+	}
+	if want := "--trust-descriptor-change " + digest + " names another descriptor than this change's ("; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+
+	// Without a base, or with a value that is no digest, the switch is refused rather than ignored.
+	if _, err := diffIn(t, t.TempDir(), headSARIF, "--trust-descriptor-change", digest); err == nil ||
+		!strings.Contains(err.Error(), "needs a base to compare against") {
+		t.Errorf("no base: err = %v", err)
+	}
+	if _, err := diffIn(t, t.TempDir(), base, headSARIF, "--trust-descriptor-change", "true"); err == nil ||
+		!strings.Contains(err.Error(), "is not a digest: copy the 16 lowercase") {
+		t.Errorf("not a digest: err = %v", err)
+	}
+	if err := runScan(context.Background(), head, scanOptions{outputDir: t.TempDir(), noPublish: true,
+		trustDescriptorChange: digest}, reg, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "needs a base to compare against") {
+		t.Errorf("scan without --base: err = %v", err)
+	}
+}
+
+// runScanTrusting scans path against base under a P4 gate on new findings with digest typed as
+// --trust-descriptor-change, and returns the console and the error.
+func runScanTrusting(t *testing.T, path, base, digest string, reg *engine.Registry) (string, error) {
+	t.Helper()
+	var console bytes.Buffer
+	err := runScan(context.Background(), path, scanOptions{outputDir: t.TempDir(), noPublish: true, base: base,
+		failOnNew: "P4", trustDescriptorChange: digest}, reg, &console)
+	return console.String(), err
+}

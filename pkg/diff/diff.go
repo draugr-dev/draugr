@@ -682,8 +682,13 @@ func (r Result) GateNew(failOn sarif.Severity, failOnPriority string) []sarif.Re
 	wantPriority := failOnPriority != ""
 	prioRank := prioritization.Priority(failOnPriority).Rank()
 	// A finding the change excused with an exclusion of its own counts as new until the exclusion
-	// merges: the change's descriptor is part of the change, so it cannot accept what it adds.
-	for _, f := range slices.Concat(r.New, r.Held.SelfAccepted) {
+	// merges: the change's descriptor is part of the change, so it cannot accept what it adds. A run
+	// told to trust the change's descriptor lets it.
+	newHere := r.New
+	if !r.Held.Trusted {
+		newHere = slices.Concat(r.New, r.Held.SelfAccepted)
+	}
+	for _, f := range newHere {
 		// A second scanner's copy of a flaw already counted is not a new finding to gate on. It
 		// reaches this list the day somebody enables a second matcher, and failing a pull request
 		// over nine copies of nine vulnerabilities that were already there teaches people to turn

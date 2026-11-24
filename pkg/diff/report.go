@@ -1032,6 +1032,14 @@ type jsonHeld struct {
 	Unscanned []sarif.Result `json:"unscanned,omitempty"`
 	// SelfAccepted are new findings excused by an exclusion the base did not have, gated as new.
 	SelfAccepted []sarif.Result `json:"selfAccepted,omitempty"`
+	// Trusted is true where --trust-descriptor-change was given: the head's declaration decided the
+	// gate, and the lists above are what the base's would have decided.
+	Trusted bool `json:"trusted,omitempty"`
+	// Digest names the head's declaration, the value --trust-descriptor-change takes to trust it.
+	Digest string `json:"digest,omitempty"`
+	// TrustNamedOther is a --trust-descriptor-change value naming another declaration, so the
+	// base's decided.
+	TrustNamedOther string `json:"trustNamedOther,omitempty"`
 }
 
 // jsonDropped is a dropped control.
@@ -1042,10 +1050,11 @@ type jsonDropped struct {
 
 // heldJSON is h for the JSON format, nil where the base decided nothing beyond the head.
 func heldJSON(h Held) *jsonHeld {
-	if !h.Unrecorded && len(h.Raised)+len(h.Dropped)+len(h.Unscanned)+len(h.SelfAccepted) == 0 {
+	if !h.Unrecorded && !h.Trusted && h.TrustNamedOther == "" && len(h.Raised)+len(h.Dropped)+len(h.Unscanned)+len(h.SelfAccepted) == 0 {
 		return nil
 	}
-	out := &jsonHeld{Unrecorded: h.Unrecorded, Unscanned: h.Unscanned, SelfAccepted: h.SelfAccepted}
+	out := &jsonHeld{Unrecorded: h.Unrecorded, Unscanned: h.Unscanned, SelfAccepted: h.SelfAccepted,
+		Trusted: h.Trusted, Digest: h.Digest, TrustNamedOther: h.TrustNamedOther}
 	for _, rr := range h.Raised {
 		out.Raised = append(out.Raised, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: "raised"})
 	}

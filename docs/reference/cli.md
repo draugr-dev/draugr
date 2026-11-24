@@ -613,6 +613,7 @@ The flag tables below follow the groups in `draugr scan --help`.
 | `--fail-on-caveats` | - | Kinds of caveat that fail the run as an error does: `not-checked`, `not-measured`, `unread-files`, `unread-checks`, `unbound-imports`, `uncommitted-files`, or `none`. Overrides [`config.gate.failOnCaveats`](saga-schema.md#configgate) |
 | `--base` | - | The `results.sarif` of a scan to compare this one against, by the comparison [`draugr diff`](#draugr-diff-basesarif-headsarif) makes. With a gate on new findings set, the verdict and the exit code come from what this scan reports and the base does not. See [below](#gating-on-new-findings) |
 | `--fail-on-new` | - | The gate on new findings: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate) |
+| `--trust-descriptor-change` | - | The digest a comparison printed for this scan's descriptor. That descriptor decides the comparison with `--base` in place of the base's. Refused without `--base`. See [below](#draugr-diff-basesarif-headsarif) |
 | `--no-gate` | `false` | Report the verdict, and the outcome of the gate on new findings, but exit 0 on a fail, for producing a report to compare later, where [`draugr diff`](#draugr-diff-basesarif-headsarif) is the gate |
 | `--allow-scan-errors` | `false` | Treat a control whose scanner could not run as a warning rather than a failure. The verdict line then carries `partial`, with the number of targets not reached. A run that planned no jobs at all still fails |
 
@@ -1294,6 +1295,7 @@ CHANGED  4, by priority
 | `--repository` | - | Keep only new findings from this repository, plus those belonging to none (an image, a host). For a code-scanning upload, whose paths anchor to one checkout |
 | `--fail-on-new` | - | Fail if a new finding is at or above this: a priority band (`P1`–`P4`) or a severity (`critical`, `high`, `medium`, `low`). Overrides [`config.gate.failOnNew`](saga-schema.md#configgate). Without either, the diff exits 0 |
 | `--fail-on-new-priority` | - | Deprecated: write the band in `--fail-on-new`. Refused together with `--fail-on-new` |
+| `--trust-descriptor-change` | - | The digest a diff printed for the head's descriptor. That descriptor decides in place of the base's, for a change that edits it on purpose. Refused without a base report |
 | `--saga` | - | The descriptor, or a directory holding one, whose `config.gate.failOnNew` applies when `--fail-on-new` is not passed, and on whose `image:` lines `--format sarif` places new findings on an image. Without it, the descriptor in the working directory |
 | `--publish` | `false` | Post the diff as a sticky pull-request comment. Picks `github-pr-comment`, `azure-pr-comment` or `gitlab-mr-comment` from the CI environment; no-ops off a PR |
 
@@ -1339,6 +1341,11 @@ The diff says each, for example `The base ran sca on api and this change does no
 there was looked for.` A change that lowers a classification or adds an exclusion, and adds no
 finding of its own, passes. A base report from a release that did not record the declaration says so
 and leaves the head's to decide.
+
+A diff held to its base prints a digest of the head's descriptor. Given that digest as
+`--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the
+base's would have decided. See [when a pull request changes its own
+descriptor](../guides/pr-diff.md#when-a-pull-request-changes-its-own-descriptor).
 
 **The head alone.** The pull request that adds a repository's first descriptor has nothing at its
 base to scan. `draugr diff head/results.sarif`, with no base report, compares the head against no
