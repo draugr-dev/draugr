@@ -20,7 +20,8 @@
               "controls": "[\"licenses\",\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./js-npm\"]"
+              "repositories": "[\"./js-npm\"]",
+              "repositoryScopes": "[{\"url\":\"./js-npm\"}]"
             },
             "tool": "draugr/declared"
           },

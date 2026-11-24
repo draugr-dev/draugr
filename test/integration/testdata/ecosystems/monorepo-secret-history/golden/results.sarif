@@ -20,7 +20,8 @@
               "controls": "[\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-secret-history\"]"
+              "repositories": "[\"./monorepo-secret-history\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-secret-history\",\"paths\":[\"services/api\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-secret-history\"]"
+              "repositories": "[\"./monorepo-secret-history\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-secret-history\",\"paths\":[\"services/web\"]}]"
             },
             "tool": "draugr/declared"
           },

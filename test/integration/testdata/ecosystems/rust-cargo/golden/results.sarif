@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./rust-cargo\"]"
+              "repositories": "[\"./rust-cargo\"]",
+              "repositoryScopes": "[{\"url\":\"./rust-cargo\"}]"
             },
             "tool": "draugr/declared"
           },

@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype-fs\"]"
+              "repositories": "[\"./options-grype-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype-fs\",\"paths\":[\"by-advisory\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype-fs\"]"
+              "repositories": "[\"./options-grype-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype-fs\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +42,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype-fs\"]"
+              "repositories": "[\"./options-grype-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype-fs\",\"paths\":[\"grype-yaml\"]}]"
             },
             "tool": "draugr/declared"
           },

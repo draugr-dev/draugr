@@ -20,7 +20,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./go-nested\"]"
+              "repositories": "[\"./go-nested\"]",
+              "repositoryScopes": "[{\"url\":\"./go-nested\"}]"
             },
             "tool": "draugr/declared"
           },

@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./js-bun\"]"
+              "repositories": "[\"./js-bun\"]",
+              "repositoryScopes": "[{\"url\":\"./js-bun\"}]"
             },
             "tool": "draugr/declared"
           },

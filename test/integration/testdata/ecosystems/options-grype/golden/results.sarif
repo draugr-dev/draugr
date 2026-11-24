@@ -58,7 +58,8 @@
               "controls": "[\"images\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype\"]"
+              "repositories": "[\"./options-grype\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype\"}]"
             },
             "tool": "draugr/declared"
           },
@@ -68,7 +69,8 @@
               "controls": "[\"images\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype\"]"
+              "repositories": "[\"./options-grype\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype\"}]"
             },
             "tool": "draugr/declared"
           },

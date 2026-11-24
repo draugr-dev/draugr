@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-pdm\"]"
+              "repositories": "[\"./python-pdm\"]",
+              "repositoryScopes": "[{\"url\":\"./python-pdm\"}]"
             },
             "tool": "draugr/declared"
           },

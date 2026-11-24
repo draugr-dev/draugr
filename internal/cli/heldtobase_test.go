@@ -114,6 +114,53 @@ func TestAChangeCannotLowerTheRankOfWhatItAdds(t *testing.T) {
 	}
 }
 
+// monorepoSaga is two components splitting one repository by paths, the shape of a monorepo, with
+// webDecl indented under web and webPaths as web's paths.
+func monorepoSaga(t *testing.T, webDecl, webPaths string) string {
+	t.Helper()
+	return writeSaga(t, `
+project: shop
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: `+apiRepo+`
+        paths: [services/api]
+  - name: web`+webDecl+`
+    repositories:
+      - url: `+apiRepo+`
+        paths: [`+webPaths+`]
+`)
+}
+
+// Turning a control off on one component of a monorepo fails like turning it off anywhere else. The
+// repository is still scanned by sca for api, but nothing scans web's part of it, so a check that
+// read the repository's URL alone would find it still covered and pass the change.
+func TestAControlTurnedOffOnOnePartOfAMonorepoFails(t *testing.T) {
+	s, reg := stagedPair()
+	base := scanBase(t, monorepoSaga(t, "", "services/web"), reg)
+	introduce(s)
+	head := monorepoSaga(t, `
+    controls:
+      sca:
+        enabled: false`, "services/web")
+
+	console, err := scanAgainst(t, head, base, "P4", reg)
+	if err == nil || !strings.Contains(err.Error(), "this change stops sca on web, which the base ran") {
+		t.Fatalf("err = %v, want the dropped control named\n%s", err, console)
+	}
+
+	// web's paths written as a glob name the same subtree, and pass.
+	if _, err := scanAgainst(t, monorepoSaga(t, "", "services/web/**"), base, "P1", reg); err != nil {
+		t.Errorf("the same paths written as a glob failed: %v", err)
+	}
+}
+
 // A pull request that turns a control off fails until it merges, because nothing it adds where the
 // control ran was looked for, and the base's findings from that control are not fixed.
 func TestAChangeThatTurnsAControlOffFails(t *testing.T) {

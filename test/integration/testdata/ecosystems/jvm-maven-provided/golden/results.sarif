@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./jvm-maven-provided\"]"
+              "repositories": "[\"./jvm-maven-provided\"]",
+              "repositoryScopes": "[{\"url\":\"./jvm-maven-provided\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./jvm-maven-provided\"]"
+              "repositories": "[\"./jvm-maven-provided\"]",
+              "repositoryScopes": "[{\"url\":\"./jvm-maven-provided\",\"paths\":[\"report\"]}]"
             },
             "tool": "draugr/declared"
           },

@@ -35,7 +35,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-without-trivy\"]"
+              "repositories": "[\"./negative-without-trivy\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-without-trivy\"}]"
             },
             "tool": "draugr/declared"
           },

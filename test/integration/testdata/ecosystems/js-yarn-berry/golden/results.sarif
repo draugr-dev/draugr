@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./js-yarn-berry\"]"
+              "repositories": "[\"./js-yarn-berry\"]",
+              "repositoryScopes": "[{\"url\":\"./js-yarn-berry\"}]"
             },
             "tool": "draugr/declared"
           },

@@ -296,7 +296,8 @@
               "controls": "[\"licenses\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./polyglot-unlocked\"]"
+              "repositories": "[\"./polyglot-unlocked\"]",
+              "repositoryScopes": "[{\"url\":\"./polyglot-unlocked\"}]"
             },
             "tool": "draugr/declared"
           },

@@ -20,7 +20,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./go-submodule\"]"
+              "repositories": "[\"./go-submodule\"]",
+              "repositoryScopes": "[{\"url\":\"./go-submodule\"}]"
             },
             "tool": "draugr/declared"
           },

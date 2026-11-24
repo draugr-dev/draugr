@@ -56,7 +56,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-fs\"]"
+              "repositories": "[\"./options-trivy-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-fs\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -66,7 +67,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-fs\"]"
+              "repositories": "[\"./options-trivy-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-fs\",\"paths\":[\"os-only\"]}]"
             },
             "tool": "draugr/declared"
           },

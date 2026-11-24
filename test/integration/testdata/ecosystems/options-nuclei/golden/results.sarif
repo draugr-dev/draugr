@@ -124,7 +124,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]"
             },
             "tool": "draugr/declared"
           },
@@ -134,7 +135,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-nuclei\"]"
+              "repositories": "[\"./options-nuclei\"]",
+              "repositoryScopes": "[{\"url\":\"./options-nuclei\"}]"
             },
             "tool": "draugr/declared"
           },
@@ -144,7 +146,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]"
             },
             "tool": "draugr/declared"
           },
@@ -154,7 +157,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]"
             },
             "tool": "draugr/declared"
           },
@@ -164,7 +168,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]"
             },
             "tool": "draugr/declared"
           },

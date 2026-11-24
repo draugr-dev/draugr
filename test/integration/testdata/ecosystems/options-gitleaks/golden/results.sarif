@@ -20,7 +20,8 @@
               "controls": "[\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gitleaks\"]"
+              "repositories": "[\"./options-gitleaks\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gitleaks\"}]"
             },
             "tool": "draugr/declared"
           },

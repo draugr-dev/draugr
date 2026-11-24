@@ -2,8 +2,10 @@ package diff
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/draugr-dev/draugr/internal/english"
+	"github.com/draugr-dev/draugr/internal/git"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/prioritization"
@@ -231,11 +233,17 @@ func stricterOf(f *sarif.Result, cands []engine.ComponentDeclaration) (saga.Expo
 
 // dropped are the controls the base turned on that the head does not.
 //
-// A per-component control is read by what it covered: each repository the base component declared,
-// or the component itself where it declared none. A control still covers a repository at the head
-// where any component declaring it there runs the control, so a repository moved to another
-// component, or a component renamed, keeps its controls; one no head component declares any more
-// has lost them all.
+// A per-component control is read by what it covered: each part of a repository the base component
+// declared, or the component itself where it declared none. A control still covers a part at the
+// head where the components running it there select every path the base component selected, so a
+// repository moved to another component, or a component renamed or merged with a neighbor, keeps its
+// controls. A part nobody running the control selects any more has lost it, whether the component
+// stopped the control or narrowed its paths.
+//
+// Components often share one repository and split it by paths. Read by its URL alone, a repository
+// is still covered while any one of them runs the control, and a component that stops the control on
+// its own part would pass. The paths decide where both reports recorded them; a report from a
+// release that recorded only the URL is compared by URL.
 func dropped(base, head engine.Declarations) []Dropped {
 	var out []Dropped
 	for _, c := range base.Controls {
@@ -244,28 +252,24 @@ func dropped(base, head engine.Declarations) []Dropped {
 		}
 	}
 	headOf := byName(head.Components)
-	covers := func(unit string, byRepo bool, control string) bool {
-		if !byRepo {
-			h, ok := headOf[unit]
-			return ok && slices.Contains(h.Controls, control)
-		}
-		for _, h := range head.Components {
-			if slices.Contains(h.Repositories, unit) && slices.Contains(h.Controls, control) {
-				return true
-			}
-		}
-		return false
-	}
+	byScope := recordsScopes(base) && recordsScopes(head)
 	for _, b := range base.Components {
 		for _, control := range b.Controls {
-			lost := false
-			if len(b.Repositories) == 0 {
-				lost = !covers(b.Name, false, control)
-			}
-			for _, repo := range b.Repositories {
-				if !covers(repo, true, control) {
-					lost = true
-				}
+			var lost bool
+			switch {
+			case len(b.Repositories) == 0:
+				h, ok := headOf[b.Name]
+				lost = !ok || !slices.Contains(h.Controls, control)
+			case byScope:
+				lost = slices.ContainsFunc(b.Scopes, func(s engine.RepositoryScope) bool {
+					return !coversScope(head, s, control)
+				})
+			default:
+				lost = slices.ContainsFunc(b.Repositories, func(repo string) bool {
+					return !slices.ContainsFunc(head.Components, func(h engine.ComponentDeclaration) bool {
+						return slices.Contains(h.Repositories, repo) && slices.Contains(h.Controls, control)
+					})
+				})
 			}
 			if lost {
 				out = append(out, Dropped{Component: b.Name, Control: control})
@@ -273,6 +277,48 @@ func dropped(base, head engine.Declarations) []Dropped {
 		}
 	}
 	return out
+}
+
+// recordsScopes reports whether d recorded the paths of every repository it declares, which a report
+// from a release before they were recorded does not.
+func recordsScopes(d engine.Declarations) bool {
+	return !slices.ContainsFunc(d.Components, func(c engine.ComponentDeclaration) bool {
+		return len(c.Repositories) > 0 && len(c.Scopes) == 0
+	})
+}
+
+// coversScope reports whether the head components running control still select everything s
+// selected of its repository. Paths are read the way a checkout reads them, so `services/web` and
+// `services/web/**` are one subtree and an entry naming the root is the whole repository. The whole
+// repository is covered only by a component that selects it whole, since paths cannot show that a
+// set of subtrees adds up to every file.
+func coversScope(head engine.Declarations, s engine.RepositoryScope, control string) bool {
+	var held []string
+	for _, h := range head.Components {
+		if !slices.Contains(h.Controls, control) {
+			continue
+		}
+		for _, hs := range h.Scopes {
+			if hs.URL != s.URL {
+				continue
+			}
+			sel := git.Selected(hs.Paths)
+			if sel == nil {
+				return true
+			}
+			held = append(held, sel...)
+		}
+	}
+	want := git.Selected(s.Paths)
+	if want == nil {
+		return false
+	}
+	for _, p := range want {
+		if !slices.ContainsFunc(held, func(h string) bool { return p == h || strings.HasPrefix(p, h+"/") }) {
+			return false
+		}
+	}
+	return true
 }
 
 // Notes are the sentences that say what the base's declaration decided, in the order a reader needs

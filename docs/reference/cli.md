@@ -1324,23 +1324,27 @@ read for this change` instead, since the diff cannot know what the change's desc
 that did not record the gate, or from a descriptor that sets none, leaves the head's gate alone.
 
 **The base's declaration still applies.** Each `results.sarif` also records what its descriptor
-declared: each component's `exposure`, `criticality`, controls and repositories, and the
-[`config.exclude`](saga-schema.md#configexclude) rules in force. Whatever threshold applies, typed or
-not, the diff holds the change to the base's declaration until it merges:
+declared: each component's `exposure`, `criticality`, controls and repositories with the `paths` it
+reads of each, and the [`config.exclude`](saga-schema.md#configexclude) rules in force. Whatever
+threshold applies, typed or not, the diff holds the change to the base's declaration until it merges:
 
 - A new finding ranks by the more exposed and the more critical of the base's classification and the
   head's. The base's is the component of the same name, a component that declared a repository the
   change moved to this one, or a component a finding moved from.
-- A control the base ran on a repository, or on a component that declares none, and the head does
-  not run there fails the gate, because nothing the change adds there was looked for. The base's
-  findings from it read as not scanned rather than fixed.
+- A control the base ran on a component's part of a repository, or on a component that declares
+  none, and that no head component runs there any more fails the gate, because nothing the change
+  adds there was looked for. A part is the repository with the component's `paths`, so in a
+  monorepo, turning a control off for one component, or narrowing its `paths`, counts even while
+  another component runs the control on the rest of the repository. The base's findings from it read
+  as not scanned rather than fixed.
 - A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
   gated as new.
 
 The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
 there was looked for.` A change that lowers a classification or adds an exclusion, and adds no
 finding of its own, passes. A base report from a release that did not record the declaration says so
-and leaves the head's to decide.
+and leaves the head's to decide. One from 0.189.0 recorded each repository without its `paths`, so
+its controls are compared by repository alone: scan the base with the same release as the head.
 
 A diff held to its base prints a digest of the head's descriptor. Given that digest as
 `--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the

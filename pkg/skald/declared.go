@@ -22,6 +22,7 @@ const (
 	declaredControls    = "controls"
 	declaredExclusions  = "exclusions"
 	declaredRepos       = "repositories"
+	declaredScopes      = "repositoryScopes"
 )
 
 // declaredExclusion is the part of a config.exclude rule that decides which findings it sets
@@ -63,6 +64,7 @@ func DeclaredProvenance(d engine.Declarations) []sarif.Provenance {
 				{Key: declaredCriticality, Value: string(c.Criticality)},
 				{Key: declaredExposure, Value: string(c.Exposure)},
 				{Key: declaredRepos, Value: jsonList(c.Repositories)},
+				{Key: declaredScopes, Value: jsonList(c.Scopes)},
 			},
 		})
 	}
@@ -106,6 +108,7 @@ func DeclaredOfReport(rep sarif.Report) (engine.Declarations, bool) {
 			Criticality:  saga.Criticality(fieldOf(p, declaredCriticality)),
 			Controls:     readList[string](fieldOf(p, declaredControls)),
 			Repositories: readList[string](fieldOf(p, declaredRepos)),
+			Scopes:       readList[engine.RepositoryScope](fieldOf(p, declaredScopes)),
 		})
 	}
 	return d, recorded

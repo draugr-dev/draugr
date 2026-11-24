@@ -20,7 +20,8 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"exclude\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +42,8 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"include\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -50,7 +53,8 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"tags\"]}]"
             },
             "tool": "draugr/declared"
           },

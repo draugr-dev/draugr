@@ -217,7 +217,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -227,7 +228,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"full\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -237,7 +239,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-deny\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -247,7 +250,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-dev-default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -257,7 +261,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-dev-report\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -267,7 +272,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-warn\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -277,7 +283,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-warn-isc\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -287,7 +294,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"trivy-license-deny\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -297,7 +305,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"trivy-license-warn\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -307,7 +316,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"trivyignore\"]}]"
             },
             "tool": "draugr/declared"
           },

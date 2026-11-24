@@ -20,7 +20,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./iac\"]"
+              "repositories": "[\"./iac\"]",
+              "repositoryScopes": "[{\"url\":\"./iac\"}]"
             },
             "tool": "draugr/declared"
           },

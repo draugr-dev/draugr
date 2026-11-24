@@ -39,7 +39,8 @@
               "controls": "[\"images\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./images-grype\"]"
+              "repositories": "[\"./images-grype\"]",
+              "repositoryScopes": "[{\"url\":\"./images-grype\"}]"
             },
             "tool": "draugr/declared"
           },

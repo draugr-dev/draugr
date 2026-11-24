@@ -56,7 +56,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-python\"]"
+              "repositories": "[\"./monorepo-python\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-python\",\"paths\":[\"services/api\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -66,7 +67,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-python\"]"
+              "repositories": "[\"./monorepo-python\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-python\",\"paths\":[\"services/legacy\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -76,7 +78,8 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-python\"]"
+              "repositories": "[\"./monorepo-python\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-python\",\"paths\":[\"services/tools\"]}]"
             },
             "tool": "draugr/declared"
           },

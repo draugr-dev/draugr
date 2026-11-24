@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./jvm-maven-repository\"]"
+              "repositories": "[\"./jvm-maven-repository\"]",
+              "repositoryScopes": "[{\"url\":\"./jvm-maven-repository\"}]"
             },
             "tool": "draugr/declared"
           },

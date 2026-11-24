@@ -20,7 +20,8 @@
               "controls": "[\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-polyglot\"]"
+              "repositories": "[\"./monorepo-polyglot\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/api\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -38,7 +39,8 @@
               "controls": "[\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-polyglot\"]"
+              "repositories": "[\"./monorepo-polyglot\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/web\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -56,7 +58,8 @@
               "controls": "[\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-polyglot\"]"
+              "repositories": "[\"./monorepo-polyglot\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/worker\"]}]"
             },
             "tool": "draugr/declared"
           },

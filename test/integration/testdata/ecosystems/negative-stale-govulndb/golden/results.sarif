@@ -35,7 +35,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-stale-govulndb\"]"
+              "repositories": "[\"./negative-stale-govulndb\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-stale-govulndb\"}]"
             },
             "tool": "draugr/declared"
           },
