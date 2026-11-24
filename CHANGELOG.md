@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.1] - 2026-11-24
+
+### Fixed
+
+- **A monorepo pull request that turns a control off for one component now fails the gate on new findings.** Where components split one repository by `paths`, `draugr diff` and `draugr scan --base` counted the control as running while any component ran it there, and the base's findings read as fixed. Narrowing `paths` now counts too.
+
 ## [0.189.0] - 2026-11-24
 
 ### Added
@@ -7541,7 +7547,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.1...HEAD
+[0.189.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.1
 [0.189.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.0
 [0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
 [0.188.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.0
