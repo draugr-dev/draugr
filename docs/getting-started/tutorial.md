@@ -235,7 +235,7 @@ SIGNALS
   floor         nothing raised
   reachability  govulncheck · 2 reachable, 3 unreachable
 …
-FIX FIRST  1 of 1271 findings, by priority
+FIX FIRST  1 of 1275 findings, by priority
   P1  critical  CVE-2020-11023
       Untrusted code execution via <option> tag in HTML passed to DOM manipulation methods
       ↑ KEV · scanner trivy · jquery 1.8.3 → 3.5.0
@@ -292,7 +292,7 @@ RERANKED  27 · 27 lowered
 Every finding is in both runs, so the declarations moved bands and fixed nothing. The worker's
 critical lodash flaw went from P1 to P2, its highs to P3 and its mediums to P4. The rows cut here
 are more worker and platform findings that moved the same way. The diff's unchanged count includes
-the two findings the descriptor accepts, which the scan's `1 of 1271` leaves out. Both runs read KEV
+the two findings the descriptor accepts, which the scan's `1 of 1275` leaves out. Both runs read KEV
 and EPSS, so the diff shows only what the declarations did.
 [Reranked findings](../guides/pr-diff.md#reranked-findings) covers the table, and
 [classify components](../guides/classify-components.md) helps you choose the two values for your
