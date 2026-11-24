@@ -62,6 +62,7 @@ func TestAirGapped(t *testing.T) {
 	root := t.TempDir()
 	prepared := filepath.Join(root, "prepared")
 	prepareAirGappedHome(t, bin, prepared)
+	scanOSVScenariosOnline(t, bin, prepared, filepath.Join(root, "online"), scenarios)
 
 	for _, s := range scenarios {
 		if servedBySealed(s) {
@@ -125,14 +126,7 @@ func prepareAirGappedHome(t *testing.T, bin, home string) {
 		requireTool(t, "grype", "a scenario in the corpus runs it")
 		steps = append(steps, []string{"grype", "db", "update"})
 	}
-	env := []string{"HOME=" + home}
-	for _, kv := range os.Environ() {
-		switch strings.SplitN(kv, "=", 2)[0] {
-		case "HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "TRIVY_CACHE_DIR", "GRYPE_DB_CACHE_DIR":
-			continue
-		}
-		env = append(env, kv)
-	}
+	env := homeEnv(home)
 	for _, argv := range steps {
 		cmd := exec.Command(argv[0], argv[1:]...) // #nosec G204 -- the guide's own commands
 		cmd.Dir = home
@@ -144,6 +138,56 @@ func prepareAirGappedHome(t *testing.T, bin, home string) {
 	if err := os.Remove(empty); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// scanOSVScenariosOnline is the guide's last preparation step for OSV-Scanner: its databases, one
+// per ecosystem, are downloaded by the first scan with a network that reads that ecosystem, so each
+// scenario that turns it on is scanned once with the network, from the prepared home, before any
+// scan goes offline. Its findings do not matter here; the databases it leaves behind do.
+func scanOSVScenariosOnline(t *testing.T, bin, home, root string, scenarios []sealed.Scenario) {
+	t.Helper()
+	if !corpusNames(t, "osvScanner") {
+		return
+	}
+	requireTool(t, "osv-scanner", "a scenario in the corpus runs it")
+	env := homeEnv(home)
+	for _, s := range scenarios {
+		if servedBySealed(s) || !bytes.Contains(readFile(t, filepath.Join(s.Dir, "draugr.saga.yaml")), []byte("osvScanner")) {
+			continue
+		}
+		work := filepath.Join(root, s.Name)
+		if err := os.MkdirAll(work, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := copyFile(filepath.Join(s.Dir, "draugr.saga.yaml"), filepath.Join(work, "draugr.saga.yaml"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Prepare(work); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(bin, "scan", "draugr.saga.yaml", "--output", filepath.Join(work, "out")) // #nosec G204 -- this tree's binary
+		cmd.Dir = work
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		t.Logf("%s: online scan to fetch OSV-Scanner's databases, exit=%v\n%s", s.Name, err, out)
+	}
+	if zips, _ := filepath.Glob(filepath.Join(home, ".draugr", "data", "osv-scanner", "*", "*", "all.zip")); len(zips) == 0 {
+		t.Fatal("the online scans left no OSV-Scanner database under ~/.draugr/data/osv-scanner")
+	}
+}
+
+// homeEnv is this process's environment with HOME at home and every variable that would move a
+// scanner's cache out of it unset.
+func homeEnv(home string) []string {
+	env := []string{"HOME=" + home}
+	for _, kv := range os.Environ() {
+		switch strings.SplitN(kv, "=", 2)[0] {
+		case "HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME", "TRIVY_CACHE_DIR", "GRYPE_DB_CACHE_DIR", "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY":
+			continue
+		}
+		env = append(env, kv)
+	}
+	return env
 }
 
 // corpusNames reports whether any scenario's descriptor mentions word.
