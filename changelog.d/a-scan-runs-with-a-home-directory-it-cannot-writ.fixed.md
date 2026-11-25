@@ -1,1 +1,0 @@
-- **A scan runs with a home directory it cannot write to.** With `DRAUGR_HOME` set, what Trivy, Grype, Syft, Semgrep, cosign and Nuclei write as they run goes under it, so `sca` and `sast` no longer fail there. `draugr doctor` marks a tool that cannot write where it keeps its data, names the place, and fails.

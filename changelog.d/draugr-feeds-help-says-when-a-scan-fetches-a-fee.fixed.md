@@ -1,1 +1,0 @@
-- **`draugr feeds --help` says when a scan fetches a feed itself.** It said a scan never does. A scan fetches KEV or EPSS set to `auto` when the copy is missing or stale, and, online, fetches the Go vulnerability database again when a copy you fetched is too old or fails its checks.
