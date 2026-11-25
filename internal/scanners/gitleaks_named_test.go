@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/standin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -116,9 +117,7 @@ func TestGitleaksReadNamedCommitsTheFilesInAScratchRepository(t *testing.T) {
 	if err := os.MkdirAll(hooks, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte("#!/bin/sh\nexit 1\n"), 0o700); err != nil { // #nosec G306 -- a hook must be executable
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(hooks, "pre-commit"), []byte("#!/bin/sh\nexit 1\n"), 0o700)
 	gitconfig := "[core]\n\thooksPath = " + hooks + "\n[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = /nonexistent\n"
 	if err := os.WriteFile(filepath.Join(home, ".gitconfig"), []byte(gitconfig), 0o600); err != nil {
 		t.Fatal(err)

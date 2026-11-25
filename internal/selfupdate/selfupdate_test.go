@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 func makeTarGz(t *testing.T, name string, content []byte) []byte {
@@ -96,9 +98,7 @@ func stubCosign(t *testing.T, present bool, verifyErr error) {
 func withExe(t *testing.T) string {
 	t.Helper()
 	exe := filepath.Join(t.TempDir(), "draugr")
-	if err := os.WriteFile(exe, []byte("old"), 0o755); err != nil { // #nosec G306 -- fixture
-		t.Fatal(err)
-	}
+	standin.Write(t, exe, []byte("old"), 0o755)
 	orig := resolveExe
 	resolveExe = func() (string, error) { return exe, nil }
 	t.Cleanup(func() { resolveExe = orig })

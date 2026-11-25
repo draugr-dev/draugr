@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // TestEveryNodeToolHasPinsAtItsVersion is the npm form of the Python pins check.
@@ -179,9 +181,7 @@ func fakeNode(t *testing.T, output string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "node")
 	script := "#!/bin/sh\necho " + strconv.Quote(output) + "\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte(script), 0o700)
 	return path
 }
 
@@ -321,9 +321,7 @@ func fakeNPM(t *testing.T, log string, succeed ...string) string {
 	}
 	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + strconv.Quote(log) + "\ncase \"$1\" in\n" +
 		cases + "  *) echo 'npm refused' >&2; exit 1 ;;\nesac\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte(script), 0o700)
 	return path
 }
 

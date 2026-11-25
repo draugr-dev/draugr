@@ -12,6 +12,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/draugrhome"
+	"github.com/draugr-dev/draugr/internal/standin"
 	"github.com/draugr-dev/draugr/internal/tools"
 )
 
@@ -30,9 +31,7 @@ func draugrHomeWithGitleaks(t *testing.T) (root, binary string) {
 	}
 	binary = filepath.Join(bin, "gitleaks")
 	// #nosec G306 -- a stand-in tool, executable by design, in this test's own temp directory
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\necho 8.30.1\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	standin.Write(t, binary, []byte("#!/bin/sh\necho 8.30.1\n"), 0o700)
 	return root, binary
 }
 

@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // Every Python-packaged tool has pins built in, at the version it is pinned to.
@@ -202,9 +204,7 @@ DRAUGRPIP
 esac
 `
 	for _, name := range []string{"python3.14", "python3"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0o750); err != nil { // #nosec G306 -- a stub has to run
-			t.Fatal(err)
-		}
+		standin.Write(t, filepath.Join(dir, name), []byte(script), 0o750)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
@@ -288,9 +288,7 @@ func TestInstallPythonReportsWhatPipSaid(t *testing.T) {
 func TestFindPythonNamesAnInterpreterThatIsTooOld(t *testing.T) {
 	dir := t.TempDir()
 	script := "#!/bin/sh\ncase \"$1\" in -c) echo \"3.8\";; esac\n"
-	if err := os.WriteFile(filepath.Join(dir, "python3"), []byte(script), 0o750); err != nil { // #nosec G306 -- a stub has to run
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(dir, "python3"), []byte(script), 0o750)
 	t.Setenv("PATH", dir)
 
 	_, err := findPython(context.Background(), 10)
@@ -306,24 +304,18 @@ func TestFindPythonNamesAnInterpreterThatIsTooOld(t *testing.T) {
 func TestPythonAtLeastOnSomethingThatIsNotPython(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "python3")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 3\n"), 0o750); err != nil { // #nosec G306 -- a stub has to run
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte("#!/bin/sh\nexit 3\n"), 0o750)
 	if ok, version := pythonAtLeast(context.Background(), path, 10); ok || version != "" {
 		t.Errorf("a failing interpreter reported ok=%v version=%q", ok, version)
 	}
 
 	// And one that answers with something that is not a version.
-	if err := os.WriteFile(path, []byte("#!/bin/sh\necho banana\n"), 0o750); err != nil { // #nosec G306 -- a stub has to run
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte("#!/bin/sh\necho banana\n"), 0o750)
 	if ok, version := pythonAtLeast(context.Background(), path, 10); ok {
 		t.Errorf("%q was accepted as a version", version)
 	}
 	// A Python 2 answers in the same shape and must still be refused.
-	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 2.7\n"), 0o750); err != nil { // #nosec G306 -- a stub has to run
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte("#!/bin/sh\necho 2.7\n"), 0o750)
 	if ok, _ := pythonAtLeast(context.Background(), path, 10); ok {
 		t.Error("Python 2.7 was accepted")
 	}
@@ -390,9 +382,7 @@ func fakePython(t *testing.T, log string, pipSucceeds ...string) {
 	pip := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + strconv.Quote(log) + "\ncase \"$*\" in\n" +
 		cases + "  *) echo 'pip refused' >&2; exit 1 ;;\nesac\n"
 	pipPath := filepath.Join(dir, "pip-template")
-	if err := os.WriteFile(pipPath, []byte(pip), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, pipPath, []byte(pip), 0o700)
 
 	python := "#!/bin/sh\n" +
 		"case \"$1\" in\n" +
@@ -412,9 +402,7 @@ func fakePython(t *testing.T, log string, pipSucceeds ...string) {
 		names = append(names, "python3."+strconv.Itoa(minor))
 	}
 	for _, name := range names {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(python), 0o700); err != nil { // #nosec G306 -- must execute
-			t.Fatal(err)
-		}
+		standin.Write(t, filepath.Join(dir, name), []byte(python), 0o700)
 	}
 	// Ahead of the real PATH rather than instead of it. The fake is a shell script, and it needs mkdir
 	// and friends to do its job.
@@ -523,9 +511,7 @@ func TestFindPythonExplainsWhatToDo(t *testing.T) {
 			names = append(names, "python3."+strconv.Itoa(minor))
 		}
 		for _, name := range names {
-			if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-				t.Fatal(err)
-			}
+			standin.Write(t, filepath.Join(dir, name), []byte(script), 0o700)
 		}
 		t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
