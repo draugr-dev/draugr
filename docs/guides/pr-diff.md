@@ -407,7 +407,8 @@ more scanner, a block that sets only `enabled: true`, passes.
 
 The same holds for a file outside the descriptor that can set a finding aside or change what a
 scanner finds: a VEX document the descriptor names, a `.trivyignore`, `.gitleaksignore`,
-`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, or a ruleset a setting
+`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, a `.semgrepignore` in
+any of its directories, or a ruleset a setting
 names, edited in place. A pull request that adds one or edits one fails until it merges, and the run
 names it: `This change adds .gitleaksignore, which can set findings aside or change what a scanner
 finds, so the gate holds until it merges.` A comment beside the line, such as `# nosemgrep`, is not

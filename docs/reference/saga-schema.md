@@ -2134,7 +2134,8 @@ A workspace member whose lockfile sits at the root and is not named appears unde
 kept for every component whatever `paths` says: `.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`,
 `.semgrepignore`, `.gitleaks.toml`, `.gitleaksignore`, `.grype.yaml` and `.grype/config.yaml`. Each
 tool reads them at the root of the checkout only; a file of the same name inside `paths` is not read
-in its place.
+in its place. The exception is `.semgrepignore`: Semgrep also reads one in any directory inside
+`paths`.
 
 **An entry the repository does not hold is an error**, naming the entry, at the revision being
 scanned.
@@ -2472,7 +2473,7 @@ identical once the scanner has dropped it.
 
 An exclusion the scanner records in no output format cannot be counted, such as a
 `#trivy:ignore` comment in an IaC file. Where a run read a `.semgrepignore`, or a `.gitleaks.toml`
-with an allowlist, the block names the file once per repository, `.semgrepignore kept some files
+with an allowlist, the block names each file once per repository, `.semgrepignore kept some files
 from semgrep; what it covered is not listed`, and `report.json` lists it under `unlistedSetAsides`. Where a scanner reports
 only some of its exclusions, its page in the [catalog](catalog.md) says which.
 [`config.exclude`](#configexclude) keeps the finding and the reason in every case.

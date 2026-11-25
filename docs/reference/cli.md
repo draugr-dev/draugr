@@ -1330,7 +1330,8 @@ declared: each component's `exposure`, `criticality`, controls and repositories 
 file outside the descriptor that can set findings aside or change what a scanner finds: every VEX
 document the descriptor names, the scanners' own configuration files at the root of each checkout a
 scan reads (`.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`, `.grype.yaml`, `.grype/config.yaml`,
-`.semgrepignore`, `.gitleaksignore` and `.gitleaks.toml`), and each ruleset or template a control's
+`.semgrepignore`, `.gitleaksignore` and `.gitleaks.toml`), every `.semgrepignore` below the root,
+which Semgrep reads in any directory, and each ruleset or template a control's
 setting names (Gitleaks and Semgrep `config`, trivy-config `checks`, Nuclei `templates`), a
 directory by every file under it. A setting or a file is recorded as a digest and never as its
 value, since a value may hold a credential. A repository's `url`, `paths`, `ignore` and `revision`
