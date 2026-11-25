@@ -299,16 +299,41 @@ func TestMoveLastPutsAWideRowsLastCellBelowIt(t *testing.T) {
 	}
 }
 
-// A row moves only where it alone holds the columns open: two rows equally wide stay, and the last
-// column is trimmed as Fit trims it.
-func TestMoveLastLeavesRowsThatShareTheWidth(t *testing.T) {
+// Rows that share the widest leading cells move together: one of them moved alone would leave the
+// others holding the columns as wide, and their sentences cut. Each sentence is then whole.
+func TestMoveLastMovesRowsThatShareTheWidth(t *testing.T) {
 	var b strings.Builder
 	NewTable(Plain()).Indent("  ").Fit(60).MoveLast().
 		Row(PlainCell(strings.Repeat("a", 30)), PlainCell("a sentence much longer than what is left here")).
 		Row(PlainCell(strings.Repeat("b", 30)), PlainCell("another sentence longer than what is left")).
+		Row(PlainCell("c"), PlainCell("short")).
 		Render(&b)
 	got := b.String()
-	if strings.Count(got, "\n") != 2 || !strings.Contains(got, "…") {
-		t.Errorf("rows sharing the width should stay on their lines, trimmed:\n%s", got)
+	for _, want := range []string{"a sentence much longer than what is left here\n", "another sentence longer than what is left\n", "  c  short\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("want %q whole:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "…") {
+		t.Errorf("no sentence should be cut:\n%s", got)
+	}
+}
+
+// A moved cell that would not be whole under the last column, because the rows left hold it too far
+// in, starts one gap in from the table's edge instead, whole and inside the bound.
+func TestMoveLastStartsAMovedCellWhereItIsWhole(t *testing.T) {
+	var b strings.Builder
+	NewTable(Plain()).Indent("  ").Fit(50).MoveLast().
+		Row(PlainCell(strings.Repeat("a", 44)), PlainCell("a sentence that needs the width")).
+		Row(PlainCell(strings.Repeat("b", 30)), PlainCell("")).
+		Render(&b)
+	got := b.String()
+	if !strings.Contains(got, "\n    a sentence that needs the width\n") {
+		t.Errorf("the moved sentence should start one gap in, whole:\n%s", got)
+	}
+	for _, l := range strings.Split(strings.TrimRight(got, "\n"), "\n") {
+		if n := len([]rune(l)); n > 50 {
+			t.Errorf("a %d-cell line in a 50-column table: %q", n, l)
+		}
 	}
 }

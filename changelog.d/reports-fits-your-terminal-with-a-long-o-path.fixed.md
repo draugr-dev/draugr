@@ -1,0 +1,1 @@
+- **REPORTS fits your terminal with a long `-o` path.** Each report's path stays whole on its line, with what the file is for on the next, instead of padding every row past the edge.

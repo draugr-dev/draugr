@@ -64,7 +64,10 @@ func writeReports(w io.Writer, col tui.Painter, d Data) {
 	if d.ReportsDir == "" || len(d.Reports) == 0 {
 		return
 	}
-	t := tui.NewTable(col).Indent("  ")
+	// Bounded to the terminal as TRY is. A path is what a reader copies, so it is never cut: one too
+	// long to sit beside the others gets its description on the next line, rather than widening the
+	// first column of every row past the edge.
+	t := tui.NewTable(col).Indent("  ").Fit(tui.Columns(w)).MoveLast()
 	for _, f := range shownFormats(d) {
 		t.Row(tui.Styled("", filepath.Join(d.ReportsDir, Filename(f))), tui.Styled(cDim, reportPurpose[f]))
 	}
