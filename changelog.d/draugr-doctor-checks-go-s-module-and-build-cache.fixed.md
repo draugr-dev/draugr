@@ -1,1 +1,0 @@
-- **`draugr doctor` checks Go's module and build caches when gosec or govulncheck runs.** On a read-only home directory it now reports `can't write` and names `GOMODCACHE` or `GOCACHE`, instead of passing a setup whose scan then fails.

@@ -12,6 +12,18 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.190.0] - 2026-11-25
+
+### Added
+
+- **Look up the CVE of npm, PyPI, Rust and Go findings named only by an advisory id.** List ecosystems in `config.exploitability.advisories`, and Draugr reads OSV.dev's advisories for each, so KEV and EPSS reach those findings. Each CVE found names its source and license.
+
+### Fixed
+
+- **An imported finding whose path names no file is kept.** A relative path that names no file in the checkout, as gosec writes for a Go module in a subdirectory, is listed under `unread-files`, and `paths:` and `ignore:` no longer leave its finding out on that path.
+
+- **`draugr doctor` checks Go's module and build caches when gosec or govulncheck runs.** On a read-only home directory it now reports `can't write` and names `GOMODCACHE` or `GOCACHE`, instead of passing a setup whose scan then fails.
+
 ## [0.189.5] - 2026-11-25
 
 ### Fixed
@@ -7591,7 +7603,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.5...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.190.0...HEAD
+[0.190.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.0
 [0.189.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.5
 [0.189.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.4
 [0.189.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.3
