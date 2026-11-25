@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.2] - 2026-11-25
+
+### Changed
+
+- **A finding set aside by an inline directive on a line a change adds is now listed as accepted by that change.** The console and the pull request comment read `accepted by this change: suppressed in source (nosemgrep)` for a `# nosemgrep`, `gitleaks:allow` or `#nosec`, and the gate does not hold.
+
+- **Comparing a 0.189.2 head against a base report from 0.189.1 or earlier can hold the change.** Scan the base with the same release as the head, as the GitHub, GitLab and Azure templates already do.
+
+### Fixed
+
+- **A pull request that adds an `ignore` entry or changes a repository's `revision` now fails the gate until it merges.** The run names what changed, and `--trust-descriptor-change` with the digest it prints lets an intended change through.
+
+- **A pull request that adds or edits a file that can set findings aside now fails the gate until it merges.** This covers a VEX document, `.trivyignore`, `.gitleaksignore`, `.semgrepignore`, `.gitleaks.toml` and a ruleset a setting names. Pass an intended change with the digest the run prints.
+
+- **A pull request that changes a control's settings now fails the gate until it merges.** This covers switching sca's scanner, narrowing a scanner's options and changing a control's own setting. Turning on one more scanner still passes. Trust an intended change with the digest the run prints.
+
 ## [0.189.1] - 2026-11-24
 
 ### Fixed
@@ -7547,7 +7563,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.2...HEAD
+[0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2
 [0.189.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.1
 [0.189.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.0
 [0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
