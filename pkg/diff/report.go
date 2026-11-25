@@ -413,7 +413,10 @@ func writeChanged(w io.Writer, col tui.Painter, r Result, entries []Entry, opts 
 // who enabled a second scanner can see it working here too; without it a correlated flaw is drawn
 // exactly like one only one tool found, and the second appears to have found nothing.
 func rowNotes(e Entry) []string {
-	notes := make([]string, 0, 2)
+	notes := make([]string, 0, 3)
+	if here := acceptedHere(e); here != "" {
+		notes = append(notes, here)
+	}
 	if e.Correlation != nil {
 		if note := sarif.AgreementNote(e.Correlation.AlsoFoundBy, e.Severity(""), e.Reporter()); note != "" {
 			notes = append(notes, note)
@@ -988,6 +991,11 @@ func renderMarkdownTable(w io.Writer, r Result, opts Options) error {
 		if e.Change.NeedsSomebody() {
 			change = "**" + change + "**"
 		}
+		// The one note this table carries, since it has no column for prose: an acceptance the
+		// change made itself, in a comment, which the table would otherwise draw as any other.
+		if here := acceptedHere(e); here != "" {
+			change += "<br>_" + cell(strings.TrimPrefix(here, "accepted ")) + "_"
+		}
 		up := ""
 		if withUpgrade {
 			up = " " + dash(label) + " |"
@@ -1036,6 +1044,10 @@ type jsonHeld struct {
 	Unscanned []sarif.Result `json:"unscanned,omitempty"`
 	// SelfAccepted are new findings excused by an exclusion the base did not have, gated as new.
 	SelfAccepted []sarif.Result `json:"selfAccepted,omitempty"`
+	// Files are the files outside the descriptor the head adds or changes that can set findings
+	// aside or change what a scanner finds; repository is absent for a VEX document or a setting's
+	// file.
+	Files []jsonFile `json:"files,omitempty"`
 	// Trusted is true where --trust-descriptor-change was given: the head's declaration decided the
 	// gate, and the lists above are what the base's would have decided.
 	Trusted bool `json:"trusted,omitempty"`
@@ -1052,18 +1064,38 @@ type jsonDropped struct {
 	Control   string `json:"control"`
 }
 
+// jsonFile is a file the head adds or changes, with which of the two.
+type jsonFile struct {
+	Repository string `json:"repository,omitempty"`
+	Path       string `json:"path"`
+	// Change is "added" or "changed".
+	Change string `json:"change"`
+	// BaseUnread says why a file the base report's release did not record could not be read at
+	// the base's commit, where it could not, so it is held as added: "commitMissing" where the
+	// checkout lacks the commit, "commitUnknown" where the base names none it can be read at.
+	BaseUnread Unread `json:"baseUnread,omitempty"`
+}
+
 // heldJSON is h for the JSON format, nil where the base decided nothing beyond the head.
 func heldJSON(h Held) *jsonHeld {
-	if !h.Unrecorded && !h.Trusted && h.TrustNamedOther == "" && len(h.Raised)+len(h.Dropped)+len(h.Unscanned)+len(h.SelfAccepted) == 0 {
+	if !h.Unrecorded && !h.Trusted && h.TrustNamedOther == "" &&
+		len(h.Raised)+len(h.Dropped)+len(h.Unscanned)+len(h.SelfAccepted)+len(h.Files) == 0 {
 		return nil
 	}
 	out := &jsonHeld{Unrecorded: h.Unrecorded, Unscanned: h.Unscanned, SelfAccepted: h.SelfAccepted,
 		Trusted: h.Trusted, Digest: h.Digest, TrustNamedOther: h.TrustNamedOther}
+	for _, f := range h.Files {
+		change := "changed"
+		if f.Added {
+			change = "added"
+		}
+		out.Files = append(out.Files, jsonFile{Repository: f.Repository, Path: f.Path, Change: change, BaseUnread: f.BaseUnread})
+	}
 	for _, rr := range h.Raised {
 		out.Raised = append(out.Raised, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: "raised"})
 	}
 	for _, d := range h.Dropped {
-		out.Dropped = append(out.Dropped, jsonDropped(d))
+		out.Dropped = append(out.Dropped, jsonDropped{Component: d.Component, Control: d.Control})
 	}
 	return out
 }

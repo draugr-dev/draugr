@@ -20,7 +20,9 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"acme\"]}]",
+              "settings": "{\"iac\":{\"trivyConfig\":\"c91c5e497a392ef2\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +32,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +43,9 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"derived\"]}]",
+              "settings": "{\"iac\":{\"trivyConfig\":\"a061ba0d7e69bd25\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -50,7 +55,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"trivyignore\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -60,14 +66,17 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-config\"]"
+              "repositories": "[\"./options-trivy-config\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-config\",\"paths\":[\"user\"]}]",
+              "settings": "{\"iac\":{\"trivyConfig\":\"09104948ea8d43f1\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./options-trivy-config\",\"path\":\".trivyignore\",\"digests\":[\"120f8df1d90abce0\"]},{\"kind\":\"setting\",\"path\":\"./checks\",\"digests\":[\"7872fc021e4aba86\"]}]"
             },
             "tool": "draugr/declared"
           },

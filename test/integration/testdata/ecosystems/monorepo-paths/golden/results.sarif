@@ -20,7 +20,9 @@
               "controls": "[\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-paths\"]"
+              "repositories": "[\"./monorepo-paths\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-paths\",\"paths\":[\"services/api\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -30,14 +32,17 @@
               "controls": "[\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-paths\"]"
+              "repositories": "[\"./monorepo-paths\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-paths\",\"paths\":[\"services/web\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
             },
             "tool": "draugr/declared"
           },

@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./jvm-gradle\"]"
+              "repositories": "[\"./jvm-gradle\"]",
+              "repositoryScopes": "[{\"url\":\"./jvm-gradle\"}]"
             },
             "tool": "draugr/declared"
           },

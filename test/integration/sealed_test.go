@@ -4,6 +4,7 @@ package integration
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"os"
 	"os/exec"
@@ -16,7 +17,12 @@ import (
 	"github.com/draugr-dev/draugr/test/sealed"
 )
 
-var updateSealed = flag.Bool("update-sealed", false, "rewrite the sealed scenarios' golden reports")
+var (
+	updateSealed = flag.Bool("update-sealed", false, "rewrite the sealed scenarios' golden reports")
+	// writeSealedBase writes each scenario's base report from the binary it runs, which is a
+	// release's rather than this tree's, so it checks nothing else.
+	writeSealedBase = flag.Bool("write-sealed-base", false, "write the base report of each sealed scenario that has one, from DRAUGR_BIN")
+)
 
 // ecosystems holds the sealed scenarios, one directory each.
 const ecosystems = "testdata/ecosystems"
@@ -39,6 +45,9 @@ func TestSealedScenarios(t *testing.T) {
 	// than the tree under test, and the diff then reads as this change's.
 	if *updateSealed && os.Getenv("DRAUGR_BIN") == "" {
 		t.Fatal("-update-sealed rewrites the goldens from the binary it runs: set DRAUGR_BIN to one built from this tree")
+	}
+	if *writeSealedBase && os.Getenv("DRAUGR_BIN") == "" {
+		t.Fatal("-write-sealed-base writes each base from the binary it runs: set DRAUGR_BIN to the release's draugr")
 	}
 	bin := draugrBin(t)
 
@@ -169,6 +178,10 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 	}
 
 	results := readFile(t, filepath.Join(out, "results.sarif"))
+	if *writeSealedBase {
+		writeBase(t, s, work, repo, results)
+		return
+	}
 	if err := sealed.ValidateSARIF(results); err != nil {
 		t.Errorf("%s: results.sarif is not valid SARIF 2.1.0: %v", s.Name, err)
 	}
@@ -209,7 +222,91 @@ func runSealed(t *testing.T, s sealed.Scenario, advs sealed.Advisories, bin, ser
 	compareSealedGolden(t, s, "results.sarif", results, sarifN)
 	compareSealedGolden(t, s, "report.json", report, reportN)
 
+	checkBase(t, c, draugr, s, work, repo, filepath.Join(out, "results.sarif"))
 	scanWithInit(t, c, draugr, s, repo, anns)
+}
+
+// writeBase stores results as s's base report, written by the binary under test, which for
+// -write-sealed-base is the release named in s's base.release.
+func writeBase(t *testing.T, s sealed.Scenario, work, repo string, results []byte) {
+	t.Helper()
+	if s.Expected.Base == nil {
+		return
+	}
+	if got, err := sealed.BaseRelease(results); err != nil || got != s.Expected.Base.Release {
+		t.Fatalf("%s: DRAUGR_BIN is %q (%v), and base.release says %s", s.Name, got, err, s.Expected.Base.Release)
+	}
+	commits, err := sealed.Commits(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(s.Dir, sealed.BaseFile)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, sealed.StoreBase(results, work, commits), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("%s: wrote %s from %s", s.Name, path, s.Expected.Base.Release)
+}
+
+// checkBase compares this tree's scan of s, unchanged, with the base report an earlier release
+// wrote of the same repository, as a pull request is compared on the day its pipeline upgrades,
+// with `draugr diff` and with `draugr scan --base`, and holds each exit status to base. Where base
+// says what a base whose commit cannot be read decides, it compares once more with the base's
+// commits replaced by ones no repository holds.
+func checkBase(t *testing.T, c sealed.Container, draugr string, s sealed.Scenario, work, repo, head string) {
+	t.Helper()
+	b := s.Expected.Base
+	if b == nil {
+		return
+	}
+	stored := readFile(t, filepath.Join(s.Dir, sealed.BaseFile))
+	commits, err := sealed.Commits(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// run writes a base report and runs draugr with argv, each "<base>" in it the report's path,
+	// returning the exit status and what it printed.
+	run := func(name string, raw []byte, argv ...string) (int, string) {
+		t.Helper()
+		base := filepath.Join(work, name)
+		if err := os.WriteFile(base, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cmd := []string{draugr}
+		for _, a := range argv {
+			cmd = append(cmd, strings.ReplaceAll(a, "<base>", base))
+		}
+		out, err := c.Command(work, cmd...).CombinedOutput()
+		code := 0
+		if exit, ok := errors.AsType[*exec.ExitError](err); ok {
+			code = exit.ExitCode()
+		} else if err != nil {
+			t.Fatalf("%s: %v\n%s", s.Name, err, out)
+		}
+		t.Logf("%s: %s exit=%d\n%s", s.Name, strings.Join(cmd[1:], " "), code, out)
+		return code, string(out)
+	}
+	restored := sealed.RestoreBase(stored, work, commits)
+	if got, err := sealed.BaseRelease(restored); err != nil || got != b.Release {
+		t.Errorf("%s: %s is from %q (%v), and base.release says %s", s.Name, sealed.BaseFile, got, err, b.Release)
+	}
+	if code, _ := run("base.sarif", restored, "diff", "<base>", head); code != b.Diff {
+		t.Errorf("%s: draugr diff against the %s base exited %d, want %d", s.Name, b.Release, code, b.Diff)
+	}
+	scan := append([]string{"scan", "draugr.saga.yaml", "--output", filepath.Join(work, "out-base"), "--base", "<base>"},
+		s.Expected.Sealed.ScanFlags()...)
+	if code, _ := run("base.sarif", restored, scan...); code != b.ScanBase {
+		t.Errorf("%s: draugr scan --base against the %s base exited %d, want %d", s.Name, b.Release, code, b.ScanBase)
+	}
+	if u := b.Unread; u != nil {
+		code, out := run("base-unread.sarif", sealed.UnreadBase(stored, work, commits), "diff", "<base>", head)
+		if code != u.Diff || !strings.Contains(out, u.Contains) {
+			t.Errorf("%s: draugr diff against a %s base whose commit is not in the checkout exited %d, want %d, saying %q:\n%s",
+				s.Name, b.Release, code, u.Diff, u.Contains, out)
+		}
+	}
 }
 
 // scanWithInit scans with the descriptor init wrote, from the repository, which is where init's

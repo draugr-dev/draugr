@@ -217,7 +217,8 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"default\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -227,7 +228,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"full\"]}]",
+              "settings": "{\"licenses\":{\"trivyLicense\":\"6361591e03d4bbb4\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -237,7 +240,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-deny\"]}]",
+              "settings": "{\"licenses\":{\"deny\":\"bff46c3eca3b69e1\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -247,7 +252,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-dev-default\"]}]",
+              "settings": "{\"licenses\":{\"warn\":\"24843607822ab72d\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -257,7 +264,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-dev-report\"]}]",
+              "settings": "{\"licenses\":{\"devDependencies\":\"8d0ccb734a265b63\",\"warn\":\"24843607822ab72d\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -267,7 +276,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-warn\"]}]",
+              "settings": "{\"licenses\":{\"warn\":\"4700e6fa5422a990\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -277,7 +288,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"licenses-warn-isc\"]}]",
+              "settings": "{\"licenses\":{\"warn\":\"bff46c3eca3b69e1\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -287,7 +300,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"trivy-license-deny\"]}]",
+              "settings": "{\"licenses\":{\"trivyLicense\":\"0453429c70069469\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -297,7 +312,9 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"trivy-license-warn\"]}]",
+              "settings": "{\"licenses\":{\"trivyLicense\":\"8ec4d3cc2c7d1e02\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -307,14 +324,17 @@
               "controls": "[\"licenses\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-trivy-license\"]"
+              "repositories": "[\"./options-trivy-license\"]",
+              "repositoryScopes": "[{\"url\":\"./options-trivy-license\",\"paths\":[\"trivyignore\"]}]",
+              "settings": "{\"licenses\":{\"warn\":\"795b0653db2607fe\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./options-trivy-license\",\"path\":\".trivyignore\",\"digests\":[\"03b1f65a7fa51c40\"]}]"
             },
             "tool": "draugr/declared"
           },

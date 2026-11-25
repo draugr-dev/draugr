@@ -57,7 +57,8 @@
               "controls": "[\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-mistyped-path\"]"
+              "repositories": "[\"./negative-mistyped-path\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-mistyped-path\",\"paths\":[\"services/api\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -67,7 +68,8 @@
               "controls": "[\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-mistyped-path\"]"
+              "repositories": "[\"./negative-mistyped-path\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-mistyped-path\",\"paths\":[\"services/wbe\"]}]"
             },
             "tool": "draugr/declared"
           },

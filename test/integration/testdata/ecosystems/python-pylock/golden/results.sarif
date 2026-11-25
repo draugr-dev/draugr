@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-pylock\"]"
+              "repositories": "[\"./python-pylock\"]",
+              "repositoryScopes": "[{\"url\":\"./python-pylock\"}]"
             },
             "tool": "draugr/declared"
           },

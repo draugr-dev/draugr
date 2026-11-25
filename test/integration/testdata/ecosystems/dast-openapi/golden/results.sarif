@@ -56,7 +56,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./dast-openapi\"]"
+              "repositories": "[\"./dast-openapi\"]",
+              "repositoryScopes": "[{\"url\":\"./dast-openapi\"}]"
             },
             "tool": "draugr/declared"
           },

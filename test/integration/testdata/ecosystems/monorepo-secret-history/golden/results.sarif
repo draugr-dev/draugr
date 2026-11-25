@@ -20,7 +20,9 @@
               "controls": "[\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-secret-history\"]"
+              "repositories": "[\"./monorepo-secret-history\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-secret-history\",\"paths\":[\"services/api\"]}]",
+              "settings": "{\"secrets\":{\"gitleaks\":\"b37c35c7476e5c22\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +32,9 @@
               "controls": "[\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-secret-history\"]"
+              "repositories": "[\"./monorepo-secret-history\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-secret-history\",\"paths\":[\"services/web\"]}]",
+              "settings": "{\"secrets\":{\"gitleaks\":\"b37c35c7476e5c22\"}}"
             },
             "tool": "draugr/declared"
           },

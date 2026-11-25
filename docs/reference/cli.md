@@ -1324,23 +1324,78 @@ read for this change` instead, since the diff cannot know what the change's desc
 that did not record the gate, or from a descriptor that sets none, leaves the head's gate alone.
 
 **The base's declaration still applies.** Each `results.sarif` also records what its descriptor
-declared: each component's `exposure`, `criticality`, controls and repositories, and the
-[`config.exclude`](saga-schema.md#configexclude) rules in force. Whatever threshold applies, typed or
-not, the diff holds the change to the base's declaration until it merges:
+declared: each component's `exposure`, `criticality`, controls and repositories with the `paths`,
+`ignore` and `revision` of each, a digest of each setting of every control it runs, and the
+[`config.exclude`](saga-schema.md#configexclude) rules in force. It also records a digest of each
+file outside the descriptor that can set findings aside or change what a scanner finds: every VEX
+document the descriptor names, the scanners' own configuration files at the root of each checkout a
+scan reads (`.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`, `.grype.yaml`, `.grype/config.yaml`,
+`.semgrepignore`, `.gitleaksignore` and `.gitleaks.toml`), every `.semgrepignore` below the root,
+which Semgrep reads in any directory, and each ruleset or template a control's
+setting names (Gitleaks and Semgrep `config`, trivy-config `checks`, Nuclei `templates`), a
+directory by every file under it. A setting or a file is recorded as a digest and never as its
+value, since a value may hold a credential. A repository's `url`, `paths`, `ignore` and `revision`
+are recorded as the descriptor writes them, and a setting is digested that way, a `${{ NAME }}`
+reference as the reference and a file it names by that reference, since a pipeline variable such as
+`GITHUB_SHA` holds another value on every run. Whatever threshold applies, typed or not, the diff holds
+the change to the base's declaration until it merges:
 
 - A new finding ranks by the more exposed and the more critical of the base's classification and the
   head's. The base's is the component of the same name, a component that declared a repository the
   change moved to this one, or a component a finding moved from.
-- A control the base ran on a repository, or on a component that declares none, and the head does
-  not run there fails the gate, because nothing the change adds there was looked for. The base's
-  findings from it read as not scanned rather than fixed.
+- A control the base ran on a component's part of a repository, or on a component that declares
+  none, and that no head component runs there any more fails the gate, because nothing the change
+  adds there was looked for. A part is the repository with the component's `paths`, so in a
+  monorepo, turning a control off for one component, or narrowing its `paths`, counts even while
+  another component runs the control on the rest of the repository. The base's findings from it read
+  as not scanned rather than fixed.
+- `ignore` and `revision` count as `paths` do. A head component still covers a part only where it
+  reads the same `revision` and adds no `ignore` entry, and an entry spelled differently counts as new.
+  So an entry over the file a change adds a finding to, or a `revision` pinned to a commit without the
+  change, fails the gate the same way.
+- A control's settings count too, compared one top-level key at a time: a scanner's block, such as
+  `trivyFs`, or a setting of the control's own, such as `nonShippingPaths`. A component's are the
+  project's with its own laid over them. Turning on another scanner, a new block that sets only
+  `enabled: true`, passes. Any other change, stricter or not, fails until trusted with the digest,
+  because the diff cannot tell which way a setting moves what a scanner finds. So switching `sca` from
+  `trivyFs` to `retirejs`, narrowing `pkgTypes` or pointing `semgrep` at another ruleset fails the
+  gate the way a narrowed `paths` does, on one component or on a project-wide control.
 - A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
   gated as new.
+- A file the change adds, or reads with other content than the base did, fails the gate until it
+  merges, whichever control it applies to: a `not_affected` statement in a VEX document, a line in
+  `.trivyignore` or `.gitleaksignore`, an allowlist in `.gitleaks.toml`, or a ruleset edited in place
+  under a setting that still names it. A file the change removes passes, since that only widens what
+  is reported. A VEX document fetched from a URL or read from another repository is compared by
+  where it is, not by what it says, because the change cannot edit it and the base already chose to
+  trust it.
+- A base report from 0.189.3 or earlier did not record a `.semgrepignore` below the root. The diff
+  reads the file at the commit the base report names, from the checkout it runs in, so an unchanged
+  file passes and an edited one is held as changed. Where it cannot read it, because the checkout
+  lacks the commit (a shallow clone), the report names no commit, or the base was scanned with
+  uncommitted changes, the file is held as added and the run says how to settle it. For a missing
+  commit that is the command fetching it, `git fetch --no-tags --depth 1 origin <commit>`, which the
+  comparison prints and never runs.
+- A comment in the source that sets a finding aside, such as `# nosemgrep`, `gitleaks:allow` or
+  `#nosec`, is not held: the finding stays in the report marked suppressed. Where the base did not
+  have the finding, the listing says `accepted by this change: suppressed in source (nosemgrep)`,
+  with the tool's reason where it gave one and the directive's name where it gave none.
 
 The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
-there was looked for.` A change that lowers a classification or adds an exclusion, and adds no
-finding of its own, passes. A base report from a release that did not record the declaration says so
-and leaves the head's to decide.
+there was looked for.`, or, where the control still runs, what changed: `This change alters what
+secrets reads on api (ignore src/client.py), so what it adds there may not have been looked for.` or
+`This change alters what sca reads on api (setting trivyFs changed), so what it adds there may not
+have been looked for.` or `This change adds .gitleaksignore and changes vex/pyyaml.openvex.json,
+which can set findings aside or change what a scanner finds, so the gate holds until it merges.`,
+naming the repository after a file where the run reads more than one (`.gitleaksignore in
+api.git`). A change that lowers a classification or adds an exclusion, and adds no finding of its
+own, passes. A base report from a release that did not record the declaration says so and leaves
+the head's to decide. One from 0.189.0 recorded each repository without its `paths`, so its
+controls are compared by repository alone. One from 0.189.1 recorded neither `ignore` nor
+`revision`, so a head that declares either looks newly added. It recorded no control's settings
+either, and reads as declaring none, so a head with settings is held until trusted. It recorded no
+files either, and reads as reading none, so a head that reads any of them is held until trusted.
+Scan the base with the same release as the head.
 
 A diff held to its base prints a digest of the head's descriptor. Given that digest as
 `--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the

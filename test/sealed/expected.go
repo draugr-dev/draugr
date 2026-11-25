@@ -28,6 +28,36 @@ type Expected struct {
 	NeverRequested []string `yaml:"neverRequested"`
 	// InitScan is where a scan with the descriptor init wrote departs from Findings and Errors.
 	InitScan InitScanExpectation `yaml:"initScan"`
+	// Base compares a scan of the scenario with a base report an earlier release wrote, for a
+	// scenario that holds a pull request to its base across a release. Unset compares nothing.
+	Base *BaseExpectation `yaml:"base"`
+}
+
+// BaseExpectation is a base report committed beside a scenario, base/results.sarif, written by an
+// earlier release over the same repository, and what `draugr diff` and `draugr scan --base` decide
+// when the head is this tree's scan of it, unchanged.
+//
+// The scenarios otherwise hold each scan to one release's golden report, so a release that records
+// something new, or records it differently, looks right on its own. It meets base reports from the
+// release before on the day a pipeline upgrades, where an unchanged pull request can read as one that
+// changed what decides its gate. The report is stored as StoreBase writes it.
+type BaseExpectation struct {
+	// Release is the release that wrote base/results.sarif, which its tool driver must name.
+	Release string `yaml:"release"`
+	// Diff and ScanBase are the exit status of `draugr diff` and of `draugr scan --base`.
+	Diff     int `yaml:"diff"`
+	ScanBase int `yaml:"scanBase"`
+	// Unread is what the diff decides where the checkout does not hold the base's commit, with each
+	// of the fixture's commits in the base replaced by one no repository holds. Unset runs no such
+	// comparison.
+	Unread *UnreadExpectation `yaml:"unread"`
+}
+
+// UnreadExpectation is the exit status of a diff against a base whose commit cannot be read, and
+// text its output must hold.
+type UnreadExpectation struct {
+	Diff     int    `yaml:"diff"`
+	Contains string `yaml:"contains"`
 }
 
 // RunOptions change what a sealed run provides. Most take something away, so a scenario can

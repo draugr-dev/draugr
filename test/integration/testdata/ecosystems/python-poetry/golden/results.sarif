@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-poetry\"]"
+              "repositories": "[\"./python-poetry\"]",
+              "repositoryScopes": "[{\"url\":\"./python-poetry\"}]"
             },
             "tool": "draugr/declared"
           },

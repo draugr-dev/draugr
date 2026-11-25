@@ -20,7 +20,9 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype-fs\"]"
+              "repositories": "[\"./options-grype-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype-fs\",\"paths\":[\"by-advisory\"]}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"a8753321bb5645e8\",\"trivyFs\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +32,9 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype-fs\"]"
+              "repositories": "[\"./options-grype-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype-fs\",\"paths\":[\"default\"]}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"26b3426b2593763c\",\"trivyFs\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -40,14 +44,17 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-grype-fs\"]"
+              "repositories": "[\"./options-grype-fs\"]",
+              "repositoryScopes": "[{\"url\":\"./options-grype-fs\",\"paths\":[\"grype-yaml\"]}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"26b3426b2593763c\",\"trivyFs\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./options-grype-fs\",\"path\":\".grype.yaml\",\"digests\":[\"be302726a8a386fa\"]}]"
             },
             "tool": "draugr/declared"
           },

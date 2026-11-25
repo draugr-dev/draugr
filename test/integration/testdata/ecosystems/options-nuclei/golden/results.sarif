@@ -124,7 +124,9 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"4820640b71552716\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -134,7 +136,8 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-nuclei\"]"
+              "repositories": "[\"./options-nuclei\"]",
+              "repositoryScopes": "[{\"url\":\"./options-nuclei\"}]"
             },
             "tool": "draugr/declared"
           },
@@ -144,7 +147,9 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"b57045df3485c478\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -154,7 +159,9 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"3c29d225da748524\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -164,14 +171,17 @@
               "controls": "[\"dast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[]"
+              "repositories": "[]",
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"4946fb5edf99e8f9\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"./custom/sealed-custom.yaml\",\"digests\":[\"d1d23fd2d1213694\"]}]"
             },
             "tool": "draugr/declared"
           },

@@ -88,6 +88,21 @@ type repoScanner struct {
 	// spreadPoms gives each pom.xml that declares a vulnerable Maven package the finding the tool
 	// reported in another pom only (see spreadPomFindings).
 	spreadPoms bool
+	// unlisted, when set, names the configuration files at the root of the checkout in dir that
+	// this run of the tool honors and that keep findings from it without listing what they kept.
+	unlisted func(dir string, cfg plugin.Config) []string
+	// settingFiles, when set, names the files and directories the job's settings point the tool
+	// at, as written (see plugin.SettingFiler).
+	settingFiles func(cfg plugin.Config) []string
+}
+
+// SettingFiles names the files and directories the job's settings point the tool at, as written,
+// none where the scanner names none (implements plugin.SettingFiler).
+func (s repoScanner) SettingFiles(cfg plugin.Config) []string {
+	if s.settingFiles == nil {
+		return nil
+	}
+	return s.settingFiles(cfg)
 }
 
 // inventoryOutput is a second report a tool writes to a file, listing what it read.
@@ -368,7 +383,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 		for _, argv := range s.argsList(dir, repo.Entry, cfg) {
 			part, err := s.runReporting(ctx, dir, argv)
 			if err != nil {
-				return s.failedRun(dir, repo, tree, fmt.Errorf("run %s: %w", s.info.Name, err))
+				return s.failedRun(dir, repo, tree, cfg, fmt.Errorf("run %s: %w", s.info.Name, err))
 			}
 			out = append(out, part...)
 		}
@@ -476,7 +491,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 	markGoToolModules(report.Results, dir, scope)
 	markGoTestModules(report.Results, dir, scope)
 	markDetectSecretsBaselines(report.Results, dir)
-	report.Provenance = append(report.Provenance, repoProvenance(s.info.Name, repo.Source(), tree))
+	report.Provenance = append(report.Provenance, s.provenance(repo, tree, cfg))
 	switch {
 	case partial && historyErr != nil:
 		return report, &plugin.PartialScanError{Report: report,
@@ -492,7 +507,7 @@ func (s repoScanner) Scan(ctx context.Context, target plugin.Target, cfg plugin.
 // failedRun is the scan's answer when a run of argsList fails: the failure, with a report naming the
 // files left unread beside it where the scanner names them (unreadOnFailure), and the failure alone
 // where it names none.
-func (s repoScanner) failedRun(dir string, repo plugin.RepositoryTarget, tree git.Tree, err error) (sarif.Report, error) {
+func (s repoScanner) failedRun(dir string, repo plugin.RepositoryTarget, tree git.Tree, cfg plugin.Config, err error) (sarif.Report, error) {
 	if s.unreadOnFailure == nil {
 		return sarif.Report{}, err
 	}
@@ -505,7 +520,7 @@ func (s repoScanner) failedRun(dir string, repo plugin.RepositoryTarget, tree gi
 		inputs[i].Repository = repo.Source()
 	}
 	report := sarif.Report{Tool: s.info.Name, Inputs: inputs,
-		Provenance: []sarif.Provenance{repoProvenance(s.info.Name, repo.Source(), tree)}}
+		Provenance: []sarif.Provenance{s.provenance(repo, tree, cfg)}}
 	return report, &plugin.PartialScanError{Report: report, Err: err}
 }
 
@@ -533,6 +548,43 @@ type moduleFailures struct {
 }
 
 func (e *moduleFailures) Error() string { return strings.Join(e.failed, "; ") }
+
+// provenance is repoProvenance for this scanner's run over tree, with the scanners' configuration
+// files the checkout held, and those of them this scanner honored that leave no record of what
+// they kept from it.
+//
+// Recorded while the checkout exists, since nothing after the scan can read it. Each of the files
+// can set findings aside or change what a scanner finds, and a change that adds or edits one is
+// held to its base the way a change to the descriptor is.
+func (s repoScanner) provenance(repo plugin.RepositoryTarget, tree git.Tree, cfg plugin.Config) sarif.Provenance {
+	p := repoProvenance(s.info.Name, repo.Source(), tree)
+	if tree.Dir == "" {
+		return p
+	}
+	recorded := map[string]bool{}
+	record := func(name string) {
+		path := filepath.Join(tree.Dir, filepath.FromSlash(name))
+		if info, err := os.Stat(path); err != nil || info.IsDir() || recorded[name] {
+			return
+		}
+		if digest, ok := git.PathDigest(path); ok {
+			p.Detail = append(p.Detail, sarif.Field{Key: sarif.DetailConfigFile + name, Value: digest})
+			recorded[name] = true
+		}
+	}
+	for _, name := range git.RootConfig() {
+		record(name)
+	}
+	if s.unlisted != nil {
+		for _, name := range s.unlisted(tree.Dir, cfg) {
+			// A file the scanner reads below the root, such as a .semgrepignore in a subdirectory,
+			// sets findings aside as the root's does, so it is held to its base the same way.
+			record(name)
+			p.Detail = append(p.Detail, sarif.Field{Key: sarif.DetailUnlistedSetAside + name, Value: s.info.Name})
+		}
+	}
+	return p
+}
 
 // repoProvenance records which repository this scanner read, and at which commit.
 //

@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./js-yarn-classic\"]"
+              "repositories": "[\"./js-yarn-classic\"]",
+              "repositoryScopes": "[{\"url\":\"./js-yarn-classic\"}]"
             },
             "tool": "draugr/declared"
           },

@@ -56,7 +56,8 @@
               "controls": "[\"iac\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-iac-module-cap\"]"
+              "repositories": "[\"./negative-iac-module-cap\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-iac-module-cap\"}]"
             },
             "tool": "draugr/declared"
           },

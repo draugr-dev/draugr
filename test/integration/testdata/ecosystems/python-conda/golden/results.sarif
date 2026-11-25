@@ -56,7 +56,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-conda\"]"
+              "repositories": "[\"./python-conda\"]",
+              "repositoryScopes": "[{\"url\":\"./python-conda\"}]"
             },
             "tool": "draugr/declared"
           },

@@ -35,7 +35,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-failing-trivy\"]"
+              "repositories": "[\"./negative-failing-trivy\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-failing-trivy\"}]"
             },
             "tool": "draugr/declared"
           },

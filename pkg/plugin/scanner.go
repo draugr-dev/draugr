@@ -148,6 +148,17 @@ type HistoryReader interface {
 	ReadsHistory(cfg Config) bool
 }
 
+// SettingFiler is an optional interface a Scanner may implement to name the files and directories
+// its settings point it at, such as a ruleset or a template directory, as the descriptor writes
+// them. They are read relative to where Draugr runs.
+//
+// The engine records each one's digest beside the descriptor's declaration. A pull request that
+// edits a ruleset in place leaves the setting that names it as it was, and still changes what the
+// scanner finds as surely as a new setting would.
+type SettingFiler interface {
+	SettingFiles(cfg Config) []string
+}
+
 // Prewarmer is an optional interface a Scanner may implement to warm shared, expensive state once
 // before a run's concurrent fan-out, e.g. downloading a vulnerability database, so that many
 // parallel scans don't each cold-start it (a thundering herd). The engine calls Prewarm once per

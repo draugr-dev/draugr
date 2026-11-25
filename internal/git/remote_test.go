@@ -66,13 +66,24 @@ func TestRemoteURL(t *testing.T) {
 	if got := RemoteURL(t.Context(), dir); got != "https://example.com/fork.git" {
 		t.Errorf("no origin = %q, want the first remote by name", got)
 	}
+	// The name is the one the URL came from, so a command that fetches from it reaches the same
+	// repository the report names.
+	if got := RemoteName(t.Context(), dir); got != "fork" {
+		t.Errorf("remote name with no origin = %q, want fork", got)
+	}
 
 	runGit(t, dir, "remote", "add", "origin", "https://example.com/origin.git")
 	if got := RemoteURL(t.Context(), dir); got != "https://example.com/origin.git" {
 		t.Errorf("with an origin = %q, want origin", got)
 	}
+	if got := RemoteName(t.Context(), dir); got != "origin" {
+		t.Errorf("remote name with an origin = %q, want origin", got)
+	}
 
 	if got := RemoteURL(t.Context(), filepath.Join(dir, "missing")); got != "" {
 		t.Errorf("a path that is not a repository = %q, want none", got)
+	}
+	if got := RemoteName(t.Context(), filepath.Join(dir, "missing")); got != "" {
+		t.Errorf("remote name of a path that is not a repository = %q, want none", got)
 	}
 }

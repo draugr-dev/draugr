@@ -56,7 +56,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-unsupported-lockfile\"]"
+              "repositories": "[\"./negative-unsupported-lockfile\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-unsupported-lockfile\"}]"
             },
             "tool": "draugr/declared"
           },

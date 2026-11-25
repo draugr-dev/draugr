@@ -20,7 +20,9 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"default\"]}]",
+              "settings": "{\"sast\":{\"gosec\":\"26b3426b2593763c\",\"semgrep\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +32,9 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"exclude\"]}]",
+              "settings": "{\"sast\":{\"gosec\":\"91b43095431bb394\",\"semgrep\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +44,9 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"include\"]}]",
+              "settings": "{\"sast\":{\"gosec\":\"c3165152e11bfbc5\",\"semgrep\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -50,7 +56,9 @@
               "controls": "[\"sast\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./options-gosec\"]"
+              "repositories": "[\"./options-gosec\"]",
+              "repositoryScopes": "[{\"url\":\"./options-gosec\",\"paths\":[\"tags\"]}]",
+              "settings": "{\"sast\":{\"gosec\":\"4d0062982ad88233\",\"semgrep\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },

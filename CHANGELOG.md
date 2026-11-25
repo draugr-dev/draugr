@@ -12,6 +12,42 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.4] - 2026-11-25
+
+### Fixed
+
+- **A pull request that adds or edits a `.semgrepignore` in any directory of a scanned repository now fails the gate until it merges, as one at the root already did.** Semgrep reads the file wherever it sits. The run names it by its path, such as `src/.semgrepignore`, and the console and Markdown reports list each one as set aside.
+
+- **Against a base report kept from Draugr 0.189.3 or earlier, `draugr diff` and `scan --base` pass a pull request that leaves a nested `.semgrepignore` alone.** Those releases did not record nested files, so the diff reads them at the base's commit. A shallow clone without that commit holds the file as added and prints the `git fetch` that clears it.
+
+## [0.189.3] - 2026-11-25
+
+### Fixed
+
+- **A pull request passes the gate again when a repository's `revision` is set from a pipeline variable, such as `${{ GITHUB_SHA }}`, and the descriptor is unchanged.** 0.189.2 read each commit as a moved revision and failed every such pull request. The gate now compares `url`, `paths`, `ignore` and `revision` as the descriptor writes them, not as the variables resolve.
+
+## [0.189.2] - 2026-11-25
+
+### Changed
+
+- **A finding set aside by an inline directive on a line a change adds is now listed as accepted by that change.** The console and the pull request comment read `accepted by this change: suppressed in source (nosemgrep)` for a `# nosemgrep`, `gitleaks:allow` or `#nosec`, and the gate does not hold.
+
+- **Comparing a 0.189.2 head against a base report from 0.189.1 or earlier can hold the change.** Scan the base with the same release as the head, as the GitHub, GitLab and Azure templates already do.
+
+### Fixed
+
+- **A pull request that adds an `ignore` entry or changes a repository's `revision` now fails the gate until it merges.** The run names what changed, and `--trust-descriptor-change` with the digest it prints lets an intended change through.
+
+- **A pull request that adds or edits a file that can set findings aside now fails the gate until it merges.** This covers a VEX document, `.trivyignore`, `.gitleaksignore`, `.semgrepignore`, `.gitleaks.toml` and a ruleset a setting names. Pass an intended change with the digest the run prints.
+
+- **A pull request that changes a control's settings now fails the gate until it merges.** This covers switching sca's scanner, narrowing a scanner's options and changing a control's own setting. Turning on one more scanner still passes. Trust an intended change with the digest the run prints.
+
+## [0.189.1] - 2026-11-24
+
+### Fixed
+
+- **A monorepo pull request that turns a control off for one component now fails the gate on new findings.** Where components split one repository by `paths`, `draugr diff` and `draugr scan --base` counted the control as running while any component ran it there, and the base's findings read as fixed. Narrowing `paths` now counts too.
+
 ## [0.189.0] - 2026-11-24
 
 ### Added
@@ -7541,7 +7577,11 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.4...HEAD
+[0.189.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.4
+[0.189.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.3
+[0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2
+[0.189.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.1
 [0.189.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.0
 [0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
 [0.188.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.0

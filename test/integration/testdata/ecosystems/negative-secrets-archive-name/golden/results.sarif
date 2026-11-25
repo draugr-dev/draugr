@@ -56,7 +56,8 @@
               "controls": "[\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./negative-secrets-archive-name\"]"
+              "repositories": "[\"./negative-secrets-archive-name\"]",
+              "repositoryScopes": "[{\"url\":\"./negative-secrets-archive-name\"}]"
             },
             "tool": "draugr/declared"
           },

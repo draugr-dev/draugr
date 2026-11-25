@@ -20,14 +20,17 @@
               "controls": "[\"sast\",\"sca\",\"secrets\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-pip\"]"
+              "repositories": "[\"./python-pip\"]",
+              "repositoryScopes": "[{\"url\":\"./python-pip\"}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
             },
             "tool": "draugr/declared"
           },

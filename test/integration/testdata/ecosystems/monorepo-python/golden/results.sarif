@@ -56,7 +56,9 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-python\"]"
+              "repositories": "[\"./monorepo-python\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-python\",\"paths\":[\"services/api\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -66,7 +68,9 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-python\"]"
+              "repositories": "[\"./monorepo-python\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-python\",\"paths\":[\"services/legacy\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -76,14 +80,17 @@
               "controls": "[\"sast\",\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-python\"]"
+              "repositories": "[\"./monorepo-python\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-python\",\"paths\":[\"services/tools\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
             },
             "tool": "draugr/declared"
           },

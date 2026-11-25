@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-go-reachability\"]"
+              "repositories": "[\"./monorepo-go-reachability\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-go-reachability\",\"paths\":[\"services/api\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-go-reachability\"]"
+              "repositories": "[\"./monorepo-go-reachability\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-go-reachability\",\"paths\":[\"services/worker\"]}]"
             },
             "tool": "draugr/declared"
           },

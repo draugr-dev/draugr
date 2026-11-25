@@ -143,11 +143,17 @@ func (s Scope) Whole(dir string) bool {
 //
 // Each tool reads its file from the root of the tree it is handed. They configure how a component
 // is scanned rather than being part of one, so dropping them from a scoped checkout would bring
-// back findings the repository already suppressed.
+// back findings the repository already suppressed. Grype reads `.grype/config.yaml` where it finds
+// no `.grype.yaml`.
 var rootConfig = []string{
-	".gitleaks.toml", ".gitleaksignore", ".grype.yaml", ".semgrepignore",
+	".gitleaks.toml", ".gitleaksignore", ".grype.yaml", ".grype/config.yaml", ".semgrepignore",
 	".trivyignore", ".trivyignore.yaml", "trivy.yaml",
 }
+
+// RootConfig names the scanners' own configuration files, as paths from the root of a checkout:
+// the files each tool reads from the root of the tree it is handed, which every scoped checkout
+// keeps. Each can set findings aside or change what a scanner finds.
+func RootConfig() []string { return slices.Clone(rootConfig) }
 
 // selected normalizes Paths into the repository-relative entries a scoped checkout keeps. Nil
 // means the whole repository: no entries, or an entry naming the root.
@@ -283,6 +289,9 @@ func prune(dir string, scope Scope, enforcePaths bool) error {
 func withinPaths(rel string, keep []string, isDir bool) bool {
 	if !isDir && slices.Contains(rootConfig, rel) {
 		return true
+	}
+	if isDir && slices.ContainsFunc(rootConfig, func(c string) bool { return strings.HasPrefix(c, rel+"/") }) {
+		return true // the directory holding a configuration file, .grype
 	}
 	for _, k := range keep {
 		if rel == k || strings.HasPrefix(rel, k+"/") {

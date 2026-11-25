@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./python-uv\"]"
+              "repositories": "[\"./python-uv\"]",
+              "repositoryScopes": "[{\"url\":\"./python-uv\"}]"
             },
             "tool": "draugr/declared"
           },

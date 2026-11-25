@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./js-pnpm\"]"
+              "repositories": "[\"./js-pnpm\"]",
+              "repositoryScopes": "[{\"url\":\"./js-pnpm\"}]"
             },
             "tool": "draugr/declared"
           },

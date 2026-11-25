@@ -81,6 +81,11 @@ type jsonReport struct {
 	// other count of this document, so without this its absence reads the same as a file that never
 	// reported it.
 	ScopedImports []ScopedImport `json:"scopedImports,omitempty"`
+	// UnlistedSetAsides are the scanners' configuration files that kept findings from a scanner
+	// without listing what they kept, per repository: a `.semgrepignore`, or a `.gitleaks.toml`
+	// with an allowlist. What they kept is in no other part of this document, so without this a
+	// finding they hid reads the same as one never made.
+	UnlistedSetAsides []engine.UnlistedSetAside `json:"unlistedSetAsides,omitempty"`
 	// Effects is which scanner effects the run accepted after --allow-effects, beside what the
 	// descriptor declared, and which effects its scanners had. Always present.
 	Effects effectsReport `json:"effects"`
@@ -583,9 +588,25 @@ type NewFindings struct {
 	// the gate on new findings by itself: what the change adds where the control ran was never
 	// looked for, so no count of new findings can say the change is clean.
 	Dropped []DroppedControl
-	// Trusted is set where --trust-descriptor-change let this run's descriptor decide: Dropped then
-	// says what the base ran and fails nothing.
+	// Files are the files outside the descriptor this run adds or reads with other content than the
+	// base did, that can set findings aside or change what a scanner finds. Each fails the gate on
+	// new findings by itself, as a dropped control does.
+	Files []HeldFile
+	// Trusted is set where --trust-descriptor-change let this run's descriptor decide: Dropped and
+	// Files then say what the base would have held and fail nothing.
 	Trusted bool
+}
+
+// HeldFile is a file this run adds, or reads with other content than its base did, that can set
+// findings aside or change what a scanner finds.
+type HeldFile struct {
+	// Repository is the URL of the repository whose checkout held a scanner's file, absent for a
+	// VEX document or a file a setting names.
+	Repository string `json:"repository,omitempty"`
+	// Path is the file's path as the run records it.
+	Path string `json:"path"`
+	// Change is "added" or "changed".
+	Change string `json:"change"`
 }
 
 // DroppedControl is a control the base scan ran that this run does not.
@@ -637,6 +658,9 @@ type newReport struct {
 	Introduced priorityCounts `json:"introduced"`
 	// Dropped are the controls the base ran and this run does not, absent where there are none.
 	Dropped []DroppedControl `json:"dropped,omitempty"`
+	// Files are the files outside the descriptor this run adds or changes that can set findings
+	// aside or change what a scanner finds, absent where there are none.
+	Files []HeldFile `json:"files,omitempty"`
 	// DescriptorChangeTrusted is true where --trust-descriptor-change let this run's descriptor
 	// decide, so a dropped control fails nothing and the ranking and exclusions are this run's.
 	DescriptorChangeTrusted bool `json:"descriptorChangeTrusted,omitempty"`
@@ -661,7 +685,8 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	if n == nil {
 		return nil
 	}
-	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}, Dropped: n.Dropped, DescriptorChangeTrusted: n.Trusted}
+	out := &newReport{Base: baseReport{Repositories: n.Base, Commit: oneRevision(n.Base)}, Dropped: n.Dropped,
+		Files: n.Files, DescriptorChangeTrusted: n.Trusted}
 	for _, f := range n.Introduced {
 		switch prioritization.Priority(f.Priority) {
 		case prioritization.P1:
@@ -676,7 +701,7 @@ func describeNew(n *NewFindings, failOnNew string) *newReport {
 	}
 	if failOnNew != "" {
 		out.Verdict = string(norn.Pass)
-		if len(n.Tripped) > 0 || (len(n.Dropped) > 0 && !n.Trusted) {
+		if len(n.Tripped) > 0 || (len(n.Dropped)+len(n.Files) > 0 && !n.Trusted) {
 			out.Verdict = string(norn.Fail)
 		}
 	}
@@ -1236,6 +1261,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 			JobMemory:             jobMemoryFrom(run.Stats.JobMemory),
 		},
 	}
+	doc.UnlistedSetAsides = run.Unlisted
 	seen := make(map[string]bool, len(verdict.Controls))
 	for _, oc := range verdict.Controls {
 		seen[oc.Control] = true

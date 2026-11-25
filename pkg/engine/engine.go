@@ -643,6 +643,11 @@ type Result struct {
 	// One count for both of the scanner's own, because what the number is for is true of each. The
 	// finding itself carries which of the two it was.
 	Silenced int
+	// Unlisted are the scanners' configuration files that kept findings from a scanner without
+	// listing them, one per repository, file and scanner: a `.semgrepignore`, or a `.gitleaks.toml`
+	// with an allowlist. Silenced cannot count what these kept, since no scanner reported it, so the
+	// run names the file instead.
+	Unlisted []UnlistedSetAside
 	// Imported counts findings excused by a claim somebody else made, a supplier's VEX document
 	// rather than a rule in this descriptor. Counted apart from Suppressed because they answer the
 	// auditor's question differently: one says we accepted this, the other says our supplier states
@@ -1784,6 +1789,10 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 		errs = append(errs, ctx.Err())
 	}
 	stats.UnpinnedCacheHits = slices.Sorted(maps.Keys(unpinnedHits))
+	// Read from the reports while each is still beside the job that wrote it, which names the
+	// repository as the descriptor writes it, and taken out of them before the controls aggregate:
+	// the declaration records each file once, where every scanner that read the checkout repeats it.
+	scannerFiles, unlisted := takeConfigFiles(planned, reports)
 	byCtl := make(map[string][]sarif.Report)
 	for i, pj := range planned {
 		if reports[i] != nil {
@@ -1841,6 +1850,9 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.ContextFloors = e.contextFloors
 	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
 	res.Declared = e.declarations(model, time.Now())
+	res.Declared.Files = slices.Concat(scannerFiles, e.vexFiles(&model), e.settingFiles(planned, &model))
+	sortDeclaredFiles(res.Declared.Files)
+	res.Unlisted = unlisted
 	res.SBOMFailures = sbomFailures
 	res.Skipped = skipped
 	res.FailedScans = sortFailedScans(failedScans)

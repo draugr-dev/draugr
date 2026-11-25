@@ -398,12 +398,27 @@ descriptor.
 
 A pull request is held to the descriptor its base declared until it merges, as the
 [reference](../reference/cli.md#draugr-diff-basesarif-headsarif) describes. Sometimes a descriptor
-change is the point: a control the team no longer wants, or a component that really is less exposed
-than declared. The failing run prints a digest of the pull request's descriptor:
+change is the point: a control the team no longer wants, a component that really is less exposed
+than declared, an `ignore` entry for generated files, a repository's `revision` moved to a new
+release, or a control's settings changed, such as `sca` moved from `trivyFs` to another scanner or a
+`semgrep` ruleset swapped. Each of the last three changes what a scan reads or looks for, as a
+shorter `paths` does, so it fails the gate until it merges like a control turned off. Turning on one
+more scanner, a block that sets only `enabled: true`, passes.
+
+The same holds for a file outside the descriptor that can set a finding aside or change what a
+scanner finds: a VEX document the descriptor names, a `.trivyignore`, `.gitleaksignore`,
+`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, a `.semgrepignore` in
+any of its directories, or a ruleset a setting
+names, edited in place. A pull request that adds one or edits one fails until it merges, and the run
+names it: `This change adds .gitleaksignore, which can set findings aside or change what a scanner
+finds, so the gate holds until it merges.` A comment beside the line, such as `# nosemgrep`, is not
+held; the listing marks the finding `accepted by this change` for a reviewer to read.
+
+The failing run prints a digest of the pull request's descriptor, which covers those files too:
 
 ```console
 The base ran sca on api and this change does not, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed.
-If this change to the descriptor is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file in this pull request; it trusts this descriptor only, not a later edit.
+If this change is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file in this pull request; it trusts this change only, not a later edit.
 ```
 
 Add it to the pipeline in the same pull request, `trust-descriptor-change` in the GitHub Action,
@@ -488,6 +503,14 @@ Pin the version in both places if you take this route:
 
 and re-scan the base whenever you move it. The cache above avoids the whole question, which is why
 it is the one to reach for first.
+
+A stored base from 0.189.3 or earlier also recorded no `.semgrepignore` below a checkout's root, so
+the comparison reads that file at the commit the base was scanned at. A shallow clone, which is what
+`actions/checkout` makes by default, does not hold that commit, and a nested `.semgrepignore` is then
+held as though the pull request added it. The run prints the command that fetches the one commit it
+needs, `git fetch --no-tags --depth 1 origin <commit>`. Scanning the base again with the new release
+settles it too. The action and the GitLab and Azure templates scan both sides with one release, so
+they never compare against an older base.
 
 ## In CI: let the action do it
 

@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./php-composer\"]"
+              "repositories": "[\"./php-composer\"]",
+              "repositoryScopes": "[{\"url\":\"./php-composer\"}]"
             },
             "tool": "draugr/declared"
           },

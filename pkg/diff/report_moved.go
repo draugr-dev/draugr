@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/tui"
 )
@@ -20,6 +21,15 @@ func nothingChanged(r Result) string {
 	// the control.
 	if len(r.Held.Dropped) > 0 {
 		return "Nothing is new where this change still scans."
+	}
+	// A file the change adds or edits can keep its own findings out of the scan, so "already there"
+	// would vouch for what the file may have hidden. The note above the listing names the file.
+	if len(r.Held.Files) > 0 {
+		if r.Held.filesClause() == "" {
+			unread := r.Held.unreadNames("")
+			return "Nothing new was reported, but " + english.And(unread) + " may have kept findings out of this scan."
+		}
+		return "Nothing new was reported, by a scan the files this change edits may have narrowed."
 	}
 	if len(r.Moved) == 0 && len(r.Reranked) > 0 {
 		return "Nothing is new or fixed. Only priorities changed."

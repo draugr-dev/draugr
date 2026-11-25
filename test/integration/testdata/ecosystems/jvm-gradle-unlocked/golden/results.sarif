@@ -56,7 +56,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./jvm-gradle-unlocked\"]"
+              "repositories": "[\"./jvm-gradle-unlocked\"]",
+              "repositoryScopes": "[{\"url\":\"./jvm-gradle-unlocked\"}]"
             },
             "tool": "draugr/declared"
           },

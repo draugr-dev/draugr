@@ -20,7 +20,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-js-workspaces\"]"
+              "repositories": "[\"./monorepo-js-workspaces\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-js-workspaces\",\"paths\":[\"npm\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -30,7 +31,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-js-workspaces\"]"
+              "repositories": "[\"./monorepo-js-workspaces\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-js-workspaces\",\"paths\":[\"pnpm\"]}]"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +42,8 @@
               "controls": "[\"sca\"]",
               "criticality": "",
               "exposure": "",
-              "repositories": "[\"./monorepo-js-workspaces\"]"
+              "repositories": "[\"./monorepo-js-workspaces\"]",
+              "repositoryScopes": "[{\"url\":\"./monorepo-js-workspaces\",\"paths\":[\"yarn\"]}]"
             },
             "tool": "draugr/declared"
           },

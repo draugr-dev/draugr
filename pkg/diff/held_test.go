@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -143,6 +144,411 @@ func TestAControlTheBaseRanIsDroppedWhereTheHeadDoesNot(t *testing.T) {
 	}
 	if want := "this change stops sca on site, which the base ran"; got.Held.DroppedSentence() != want {
 		t.Errorf("sentence = %q", got.Held.DroppedSentence())
+	}
+}
+
+// scoped is a component on repository "." reading paths, its scopes recorded as a scan records them.
+func scoped(name string, controls []string, paths ...string) engine.ComponentDeclaration {
+	c := comp(name, "", "", controls, []string{"."})
+	c.Scopes = []engine.RepositoryScope{{URL: ".", Paths: paths}}
+	return c
+}
+
+// Components that split one repository by paths each cover their own part of it. A control is
+// dropped where no component running it at the head still selects what the base component selected,
+// read the way a checkout reads paths; a report that recorded only URLs is compared by URL.
+func TestAControlIsReadByThePartOfTheRepositoryItCovered(t *testing.T) {
+	sast := []string{"sast"}
+	base := engine.Declarations{Components: []engine.ComponentDeclaration{
+		scoped("api", sast, "app"), scoped("web", sast, "web/"), scoped("worker", sast, "worker", "go.mod"),
+	}}
+	for _, tc := range []struct {
+		name string
+		head []engine.ComponentDeclaration
+		want string
+	}{
+		{name: "nothing changed", head: base.Components, want: ""},
+		{name: "off on one part", want: "sast on worker",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("web", sast, "web"), scoped("worker", nil, "worker", "go.mod")}},
+		{name: "a part narrowed", want: "sast on worker",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("web", sast, "web"), scoped("worker", sast, "worker/cmd", "go.mod")}},
+		{name: "the same parts written as globs", want: "",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app/**"), scoped("web", sast, "/web/"), scoped("worker", sast, "worker/*", "go.mod")}},
+		{name: "a part widened to the whole repository", want: "",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("web", sast, "web"), scoped("worker", sast, ".")}},
+		{name: "merged into a neighbor", want: "",
+			head: []engine.ComponentDeclaration{scoped("api", sast, "app", "worker", "go.mod"), scoped("web", sast, "web")}},
+		{name: "taken whole by one component", want: "",
+			head: []engine.ComponentDeclaration{scoped("all", sast)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := droppedList(dropped(base, engine.Declarations{Components: tc.head})); got != tc.want {
+				t.Errorf("dropped = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	// A component that read the whole repository is covered only by one that still reads it whole:
+	// paths cannot show that subtrees add up to every file.
+	whole := engine.Declarations{Components: []engine.ComponentDeclaration{scoped("mono", sast)}}
+	split := engine.Declarations{Components: []engine.ComponentDeclaration{scoped("a", sast, "a"), scoped("b", sast, "b")}}
+	if got := droppedList(dropped(whole, split)); got != "sast on mono" {
+		t.Errorf("whole repository split into parts: dropped = %q", got)
+	}
+
+	// A base report from a release that recorded only URLs is compared by URL, as that release did.
+	unscoped := engine.Declarations{Components: []engine.ComponentDeclaration{
+		comp("api", "", "", sast, []string{"."}), comp("worker", "", "", sast, []string{"."}),
+	}}
+	off := engine.Declarations{Components: []engine.ComponentDeclaration{scoped("api", sast, "app"), scoped("worker", nil, "worker")}}
+	if got := droppedList(dropped(unscoped, off)); got != "" {
+		t.Errorf("an unscoped base: dropped = %q, want the URL comparison's answer", got)
+	}
+}
+
+// declared is a component declaring the repositories of scopes, recorded as a scan records them.
+func declared(name string, controls []string, scopes ...engine.RepositoryScope) engine.ComponentDeclaration {
+	urls := make([]string, 0, len(scopes))
+	for _, s := range scopes {
+		urls = append(urls, s.URL)
+	}
+	c := comp(name, "", "", controls, urls)
+	c.Scopes = scopes
+	return c
+}
+
+// An ignore entry or a revision narrows what a scan reads as surely as paths do, so a head scope
+// covers a base one only where it reads the same revision and ignores nothing the base did not. Each
+// component declares two repositories, so a value read per component rather than per repository,
+// an entry moved from one repository to the other, would read as unchanged.
+func TestAControlIsHeldToTheIgnoreAndRevisionItRead(t *testing.T) {
+	secrets := []string{"secrets"}
+	mono := func(paths string, ignore ...string) engine.RepositoryScope {
+		return engine.RepositoryScope{URL: ".", Paths: []string{paths}, Ignore: ignore}
+	}
+	lib := func(revision string, ignore ...string) engine.RepositoryScope {
+		return engine.RepositoryScope{URL: "r/lib", Revision: revision, Ignore: ignore}
+	}
+	ui := func(revision string, ignore ...string) engine.RepositoryScope {
+		return engine.RepositoryScope{URL: "r/ui", Revision: revision, Ignore: ignore}
+	}
+	web := declared("web", secrets, mono("services/web"), ui("v1"))
+	apiLib := lib("v1", "vendor/", "third_party/")
+	base := engine.Declarations{Components: []engine.ComponentDeclaration{
+		declared("api", secrets, mono("services/api", "services/api/testdata/"), apiLib),
+		web,
+	}}
+	for _, tc := range []struct {
+		name string
+		head []engine.ComponentDeclaration
+		// want is the sentence a failing run exits with, empty where nothing was lost.
+		want string
+	}{
+		{name: "nothing changed", head: base.Components},
+		{name: "an ignore entry added",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "services/api/testdata/", "services/api/client.py"), apiLib), web},
+			want: "this change alters what secrets reads on api (ignore services/api/client.py)"},
+		{name: "the same ignore entries in another order",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "services/api/testdata/"), lib("v1", "third_party/", "vendor/")), web}},
+		{name: "the ignore entries removed",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api"), lib("v1")), web}},
+		{name: "ignore entries swapped between the repositories",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "vendor/"), lib("v1", "services/api/testdata/")), web},
+			want: "this change alters what secrets reads on api (ignore vendor/ and services/api/testdata/)"},
+		{name: "an ignore entry added on the other component",
+			head: []engine.ComponentDeclaration{base.Components[0],
+				declared("web", secrets, mono("services/web"), ui("v1", "src/client.py"))},
+			want: "this change alters what secrets reads on web (ignore src/client.py)"},
+		{name: "a neighbor still reads the part without the entry",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "services/api/testdata/", "services/api/client.py"), apiLib), web,
+				declared("audit", secrets, mono("services/api"), lib("v1"))}},
+		{name: "a revision pinned at the head",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}, Ignore: []string{"services/api/testdata/"}, Revision: "4b825dc"},
+				apiLib), web},
+			want: "this change alters what secrets reads on api (revision pinned to 4b825dc)"},
+		{name: "the same revision",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"), ui("v1"))}},
+		{name: "a revision pinned to a full commit id",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"),
+				ui("ba0572ef69246154f96b4f625b9229448686aff8"))},
+			want: "this change alters what secrets reads on web (revision ba0572ef6924, not v1)"},
+		{name: "a repository read whole narrowed to a subtree",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"),
+				engine.RepositoryScope{URL: "r/lib", Paths: []string{"src"}, Revision: "v1", Ignore: []string{"vendor/", "third_party/"}}), web},
+			want: "this change alters what secrets reads on api (paths no longer reading all of the repository)"},
+		{name: "a revision removed",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("", "vendor/")), web},
+			want: "this change alters what secrets reads on api (revision v1 unpinned)"},
+		{name: "a revision changed",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"), ui("v2"))},
+			want: "this change alters what secrets reads on web (revision v2, not v1)"},
+		{name: "a revision moved to the other repository",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/web"}, Revision: "v1"}, ui(""))},
+			want: "this change alters what secrets reads on web (revision pinned to v1; revision v1 unpinned)"},
+		{name: "paths narrowed and an entry added",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api/cmd", "services/api/testdata/", "services/api/cmd/x.go"), apiLib), web},
+			want: "this change alters what secrets reads on api (paths no longer reading all of services/api; ignore services/api/cmd/x.go)"},
+		{name: "stopped on one and narrowed on the other",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("v2", "vendor/")),
+				declared("web", nil, mono("services/web"), ui("v1"))},
+			want: "this change stops secrets on web, which the base ran, and alters what secrets reads on api (revision v2, not v1)"},
+		// A neighbor reading the repository with entries of its own covers nothing it did not cover
+		// before, and its entries are not what this change narrowed.
+		{name: "a revision changed beside a neighbor's own entries",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("v2", "vendor/")),
+				web, declared("audit", secrets, lib("v1", "docs/"))},
+			want: "this change alters what secrets reads on api (revision v2, not v1)"},
+		// Where the component itself no longer reads the part, what narrowed is the neighbor's.
+		{name: "a part left to a neighbor that ignores more",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/")),
+				web, declared("audit", secrets, lib("v1", "docs/"))},
+			want: "this change alters what secrets reads on api (ignore docs/)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := (Held{Dropped: dropped(base, engine.Declarations{Components: tc.head})}).DroppedSentence(); got != tc.want {
+				t.Errorf("sentence = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	// A base report from 0.189.1 recorded no ignore entries or revisions, and reads as declaring
+	// none: a head that declares them is held as though it added them.
+	unrecorded := engine.Declarations{Components: []engine.ComponentDeclaration{
+		declared("api", secrets, engine.RepositoryScope{URL: "."}, engine.RepositoryScope{URL: "r/lib"}),
+	}}
+	withIgnore := engine.Declarations{Components: []engine.ComponentDeclaration{
+		declared("api", secrets, engine.RepositoryScope{URL: ".", Ignore: []string{"docs/"}}, engine.RepositoryScope{URL: "r/lib"}),
+	}}
+	if got := droppedList(dropped(unrecorded, withIgnore)); got != "secrets on api" {
+		t.Errorf("a base that recorded no ignore entries: dropped = %q", got)
+	}
+}
+
+// settingsHeld are the declarations of a descriptor with secrets on project-wide, sca on api and web,
+// each component on two repositories, and images on img, which declares none: each control's
+// settings as a scan records them, from the project's settings and each component's own.
+type settingsHeld struct {
+	secrets, sca, images              saga.ControllerSettings
+	apiSCA, webSCA                    saga.ControllerSettings
+	apiControls, webControls, imgCtls []string
+	// unscoped records the repositories by URL alone, as a report from 0.189.0 did.
+	unscoped bool
+}
+
+func (s settingsHeld) declarations() engine.Declarations {
+	component := func(name string, controls []string, over saga.ControllerSettings, scopes ...engine.RepositoryScope) engine.ComponentDeclaration {
+		c := declared(name, controls, scopes...)
+		if s.unscoped {
+			c.Scopes = nil
+		}
+		if slices.Contains(controls, "sca") {
+			c.Settings = map[string]engine.ControlSettings{"sca": engine.SettingsOf(s.sca, over)}
+		}
+		return c
+	}
+	img := comp("img", "", "", s.imgCtls, nil)
+	if slices.Contains(s.imgCtls, "images") {
+		img.Settings = map[string]engine.ControlSettings{"images": engine.SettingsOf(s.images, nil)}
+	}
+	return engine.Declarations{
+		Controls: []string{"secrets"},
+		Settings: map[string]engine.ControlSettings{"secrets": engine.SettingsOf(s.secrets, nil)},
+		Components: []engine.ComponentDeclaration{
+			component("api", s.apiControls, s.apiSCA,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}}, engine.RepositoryScope{URL: "r/lib"}),
+			component("web", s.webControls, s.webSCA,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/web"}}, engine.RepositoryScope{URL: "r/ui"}),
+			img,
+		},
+	}
+}
+
+// A control left on is still held to how the base ran it: a head that switches its scanner, changes
+// a scanner's option or the control's own, in the project's settings or a component's, covers
+// nothing the base read until it merges. Each key is compared by digest, so a value written with
+// its keys in another order or decoded as another map type is the same value, and one that differs
+// only inside a nested map is not. Turning on one more scanner, and nothing else, is no change.
+func TestAControlIsHeldToItsSettings(t *testing.T) {
+	type cs = saga.ControllerSettings
+	base := settingsHeld{
+		secrets:     cs{"enabled": true, "gitleaks": cs{"history": true}},
+		sca:         cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}, "db": cs{"repository": "mirror.example.com/a"}}},
+		images:      cs{"enabled": true, "trivy": cs{"severity": "LOW"}},
+		webSCA:      cs{"trivyFs": cs{"skipDirs": []any{"testdata"}}},
+		apiControls: []string{"sca"}, webControls: []string{"sca"}, imgCtls: []string{"images"},
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*settingsHeld)
+		// want is the sentence a failing run exits with, empty where nothing was lost.
+		want string
+	}{
+		{name: "nothing changed", edit: func(*settingsHeld) {}},
+		{name: "the same settings with their keys in another order and another map type", edit: func(s *settingsHeld) {
+			s.sca = cs{"trivyFs": map[string]any{"db": map[string]any{"repository": "mirror.example.com/a"}, "pkgTypes": []any{"os", "library"}}, "enabled": true}
+		}},
+		{name: "the default scanner switched off and another on, on one component", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"trivyFs": cs{"enabled": false}, "retirejs": cs{"enabled": true}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed)"},
+		{name: "a scanner's option narrowed for the project", edit: func(s *settingsHeld) {
+			s.sca = cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os"}, "db": cs{"repository": "mirror.example.com/a"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed) and what sca reads on web (setting trivyFs changed)"},
+		{name: "the control's own option on one component", edit: func(s *settingsHeld) {
+			s.webSCA = cs{"trivyFs": cs{"skipDirs": []any{"testdata"}}, "nonShippingPaths": "suppress"}
+		}, want: "this change alters what sca reads on web (setting nonShippingPaths changed)"},
+		{name: "a component override over an unchanged project setting", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"trivyFs": cs{"pkgTypes": []any{"os"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed)"},
+		{name: "a value that differs only inside a nested map", edit: func(s *settingsHeld) {
+			s.sca = cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}, "db": cs{"repository": "mirror.example.com/b"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed) and what sca reads on web (setting trivyFs changed)"},
+		{name: "a component's override removed", edit: func(s *settingsHeld) { s.webSCA = nil },
+			want: "this change alters what sca reads on web (setting trivyFs changed)"},
+		{name: "one more scanner turned on", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"retirejs": cs{"enabled": true}}
+		}},
+		{name: "one more scanner turned on beside a changed key", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"retirejs": cs{"enabled": true}, "trivyFs": cs{"pkgTypes": []any{"os"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed)"},
+		{name: "one more scanner turned on with an option", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"retirejs": cs{"enabled": true, "config": "x"}, "trivyFs": cs{"pkgTypes": []any{"os"}}}
+		}, want: "this change alters what sca reads on api (settings retirejs and trivyFs changed)"},
+		{name: "one more scanner turned on for the project", edit: func(s *settingsHeld) {
+			s.sca = cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}, "db": cs{"repository": "mirror.example.com/a"}}, "retirejs": cs{"enabled": true}}
+		}},
+		{name: "a scanner's block removed", edit: func(s *settingsHeld) {
+			s.sca, s.webSCA = cs{"enabled": true}, nil
+		}, want: "this change alters what sca reads on api (setting trivyFs changed) and what sca reads on web (setting trivyFs changed)"},
+		{name: "a project-wide control's scanner option", edit: func(s *settingsHeld) {
+			s.secrets = cs{"enabled": true, "gitleaks": cs{"history": false}}
+		}, want: "this change alters what secrets reads (setting gitleaks changed)"},
+		{name: "a project-wide control's scanner added alone", edit: func(s *settingsHeld) {
+			s.secrets = cs{"enabled": true, "gitleaks": cs{"history": true}, "trufflehog": cs{"enabled": true}}
+		}},
+		{name: "a control on a component with no repository", edit: func(s *settingsHeld) {
+			s.images = cs{"enabled": true, "trivy": cs{"severity": "HIGH"}}
+		}, want: "this change alters what images reads on img (setting trivy changed)"},
+		{name: "stopped on one component, settings changed on the other", edit: func(s *settingsHeld) {
+			s.apiControls = nil
+			s.webSCA = cs{"trivyFs": cs{"skipDirs": []any{"testdata", "vendor"}}}
+		}, want: "this change stops sca on api, which the base ran, and alters what sca reads on web (setting trivyFs changed)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			head := base
+			tc.edit(&head)
+			if got := (Held{Dropped: dropped(base.declarations(), head.declarations())}).DroppedSentence(); got != tc.want {
+				t.Errorf("sentence = %q, want %q", got, tc.want)
+			}
+			// A base report that recorded repositories by URL alone holds the settings alike.
+			base, head := base, head
+			base.unscoped, head.unscoped = true, true
+			if got := (Held{Dropped: dropped(base.declarations(), head.declarations())}).DroppedSentence(); got != tc.want {
+				t.Errorf("by URL: sentence = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	// A neighbor that still runs the control as the base did over the same part covers it.
+	changed := base
+	changed.apiSCA = cs{"trivyFs": cs{"pkgTypes": []any{"os"}}}
+	head := changed.declarations()
+	audit := declared("audit", []string{"sca"}, engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}}, engine.RepositoryScope{URL: "r/lib"})
+	audit.Settings = map[string]engine.ControlSettings{"sca": engine.SettingsOf(base.sca, nil)}
+	head.Components = append(head.Components, audit)
+	if got := droppedList(dropped(base.declarations(), head)); got != "" {
+		t.Errorf("a neighbor running sca as the base did: dropped = %q", got)
+	}
+
+	// A base report from a release that recorded no settings reads as declaring none, so a head
+	// with settings is held as though it added them.
+	unrecorded := base.declarations()
+	unrecorded.Settings = nil
+	for i := range unrecorded.Components {
+		unrecorded.Components[i].Settings = nil
+	}
+	if got := (Held{Dropped: dropped(unrecorded, base.declarations())}).DroppedSentence(); got !=
+		"this change alters what secrets reads (setting gitleaks changed), what sca reads on api (setting trivyFs changed), "+
+			"what sca reads on web (setting trivyFs changed) and what images reads on img (setting trivy changed)" {
+		t.Errorf("a base that recorded no settings: sentence = %q", got)
+	}
+}
+
+// A change to a control's settings fails until it merges and says which keys changed, for a
+// component and for a project-wide control, and the base's finding from it reads as not scanned.
+func TestChangedSettingsAreSaid(t *testing.T) {
+	gone := on(res("trivy", "CVE-1", sarif.LevelError, "go.mod", 1, "P1"), "api", "", "")
+	gone.Control = "sca"
+	compared := Compare(sarif.Report{Results: []sarif.Result{gone}}, sarif.Report{})
+	type cs = saga.ControllerSettings
+	base := settingsHeld{
+		secrets: cs{"enabled": true}, sca: cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}}},
+		apiControls: []string{"sca"}, webControls: []string{"sca"},
+	}
+	head := base
+	head.apiSCA = cs{"trivyFs": cs{"enabled": false}, "retirejs": cs{"enabled": true, "config": "p/js"}}
+	head.secrets = cs{"enabled": true, "gitleaks": cs{"history": true}}
+
+	held := compared.HoldToBase(base.declarations(), head.declarations(), true, matrixRank)
+	held.Gate = Gate{FailOnPriority: "P4"}
+	if v, failed := verdict(held); v != "FAIL" || !failed {
+		t.Errorf("verdict = %q, %v with settings changed", v, failed)
+	}
+	want := "This change alters what secrets reads (setting gitleaks changed) and what sca reads on api " +
+		"(settings retirejs and trivyFs changed), so what it adds there may not have been looked for, " +
+		"and 1 finding from the base reads as not scanned rather than fixed"
+	if notes := held.Held.Notes(); len(notes) == 0 || notes[0] != want {
+		t.Errorf("notes = %q, want %q first", notes, want)
+	}
+}
+
+// A change that adds an ignore entry fails until it merges, says what it narrowed rather than that
+// it stopped the control, and the base's finding from that control reads as not scanned; trusted,
+// it passes and still says so.
+func TestAnAddedIgnoreEntryIsHeldAndCanBeTrusted(t *testing.T) {
+	gone := on(res("gitleaks", "generic-api-key", sarif.LevelError, "services/api/client.py", 1, "P1"), "api", "", "")
+	gone.Control = "secrets"
+	compared := Compare(sarif.Report{Results: []sarif.Result{gone}}, sarif.Report{})
+	scopes := func(ignore ...string) engine.Declarations {
+		return engine.Declarations{Components: []engine.ComponentDeclaration{declared("api", []string{"secrets"},
+			engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}, Ignore: ignore},
+			engine.RepositoryScope{URL: "r/lib"})}}
+	}
+	base, head := scopes(), scopes("services/api/client.py")
+	const narrowed = "This change alters what secrets reads on api (ignore services/api/client.py), " +
+		"so what it adds there may not have been looked for, and 1 finding from the base reads as not scanned rather than fixed"
+
+	held := compared.HoldToBase(base, head, true, matrixRank)
+	held.Gate = Gate{FailOnPriority: "P4"}
+	if v, failed := verdict(held); v != "FAIL" || !failed {
+		t.Errorf("verdict = %q, %v with an ignore entry added", v, failed)
+	}
+	if len(held.Fixed) != 0 || len(held.Held.Unscanned) != 1 {
+		t.Errorf("fixed = %+v, unscanned = %+v: the ignored file was not looked at", held.Fixed, held.Held.Unscanned)
+	}
+	if notes := held.Held.Notes(); len(notes) == 0 || notes[0] != narrowed || strings.Contains(notes[0], "stops") {
+		t.Errorf("notes = %q", notes)
+	}
+
+	trusted := compared.TrustChange(base, head, true, matrixRank)
+	trusted.Gate = Gate{FailOnPriority: "P4"}
+	if v, failed := verdict(trusted); v != "pass" || failed {
+		t.Errorf("verdict = %q, %v: a trusted change that adds an ignore entry passes", v, failed)
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, "console", trusted, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"--trust-descriptor-change: this change's descriptor decides the gate, not the base's", narrowed} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("console does not say %q:\n%s", want, buf.String())
+		}
 	}
 }
 
@@ -324,7 +730,8 @@ func TestTheDigestToTrustIsSaid(t *testing.T) {
 	notes := r.Held.Notes()
 	if len(notes) != 3 ||
 		notes[0] != "--trust-descriptor-change 0123456789abcdef names another descriptor than this change's (57a32d4c7cbd861d), so the base's decides" ||
-		!strings.HasPrefix(notes[2], "If this change to the descriptor is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file") {
+		notes[2] != "If this change is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file "+
+			"in this pull request; it trusts this change only, not a later edit" {
 		t.Errorf("notes = %q", notes)
 	}
 	js := renderJSONString(t, r)

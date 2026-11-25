@@ -891,6 +891,7 @@ type runReader struct {
 func (r *Report) readRun(i int, run sarifRun) runReader {
 	if i == 0 {
 		r.Tool = run.Tool.Driver.Name
+		r.ToolVersion = run.Tool.Driver.Version
 		if run.AutomationDetails != nil {
 			r.AutomationID = run.AutomationDetails.ID
 		}

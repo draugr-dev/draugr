@@ -29,7 +29,8 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		return nil, fmt.Errorf("parse saga: %w", err)
 	}
 
-	if err := substitute(&root, "saga"); err != nil {
+	substituted, err := substitute(&root, "saga")
+	if err != nil {
 		return nil, err
 	}
 
@@ -47,6 +48,7 @@ func loadModel(data []byte, validate bool) (*Model, error) {
 		m.textWarnings = textWarnings(&root, reflect.TypeOf(Model{}), "")
 	}
 	foldOlderSpellings(&m)
+	m.substituted = substituted
 	if validate {
 		// Load has no directory to resolve a relative path against, so a descriptor that needs
 		// fragments cannot be honored from bytes alone. Saying so beats returning a model that
@@ -271,13 +273,14 @@ func substitutable(name string) bool {
 // A name neither built in nor listed in DRAUGR_SAGA_ENVS is refused before the environment is
 // consulted, so the error is the same whether or not the variable exists, and loading a descriptor
 // cannot be used to learn which variables a job holds. A listed name the environment does not set
-// is an error too, naming it, so a mistake fails here rather than producing an empty value.
-func substitute(root *yaml.Node, where string) error {
-	missing, refused := substituteEnv(root)
+// is an error too, naming it, so a mistake fails here rather than producing an empty value. It
+// returns each name it substituted, with the value it put in its place.
+func substitute(root *yaml.Node, where string) (map[string]string, error) {
+	missing, refused, substituted := substituteEnv(root)
 	if len(refused) > 0 {
 		// Worded to read the same for one name or several, without a count helper: pkg/saga is
 		// public API and imports nothing from internal/.
-		return fmt.Errorf("%s references %s, which $%s does not list. Set %s=%s in "+
+		return nil, fmt.Errorf("%s references %s, which $%s does not list. Set %s=%s in "+
 			"the pipeline's environment, comma-separated. List only variables that hold no secret",
 			where, envRefs(refused), SagaEnvsVar, SagaEnvsVar, strings.Join(refused, ","))
 	}
@@ -288,10 +291,10 @@ func substitute(root *yaml.Node, where string) error {
 		if len(missing) == 1 {
 			fix = "Set it, or remove the reference"
 		}
-		return fmt.Errorf("%s references %s, which the environment does not set. %s",
+		return nil, fmt.Errorf("%s references %s, which the environment does not set. %s",
 			where, envRefs(missing), fix)
 	}
-	return nil
+	return substituted, nil
 }
 
 // envRefs writes names as the references the descriptor holds, `${{ NAME }}`, comma-separated.
@@ -312,7 +315,9 @@ func envRefs(names []string) string {
 // An import's commit is the one value an unset name leaves as written instead of reporting it
 // missing, so the file reads as unbound rather than the descriptor failing to load (see
 // Import.CommitUnset). A name it may not substitute is refused there as anywhere.
-func substituteEnv(root *yaml.Node) (missing, refused []string) {
+//
+// substituted holds each name it did substitute, with the value it put in its place.
+func substituteEnv(root *yaml.Node) (missing, refused []string, substituted map[string]string) {
 	seen := map[string]bool{}
 
 	// key is the mapping key n is the value of, or the key of the sequence n is an item of, and
@@ -335,6 +340,10 @@ func substituteEnv(root *yaml.Node) (missing, refused []string) {
 					return match
 				}
 				if val, ok := os.LookupEnv(name); ok {
+					if substituted == nil {
+						substituted = map[string]string{}
+					}
+					substituted[name] = val
 					return val
 				}
 				if !mayBeUnset && !seen[name] {
@@ -357,7 +366,7 @@ func substituteEnv(root *yaml.Node) (missing, refused []string) {
 	}
 
 	walk(root, "", "")
-	return missing, refused
+	return missing, refused, substituted
 }
 
 // foldOlderSpellings moves a descriptor written against a name we have moved off onto the current

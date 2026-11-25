@@ -61,6 +61,8 @@ func NewSemgrep() plugin.Scanner {
 	s.run = withSemgrepJobs(withSemgrepJSON(runSemgrepInDir))
 	s.parse = parseSemgrep
 	s.preflight = semgrepPreflight
+	s.settingFiles = semgrepSettingFiles
+	s.unlisted = semgrepUnlisted
 	return s
 }
 

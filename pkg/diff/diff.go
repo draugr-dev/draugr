@@ -757,6 +757,53 @@ func (c Change) NeedsSomebody() bool { return c != ChangeFixed }
 type Entry struct {
 	Change Change
 	sarif.Result
+	// arrived is set on an accepted finding the base had no finding of.
+	arrived bool
+}
+
+// acceptedHere says, of an accepted finding the base did not have that a comment in the source
+// sets aside, that the acceptance is this change's: "accepted by this change: suppressed in source
+// (reason)". Empty for any other entry.
+//
+// Such a comment sits on the line the finding is on, so the change that brought the finding
+// brought the comment, and nothing else in the listing tells a reviewer the acceptance is new. The
+// gate does not hold it, since the finding stays in the report marked suppressed and is listed
+// here for the review it asks for.
+func acceptedHere(e Entry) string {
+	if e.Change != ChangeAccepted || !e.arrived || !e.SilencedInSource() {
+		return ""
+	}
+	out := "accepted by this change: suppressed in source"
+	why := strings.TrimSpace(e.Suppression.Justification)
+	if why == "" {
+		why = directiveOf(e.Result)
+	}
+	if why != "" {
+		out += " (" + why + ")"
+	}
+	return out
+}
+
+// directives are the comments each tool honors beside a line, by the name the tool gives itself or
+// the scanner that ran it, for a suppression the tool recorded no reason for.
+var directives = []struct{ tool, directive string }{
+	{"gitleaks", "gitleaks:allow"},
+	{"gosec", "#nosec"},
+	{"semgrep", "nosemgrep"},
+}
+
+// directiveOf is the comment the tool that reported res honors to set a finding aside, empty for a
+// tool with none listed.
+func directiveOf(res sarif.Result) string {
+	for _, name := range []string{res.Tool, res.Scanner} {
+		name = strings.ToLower(strings.TrimSpace(name))
+		for _, d := range directives {
+			if strings.HasPrefix(name, d.tool) {
+				return d.directive
+			}
+		}
+	}
+	return ""
 }
 
 // Changed is every finding this change touched, worst first.
@@ -777,7 +824,8 @@ func (r Result) Changed() []Entry {
 		{ChangeFixed, r.Fixed},
 	} {
 		for _, f := range group.fs {
-			out = append(out, Entry{Change: group.change, Result: f})
+			out = append(out, Entry{Change: group.change, Result: f,
+				arrived: group.change == ChangeAccepted && r.arrivedHere(f)})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
