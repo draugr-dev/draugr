@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.190.1] - 2026-11-25
+
+### Fixed
+
+- **An advisory two imported files name differently is counted once.** A GitHub advisory whose CVE was looked up now joins the other file's copy under that CVE where only one of them gives a package URL, as Trivy's SARIF gives none for a Go module. Before, the two copies counted twice.
+
+- **`draugr doctor` names every place a tool cannot write in one run.** With both of Go's caches unwritable, gosec's and govulncheck's rows name `GOMODCACHE` and `GOCACHE` together, so moving one does not reveal the other only on the next run.
+
 ## [0.190.0] - 2026-11-25
 
 ### Added
@@ -7603,7 +7611,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.190.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.190.1...HEAD
+[0.190.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.1
 [0.190.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.0
 [0.189.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.5
 [0.189.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.4
