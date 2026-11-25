@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/standin"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 )
 
@@ -172,9 +173,7 @@ func TestExecNucleiReadsTheLog(t *testing.T) {
 	script := filepath.Join(dir, "nuclei")
 	body := "#!/bin/sh\necho '{\"template-id\":\"t\"}'\ncat " + logFile + " >&2\n" +
 		"[ \"$1\" = fail ] && { echo '[FTL] Could not run nuclei: no templates provided for scan' >&2; exit 1; }\nexit 0\n"
-	if err := os.WriteFile(script, []byte(body), 0o700); err != nil { // #nosec G306 -- an executable stand-in in t.TempDir()
-		t.Fatal(err)
-	}
+	standin.Write(t, script, []byte(body), 0o700)
 
 	out, err := execNuclei(context.Background(), []string{script})
 	skipped, ok := errors.AsType[*nucleiSkipped](err)
@@ -188,9 +187,7 @@ func TestExecNucleiReadsTheLog(t *testing.T) {
 	}
 
 	clean := filepath.Join(dir, "clean")
-	if err := os.WriteFile(clean, []byte("#!/bin/sh\necho '[INF] Scan completed' >&2\n"), 0o700); err != nil { // #nosec G306 -- an executable stand-in in t.TempDir()
-		t.Fatal(err)
-	}
+	standin.Write(t, clean, []byte("#!/bin/sh\necho '[INF] Scan completed' >&2\n"), 0o700)
 	if _, err := execNuclei(context.Background(), []string{clean}); err != nil {
 		t.Errorf("a run with no skips: %v", err)
 	}

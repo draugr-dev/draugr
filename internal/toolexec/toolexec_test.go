@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/draugr-dev/draugr/internal/observability"
+	"github.com/draugr-dev/draugr/internal/standin"
 	"github.com/draugr-dev/draugr/internal/tools"
 )
 
@@ -871,9 +872,7 @@ func TestAToolThatCannotStartSaysSoWithTheFix(t *testing.T) {
 	} {
 		script := filepath.Join(dir, c.name)
 		body := fmt.Sprintf("#!/bin/sh\necho \"%s: line 2: /opt/venv/bin/python: No such file or directory\" >&2\nexit %d\n", c.name, c.code)
-		if err := os.WriteFile(script, []byte(body), 0o700); err != nil { // #nosec G306 -- a test script this test runs
-			t.Fatal(err)
-		}
+		standin.Write(t, script, []byte(body), 0o700)
 		_, err := Run(context.Background(), "", []string{script})
 		if !errors.Is(err, ErrCannotStart) {
 			t.Fatalf("%d: err = %v, want ErrCannotStart", c.code, err)

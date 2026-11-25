@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 func TestContainerArgs(t *testing.T) {
@@ -52,9 +54,7 @@ func TestHostContainer(t *testing.T) {
 	if err := os.MkdirAll(venvBin, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(venvBin, "semgrep"), []byte("#!/bin/sh\n"), 0o700); err != nil { // #nosec G306 -- an executable fixture
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(venvBin, "semgrep"), []byte("#!/bin/sh\n"), 0o700)
 	if err := os.Symlink(filepath.Join(venvBin, "semgrep"), filepath.Join(bin, "semgrep")); err != nil {
 		t.Fatal(err)
 	}

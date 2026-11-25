@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // stubDraugr stands in for the binary the Action downloads. It records each diff it is asked for,
@@ -108,9 +110,7 @@ func newDiffRepo(t *testing.T) *diffRepo {
 		}
 	}
 	// #nosec G306 -- the stub has to be executable to stand in for the binary
-	if err := os.WriteFile(filepath.Join(r.bin, "draugr"), []byte(stubDraugr), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(r.bin, "draugr"), []byte(stubDraugr), 0o700)
 	r.git("init", "-q", "-b", "main")
 	return r
 }

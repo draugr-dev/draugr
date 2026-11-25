@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // fakeGo writes an executable standing in for the Go toolchain. `go version` prints what the test
@@ -38,9 +40,7 @@ install)
   mkdir -p "$GOBIN" && printf 'GOTOOLCHAIN=%s' "$GOTOOLCHAIN" > "$GOBIN/govulncheck" ;;
 esac
 `
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte(script), 0o700)
 	return path
 }
 
@@ -292,9 +292,7 @@ func TestGoInstallEnv(t *testing.T) {
 func TestInstallGoReportsAModuleThatBuildsNothing(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "go")
 	script := "#!/bin/sh\ncase \"$1\" in version) echo 'go version go1.26.6 linux/amd64' ;; esac\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte(script), 0o700)
 	stubLookPath(t, func(string) (string, error) { return path, nil })
 
 	_, err := installGo(t.Context(), t.TempDir(), "govulncheck",
@@ -309,9 +307,7 @@ func TestInstallGoReportsAModuleThatBuildsNothing(t *testing.T) {
 
 func TestRunEnvReportsTheCommandsOutput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "noisy")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\necho 'it went wrong' >&2\nexit 3\n"), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte("#!/bin/sh\necho 'it went wrong' >&2\nexit 3\n"), 0o700)
 	err := runEnv(t.Context(), os.Environ(), path)
 	if err == nil {
 		t.Fatal("a non-zero exit must be an error")
@@ -327,9 +323,7 @@ func TestRunEnvReportsTheCommandsOutput(t *testing.T) {
 func TestGoAtLeastOnOutputItCannotRead(t *testing.T) {
 	t.Run("go version fails", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "go")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 1\n"), 0o700); err != nil { // #nosec G306 -- must execute
-			t.Fatal(err)
-		}
+		standin.Write(t, path, []byte("#!/bin/sh\nexit 1\n"), 0o700)
 		if ok, found := goAtLeast(t.Context(), path, minGoMinor); ok || found != "unknown" {
 			t.Errorf("goAtLeast = %v, %q; want false, \"unknown\"", ok, found)
 		}
@@ -337,9 +331,7 @@ func TestGoAtLeastOnOutputItCannotRead(t *testing.T) {
 
 	t.Run("output is not go version", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "go")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\necho hi\n"), 0o700); err != nil { // #nosec G306 -- must execute
-			t.Fatal(err)
-		}
+		standin.Write(t, path, []byte("#!/bin/sh\necho hi\n"), 0o700)
 		if ok, found := goAtLeast(t.Context(), path, minGoMinor); ok || found != "unknown" {
 			t.Errorf("goAtLeast = %v, %q; want false, \"unknown\"", ok, found)
 		}
@@ -370,9 +362,7 @@ func TestGoAtLeastOnOutputItCannotRead(t *testing.T) {
 func TestRunEnvOnSilentAndNoisyFailures(t *testing.T) {
 	t.Run("no output at all", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "silent")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 2\n"), 0o700); err != nil { // #nosec G306 -- must execute
-			t.Fatal(err)
-		}
+		standin.Write(t, path, []byte("#!/bin/sh\nexit 2\n"), 0o700)
 		err := runEnv(t.Context(), os.Environ(), path)
 		if err == nil {
 			t.Fatal("a non-zero exit must be an error even with nothing to say")
@@ -384,9 +374,7 @@ func TestRunEnvOnSilentAndNoisyFailures(t *testing.T) {
 	t.Run("output is truncated", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "verbose")
 		script := "#!/bin/sh\nawk 'BEGIN{for(i=0;i<400;i++) print \"a line of build output\"}'\nexit 1\n"
-		if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-			t.Fatal(err)
-		}
+		standin.Write(t, path, []byte(script), 0o700)
 		err := runEnv(t.Context(), os.Environ(), path)
 		if err == nil {
 			t.Fatal("expected an error")
@@ -406,9 +394,7 @@ func TestInstallGoReportsBothAttemptsFailing(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "go")
 	script := "#!/bin/sh\ncase \"$1\" in\nversion) echo 'go version go1.26.6 linux/amd64' ;;\n" +
 		"install) echo 'module not found' >&2; exit 1 ;;\nesac\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte(script), 0o700)
 	stubLookPath(t, func(string) (string, error) { return path, nil })
 	noUserToolchain(t)
 
@@ -485,9 +471,7 @@ func TestAGoBuiltToolIsCurrentOnlyAtOrAboveTheToolchainPin(t *testing.T) {
 				t.Fatal(err)
 			}
 			path := filepath.Join(destDir, "govulncheck")
-			if err := os.WriteFile(path, []byte("binary"), 0o700); err != nil { // #nosec G306 -- stands in for a tool
-				t.Fatal(err)
-			}
+			standin.Write(t, path, []byte("binary"), 0o700)
 			sum, err := fileSHA256(path)
 			if err != nil {
 				t.Fatal(err)
@@ -550,9 +534,7 @@ func TestReadBuildGo(t *testing.T) {
 		t.Errorf("ReadBuildGo(test binary) = %q, want %q", got, want)
 	}
 	script := filepath.Join(t.TempDir(), "govulncheck")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\n"), 0o700); err != nil { // #nosec G306 -- stands in for a tool
-		t.Fatal(err)
-	}
+	standin.Write(t, script, []byte("#!/bin/sh\n"), 0o700)
 	if got := ReadBuildGo(script); got != "" {
 		t.Errorf("ReadBuildGo(script) = %q, want nothing", got)
 	}

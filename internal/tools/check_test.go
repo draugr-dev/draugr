@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // The plan names the check before an install and the result names the check after it. Each case
@@ -207,9 +209,7 @@ func TestCurrentReadsTheRecordAndTheChecksum(t *testing.T) {
 		t.Error("a different version was reported current")
 	}
 	// A binary changed since it was installed is not the one the record describes.
-	if err := os.WriteFile(filepath.Join(dest, "faketool"), []byte("tampered"), 0o700); err != nil { // #nosec G306 -- test binary
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(dest, "faketool"), []byte("tampered"), 0o700)
 	if _, ok := Current(dest, "faketool", ""); ok {
 		t.Error("a modified binary was reported current")
 	}
@@ -347,9 +347,7 @@ func TestALanguagePackageIsNotRebuiltWhenCurrent(t *testing.T) {
 	if _, err := InstallVersion(t.Context(), "semgrep", "", destDir, nil, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(destDir, "semgrep"), []byte("#!/bin/sh\n"), 0o700); err != nil { // #nosec G306 -- test shim
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(destDir, "semgrep"), []byte("#!/bin/sh\n"), 0o700)
 	if _, ok := Current(destDir, "semgrep", ""); ok {
 		t.Error("a modified shim was reported current")
 	}

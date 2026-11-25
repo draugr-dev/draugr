@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // installed writes a fake binary into binDir and records it, as an install would.
@@ -15,9 +17,7 @@ func installed(t *testing.T, binDir, tool, version string, body []byte) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(binDir, tool)
-	if err := os.WriteFile(path, body, 0o700); err != nil { // #nosec G306 -- a fake binary in a temp dir
-		t.Fatal(err)
-	}
+	standin.Write(t, path, body, 0o700)
 	sum, err := fileSHA256(path)
 	if err != nil {
 		t.Fatal(err)
@@ -73,9 +73,7 @@ func TestAttestNoticesAChangedBinary(t *testing.T) {
 	// The hash check is what makes "attested" a claim about a file rather than about a path.
 	binDir := filepath.Join(t.TempDir(), "bin")
 	path := installed(t, binDir, "trivy", "0.69.3", []byte("original"))
-	if err := os.WriteFile(path, []byte("something else"), 0o700); err != nil { // #nosec G306 -- temp dir
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte("something else"), 0o700)
 
 	a := Attest("trivy", path, "0.69.3", binDir)
 	if a.Level.Vouched() {
@@ -93,9 +91,7 @@ func TestAttestNoticesAnUnrecordedBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(binDir, "trivy")
-	if err := os.WriteFile(path, []byte("x"), 0o700); err != nil { // #nosec G306 -- temp dir
-		t.Fatal(err)
-	}
+	standin.Write(t, path, []byte("x"), 0o700)
 
 	a := Attest("trivy", path, "", binDir)
 	if a.Level.Vouched() {
@@ -155,9 +151,7 @@ func TestEverythingExternalSaysWhereItCameFrom(t *testing.T) {
 func TestAttestFoundResolvesFromPath(t *testing.T) {
 	dir := t.TempDir()
 	tool := filepath.Join(dir, "pretend-scanner")
-	if err := os.WriteFile(tool, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil { // #nosec G306 -- must execute
-		t.Fatal(err)
-	}
+	standin.Write(t, tool, []byte("#!/bin/sh\nexit 0\n"), 0o700)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	got := AttestFound("pretend-scanner", "1.2.3")

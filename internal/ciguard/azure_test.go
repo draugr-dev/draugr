@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 const azureTemplate = "../../azure-pipelines/draugr.yml"
@@ -99,9 +101,7 @@ func TestTheAzureScanPublishesOnlyFromAPushBuild(t *testing.T) {
 			}
 			stub := "#!/usr/bin/env bash\necho \"$*\" >> \"$STUB_LOG\"\n"
 			// #nosec G306 -- the stub has to be executable to stand in for the binary
-			if err := os.WriteFile(filepath.Join(bin, "draugr"), []byte(stub), 0o700); err != nil {
-				t.Fatal(err)
-			}
+			standin.Write(t, filepath.Join(bin, "draugr"), []byte(stub), 0o700)
 			script := azureScript(t, "Scan", map[string]string{"Build.ArtifactStagingDirectory": out})
 			// #nosec G204 -- the template's own checked-in script, run as the agent runs it
 			cmd := exec.Command("bash", "-c", script)
