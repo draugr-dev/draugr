@@ -417,7 +417,7 @@ The failing run prints a digest of the pull request's descriptor, which covers t
 
 ```console
 The base ran sca on api and this change does not, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed.
-If this change to the descriptor is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file in this pull request; it trusts this descriptor only, not a later edit.
+If this change is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file in this pull request; it trusts this change only, not a later edit.
 ```
 
 Add it to the pipeline in the same pull request, `trust-descriptor-change` in the GitHub Action,

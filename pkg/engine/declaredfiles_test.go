@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/draugr-dev/draugr/pkg/cache"
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -185,6 +186,59 @@ func TestTheFilesASettingNamesAreRecorded(t *testing.T) {
 	}
 }
 
+// A setting is digested as the descriptor wrote it, so one descriptor loaded under two values of a
+// pipeline variable records one declaration, and a change to the reference as written records
+// another. The file a substituted path names is recorded by the reference, with its content's
+// digest.
+func TestSettingsAreDigestedAsWritten(t *testing.T) {
+	descriptor := func(config string) []byte {
+		return []byte(`project: shop
+release: { version: "1.0" }
+config:
+  controls:
+    sast:
+      enabled: true
+      semgrep: { config: "` + config + `" }
+components:
+  - name: api
+    repositories:
+      - url: .
+`)
+	}
+	t.Setenv(saga.SagaEnvsVar, "RULES")
+	declare := func(value, config string) (map[string]ControlSettings, []DeclaredFile) {
+		t.Helper()
+		dir := t.TempDir()
+		rules := filepath.Join(dir, value)
+		if err := os.WriteFile(rules, []byte("rules: []"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("RULES", rules)
+		model, err := saga.Load(descriptor(config))
+		if err != nil {
+			t.Fatal(err)
+		}
+		reg := NewRegistry()
+		reg.RegisterController(jobsController{name: "sast"})
+		reg.RegisterScanner(&settingScanner{fakeScanner{name: "semgrep"}})
+		e := New(reg)
+		planned := []PlannedJob{{Control: "sast", Job: plugin.ScanJob{Scanner: "semgrep",
+			Config: plugin.Config{"files": []string{rules}}}}}
+		return e.declarations(*model, time.Now()).Settings, e.settingFiles(planned, model)
+	}
+	first, firstFiles := declare("a.yml", "${{ RULES }}")
+	second, secondFiles := declare("b.yml", "${{ RULES }}")
+	if !reflect.DeepEqual(first, second) || len(first["sast"]) != 1 {
+		t.Errorf("one descriptor under two values: %v, then %v", first, second)
+	}
+	if !reflect.DeepEqual(firstFiles, secondFiles) || len(firstFiles) != 1 || firstFiles[0].Path != "${{ RULES }}" {
+		t.Errorf("files = %+v, then %+v, want the file named by its reference", firstFiles, secondFiles)
+	}
+	if moved, _ := declare("a.yml", "${{ RULES }}.d"); reflect.DeepEqual(moved, first) {
+		t.Error("a reference written differently kept the digest")
+	}
+}
+
 // A VEX document on disk is recorded with its digest and one elsewhere by where it is, for the
 // project and for each component the run covers, once each.
 func TestTheVEXDocumentsReadAreRecorded(t *testing.T) {
@@ -200,7 +254,7 @@ func TestTheVEXDocumentsReadAreRecorded(t *testing.T) {
 			"docs": {doc("path", "vex/docs.json", "sha256:1111111111111111")},
 		},
 	}
-	got := New(NewRegistry(), WithVEX(set), WithScope(Scope{Components: []string{"api", "web"}})).vexFiles()
+	got := New(NewRegistry(), WithVEX(set), WithScope(Scope{Components: []string{"api", "web"}})).vexFiles(&saga.Model{})
 	sortDeclaredFiles(got)
 	want := []DeclaredFile{
 		{Kind: FileVEX, Path: "https://example.com/vex.git#web.json"},

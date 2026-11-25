@@ -1850,7 +1850,7 @@ func (e *Engine) Run(ctx context.Context, model saga.Model) (Result, error) {
 	res.ContextFloors = e.contextFloors
 	res.Consent = effectConsent(model.Config.AllowEffects, e.allowEffects)
 	res.Declared = e.declarations(model, time.Now())
-	res.Declared.Files = slices.Concat(scannerFiles, e.vexFiles(), e.settingFiles(planned))
+	res.Declared.Files = slices.Concat(scannerFiles, e.vexFiles(&model), e.settingFiles(planned, &model))
 	sortDeclaredFiles(res.Declared.Files)
 	res.Unlisted = unlisted
 	res.SBOMFailures = sbomFailures

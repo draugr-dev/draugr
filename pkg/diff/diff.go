@@ -768,10 +768,36 @@ func acceptedHere(e Entry) string {
 		return ""
 	}
 	out := "accepted by this change: suppressed in source"
-	if why := strings.TrimSpace(e.Suppression.Justification); why != "" {
+	why := strings.TrimSpace(e.Suppression.Justification)
+	if why == "" {
+		why = directiveOf(e.Result)
+	}
+	if why != "" {
 		out += " (" + why + ")"
 	}
 	return out
+}
+
+// directives are the comments each tool honors beside a line, by the name the tool gives itself or
+// the scanner that ran it, for a suppression the tool recorded no reason for.
+var directives = []struct{ tool, directive string }{
+	{"gitleaks", "gitleaks:allow"},
+	{"gosec", "#nosec"},
+	{"semgrep", "nosemgrep"},
+}
+
+// directiveOf is the comment the tool that reported res honors to set a finding aside, empty for a
+// tool with none listed.
+func directiveOf(res sarif.Result) string {
+	for _, name := range []string{res.Tool, res.Scanner} {
+		name = strings.ToLower(strings.TrimSpace(name))
+		for _, d := range directives {
+			if strings.HasPrefix(name, d.tool) {
+				return d.directive
+			}
+		}
+	}
+	return ""
 }
 
 // Changed is every finding this change touched, worst first.

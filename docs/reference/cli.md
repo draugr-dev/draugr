@@ -1333,7 +1333,9 @@ scan reads (`.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`, `.grype.yaml`, `.
 `.semgrepignore`, `.gitleaksignore` and `.gitleaks.toml`), and each ruleset or template a control's
 setting names (Gitleaks and Semgrep `config`, trivy-config `checks`, Nuclei `templates`), a
 directory by every file under it. A setting or a file is recorded as a digest and never as its
-value, since a value may hold a credential. Whatever threshold applies, typed or not, the diff holds
+value, since a value may hold a credential. A setting is digested as the descriptor writes it, a
+`${{ NAME }}` reference as the reference, and a file it names by that reference, since a pipeline
+variable may hold another value on every run. Whatever threshold applies, typed or not, the diff holds
 the change to the base's declaration until it merges:
 
 - A new finding ranks by the more exposed and the more critical of the base's classification and the
@@ -1367,8 +1369,8 @@ the change to the base's declaration until it merges:
   trust it.
 - A comment in the source that sets a finding aside, such as `# nosemgrep`, `gitleaks:allow` or
   `#nosec`, is not held: the finding stays in the report marked suppressed. Where the base did not
-  have the finding, the listing says `accepted by this change: suppressed in source`, with the
-  tool's reason where it gave one.
+  have the finding, the listing says `accepted by this change: suppressed in source (nosemgrep)`,
+  with the tool's reason where it gave one and the directive's name where it gave none.
 
 The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
 there was looked for.`, or, where the control still runs, what changed: `This change alters what

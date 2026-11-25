@@ -9,6 +9,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
@@ -78,8 +79,9 @@ func takeConfigFiles(planned []PlannedJob, reports []*sarif.Report) ([]DeclaredF
 // vexFiles are the VEX documents this run read, for the components it covers and the project. A
 // document on disk is recorded with its digest, since a change can edit it; one fetched from a URL
 // or read from another repository is recorded by where it is, since a change cannot edit it and the
-// base already chose to trust it.
-func (e *Engine) vexFiles() []DeclaredFile {
+// base already chose to trust it. Each is named as the descriptor wrote it, a `${{ }}` reference as
+// the reference.
+func (e *Engine) vexFiles(model *saga.Model) []DeclaredFile {
 	docs := slices.Clone(e.vex.Project)
 	for _, name := range slices.Sorted(maps.Keys(e.vex.ByComponent)) {
 		if e.scope.IncludesComponent(name) {
@@ -88,7 +90,8 @@ func (e *Engine) vexFiles() []DeclaredFile {
 	}
 	var out []DeclaredFile
 	for _, d := range docs {
-		f := DeclaredFile{Kind: FileVEX, Path: d.Provenance.Location}
+		location, _ := model.AsWritten(d.Provenance.Location).(string)
+		f := DeclaredFile{Kind: FileVEX, Path: location}
 		if d.Provenance.Kind == "path" {
 			sum := strings.TrimPrefix(d.Provenance.Digest, "sha256:")
 			f.Digests = []string{sum[:min(len(sum), 16)]}
@@ -101,9 +104,10 @@ func (e *Engine) vexFiles() []DeclaredFile {
 }
 
 // settingFiles are the files and directories the planned jobs' settings point their scanners at,
-// read where Draugr runs as the scanners read them, each by the path the setting gives. One that
-// is not there is not recorded; the scan that reads it fails on its own.
-func (e *Engine) settingFiles(planned []PlannedJob) []DeclaredFile {
+// read where Draugr runs as the scanners read them, each by the path the setting gives as the
+// descriptor wrote it, a `${{ }}` reference as the reference. One that is not there is not
+// recorded; the scan that reads it fails on its own.
+func (e *Engine) settingFiles(planned []PlannedJob, model *saga.Model) []DeclaredFile {
 	var out []DeclaredFile
 	for _, pj := range planned {
 		sc, ok := e.reg.Scanner(pj.Job.Scanner)
@@ -115,7 +119,8 @@ func (e *Engine) settingFiles(planned []PlannedJob) []DeclaredFile {
 			continue
 		}
 		for _, path := range filer.SettingFiles(pj.Job.Config) {
-			if slices.ContainsFunc(out, func(o DeclaredFile) bool { return o.Path == path }) {
+			written, _ := model.AsWritten(path).(string)
+			if slices.ContainsFunc(out, func(o DeclaredFile) bool { return o.Path == written }) {
 				continue
 			}
 			abs, err := filepath.Abs(path)
@@ -123,7 +128,7 @@ func (e *Engine) settingFiles(planned []PlannedJob) []DeclaredFile {
 				continue
 			}
 			if digest, ok := git.PathDigest(abs); ok {
-				out = append(out, DeclaredFile{Kind: FileSetting, Path: path, Digests: []string{digest}})
+				out = append(out, DeclaredFile{Kind: FileSetting, Path: written, Digests: []string{digest}})
 			}
 		}
 	}

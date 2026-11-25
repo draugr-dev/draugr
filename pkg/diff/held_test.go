@@ -730,7 +730,8 @@ func TestTheDigestToTrustIsSaid(t *testing.T) {
 	notes := r.Held.Notes()
 	if len(notes) != 3 ||
 		notes[0] != "--trust-descriptor-change 0123456789abcdef names another descriptor than this change's (57a32d4c7cbd861d), so the base's decides" ||
-		!strings.HasPrefix(notes[2], "If this change to the descriptor is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file") {
+		notes[2] != "If this change is intended, add --trust-descriptor-change 57a32d4c7cbd861d to the pipeline file "+
+			"in this pull request; it trusts this change only, not a later edit" {
 		t.Errorf("notes = %q", notes)
 	}
 	js := renderJSONString(t, r)

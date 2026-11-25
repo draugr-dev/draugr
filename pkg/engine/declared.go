@@ -138,6 +138,11 @@ type RepositoryScope struct {
 // Read from the descriptor rather than from the jobs that were planned. A control that planned
 // nothing, a component with no image under images, still ran as far as the descriptor is
 // concerned, and the question a comparison asks of it is whether the change turned it off.
+//
+// Settings are digested as the descriptor wrote them, each `${{ }}` reference as the reference: a
+// pipeline variable can hold a different value on every run, such as a path under a temporary
+// directory, and a pull request cannot change it. The content of a file such a path names is
+// recorded among Files.
 func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 	var d Declarations
 	for _, name := range sortedControllerNames(e.reg.controllers) {
@@ -146,7 +151,7 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 		}
 		if e.reg.controllers[name].Info().Scope == plugin.ScopeProject && model.Config.ControllerEnabled(name) {
 			d.Controls = append(d.Controls, name)
-			d.Settings = withSettings(d.Settings, name, SettingsOf(model.Config.Controls[name], nil))
+			d.Settings = withSettings(d.Settings, name, SettingsOf(model.SettingsAsWritten(model.Config.Controls[name]), nil))
 		}
 	}
 	for i := range model.Components {
@@ -165,7 +170,8 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 			}
 			if comp.ControllerEnabled(name, model.Config) {
 				c.Controls = append(c.Controls, name)
-				c.Settings = withSettings(c.Settings, name, SettingsOf(model.Config.Controls[name], comp.Controls[name]))
+				c.Settings = withSettings(c.Settings, name, SettingsOf(model.SettingsAsWritten(model.Config.Controls[name]),
+					model.SettingsAsWritten(comp.Controls[name])))
 			}
 		}
 		d.Components = append(d.Components, c)

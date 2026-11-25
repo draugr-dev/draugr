@@ -776,8 +776,11 @@ func (h Held) Notes() []string {
 			" excused by an exclusion this change adds, and "+english.Choose(n, "counts", "count")+" as new until it merges")
 	}
 	if h.Digest != "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted)+len(h.Files) > 0 {
-		notes = append(notes, "If this change to the descriptor is intended, add --trust-descriptor-change "+h.Digest+
-			" to the pipeline file in this pull request; it trusts this descriptor only, not a later edit")
+		// "This change" rather than "this change to the descriptor": the digest covers the files the
+		// descriptor's run read as well, and a change that edits only an ignore file is trusted the
+		// same way.
+		notes = append(notes, "If this change is intended, add --trust-descriptor-change "+h.Digest+
+			" to the pipeline file in this pull request; it trusts this change only, not a later edit")
 	}
 	return notes
 }

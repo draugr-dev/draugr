@@ -157,11 +157,39 @@ func TestTheFilesThatKeepFindingsUnlistedAreNamed(t *testing.T) {
 	if got := gitleaksUnlisted(dir, plugin.Config{}); got != nil {
 		t.Errorf("a .gitleaks.toml without an allowlist: %v", got)
 	}
+	writeInto(t, dir, ".gitleaks.toml", "# an allowlist would go here\n[extend]\nuseDefault = true\n")
+	if got := gitleaksUnlisted(dir, plugin.Config{}); got != nil {
+		t.Errorf("a .gitleaks.toml whose comment mentions an allowlist: %v", got)
+	}
 	writeInto(t, dir, ".gitleaks.toml", "[extend]\nuseDefault = true\n[allowlist]\npaths = ['''x''']\n")
 	if got := gitleaksUnlisted(dir, plugin.Config{}); !reflect.DeepEqual(got, []string{".gitleaks.toml"}) {
 		t.Errorf("a .gitleaks.toml with an allowlist: %v", got)
 	}
 	if got := gitleaksUnlisted(dir, plugin.Config{"config": "shared/gitleaks.toml"}); got != nil {
 		t.Errorf("a ruleset the descriptor names replaces the file, and still: %v", got)
+	}
+}
+
+// An allowlist is a table or a key that declares one, in any of the shapes Gitleaks reads. A comment
+// or a value that mentions the word declares nothing.
+func TestAnAllowlistIsReadFromWhatTheFileDeclares(t *testing.T) {
+	for _, tc := range []struct {
+		name, toml string
+		want       bool
+	}{
+		{"global table", "[allowlist]\npaths = ['''x''']\n", true},
+		{"global tables", "[[allowlists]]\npaths = ['''x''']\n", true},
+		{"spaced and commented header", "  [ allowlist ]  # project-wide\n", true},
+		{"a rule's table", "[[rules]]\nid = \"a\"\n[rules.allowlist]\nregexes = ['''x''']\n", true},
+		{"a rule's tables", "[[rules]]\nid = \"a\"\n[[rules.allowlists]]\nregexes = ['''x''']\n", true},
+		{"a dotted key", "[[rules]]\nid = \"a\"\nallowlist.paths = ['''x''']\n", true},
+		{"an inline table", "allowlist = { paths = ['''x'''] }\n", true},
+		{"a comment", "# no allowlist here, see the wiki\n[extend]\nuseDefault = true\n", false},
+		{"a value", "[[rules]]\nid = \"a\"\ndescription = \"not an allowlist = x\"\nregex = '''allowlist'''\n", false},
+		{"nothing", "[extend]\nuseDefault = true\n", false},
+	} {
+		if got := gitleaksDeclaresAllowlist([]byte(tc.toml)); got != tc.want {
+			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }

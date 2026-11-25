@@ -89,8 +89,45 @@ func gitleaksUnlisted(dir string, cfg plugin.Config) []string {
 		return nil
 	}
 	b, err := os.ReadFile(path) // #nosec G304 -- the checkout's own ruleset, resolved inside it
-	if err != nil || !bytes.Contains(b, []byte("allowlist")) {
+	if err != nil || !gitleaksDeclaresAllowlist(b) {
 		return nil
 	}
 	return []string{gitleaksRepoConfig}
+}
+
+// gitleaksDeclaresAllowlist reports whether a Gitleaks TOML ruleset declares an allowlist: a table
+// header naming one, `[allowlist]`, `[[allowlists]]`, `[rules.allowlist]` or
+// `[[rules.allowlists]]`, or a key that sets one, `allowlist = { … }` or `allowlist.paths = […]`.
+// A comment that mentions the word declares nothing.
+//
+// Read line by line rather than parsed, with no TOML parser among the dependencies. A line inside a
+// multi-line string that reads like a declaration counts as one, which errs toward saying the file
+// may have kept something.
+func gitleaksDeclaresAllowlist(toml []byte) bool {
+	names := func(dotted string) bool {
+		for part := range strings.SplitSeq(dotted, ".") {
+			part = strings.Trim(strings.TrimSpace(part), `"'`)
+			if part == "allowlist" || part == "allowlists" {
+				return true
+			}
+		}
+		return false
+	}
+	for line := range bytes.Lines(toml) {
+		text := strings.TrimSpace(string(line))
+		switch {
+		case text == "" || strings.HasPrefix(text, "#"):
+			continue
+		case strings.HasPrefix(text, "["):
+			header, _, _ := strings.Cut(strings.Trim(text, "[ "), "]")
+			if names(header) {
+				return true
+			}
+		default:
+			if key, _, ok := strings.Cut(text, "="); ok && names(key) {
+				return true
+			}
+		}
+	}
+	return false
 }

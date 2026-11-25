@@ -188,10 +188,14 @@ func TestAnInlineDirectiveTheChangeAddsIsListedAsItsOwn(t *testing.T) {
 		return r
 	}
 	was := res("semgrep", "rule-was", sarif.LevelError, "c.py", 9, "P2")
+	gosec := directive(res("gosec", "G101", sarif.LevelError, "e.go", 4, "P2"), "a test key")
 	head := sarif.Report{Results: []sarif.Result{
-		directive(res("semgrep", "rule-new", sarif.LevelError, "b.py", 7, "P2"), "nosemgrep"),
+		// No reason from the tool: the directive is named from the scanner that reported it.
+		directive(res("Semgrep OSS", "rule-new", sarif.LevelError, "b.py", 7, "P2"), ""),
 		directive(res("gitleaks", "generic-api-key", sarif.LevelError, "d.py", 3, "P2"), ""),
-		directive(was, "nosemgrep"),
+		// A reason from the tool stands.
+		gosec,
+		directive(was, ""),
 		suppressed(res("trivy", "CVE-SELF", sarif.LevelError, "go.mod", 2, "P2")),
 	}}
 	r := Compare(sarif.Report{Results: []sarif.Result{was}}, head)
@@ -205,19 +209,31 @@ func TestAnInlineDirectiveTheChangeAddsIsListedAsItsOwn(t *testing.T) {
 	if err := Render(&markdown, "markdown", r, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Count(console.String(), "accepted by this change: suppressed in source (nosemgrep)"); got != 1 {
-		t.Errorf("console says it %d times, want once, for rule-new:\n%s", got, console.String())
+	for _, want := range []string{
+		"accepted by this change: suppressed in source (nosemgrep)\n",
+		"accepted by this change: suppressed in source (gitleaks:allow)\n",
+		"accepted by this change: suppressed in source (a test key)\n",
+	} {
+		if got := strings.Count(console.String(), want); got != 1 {
+			t.Errorf("console says %q %d times, want once:\n%s", want, got, console.String())
+		}
 	}
-	if !strings.Contains(console.String(), "accepted by this change: suppressed in source\n") {
-		t.Errorf("console does not list the allow comment without a reason:\n%s", console.String())
-	}
-	if got := strings.Count(console.String(), "accepted by this change"); got != 2 {
-		t.Errorf("console says it %d times, want twice:\n%s", got, console.String())
+	if got := strings.Count(console.String(), "accepted by this change"); got != 3 {
+		t.Errorf("console says it %d times, want three, not for rule-was or CVE-SELF:\n%s", got, console.String())
 	}
 	if !strings.Contains(markdown.String(), "| **accepted**<br>_by this change: suppressed in source (nosemgrep)_ | P2 | high | `rule-new` |") {
 		t.Errorf("markdown does not mark rule-new as accepted by this change:\n%s", markdown.String())
 	}
-	if got := strings.Count(markdown.String(), "by this change"); got != 2 {
-		t.Errorf("markdown says it %d times, want twice:\n%s", got, markdown.String())
+	if got := strings.Count(markdown.String(), "by this change"); got != 3 {
+		t.Errorf("markdown says it %d times, want three:\n%s", got, markdown.String())
+	}
+
+	// A scanner named only by the job that ran it, and a tool with no directive listed.
+	if got := directiveOf(sarif.Result{Tool: "golangci", Scanner: "gosec"}); got != "#nosec" {
+		t.Errorf("directive = %q", got)
+	}
+	if got := acceptedHere(Entry{Change: ChangeAccepted, arrived: true,
+		Result: directive(res("bandit", "B105", sarif.LevelError, "f.py", 1, "P2"), "")}); got != "accepted by this change: suppressed in source" {
+		t.Errorf("a tool with no listed directive: %q", got)
 	}
 }
