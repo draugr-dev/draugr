@@ -41,8 +41,10 @@ A new organization opens on three steps.
    `DRAUGR_API_URL`, the server's address (`https://app.draugr.dev` on the hosted server), and
    `DRAUGR_API_TOKEN`. The token is shown once and not stored, so copy it now. If it is lost, open
    the project, then **Setup**, and issue another there.
-3. **Add Draugr to the pipeline.** The console shows `draugr init` for a repository with no Saga,
-   and the four lines below with your project's identifier in place of `payments`.
+3. **Publish a run.** The console shows the install line, `draugr init` for a repository with no
+   Saga, the four lines below with your project's identifier in place of `payments`, the two values
+   again, and `draugr tools install` and `draugr scan .`. The same two values publish a run from a
+   laptop as from a pipeline.
 
 The token is write-only and scoped to this one project.
 
