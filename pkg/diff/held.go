@@ -62,13 +62,14 @@ type Dropped struct {
 	// Control is the control's name.
 	Control string
 	// Narrowed says how the head stopped reading part of what the base read, where a component still
-	// runs the control there: its paths, an ignore entry or its revision. Zero where the control
-	// no longer runs on some part the base read, which the reader is told as the control stopped.
+	// runs the control there: its paths, an ignore entry, its revision or the control's settings.
+	// Zero where the control no longer runs on some part the base read, which the reader is told as
+	// the control stopped.
 	Narrowed Narrowing
 }
 
-// Narrowing is how a change narrowed what a control reads of a repository a component declares,
-// while still running the control on it.
+// Narrowing is how a change narrowed what a control reads of a repository a component declares, or
+// changed how the control runs, while still running it.
 //
 // A reader told "this change stops secrets on api" after adding one ignore line would look for a
 // control turned off and find none, so the run names what narrowed instead.
@@ -80,6 +81,9 @@ type Narrowing struct {
 	Ignore []string
 	// Revisions are the revisions the head reads the repository at in place of the base's.
 	Revisions []RevisionChange
+	// Settings are the keys of the control's settings the head added, removed or changed, sorted:
+	// a scanner's block or a setting of the control's own.
+	Settings []string
 }
 
 // RevisionChange is a repository's revision as the base pinned it and as the head pins it, each
@@ -93,7 +97,7 @@ const wholeRepository = ""
 
 // narrowed reports whether n says anything.
 func (n Narrowing) narrowed() bool {
-	return len(n.Paths) > 0 || len(n.Ignore) > 0 || len(n.Revisions) > 0
+	return len(n.Paths) > 0 || len(n.Ignore) > 0 || len(n.Revisions) > 0 || len(n.Settings) > 0
 }
 
 // with is n and o together, each entry once, in the order they were met.
@@ -113,11 +117,17 @@ func (n Narrowing) with(o Narrowing) Narrowing {
 			n.Revisions = append(n.Revisions, r)
 		}
 	}
+	for _, k := range o.Settings {
+		if !slices.Contains(n.Settings, k) {
+			n.Settings = append(n.Settings, k)
+		}
+	}
+	slices.Sort(n.Settings)
 	return n
 }
 
 // String names what changed as a reader says it: "paths no longer reading all of services/api;
-// ignore src/client.py; revision pinned to v2".
+// ignore src/client.py; revision pinned to v2; settings retirejs and trivyFs changed".
 func (n Narrowing) String() string {
 	var parts []string
 	if len(n.Paths) > 0 {
@@ -144,7 +154,41 @@ func (n Narrowing) String() string {
 			parts = append(parts, "revision "+to+", not "+from)
 		}
 	}
+	if k := len(n.Settings); k > 0 {
+		parts = append(parts, english.Choose(k, "setting ", "settings ")+english.And(n.Settings)+" changed")
+	}
 	return strings.Join(parts, "; ")
+}
+
+// scannerOnly names a setting whose whole value is {"enabled": true}: a scanner block that only
+// turns on another scanner.
+var scannerOnly = engine.SettingDigest(map[string]any{"enabled": true})
+
+// changedSettings are the keys of a control's settings that differ between base and head, sorted:
+// those the head added, removed or holds another value for.
+//
+// A key the head adds that only turns on another scanner is not counted. By itself it leaves every
+// scanner the base ran as it was and adds one more beside them, so nothing the base would have found
+// goes unlooked for; a base key changed beside it is counted on its own. Every other change counts,
+// a stricter one too, because the diff cannot tell from a setting which way it moves what a scanner
+// finds.
+//
+// A report from a release that recorded no settings reads as declaring none, so a head with settings
+// is held as though it added them.
+func changedSettings(base, head engine.ControlSettings) []string {
+	var keys []string
+	for k, b := range base {
+		if h, ok := head[k]; !ok || h != b {
+			keys = append(keys, k)
+		}
+	}
+	for k, h := range head {
+		if _, ok := base[k]; !ok && h != scannerOnly {
+			keys = append(keys, k)
+		}
+	}
+	slices.Sort(keys)
+	return keys
 }
 
 // shortRevision is a full commit id cut to the twelve characters a reader compares, and any other
@@ -333,7 +377,9 @@ func stricterOf(f *sarif.Result, cands []engine.ComponentDeclaration) (saga.Expo
 // revision it read and ignoring nothing it did not, so a repository moved to another component, or a
 // component renamed or merged with a neighbor, keeps its controls. A part nobody running the control
 // reads that way any more has lost it, whether the component stopped the control, narrowed its
-// paths, added an ignore entry or changed its revision.
+// paths, added an ignore entry or changed its revision. The control's settings count too, here and
+// for a project-wide control: one left on but run with another scanner, a narrower ruleset or any
+// other setting changed is not the control the base ran, as changedSettings describes.
 //
 // Components often share one repository and split it by paths. Read by its URL alone, a repository
 // is still covered while any one of them runs the control, and a component that stops the control on
@@ -348,6 +394,8 @@ func dropped(base, head engine.Declarations) []Dropped {
 	for _, c := range base.Controls {
 		if !slices.Contains(head.Controls, c) {
 			out = append(out, Dropped{Control: c})
+		} else if keys := changedSettings(base.Settings[c], head.Settings[c]); len(keys) > 0 {
+			out = append(out, Dropped{Control: c, Narrowed: Narrowing{Settings: keys}})
 		}
 	}
 	headOf := byName(head.Components)
@@ -360,10 +408,14 @@ func dropped(base, head engine.Declarations) []Dropped {
 			case len(b.Repositories) == 0:
 				h, ok := headOf[b.Name]
 				lost = !ok || !slices.Contains(h.Controls, control)
+				if !lost {
+					narrowed.Settings = changedSettings(b.Settings[control], h.Settings[control])
+					lost = len(narrowed.Settings) > 0
+				}
 			case byScope:
 				stopped := false
 				for _, s := range b.Scopes {
-					covered, how := coversScope(head, b.Name, s, control)
+					covered, how := coversScope(head, b.Name, s, b.Settings[control], control)
 					if covered {
 						continue
 					}
@@ -375,11 +427,7 @@ func dropped(base, head engine.Declarations) []Dropped {
 					narrowed = Narrowing{}
 				}
 			default:
-				lost = slices.ContainsFunc(b.Repositories, func(repo string) bool {
-					return !slices.ContainsFunc(head.Components, func(h engine.ComponentDeclaration) bool {
-						return slices.Contains(h.Repositories, repo) && slices.Contains(h.Controls, control)
-					})
-				})
+				lost, narrowed = lostByURL(head, b.Name, b.Repositories, b.Settings[control], control)
 			}
 			if lost {
 				out = append(out, Dropped{Component: b.Name, Control: control, Narrowed: narrowed})
@@ -397,8 +445,50 @@ func recordsScopes(d engine.Declarations) bool {
 	})
 }
 
+// lostByURL reports whether control is lost on the base component named name, which declared repos
+// with settings, read by URL alone as a report that recorded no scopes is: a repository is still
+// covered where a head component declaring it runs the control with the same settings. Where every
+// repository still has the control running but some only with other settings, the Narrowing names
+// the keys that changed, read from the component named name where it still runs the control there,
+// as coversScope reads them, and from the others otherwise.
+func lostByURL(head engine.Declarations, name string, repos []string, settings engine.ControlSettings,
+	control string) (bool, Narrowing) {
+	var lost, stopped bool
+	var narrowed Narrowing
+	for _, repo := range repos {
+		running := false
+		var own, others Narrowing
+		if slices.ContainsFunc(head.Components, func(h engine.ComponentDeclaration) bool {
+			if !slices.Contains(h.Repositories, repo) || !slices.Contains(h.Controls, control) {
+				return false
+			}
+			running = true
+			keys := changedSettings(settings, h.Settings[control])
+			if h.Name == name {
+				own = own.with(Narrowing{Settings: keys})
+			} else {
+				others = others.with(Narrowing{Settings: keys})
+			}
+			return len(keys) == 0
+		}) {
+			continue
+		}
+		lost = true
+		stopped = stopped || !running
+		if !own.narrowed() {
+			own = others
+		}
+		narrowed = narrowed.with(own)
+	}
+	if stopped {
+		narrowed = Narrowing{}
+	}
+	return lost, narrowed
+}
+
 // coversScope reports whether the head components running control still read everything s read of
-// its repository, and where they do not but still read some of it, how they narrowed it.
+// its repository, with settings, and where they do not but still read some of it, how they narrowed
+// it.
 //
 // Paths are read the way a checkout reads them, so `services/web` and `services/web/**` are one
 // subtree and an entry naming the root is the whole repository. The whole repository is covered only
@@ -415,9 +505,14 @@ func recordsScopes(d engine.Declarations) bool {
 // control over the part, since a neighbor's own entries were never what read it; from the others
 // otherwise.
 //
+// The control's settings count the same way: a head component that runs it with another scanner,
+// a narrower ruleset or any other key changed reads the part differently from the base, and does not
+// cover it.
+//
 // A report from 0.189.1 recorded scopes without ignore entries or revisions, and reads as declaring
 // none. Both scans of a pull request run on one binary, so the base and the head record alike.
-func coversScope(head engine.Declarations, name string, s engine.RepositoryScope, control string) (bool, Narrowing) {
+func coversScope(head engine.Declarations, name string, s engine.RepositoryScope, settings engine.ControlSettings,
+	control string) (bool, Narrowing) {
 	want := git.Selected(s.Paths)
 	// held is what the head scopes reading as s did select, and reached what every head scope
 	// running the control over this part selects. own and others are what the rest changed, in
@@ -438,9 +533,10 @@ func coversScope(head engine.Declarations, name string, s engine.RepositoryScope
 				continue
 			}
 			added := slices.DeleteFunc(slices.Clone(hs.Ignore), func(e string) bool { return slices.Contains(s.Ignore, e) })
-			same := len(added) == 0 && hs.Revision == s.Revision
+			keys := changedSettings(settings, h.Settings[control])
+			same := len(added) == 0 && hs.Revision == s.Revision && len(keys) == 0
 			if !same {
-				this := Narrowing{Ignore: added}
+				this := Narrowing{Ignore: added, Settings: keys}
 				if hs.Revision != s.Revision {
 					this.Revisions = []RevisionChange{{From: s.Revision, To: hs.Revision}}
 				}
@@ -619,11 +715,16 @@ func splitDropped(ds []Dropped) (stopped, narrowed []Dropped) {
 }
 
 // narrowedList names narrowed controls as a reader says them: "what secrets reads on api (ignore
-// src/client.py) and what sca reads on web (revision v2, not v1)".
+// src/client.py) and what sca reads on web (revision v2, not v1)", and a project-wide control
+// without a component: "what secrets reads (setting gitleaks changed)".
 func narrowedList(ds []Dropped) string {
 	parts := make([]string, 0, len(ds))
 	for _, d := range ds {
-		parts = append(parts, "what "+d.Control+" reads on "+d.Component+" ("+d.Narrowed.String()+")")
+		where := ""
+		if d.Component != "" {
+			where = " on " + d.Component
+		}
+		parts = append(parts, "what "+d.Control+" reads"+where+" ("+d.Narrowed.String()+")")
 	}
 	return english.And(parts)
 }

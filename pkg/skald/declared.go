@@ -23,6 +23,9 @@ const (
 	declaredExclusions  = "exclusions"
 	declaredRepos       = "repositories"
 	declaredScopes      = "repositoryScopes"
+	// declaredSettings holds each control's settings as digests, written only where some control
+	// has settings, so a declaration with none names itself as it did before they were recorded.
+	declaredSettings = "settings"
 )
 
 // declaredExclusion is the part of a config.exclude rule that decides which findings it sets
@@ -50,25 +53,47 @@ func DeclaredProvenance(d engine.Declarations) []sarif.Provenance {
 	}
 	out := []sarif.Provenance{{
 		Tool: DeclaredProvenanceTool,
-		Fields: []sarif.Field{
+		Fields: withSettings([]sarif.Field{
 			{Key: declaredControls, Value: jsonList(d.Controls)},
 			{Key: declaredExclusions, Value: jsonList(exclusions)},
-		},
+		}, d.Settings),
 	}}
 	for _, c := range d.Components {
 		out = append(out, sarif.Provenance{
 			Tool:      DeclaredProvenanceTool,
 			Component: c.Name,
-			Fields: []sarif.Field{
+			Fields: withSettings([]sarif.Field{
 				{Key: declaredControls, Value: jsonList(c.Controls)},
 				{Key: declaredCriticality, Value: string(c.Criticality)},
 				{Key: declaredExposure, Value: string(c.Exposure)},
 				{Key: declaredRepos, Value: jsonList(c.Repositories)},
 				{Key: declaredScopes, Value: jsonList(c.Scopes)},
-			},
+			}, c.Settings),
 		})
 	}
 	return out
+}
+
+// withSettings is fields with settings added as one more, fields alone where there are none.
+func withSettings(fields []sarif.Field, settings map[string]engine.ControlSettings) []sarif.Field {
+	if len(settings) == 0 {
+		return fields
+	}
+	b, err := json.Marshal(settings)
+	if err != nil {
+		return fields
+	}
+	return append(fields, sarif.Field{Key: declaredSettings, Value: string(b)})
+}
+
+// readSettings decodes the settings withSettings wrote, nil where there are none or the value does
+// not decode.
+func readSettings(value string) map[string]engine.ControlSettings {
+	var settings map[string]engine.ControlSettings
+	if value == "" || json.Unmarshal([]byte(value), &settings) != nil || len(settings) == 0 {
+		return nil
+	}
+	return settings
 }
 
 // DeclaredDigest names a declaration in sixteen hex characters: the first eight bytes of the SHA-256
@@ -97,6 +122,7 @@ func DeclaredOfReport(rep sarif.Report) (engine.Declarations, bool) {
 		recorded = true
 		if p.Component == "" {
 			d.Controls = readList[string](fieldOf(p, declaredControls))
+			d.Settings = readSettings(fieldOf(p, declaredSettings))
 			for _, e := range readList[declaredExclusion](fieldOf(p, declaredExclusions)) {
 				d.Exclusions = append(d.Exclusions, saga.ExcludeRule{Paths: e.Paths, Rules: e.Rules})
 			}
@@ -109,6 +135,7 @@ func DeclaredOfReport(rep sarif.Report) (engine.Declarations, bool) {
 			Controls:     readList[string](fieldOf(p, declaredControls)),
 			Repositories: readList[string](fieldOf(p, declaredRepos)),
 			Scopes:       readList[engine.RepositoryScope](fieldOf(p, declaredScopes)),
+			Settings:     readSettings(fieldOf(p, declaredSettings)),
 		})
 	}
 	return d, recorded

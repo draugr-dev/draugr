@@ -3,6 +3,7 @@ package skald
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -36,6 +37,10 @@ func TestTheDeclarationSurvivesTheReportFile(t *testing.T) {
 						Ignore: []string{"services/api/testdata/", "**/*.min.js"}},
 					{URL: "https://example.com/api-worker.git", Revision: "v1.4.0"},
 				},
+				Settings: map[string]engine.ControlSettings{
+					"code": {"semgrep": "0123456789abcdef", "gosec": "fedcba9876543210"},
+					"deps": {"nonShippingPaths": "00112233aabbccdd"},
+				},
 			},
 			// A component that declares no classification and turns nothing on: it reads back with
 			// both empty, which the ranking takes as the most exposed and most critical levels.
@@ -43,6 +48,7 @@ func TestTheDeclarationSurvivesTheReportFile(t *testing.T) {
 		},
 		Controls:   []string{"secrets"},
 		Exclusions: []saga.ExcludeRule{{Paths: []string{"vendor/**"}}, {Rules: []string{"G104"}}},
+		Settings:   map[string]engine.ControlSettings{"secrets": {"gitleaks": "8899aabbccddeeff"}},
 	}
 	run := sampleRun()
 	run.Declared = declared
@@ -53,6 +59,25 @@ func TestTheDeclarationSurvivesTheReportFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, declared) {
 		t.Errorf("read back\n%+v\nwant\n%+v", got, declared)
+	}
+}
+
+// Settings are recorded as digests and never as values, which may hold a credential, and a
+// settings field that no longer decodes reads as none.
+func TestSettingsAreRecordedAsDigestsOnly(t *testing.T) {
+	const token = "a-value-only-the-descriptor-holds"
+	settings := engine.SettingsOf(saga.ControllerSettings{"enabled": true, "trivyFs": saga.ControllerSettings{"token": token}}, nil)
+	entries := DeclaredProvenance(engine.Declarations{Controls: []string{"sca"},
+		Settings: map[string]engine.ControlSettings{"sca": settings}})
+	if len(entries) != 1 || strings.Contains(fieldOf(entries[0], declaredSettings), token) ||
+		!strings.Contains(fieldOf(entries[0], declaredSettings), settings["trivyFs"]) {
+		t.Errorf("settings field = %q, want the digest and not the value", fieldOf(entries[0], declaredSettings))
+	}
+
+	rep := sarif.Report{Provenance: []sarif.Provenance{{Tool: DeclaredProvenanceTool, Fields: []sarif.Field{
+		{Key: declaredControls, Value: `["sca"]`}, {Key: declaredSettings, Value: "{not a map"}}}}}
+	if got, _ := DeclaredOfReport(rep); got.Settings != nil {
+		t.Errorf("an undecodable settings field read as %+v", got.Settings)
 	}
 }
 
@@ -137,5 +162,33 @@ func TestTheDigestNamesOneDeclaration(t *testing.T) {
 	pinned := DeclaredDigest(scoped(engine.RepositoryScope{URL: "https://example.com/api.git", Revision: "v1.4.0"}))
 	if plain == ignoring || plain == pinned || ignoring == pinned {
 		t.Errorf("digests %q, %q, %q: an ignore entry or a revision should change the digest", plain, ignoring, pinned)
+	}
+
+	// A control's settings change what it looks for, so a change to one, on a component or a
+	// project-wide control, names another declaration. A declaration without settings keeps the
+	// digest it had before settings were recorded, the field being left out.
+	set := func(project, component map[string]engine.ControlSettings) engine.Declarations {
+		d := declared
+		d.Controls, d.Settings = []string{"secrets"}, project
+		d.Components = []engine.ComponentDeclaration{{Name: "api", Exposure: "public", Controls: []string{"sca"},
+			Repositories: []string{"https://example.com/api.git"}, Settings: component}}
+		return d
+	}
+	none := set(nil, nil)
+	if fields := DeclaredProvenance(none)[1].Fields; len(fields) != 5 {
+		t.Errorf("a component without settings writes %d fields, want the five it wrote before", len(fields))
+	}
+	digests := map[string]bool{}
+	for _, d := range []engine.Declarations{
+		none,
+		set(nil, map[string]engine.ControlSettings{"sca": {"trivyFs": "1111111111111111"}}),
+		set(nil, map[string]engine.ControlSettings{"sca": {"trivyFs": "2222222222222222"}}),
+		set(nil, map[string]engine.ControlSettings{"sca": {"trivyFs": "1111111111111111", "retirejs": "3333333333333333"}}),
+		set(map[string]engine.ControlSettings{"secrets": {"gitleaks": "1111111111111111"}}, nil),
+	} {
+		digests[DeclaredDigest(d)] = true
+	}
+	if len(digests) != 5 {
+		t.Errorf("%d digests for five declarations: a change to a control's settings should change the digest", len(digests))
 	}
 }

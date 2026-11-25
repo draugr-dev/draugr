@@ -1,6 +1,10 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"slices"
 	"time"
 
@@ -23,7 +27,20 @@ type Declarations struct {
 	Controls []string
 	// Exclusions are the config.exclude rules in force for this run, lapsed ones left out.
 	Exclusions []saga.ExcludeRule
+	// Settings are the settings of each of Controls, keyed by control. A control with none is
+	// absent.
+	Settings map[string]ControlSettings
 }
+
+// ControlSettings are a control's settings as a run read them, one digest for each top-level key: a
+// scanner's block, or a setting of the control's own. The enabled flag is left out, since Controls
+// already says whether the control runs.
+//
+// Recorded because a control left on can still be told to read less: another scanner in place of
+// the default, a narrower ruleset, fewer package types. Each changes what the scan looks for as
+// surely as turning the control off. Only digests, never the values: a setting may hold a
+// credential, and results.sarif is uploaded where others read it.
+type ControlSettings map[string]string
 
 // ComponentDeclaration is what a descriptor declared for one component.
 type ComponentDeclaration struct {
@@ -45,6 +62,9 @@ type ComponentDeclaration struct {
 	// part, and only the scope says which part nobody scans any more. Empty in a report written
 	// before scans recorded them.
 	Scopes []RepositoryScope
+	// Settings are the settings of each of Controls for this component, keyed by control: the
+	// project's with the component's own laid over them. A control with none is absent.
+	Settings map[string]ControlSettings
 }
 
 // RepositoryScope is one repository a component declares and the part of it the component's scans
@@ -76,6 +96,7 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 		}
 		if e.reg.controllers[name].Info().Scope == plugin.ScopeProject && model.Config.ControllerEnabled(name) {
 			d.Controls = append(d.Controls, name)
+			d.Settings = withSettings(d.Settings, name, SettingsOf(model.Config.Controls[name], nil))
 		}
 	}
 	for i := range model.Components {
@@ -94,6 +115,7 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 			}
 			if comp.ControllerEnabled(name, model.Config) {
 				c.Controls = append(c.Controls, name)
+				c.Settings = withSettings(c.Settings, name, SettingsOf(model.Config.Controls[name], comp.Controls[name]))
 			}
 		}
 		d.Components = append(d.Components, c)
@@ -105,4 +127,58 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 	}
 	slices.Sort(d.Controls)
 	return d
+}
+
+// SettingsOf is a control's settings as a run reads them, project with component laid over it as
+// controllers merge a component's block over the project's, one digest per top-level key. Nil
+// where there are none beside the enabled flag. A project-wide control passes a nil component.
+//
+// Where both set one key, its digest covers the project's value as well as the merged one. A control
+// that unions the two rather than letting the component's win, as licenses does with its lists,
+// would otherwise read an entry removed from the project's list, under a component's own list, as
+// no change.
+func SettingsOf(project, component saga.ControllerSettings) ControlSettings {
+	merged := saga.MergeSettings(project, component)
+	var out ControlSettings
+	for key, value := range merged {
+		if key == "enabled" {
+			continue
+		}
+		if out == nil {
+			out = ControlSettings{}
+		}
+		under, inProject := project[key]
+		if _, inComponent := component[key]; inProject && inComponent {
+			out[key] = SettingDigest([]any{value, under})
+			continue
+		}
+		out[key] = SettingDigest(value)
+	}
+	return out
+}
+
+// withSettings is m with control's settings s added, m unchanged where s is empty.
+func withSettings(m map[string]ControlSettings, control string, s ControlSettings) map[string]ControlSettings {
+	if len(s) == 0 {
+		return m
+	}
+	if m == nil {
+		m = map[string]ControlSettings{}
+	}
+	m[control] = s
+	return m
+}
+
+// SettingDigest names one setting's value in sixteen hex characters: the first eight bytes of the
+// SHA-256 of its JSON, which writes a map's keys in sorted order, so two descriptors that write one
+// value with its keys in another order name it alike.
+func SettingDigest(value any) string {
+	b, err := json.Marshal(value)
+	if err != nil {
+		// A value JSON cannot write, a map keyed by something other than strings. Go's formatting
+		// also writes a map's keys in sorted order, so the same value still names itself alike.
+		b = []byte(fmt.Sprintf("%#v", value))
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:8])
 }

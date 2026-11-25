@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"maps"
 	"sort"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -36,7 +35,7 @@ func resolveScanners(model saga.Model, comp *saga.Component, control string, def
 	merged := controlBlocks(model.Config.Controls, control)
 	if comp != nil {
 		for name, blk := range controlBlocks(comp.Controls, control) {
-			merged[name] = deepMerge(merged[name], blk)
+			merged[name] = saga.MergeSettings(merged[name], blk)
 		}
 	}
 
@@ -137,23 +136,6 @@ func configFromBlock(block map[string]any) plugin.Config {
 		return nil
 	}
 	return cfg
-}
-
-// deepMerge returns dst with src merged in: src keys win, and nested maps merge recursively.
-// Neither input is mutated.
-func deepMerge(dst, src map[string]any) map[string]any {
-	out := make(map[string]any, len(dst)+len(src))
-	maps.Copy(out, dst)
-	for k, v := range src {
-		if dm, ok := asMap(out[k]); ok {
-			if sm, ok := asMap(v); ok {
-				out[k] = deepMerge(dm, sm)
-				continue
-			}
-		}
-		out[k] = v
-	}
-	return out
 }
 
 // scannerConfigKey is the camelCase key a scanner is configured under in the descriptor.

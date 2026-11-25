@@ -1325,9 +1325,10 @@ that did not record the gate, or from a descriptor that sets none, leaves the he
 
 **The base's declaration still applies.** Each `results.sarif` also records what its descriptor
 declared: each component's `exposure`, `criticality`, controls and repositories with the `paths`,
-`ignore` and `revision` of each, and the [`config.exclude`](saga-schema.md#configexclude) rules in
-force. Whatever threshold applies, typed or not, the diff holds the change to the base's declaration
-until it merges:
+`ignore` and `revision` of each, a digest of each setting of every control it runs, and the
+[`config.exclude`](saga-schema.md#configexclude) rules in force. A setting is recorded as a digest
+and never as its value, since a value may hold a credential. Whatever threshold applies, typed or
+not, the diff holds the change to the base's declaration until it merges:
 
 - A new finding ranks by the more exposed and the more critical of the base's classification and the
   head's. The base's is the component of the same name, a component that declared a repository the
@@ -1342,17 +1343,27 @@ until it merges:
   reads the same `revision` and adds no `ignore` entry, and an entry spelled differently counts as new.
   So an entry over the file a change adds a finding to, or a `revision` pinned to a commit without the
   change, fails the gate the same way.
+- A control's settings count too, compared one top-level key at a time: a scanner's block, such as
+  `trivyFs`, or a setting of the control's own, such as `nonShippingPaths`. A component's are the
+  project's with its own laid over them. Turning on another scanner, a new block that sets only
+  `enabled: true`, passes. Any other change, stricter or not, fails until trusted with the digest,
+  because the diff cannot tell which way a setting moves what a scanner finds. So switching `sca` from
+  `trivyFs` to `retirejs`, narrowing `pkgTypes` or pointing `semgrep` at another ruleset fails the
+  gate the way a narrowed `paths` does, on one component or on a project-wide control.
 - A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
   gated as new.
 
 The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
 there was looked for.`, or, where the control still runs, what changed: `This change alters what
-secrets reads on api (ignore src/client.py), so what it adds there may not have been looked for.` A
-change that lowers a classification or adds an exclusion, and adds no finding of its own, passes. A
-base report from a release that did not record the declaration says so and leaves the head's to
-decide. One from 0.189.0 recorded each repository without its `paths`, so its controls are compared
-by repository alone. One from 0.189.1 recorded neither `ignore` nor `revision`, so a head that
-declares either looks newly added. Scan the base with the same release as the head.
+secrets reads on api (ignore src/client.py), so what it adds there may not have been looked for.` or
+`This change alters what sca reads on api (setting trivyFs changed), so what it adds there may not
+have been looked for.` A change that lowers a classification or adds an exclusion, and adds no
+finding of its own, passes. A base report from a release that did not record the declaration says
+so and leaves the head's to decide. One from 0.189.0 recorded each repository without its `paths`,
+so its controls are compared by repository alone. One from 0.189.1 recorded neither `ignore` nor
+`revision`, so a head that declares either looks newly added. It recorded no control's settings
+either, and reads as declaring none, so a head with settings is held until trusted. Scan the base
+with the same release as the head.
 
 A diff held to its base prints a digest of the head's descriptor. Given that digest as
 `--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the

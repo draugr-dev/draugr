@@ -588,6 +588,12 @@ controls`](cli.md#draugr-controls) lists and what the [JSON
 Schema](../guides/editor-support.md) offers for autocompletion. All three
 come from one place and cannot disagree.
 
+**A pull request that changes a control's settings is held to its base.** A scanner switched,
+turned off or given other options, or a setting of the control's own changed, here or in a
+component's `controls`, fails the new-findings gate on a pull request until it merges, since what the
+change adds may not have been looked for. Turning on one more scanner passes. [`draugr
+diff`](cli.md#draugr-diff-basesarif-headsarif) names the setting that changed and how to trust it.
+
 ### Scanning an API from its specification
 
 `dast` tests the URL a host declares and the paths Nuclei's templates name beneath it. It follows no

@@ -242,6 +242,59 @@ func TestARevisionAChangePinsIsHeldToTheBase(t *testing.T) {
 	}
 }
 
+// A pull request that keeps a control on but changes how it runs, here narrowing a scanner's option
+// for one component, fails until it merges, and the run names the setting. The same settings with
+// their keys in another order pass, as does one more scanner turned on, and the digest the failing
+// run prints gets an intended change through.
+func TestAControlsSettingsAreHeldToTheBase(t *testing.T) {
+	s, reg := stagedPair()
+	base := scanBase(t, shopSaga(t, "", `
+      trivyFs:
+        pkgTypes: [os, library]
+        dbRepository: [mirror.example.com/trivy-db]`), reg)
+	introduce(s)
+
+	narrowed := shopSaga(t, `
+    controls:
+      sca:
+        trivyFs:
+          pkgTypes: [os]`, `
+      trivyFs:
+        pkgTypes: [os, library]
+        dbRepository: [mirror.example.com/trivy-db]`)
+	console, err := scanAgainst(t, narrowed, base, "P1", reg)
+	if err == nil || !strings.Contains(err.Error(),
+		"fails: this change alters what sca reads on api (setting trivyFs changed) since") {
+		t.Fatalf("err = %v, want the changed setting named\n%s", err, console)
+	}
+	if want := "This change alters what sca reads on api (setting trivyFs changed), so what it adds there " +
+		"may not have been looked for."; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+	var trusted bytes.Buffer
+	if err := runScan(context.Background(), narrowed, scanOptions{outputDir: t.TempDir(), noPublish: true, base: base,
+		failOnNew: "P1", trustDescriptorChange: digestIn(t, console)}, reg, &trusted); err != nil {
+		t.Errorf("the trusted change failed: %v\n%s", err, trusted.String())
+	}
+
+	for name, extra := range map[string]string{
+		"the same settings in another order": `
+      trivyFs:
+        dbRepository: [mirror.example.com/trivy-db]
+        pkgTypes: [os, library]`,
+		"one more scanner turned on": `
+      trivyFs:
+        pkgTypes: [os, library]
+        dbRepository: [mirror.example.com/trivy-db]
+      retirejs:
+        enabled: true`,
+	} {
+		if out, err := scanAgainst(t, shopSaga(t, "", extra), base, "P1", reg); err != nil {
+			t.Errorf("%s: err = %v\n%s", name, err, out)
+		}
+	}
+}
+
 // A pull request that turns a control off fails until it merges, because nothing it adds where the
 // control ran was looked for, and the base's findings from that control are not fixed.
 func TestAChangeThatTurnsAControlOffFails(t *testing.T) {

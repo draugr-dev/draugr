@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -327,6 +328,183 @@ func TestAControlIsHeldToTheIgnoreAndRevisionItRead(t *testing.T) {
 	}}
 	if got := droppedList(dropped(unrecorded, withIgnore)); got != "secrets on api" {
 		t.Errorf("a base that recorded no ignore entries: dropped = %q", got)
+	}
+}
+
+// settingsHeld are the declarations of a descriptor with secrets on project-wide, sca on api and web,
+// each component on two repositories, and images on img, which declares none: each control's
+// settings as a scan records them, from the project's settings and each component's own.
+type settingsHeld struct {
+	secrets, sca, images              saga.ControllerSettings
+	apiSCA, webSCA                    saga.ControllerSettings
+	apiControls, webControls, imgCtls []string
+	// unscoped records the repositories by URL alone, as a report from 0.189.0 did.
+	unscoped bool
+}
+
+func (s settingsHeld) declarations() engine.Declarations {
+	component := func(name string, controls []string, over saga.ControllerSettings, scopes ...engine.RepositoryScope) engine.ComponentDeclaration {
+		c := declared(name, controls, scopes...)
+		if s.unscoped {
+			c.Scopes = nil
+		}
+		if slices.Contains(controls, "sca") {
+			c.Settings = map[string]engine.ControlSettings{"sca": engine.SettingsOf(s.sca, over)}
+		}
+		return c
+	}
+	img := comp("img", "", "", s.imgCtls, nil)
+	if slices.Contains(s.imgCtls, "images") {
+		img.Settings = map[string]engine.ControlSettings{"images": engine.SettingsOf(s.images, nil)}
+	}
+	return engine.Declarations{
+		Controls: []string{"secrets"},
+		Settings: map[string]engine.ControlSettings{"secrets": engine.SettingsOf(s.secrets, nil)},
+		Components: []engine.ComponentDeclaration{
+			component("api", s.apiControls, s.apiSCA,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}}, engine.RepositoryScope{URL: "r/lib"}),
+			component("web", s.webControls, s.webSCA,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/web"}}, engine.RepositoryScope{URL: "r/ui"}),
+			img,
+		},
+	}
+}
+
+// A control left on is still held to how the base ran it: a head that switches its scanner, changes
+// a scanner's option or the control's own, in the project's settings or a component's, covers
+// nothing the base read until it merges. Each key is compared by digest, so a value written with
+// its keys in another order or decoded as another map type is the same value, and one that differs
+// only inside a nested map is not. Turning on one more scanner, and nothing else, is no change.
+func TestAControlIsHeldToItsSettings(t *testing.T) {
+	type cs = saga.ControllerSettings
+	base := settingsHeld{
+		secrets:     cs{"enabled": true, "gitleaks": cs{"history": true}},
+		sca:         cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}, "db": cs{"repository": "mirror.example.com/a"}}},
+		images:      cs{"enabled": true, "trivy": cs{"severity": "LOW"}},
+		webSCA:      cs{"trivyFs": cs{"skipDirs": []any{"testdata"}}},
+		apiControls: []string{"sca"}, webControls: []string{"sca"}, imgCtls: []string{"images"},
+	}
+	for _, tc := range []struct {
+		name string
+		edit func(*settingsHeld)
+		// want is the sentence a failing run exits with, empty where nothing was lost.
+		want string
+	}{
+		{name: "nothing changed", edit: func(*settingsHeld) {}},
+		{name: "the same settings with their keys in another order and another map type", edit: func(s *settingsHeld) {
+			s.sca = cs{"trivyFs": map[string]any{"db": map[string]any{"repository": "mirror.example.com/a"}, "pkgTypes": []any{"os", "library"}}, "enabled": true}
+		}},
+		{name: "the default scanner switched off and another on, on one component", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"trivyFs": cs{"enabled": false}, "retirejs": cs{"enabled": true}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed)"},
+		{name: "a scanner's option narrowed for the project", edit: func(s *settingsHeld) {
+			s.sca = cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os"}, "db": cs{"repository": "mirror.example.com/a"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed) and what sca reads on web (setting trivyFs changed)"},
+		{name: "the control's own option on one component", edit: func(s *settingsHeld) {
+			s.webSCA = cs{"trivyFs": cs{"skipDirs": []any{"testdata"}}, "nonShippingPaths": "suppress"}
+		}, want: "this change alters what sca reads on web (setting nonShippingPaths changed)"},
+		{name: "a component override over an unchanged project setting", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"trivyFs": cs{"pkgTypes": []any{"os"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed)"},
+		{name: "a value that differs only inside a nested map", edit: func(s *settingsHeld) {
+			s.sca = cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}, "db": cs{"repository": "mirror.example.com/b"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed) and what sca reads on web (setting trivyFs changed)"},
+		{name: "a component's override removed", edit: func(s *settingsHeld) { s.webSCA = nil },
+			want: "this change alters what sca reads on web (setting trivyFs changed)"},
+		{name: "one more scanner turned on", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"retirejs": cs{"enabled": true}}
+		}},
+		{name: "one more scanner turned on beside a changed key", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"retirejs": cs{"enabled": true}, "trivyFs": cs{"pkgTypes": []any{"os"}}}
+		}, want: "this change alters what sca reads on api (setting trivyFs changed)"},
+		{name: "one more scanner turned on with an option", edit: func(s *settingsHeld) {
+			s.apiSCA = cs{"retirejs": cs{"enabled": true, "config": "x"}, "trivyFs": cs{"pkgTypes": []any{"os"}}}
+		}, want: "this change alters what sca reads on api (settings retirejs and trivyFs changed)"},
+		{name: "one more scanner turned on for the project", edit: func(s *settingsHeld) {
+			s.sca = cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}, "db": cs{"repository": "mirror.example.com/a"}}, "retirejs": cs{"enabled": true}}
+		}},
+		{name: "a scanner's block removed", edit: func(s *settingsHeld) {
+			s.sca, s.webSCA = cs{"enabled": true}, nil
+		}, want: "this change alters what sca reads on api (setting trivyFs changed) and what sca reads on web (setting trivyFs changed)"},
+		{name: "a project-wide control's scanner option", edit: func(s *settingsHeld) {
+			s.secrets = cs{"enabled": true, "gitleaks": cs{"history": false}}
+		}, want: "this change alters what secrets reads (setting gitleaks changed)"},
+		{name: "a project-wide control's scanner added alone", edit: func(s *settingsHeld) {
+			s.secrets = cs{"enabled": true, "gitleaks": cs{"history": true}, "trufflehog": cs{"enabled": true}}
+		}},
+		{name: "a control on a component with no repository", edit: func(s *settingsHeld) {
+			s.images = cs{"enabled": true, "trivy": cs{"severity": "HIGH"}}
+		}, want: "this change alters what images reads on img (setting trivy changed)"},
+		{name: "stopped on one component, settings changed on the other", edit: func(s *settingsHeld) {
+			s.apiControls = nil
+			s.webSCA = cs{"trivyFs": cs{"skipDirs": []any{"testdata", "vendor"}}}
+		}, want: "this change stops sca on api, which the base ran, and alters what sca reads on web (setting trivyFs changed)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			head := base
+			tc.edit(&head)
+			if got := (Held{Dropped: dropped(base.declarations(), head.declarations())}).DroppedSentence(); got != tc.want {
+				t.Errorf("sentence = %q, want %q", got, tc.want)
+			}
+			// A base report that recorded repositories by URL alone holds the settings alike.
+			base, head := base, head
+			base.unscoped, head.unscoped = true, true
+			if got := (Held{Dropped: dropped(base.declarations(), head.declarations())}).DroppedSentence(); got != tc.want {
+				t.Errorf("by URL: sentence = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	// A neighbor that still runs the control as the base did over the same part covers it.
+	changed := base
+	changed.apiSCA = cs{"trivyFs": cs{"pkgTypes": []any{"os"}}}
+	head := changed.declarations()
+	audit := declared("audit", []string{"sca"}, engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}}, engine.RepositoryScope{URL: "r/lib"})
+	audit.Settings = map[string]engine.ControlSettings{"sca": engine.SettingsOf(base.sca, nil)}
+	head.Components = append(head.Components, audit)
+	if got := droppedList(dropped(base.declarations(), head)); got != "" {
+		t.Errorf("a neighbor running sca as the base did: dropped = %q", got)
+	}
+
+	// A base report from a release that recorded no settings reads as declaring none, so a head
+	// with settings is held as though it added them.
+	unrecorded := base.declarations()
+	unrecorded.Settings = nil
+	for i := range unrecorded.Components {
+		unrecorded.Components[i].Settings = nil
+	}
+	if got := (Held{Dropped: dropped(unrecorded, base.declarations())}).DroppedSentence(); got !=
+		"this change alters what secrets reads (setting gitleaks changed), what sca reads on api (setting trivyFs changed), "+
+			"what sca reads on web (setting trivyFs changed) and what images reads on img (setting trivy changed)" {
+		t.Errorf("a base that recorded no settings: sentence = %q", got)
+	}
+}
+
+// A change to a control's settings fails until it merges and says which keys changed, for a
+// component and for a project-wide control, and the base's finding from it reads as not scanned.
+func TestChangedSettingsAreSaid(t *testing.T) {
+	gone := on(res("trivy", "CVE-1", sarif.LevelError, "go.mod", 1, "P1"), "api", "", "")
+	gone.Control = "sca"
+	compared := Compare(sarif.Report{Results: []sarif.Result{gone}}, sarif.Report{})
+	type cs = saga.ControllerSettings
+	base := settingsHeld{
+		secrets: cs{"enabled": true}, sca: cs{"enabled": true, "trivyFs": cs{"pkgTypes": []any{"os", "library"}}},
+		apiControls: []string{"sca"}, webControls: []string{"sca"},
+	}
+	head := base
+	head.apiSCA = cs{"trivyFs": cs{"enabled": false}, "retirejs": cs{"enabled": true, "config": "p/js"}}
+	head.secrets = cs{"enabled": true, "gitleaks": cs{"history": true}}
+
+	held := compared.HoldToBase(base.declarations(), head.declarations(), true, matrixRank)
+	held.Gate = Gate{FailOnPriority: "P4"}
+	if v, failed := verdict(held); v != "FAIL" || !failed {
+		t.Errorf("verdict = %q, %v with settings changed", v, failed)
+	}
+	want := "This change alters what secrets reads (setting gitleaks changed) and what sca reads on api " +
+		"(settings retirejs and trivyFs changed), so what it adds there may not have been looked for, " +
+		"and 1 finding from the base reads as not scanned rather than fixed"
+	if notes := held.Held.Notes(); len(notes) == 0 || notes[0] != want {
+		t.Errorf("notes = %q, want %q first", notes, want)
 	}
 }
 

@@ -3,6 +3,7 @@ package saga
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"path"
 	"reflect"
 	"slices"
@@ -1611,6 +1612,40 @@ func settingsEnabled(settings ControllerSettings) bool {
 	}
 	enabled, ok := v.(bool)
 	return ok && enabled
+}
+
+// MergeSettings is over laid on top of under, as a component's settings for a control lie on top of
+// the project's: keys in over win, and where both hold a map under one key the two merge key by key.
+// Neither input is changed.
+//
+// One merge for every reader of a control's settings, so what a scan ran with and what its report
+// records it ran with cannot be worked out two ways.
+func MergeSettings(under, over map[string]any) map[string]any {
+	out := make(map[string]any, len(under)+len(over))
+	maps.Copy(out, under)
+	for k, v := range over {
+		if um, ok := settingsMap(out[k]); ok {
+			if om, ok := settingsMap(v); ok {
+				out[k] = MergeSettings(um, om)
+				continue
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+
+// settingsMap is v as a map where it is one. A nested mapping decodes into the enclosing named
+// map type, ControllerSettings, which an assertion to map[string]any alone would miss.
+func settingsMap(v any) (map[string]any, bool) {
+	switch m := v.(type) {
+	case map[string]any:
+		return m, true
+	case ControllerSettings:
+		return map[string]any(m), true
+	default:
+		return nil, false
+	}
 }
 
 // Marshal renders a descriptor as YAML, at the indentation Draugr writes.
