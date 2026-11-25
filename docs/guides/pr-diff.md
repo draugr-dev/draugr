@@ -544,6 +544,11 @@ This is [`examples/github-actions.yml`](../../examples/github-actions.yml). The 
 once more as a full scan of the branch. `fail-on-new` is set in the workflow because `draugr init`
 writes no `config.gate.failOnNew`, and a diff with no threshold fails on nothing.
 
+`fetch-depth: 0` also matters on the day a pipeline upgrades past 0.189.3. A base report from 0.189.3
+or earlier did not record a `.semgrepignore` below the root, so the diff reads the file at the base's
+commit. In a shallow clone, which lacks that commit, a nested `.semgrepignore` is held as though the
+pull request added it, until the history is fetched or the base is scanned again with the new release.
+
 `diff-view: actions` changes what the comment says, grouping the change into the things somebody
 would do rather than listing every finding. GitLab's template takes `DRAUGR_DIFF_VIEW`, and Azure's
 takes `diffView`. It belongs in the template because which shape a team wants is a property of how

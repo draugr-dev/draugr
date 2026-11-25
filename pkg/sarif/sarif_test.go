@@ -1344,6 +1344,18 @@ func TestMarshalSARIFToolVersion(t *testing.T) {
 	if got := read(MarshalOptions{}); got != "" {
 		t.Errorf("driver version = %q, want nothing", got)
 	}
+	// Read back, so a comparison can tell which release wrote its base.
+	data, err := r.MarshalSARIFWith(MarshalOptions{ToolVersion: "0.121.1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := FromSARIF(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.ToolVersion != "0.121.1" {
+		t.Errorf("read back version = %q, want %q", back.ToolVersion, "0.121.1")
+	}
 }
 
 // Any JSON object unmarshals into a SARIF log, so a document that is not one has to be refused by

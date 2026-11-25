@@ -237,3 +237,88 @@ func TestAnInlineDirectiveTheChangeAddsIsListedAsItsOwn(t *testing.T) {
 		t.Errorf("a tool with no listed directive: %q", got)
 	}
 }
+
+// A file the base report's release could not have recorded, and that could not be read at the base's
+// commit, is held as added and named apart: nothing shows this change added it, so the run says which
+// release wrote the base and what settles it, which depends on why the read failed. The switch past
+// the base is offered as what it is, not as a question about the change's intent. A file the change
+// does add is still said as added beside it.
+func TestAFileTheBaseCouldNotRecordIsNamedApart(t *testing.T) {
+	nested := scannerFile(apiURL, "src/.semgrepignore", "1111111111111111")
+	held := func(why Unread, files ...engine.DeclaredFile) Result {
+		r := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(withFiles(), withFiles(files...), true, matrixRank)
+		r.Gate = Gate{FailOnPriority: "P1"}
+		r.Held.Digest = "81c9337fcb7ea4d9"
+		r.Held.BaseVersion = "0.189.3"
+		for i, f := range r.Held.Files {
+			if f.Path == "src/.semgrepignore" {
+				r.Held.Files[i].BaseUnread = why
+			}
+		}
+		return r
+	}
+	r := held(CommitMissing, nested)
+	if !r.Held.Fails() {
+		t.Fatal("a file the base could not have recorded passed")
+	}
+	const missing = "src/.semgrepignore in api.git is held as though this change added it. The base report is from " +
+		"Draugr 0.189.3, which did not record it, and the base's commit is not in this checkout to read it from. " +
+		"Fetch the full history (fetch-depth: 0 in actions/checkout, GIT_DEPTH: 0 on GitLab), or scan the base with this release"
+	const trust = "To pass anyway, add --trust-descriptor-change 81c9337fcb7ea4d9 to the pipeline file; it accepts " +
+		"src/.semgrepignore in api.git as it is now, unchecked against the base"
+	var buf bytes.Buffer
+	if err := Render(&buf, "console", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{missing, trust,
+		"Nothing new was reported, but src/.semgrepignore in api.git may have kept findings out of this scan."} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("console does not say %q:\n%s", want, buf.String())
+		}
+	}
+	for _, not := range []string{"This change adds", "If this change is intended"} {
+		if strings.Contains(buf.String(), not) {
+			t.Errorf("console says %q of a file nothing shows the change touched:\n%s", not, buf.String())
+		}
+	}
+	if got := r.Held.DroppedSentence(); got != "src/.semgrepignore in api.git cannot be read at the base's commit" {
+		t.Errorf("exit clause = %q", got)
+	}
+	var doc struct {
+		HeldToBase struct {
+			Files []jsonFile `json:"files"`
+		} `json:"heldToBase"`
+	}
+	if err := json.Unmarshal([]byte(renderJSONString(t, r)), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if f := doc.HeldToBase.Files; len(f) != 1 || f[0] != (jsonFile{Repository: apiURL, Path: "src/.semgrepignore", Change: "added", BaseUnread: CommitMissing}) {
+		t.Errorf("files = %+v", f)
+	}
+
+	// Where no fetch can help, the note says so.
+	unknown := held(CommitUnknown, nested)
+	if notes := strings.Join(unknown.Held.Notes(), "\n"); !strings.Contains(notes, "Draugr 0.189.3, which did not record it, and it "+
+		"cannot be read at the base's commit. Scan the base with this release") || strings.Contains(notes, "fetch-depth") {
+		t.Errorf("notes = %q", notes)
+	}
+
+	// Beside a file the change does add, both are said, each as what is known of it, and the
+	// change's intent is asked about as before.
+	both := held(CommitMissing, nested, scannerFile(webURL, ".gitleaksignore", "2222222222222222"))
+	if got := both.Held.DroppedSentence(); got != "this change adds .gitleaksignore in web.git, and src/.semgrepignore in api.git "+
+		"cannot be read at the base's commit" {
+		t.Errorf("exit clause = %q", got)
+	}
+	notes := strings.Join(both.Held.Notes(), "\n")
+	for _, want := range []string{"This change adds .gitleaksignore in web.git", "If this change is intended", missing} {
+		if !strings.Contains(notes, want) {
+			t.Errorf("notes do not say %q:\n%s", want, notes)
+		}
+	}
+	// Without the release's name, the note still says why.
+	both.Held.BaseVersion = ""
+	if notes := strings.Join(both.Held.Notes(), "\n"); !strings.Contains(notes, "The base report is from an older release,") {
+		t.Errorf("notes = %q", notes)
+	}
+}
