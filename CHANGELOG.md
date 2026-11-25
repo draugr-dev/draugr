@@ -12,6 +12,12 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.3] - 2026-11-25
+
+### Fixed
+
+- **A pull request passes the gate again when a repository's `revision` is set from a pipeline variable, such as `${{ GITHUB_SHA }}`, and the descriptor is unchanged.** 0.189.2 read each commit as a moved revision and failed every such pull request. The gate now compares `url`, `paths`, `ignore` and `revision` as the descriptor writes them, not as the variables resolve.
+
 ## [0.189.2] - 2026-11-25
 
 ### Changed
@@ -7563,7 +7569,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.2...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.3...HEAD
+[0.189.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.3
 [0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2
 [0.189.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.1
 [0.189.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.0
