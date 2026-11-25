@@ -1,0 +1,1 @@
+- **The HTML report names every way findings were set aside.** It now lists a setting such as `config.controls.sca.devDependencies: suppress`, and a scanner configuration file such as `.semgrepignore` that kept findings without listing them, as the console and Markdown reports already did.

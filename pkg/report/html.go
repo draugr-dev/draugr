@@ -109,7 +109,13 @@ type htmlView struct {
 	Silenced   int
 	// ToolAside is what the tool of each imported file set aside, a row per tool, apart from
 	// Silenced, which counts only the scanners this run started.
-	ToolAside   []htmlToolAside
+	ToolAside []htmlToolAside
+	// Settings is what a control's setting set aside, a row per key and reason, and Unlisted each
+	// configuration file that kept findings from a scanner without listing them. Both are rows of
+	// the console's ACCEPTED block and the Markdown report's Accepted table, in the same words, so
+	// the page names every source of a set-aside the other two formats name.
+	Settings    []htmlSetAside
+	Unlisted    []htmlSetAside
 	SBOMCount   int
 	SBOMFormat  string
 	MinPriority string // set when the listing was filtered, so the page can say so
@@ -556,6 +562,8 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 		Imported:    d.Run.Imported,
 		Silenced:    nativeSilenced(d),
 		ToolAside:   htmlToolAsides(d),
+		Settings:    htmlSettings(d),
+		Unlisted:    htmlUnlisted(d),
 		SBOMCount:   s.sboms,
 		SBOMFormat:  s.sbomFormat,
 		MinPriority: strings.ToUpper(s.minPriority),
@@ -867,6 +875,29 @@ func htmlToolAsides(d Data) []htmlToolAside {
 	var out []htmlToolAside
 	for _, t := range toolAsides(d) {
 		out = append(out, htmlToolAside{Reporter: t.reporter, N: t.n, Said: t.said()})
+	}
+	return out
+}
+
+// htmlSetAside is one source of a set-aside the page names by where it was decided, a setting's
+// key or a scanner's configuration file, with the console's statement of what it set aside.
+type htmlSetAside struct{ Where, Said string }
+
+// htmlSettings are the page's rows for settingRows.
+func htmlSettings(d Data) []htmlSetAside {
+	var out []htmlSetAside
+	for _, r := range settingRows(d) {
+		out = append(out, htmlSetAside{Where: r.where(), Said: r.said()})
+	}
+	return out
+}
+
+// htmlUnlisted are the page's rows for unlistedRows. Nothing else on the page shows what such a
+// file covered, because the scanner reported nothing, so the row is the only sign it applied.
+func htmlUnlisted(d Data) []htmlSetAside {
+	var out []htmlSetAside
+	for _, u := range unlistedRows(d) {
+		out = append(out, htmlSetAside{Where: u.where, Said: u.said})
 	}
 	return out
 }
@@ -2593,15 +2624,17 @@ lists the other fields.</p>
       reason: &lt;why it is set aside&gt;
       expires: &lt;YYYY-MM-DD&gt;</pre>{{end}}
 
-{{if or .Suppressed .Imported .Silenced .ToolAside .Decisions .Unmatched .Excluded .Findings}}
+{{if or .Suppressed .Imported .Silenced .ToolAside .Settings .Unlisted .Decisions .Unmatched .Excluded .Findings}}
 <details class="fold" open><summary id="suppressed"><span class="sec">Accepted</span></summary>
-{{- if or .Suppressed .Imported .Silenced .ToolAside .Decisions .Unmatched .Excluded}}
+{{- if or .Suppressed .Imported .Silenced .ToolAside .Settings .Unlisted .Decisions .Unmatched .Excluded}}
 <p class="note">
 {{- if .Suppressed}}<code class="cmd">config.exclude</code>: {{plural .Suppressed "finding"}} suppressed. {{end -}}
 {{- if .Imported}}VEX: {{plural .Imported "finding"}} excused. {{end -}}
+{{- range .Settings}}<code class="cmd">{{.Where}}</code>: {{.Said}}. {{end -}}
 {{- range .ToolAside}}{{.Reporter}}: {{.Said}}. {{end -}}
 {{- if .Silenced}}Scanner exclusions: {{plural .Silenced "finding"}} suppressed. {{end -}}
-{{- if not (or .Suppressed .Imported .Silenced .ToolAside)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
+{{- range .Unlisted}}<code>{{.Where}}</code>: {{.Said}}. {{end -}}
+{{- if not (or .Suppressed .Imported .Silenced .ToolAside .Settings .Unlisted)}}Set aside by <code class="cmd">config.exclude</code>.{{end -}}
 </p>
 {{- else}}
 <p class="note">Nothing in this run is set aside.</p>
