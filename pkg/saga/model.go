@@ -3,6 +3,7 @@ package saga
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"path"
 	"reflect"
 	"slices"
@@ -40,6 +41,84 @@ type Model struct {
 	// textWarnings names each value written unquoted where a field takes text, in this file and in
 	// the fragments merged into it, for a run and `draugr validate` to print.
 	textWarnings []string
+	// substituted holds each pipeline variable a `${{ }}` reference in this file, or in a fragment
+	// merged into it, was replaced with, by name, for AsWritten to put the references back.
+	substituted map[string]string
+}
+
+// AsWritten is value with each pipeline variable a `${{ NAME }}` reference put into it written back
+// as the reference, in every string it holds, at any depth of a setting's maps and lists. Values of
+// other types, and a model that substituted nothing, are returned as they are.
+//
+// For what a run records about a descriptor rather than what it runs. A pipeline sets its variables
+// for each job, so a value substituted from one, a path under a fresh temporary directory, differs
+// from one scan to the next while the descriptor is unchanged, and a pull request cannot change it.
+// The reference is what the descriptor wrote and what a change to it would change. Where a literal
+// happens to equal a variable's value it reads as the reference too, which names the same setting
+// in that pipeline.
+func (m *Model) AsWritten(value any) any {
+	if len(m.substituted) == 0 {
+		return value
+	}
+	// Longest value first, so a value that holds another is put back whole; by name among equals,
+	// so two runs put back the same references.
+	names := make([]string, 0, len(m.substituted))
+	for name, v := range m.substituted {
+		if v != "" {
+			names = append(names, name)
+		}
+	}
+	slices.SortFunc(names, func(a, b string) int {
+		if d := len(m.substituted[b]) - len(m.substituted[a]); d != 0 {
+			return d
+		}
+		return strings.Compare(a, b)
+	})
+	var written func(v any) any
+	written = func(v any) any {
+		switch v := v.(type) {
+		case string:
+			for _, name := range names {
+				v = strings.ReplaceAll(v, m.substituted[name], "${{ "+name+" }}")
+			}
+			return v
+		case ControllerSettings:
+			out := make(ControllerSettings, len(v))
+			for k, item := range v {
+				out[k] = written(item)
+			}
+			return out
+		case map[string]any:
+			out := make(map[string]any, len(v))
+			for k, item := range v {
+				out[k] = written(item)
+			}
+			return out
+		case []any:
+			out := make([]any, len(v))
+			for i, item := range v {
+				out[i] = written(item)
+			}
+			return out
+		case []string:
+			out := make([]string, len(v))
+			for i, item := range v {
+				out[i] = written(item).(string)
+			}
+			return out
+		}
+		return v
+	}
+	return written(value)
+}
+
+// SettingsAsWritten is AsWritten for a control's settings, nil where s is.
+func (m *Model) SettingsAsWritten(s ControllerSettings) ControllerSettings {
+	if s == nil {
+		return nil
+	}
+	out, _ := m.AsWritten(s).(ControllerSettings)
+	return out
 }
 
 // TextWarnings names each value YAML reads as a number or a boolean that the descriptor, or a
@@ -1559,6 +1638,8 @@ type Fragment struct {
 
 	// textWarnings is Model.textWarnings for this fragment, carried to the descriptor it merges into.
 	textWarnings []string
+	// substituted is Model.substituted for this fragment, carried to the descriptor it merges into.
+	substituted map[string]string
 }
 
 // TextWarnings is Model.TextWarnings for a fragment on its own.
@@ -1611,6 +1692,40 @@ func settingsEnabled(settings ControllerSettings) bool {
 	}
 	enabled, ok := v.(bool)
 	return ok && enabled
+}
+
+// MergeSettings is over laid on top of under, as a component's settings for a control lie on top of
+// the project's: keys in over win, and where both hold a map under one key the two merge key by key.
+// Neither input is changed.
+//
+// One merge for every reader of a control's settings, so what a scan ran with and what its report
+// records it ran with cannot be worked out two ways.
+func MergeSettings(under, over map[string]any) map[string]any {
+	out := make(map[string]any, len(under)+len(over))
+	maps.Copy(out, under)
+	for k, v := range over {
+		if um, ok := settingsMap(out[k]); ok {
+			if om, ok := settingsMap(v); ok {
+				out[k] = MergeSettings(um, om)
+				continue
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+
+// settingsMap is v as a map where it is one. A nested mapping decodes into the enclosing named
+// map type, ControllerSettings, which an assertion to map[string]any alone would miss.
+func settingsMap(v any) (map[string]any, bool) {
+	switch m := v.(type) {
+	case map[string]any:
+		return m, true
+	case ControllerSettings:
+		return map[string]any(m), true
+	default:
+		return nil, false
+	}
 }
 
 // Marshal renders a descriptor as YAML, at the indentation Draugr writes.

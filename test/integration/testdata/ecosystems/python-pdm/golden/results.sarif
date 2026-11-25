@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./python-pdm\"]",
-              "repositoryScopes": "[{\"url\":\"./python-pdm\"}]"
+              "repositoryScopes": "[{\"url\":\"./python-pdm\"}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"26b3426b2593763c\"}}"
             },
             "tool": "draugr/declared"
           },

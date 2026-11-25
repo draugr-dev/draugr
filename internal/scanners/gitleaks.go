@@ -61,6 +61,8 @@ func NewGitleaks() plugin.Scanner {
 	s.parse = parseGitleaks
 	s.parseFile = parseGitleaksFile
 	s.secretsFile = gitleaksSecretsFile
+	s.settingFiles = gitleaksSettingFiles
+	s.unlisted = gitleaksUnlisted
 	return s
 }
 

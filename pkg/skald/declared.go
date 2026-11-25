@@ -23,6 +23,13 @@ const (
 	declaredExclusions  = "exclusions"
 	declaredRepos       = "repositories"
 	declaredScopes      = "repositoryScopes"
+	// declaredSettings holds each control's settings as digests, written only where some control
+	// has settings, so a declaration with none names itself as it did before they were recorded.
+	declaredSettings = "settings"
+	// declaredFiles holds the files outside the descriptor that can set findings aside or change
+	// what a scanner finds, each with its digests, written only where the run read any, for the same
+	// reason.
+	declaredFiles = "files"
 )
 
 // declaredExclusion is the part of a config.exclude rule that decides which findings it sets
@@ -41,34 +48,57 @@ type declaredExclusion struct {
 // the change under review, and a change that declares its component less exposed, turns a control
 // off or excludes the finding it adds would otherwise be judged by the declaration it introduces.
 func DeclaredProvenance(d engine.Declarations) []sarif.Provenance {
-	if len(d.Components) == 0 && len(d.Controls) == 0 && len(d.Exclusions) == 0 {
+	if len(d.Components) == 0 && len(d.Controls) == 0 && len(d.Exclusions) == 0 && len(d.Files) == 0 {
 		return nil
 	}
 	exclusions := make([]declaredExclusion, 0, len(d.Exclusions))
 	for _, rule := range d.Exclusions {
 		exclusions = append(exclusions, declaredExclusion{Paths: rule.Paths, Rules: rule.Rules})
 	}
-	out := []sarif.Provenance{{
-		Tool: DeclaredProvenanceTool,
-		Fields: []sarif.Field{
-			{Key: declaredControls, Value: jsonList(d.Controls)},
-			{Key: declaredExclusions, Value: jsonList(exclusions)},
-		},
-	}}
+	project := withSettings([]sarif.Field{
+		{Key: declaredControls, Value: jsonList(d.Controls)},
+		{Key: declaredExclusions, Value: jsonList(exclusions)},
+	}, d.Settings)
+	if len(d.Files) > 0 {
+		project = append(project, sarif.Field{Key: declaredFiles, Value: jsonList(d.Files)})
+	}
+	out := []sarif.Provenance{{Tool: DeclaredProvenanceTool, Fields: project}}
 	for _, c := range d.Components {
 		out = append(out, sarif.Provenance{
 			Tool:      DeclaredProvenanceTool,
 			Component: c.Name,
-			Fields: []sarif.Field{
+			Fields: withSettings([]sarif.Field{
 				{Key: declaredControls, Value: jsonList(c.Controls)},
 				{Key: declaredCriticality, Value: string(c.Criticality)},
 				{Key: declaredExposure, Value: string(c.Exposure)},
 				{Key: declaredRepos, Value: jsonList(c.Repositories)},
 				{Key: declaredScopes, Value: jsonList(c.Scopes)},
-			},
+			}, c.Settings),
 		})
 	}
 	return out
+}
+
+// withSettings is fields with settings added as one more, fields alone where there are none.
+func withSettings(fields []sarif.Field, settings map[string]engine.ControlSettings) []sarif.Field {
+	if len(settings) == 0 {
+		return fields
+	}
+	b, err := json.Marshal(settings)
+	if err != nil {
+		return fields
+	}
+	return append(fields, sarif.Field{Key: declaredSettings, Value: string(b)})
+}
+
+// readSettings decodes the settings withSettings wrote, nil where there are none or the value does
+// not decode.
+func readSettings(value string) map[string]engine.ControlSettings {
+	var settings map[string]engine.ControlSettings
+	if value == "" || json.Unmarshal([]byte(value), &settings) != nil || len(settings) == 0 {
+		return nil
+	}
+	return settings
 }
 
 // DeclaredDigest names a declaration in sixteen hex characters: the first eight bytes of the SHA-256
@@ -97,6 +127,8 @@ func DeclaredOfReport(rep sarif.Report) (engine.Declarations, bool) {
 		recorded = true
 		if p.Component == "" {
 			d.Controls = readList[string](fieldOf(p, declaredControls))
+			d.Settings = readSettings(fieldOf(p, declaredSettings))
+			d.Files = readList[engine.DeclaredFile](fieldOf(p, declaredFiles))
 			for _, e := range readList[declaredExclusion](fieldOf(p, declaredExclusions)) {
 				d.Exclusions = append(d.Exclusions, saga.ExcludeRule{Paths: e.Paths, Rules: e.Rules})
 			}
@@ -109,6 +141,7 @@ func DeclaredOfReport(rep sarif.Report) (engine.Declarations, bool) {
 			Controls:     readList[string](fieldOf(p, declaredControls)),
 			Repositories: readList[string](fieldOf(p, declaredRepos)),
 			Scopes:       readList[engine.RepositoryScope](fieldOf(p, declaredScopes)),
+			Settings:     readSettings(fieldOf(p, declaredSettings)),
 		})
 	}
 	return d, recorded

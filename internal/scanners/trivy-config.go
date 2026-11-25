@@ -56,6 +56,7 @@ func NewTrivyConfig() plugin.Scanner {
 	s.prewarm = func(ctx context.Context) error { return sharedTrivyChecks.warm(ctx) }
 	s.dataState = sharedTrivyData.checks
 	s.runLogged = trivyConfigRun(trivyConfigExec)
+	s.settingFiles = trivyConfigSettingFiles
 	return s
 }
 

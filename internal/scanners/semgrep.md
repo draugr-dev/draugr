@@ -82,7 +82,12 @@ gaps from the JSON report and lists each file as an `unread-files` caveat:
 
 A file Semgrep was told to skip, by `.semgrepignore`, `.gitignore` or a component's `ignore:`, is
 not listed. [`sast`](../controllers/sast.md#unread) has what to do about each and how to fail the
-run on them.
+run on them. Semgrep reads `.semgrepignore` at the root of the checkout. Where it holds one, the
+run's ACCEPTED block names it once per repository, `.semgrepignore kept some files from semgrep;
+what it covered is not listed`, and `report.json` lists it under `unlistedSetAsides`. A pull request
+that adds or edits the file, or edits the ruleset `config` names on disk, is held to its base until
+it merges, as [`draugr diff`](../../docs/reference/cli.md#draugr-diff-basesarif-headsarif)
+describes.
 
 ## Severity
 

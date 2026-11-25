@@ -40,7 +40,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./images-grype\"]",
-              "repositoryScopes": "[{\"url\":\"./images-grype\"}]"
+              "repositoryScopes": "[{\"url\":\"./images-grype\"}]",
+              "settings": "{\"images\":{\"grype\":\"26b3426b2593763c\",\"trivy\":\"5acf3ff77b442067\"}}"
             },
             "tool": "draugr/declared"
           },

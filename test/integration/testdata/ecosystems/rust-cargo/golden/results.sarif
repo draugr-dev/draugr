@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./rust-cargo\"]",
-              "repositoryScopes": "[{\"url\":\"./rust-cargo\"}]"
+              "repositoryScopes": "[{\"url\":\"./rust-cargo\"}]",
+              "settings": "{\"sca\":{\"osvScanner\":\"26b3426b2593763c\"}}"
             },
             "tool": "draugr/declared"
           },

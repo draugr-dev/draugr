@@ -21,14 +21,16 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./options-gitleaks\"]",
-              "repositoryScopes": "[{\"url\":\"./options-gitleaks\"}]"
+              "repositoryScopes": "[{\"url\":\"./options-gitleaks\"}]",
+              "settings": "{\"secrets\":{\"gitleaks\":\"c5578666b245d5bc\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"./gitleaks.toml\",\"digests\":[\"fac304b41405adca\"]}]"
             },
             "tool": "draugr/declared"
           },

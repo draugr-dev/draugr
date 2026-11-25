@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -1644,6 +1645,35 @@ func silencedLine(d Data) string {
 	// argument for printing it rather than something to print on it: the label says which row this
 	// is and the documentation says what the label means.
 	return fmt.Sprintf("scanner exclusions: %s suppressed", english.Count(n, "finding"))
+}
+
+// unlistedRow is one scanner's configuration file that kept findings from it without listing them:
+// where is the file, with its repository where the run read more than one, and said what it did.
+type unlistedRow struct{ where, said string }
+
+// unlistedRows are the rows for the configuration files that kept findings from a scanner and left
+// no record of them, one per repository, file and scanner. Silenced counts what a scanner reported
+// as set aside; these reported nothing, so the row names the file in place of a count.
+func unlistedRows(d Data) []unlistedRow {
+	repos := map[string]bool{}
+	for _, c := range d.Run.Declared.Components {
+		for _, r := range c.Repositories {
+			repos[r] = true
+		}
+	}
+	out := make([]unlistedRow, 0, len(d.Run.Unlisted))
+	for _, u := range d.Run.Unlisted {
+		where := u.File
+		if len(repos) > 1 {
+			where += " in " + path.Base(strings.TrimRight(u.Repository, "/"))
+		}
+		said := "kept some files from " + u.Scanner + "; what it covered is not listed"
+		if path.Base(u.File) == ".gitleaks.toml" {
+			said = "its allowlist kept some findings from " + u.Scanner + "; what it covered is not listed"
+		}
+		out = append(out, unlistedRow{where: where, said: said})
+	}
+	return out
 }
 
 // nativeSilenced counts what the scanners this run started set aside on their own: the engine's

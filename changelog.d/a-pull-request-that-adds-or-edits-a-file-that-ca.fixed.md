@@ -1,0 +1,1 @@
+- **A pull request that adds or edits a file that can set findings aside now fails the gate until it merges.** A VEX document, `.trivyignore`, `.gitleaksignore`, `.semgrepignore`, `.gitleaks.toml` or a ruleset a setting names can hide the change's own finding as surely as the descriptor. Pass an intended change with the `--trust-descriptor-change` digest the run prints.

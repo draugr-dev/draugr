@@ -128,28 +128,6 @@ func TestControlBlocksSkipsScalars(t *testing.T) {
 	}
 }
 
-func TestDeepMerge(t *testing.T) {
-	dst := map[string]any{"a": 1, "nested": map[string]any{"x": 1, "y": 2}}
-	src := map[string]any{"b": 2, "nested": map[string]any{"y": 3, "z": 4}}
-	got := deepMerge(dst, src)
-	want := map[string]any{"a": 1, "b": 2, "nested": map[string]any{"x": 1, "y": 3, "z": 4}}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("deepMerge = %v, want %v", got, want)
-	}
-	// Inputs are not mutated.
-	if len(dst) != 2 || dst["nested"].(map[string]any)["y"] != 2 {
-		t.Error("deepMerge mutated dst")
-	}
-}
-
-func TestDeepMergeScalarOverMap(t *testing.T) {
-	// A scalar in src replaces a map in dst (no merge across kinds).
-	got := deepMerge(map[string]any{"k": map[string]any{"a": 1}}, map[string]any{"k": "scalar"})
-	if got["k"] != "scalar" {
-		t.Errorf("k = %v, want scalar", got["k"])
-	}
-}
-
 func TestEnabledFlag(t *testing.T) {
 	if _, ok := enabledFlag(map[string]any{}); ok {
 		t.Error("absent enabled should report unset")

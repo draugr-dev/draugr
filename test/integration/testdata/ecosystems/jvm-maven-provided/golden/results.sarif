@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./jvm-maven-provided\"]",
-              "repositoryScopes": "[{\"url\":\"./jvm-maven-provided\",\"paths\":[\"default\"]}]"
+              "repositoryScopes": "[{\"url\":\"./jvm-maven-provided\",\"paths\":[\"default\"]}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"26b3426b2593763c\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -32,7 +33,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./jvm-maven-provided\"]",
-              "repositoryScopes": "[{\"url\":\"./jvm-maven-provided\",\"paths\":[\"report\"]}]"
+              "repositoryScopes": "[{\"url\":\"./jvm-maven-provided\",\"paths\":[\"report\"]}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"26b3426b2593763c\",\"providedDependencies\":\"8d0ccb734a265b63\"}}"
             },
             "tool": "draugr/declared"
           },

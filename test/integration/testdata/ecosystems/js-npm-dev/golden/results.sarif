@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./js-npm-dev\"]",
-              "repositoryScopes": "[{\"url\":\"./js-npm-dev\"}]"
+              "repositoryScopes": "[{\"url\":\"./js-npm-dev\"}]",
+              "settings": "{\"sca\":{\"devDependencies\":\"8d0ccb734a265b63\"}}"
             },
             "tool": "draugr/declared"
           },

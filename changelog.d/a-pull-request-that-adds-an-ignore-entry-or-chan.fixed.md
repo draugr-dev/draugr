@@ -1,0 +1,1 @@
+- **A pull request that adds an `ignore` entry or changes a repository's `revision` now fails the gate on new findings until it merges.** Either changes what the scan reads, so the head could miss what the change adds. The run names what changed; if the change is intended, `--trust-descriptor-change` with the digest it prints lets it through.

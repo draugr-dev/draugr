@@ -289,6 +289,12 @@ func merge(model *Model, frag Fragment) map[string][]string {
 	model.Config.Exclude = append(model.Config.Exclude, frag.Config.Exclude...)
 	mergeFragmentControls(&model.Config, frag.Config.Controls, frag.Source)
 	model.textWarnings = append(model.textWarnings, frag.textWarnings...)
+	for name, value := range frag.substituted {
+		if model.substituted == nil {
+			model.substituted = map[string]string{}
+		}
+		model.substituted[name] = value
+	}
 	return supplied
 }
 
@@ -342,7 +348,8 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 	if err := yaml.Unmarshal(data, &root); err != nil {
 		return Fragment{}, fmt.Errorf("parse fragment %q: %w", path, err)
 	}
-	if err := substitute(&root, fmt.Sprintf("fragment %q", path)); err != nil {
+	substitutedVars, err := substitute(&root, fmt.Sprintf("fragment %q", path))
+	if err != nil {
 		return Fragment{}, err
 	}
 	if err := noEmptyValues(&root); err != nil {
@@ -366,6 +373,7 @@ func LoadFragment(data []byte, path string) (Fragment, error) {
 	if err := f.Validate(); err != nil {
 		return Fragment{}, fmt.Errorf("fragment %q: %w", path, err)
 	}
+	f.substituted = substitutedVars
 	return f, nil
 }
 

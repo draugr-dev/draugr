@@ -51,10 +51,10 @@ func TestLicensesPlanNilComponent(t *testing.T) {
 }
 
 func TestLicensePolicyUnionsRatherThanOverrides(t *testing.T) {
-	// The one place this control departs from how every other controller merges settings. deepMerge
-	// replaces a list outright, so a component adding one denied license would silently discard the
-	// organization's, a component quietly opting out of an org license policy, invisible in review. A
-	// component can only tighten.
+	// The one place this control departs from how every other controller merges settings.
+	// saga.MergeSettings replaces a list outright, so a component adding one denied license would
+	// silently discard the organization's, a component quietly opting out of an org license policy,
+	// invisible in review. A component can only tighten.
 	model := saga.Model{Config: saga.Config{Controls: map[string]saga.ControllerSettings{
 		"licenses": {"deny": []any{"GPL-3.0-only", "AGPL-3.0-only"}},
 	}}}

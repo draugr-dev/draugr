@@ -176,6 +176,10 @@ file failed is carried across; Trivy applies the rule to the checks a file passe
 
 Two exclusions leave no record: an inline `#trivy:ignore:<id>` comment, which Trivy omits from
 every output format, and any exclusion on a Trivy older than 0.53.0.
+
+A pull request that adds or edits `.trivyignore`, `.trivyignore.yaml` or `trivy.yaml` at the root of
+the checkout, or a check file or directory `checks` names, is held to its base until it merges, as
+[`draugr diff`](../../docs/reference/cli.md#draugr-diff-basesarif-headsarif) describes.
 [`config.exclude`](../../docs/reference/saga-schema.md#configexclude) keeps the finding and its reason.
 
 ## Sentence

@@ -71,6 +71,18 @@ func TestAScanRecordsWhatItsDescriptorDeclared(t *testing.T) {
 	if len(d.Exclusions) != 1 || strings.Join(d.Exclusions[0].Rules, ",") != "CVE-OLD" {
 		t.Errorf("exclusions = %+v", d.Exclusions)
 	}
+
+	// Each repository is recorded with what narrows its scan: its ignore entries and its revision.
+	if rep, err = loadSARIF(scanBase(t, repoSaga(t, `
+        revision: v1.0.0
+        ignore: [go.mod, docs/]`), reg)); err != nil {
+		t.Fatal(err)
+	}
+	d, _ = skald.DeclaredOfReport(rep)
+	want := []engine.RepositoryScope{{URL: apiRepo, Ignore: []string{"go.mod", "docs/"}, Revision: "v1.0.0"}}
+	if len(d.Components) != 2 || !reflect.DeepEqual(d.Components[0].Scopes, want) {
+		t.Errorf("components = %+v, want api's scope %+v", d.Components, want)
+	}
 }
 
 // A pull request that declares its component less exposed and less critical is ranked by its base's
@@ -158,6 +170,128 @@ func TestAControlTurnedOffOnOnePartOfAMonorepoFails(t *testing.T) {
 	// web's paths written as a glob name the same subtree, and pass.
 	if _, err := scanAgainst(t, monorepoSaga(t, "", "services/web/**"), base, "P1", reg); err != nil {
 		t.Errorf("the same paths written as a glob failed: %v", err)
+	}
+}
+
+// repoSaga is the two-component descriptor with sca on and apiRepoDecl indented under api's
+// repository, where its ignore entries and revision go.
+func repoSaga(t *testing.T, apiRepoDecl string) string {
+	t.Helper()
+	return writeSaga(t, `
+project: shop
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: `+apiRepo+apiRepoDecl+`
+  - name: web
+    repositories:
+      - url: `+webRepo+`
+`)
+}
+
+// A pull request that adds an ignore entry over the file holding its new finding fails until it
+// merges. Its own scan reads nothing new, since the entry takes the file out, so only the base's
+// record of what it read shows that nothing the change adds there was looked for. The digest the
+// failing run prints gets an intended entry through, and an entry the base had passes.
+func TestAnIgnoreEntryAChangeAddsIsHeldToTheBase(t *testing.T) {
+	const ignoreGoMod = `
+        ignore: [go.mod]`
+	s, reg := stagedPair()
+	base := scanBase(t, repoSaga(t, ""), reg)
+	ignoringBase := scanBase(t, repoSaga(t, ignoreGoMod), reg)
+	introduce(s)
+	head := repoSaga(t, ignoreGoMod)
+
+	console, err := scanAgainst(t, head, base, "P4", reg)
+	if err == nil || !strings.Contains(err.Error(),
+		"fails: this change alters what sca reads on api (ignore go.mod) since") {
+		t.Fatalf("err = %v, want the narrowing named\n%s", err, console)
+	}
+	if want := "This change alters what sca reads on api (ignore go.mod), so what it adds there " +
+		"may not have been looked for, and 1 finding from the base reads as not scanned rather than fixed."; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+
+	if out, err := runScanTrusting(t, head, base, digestIn(t, console), reg); err != nil {
+		t.Errorf("the trusted entry failed: %v\n%s", err, out)
+	}
+	if out, err := scanAgainst(t, head, ignoringBase, "P4", reg); err != nil {
+		t.Errorf("an entry the base had: err = %v\n%s", err, out)
+	}
+}
+
+// A pull request that pins its repository's revision reads another tree than the one it changes, so
+// it fails until it merges, whatever its own scan found.
+func TestARevisionAChangePinsIsHeldToTheBase(t *testing.T) {
+	s, reg := stagedPair()
+	base := scanBase(t, repoSaga(t, ""), reg)
+	introduce(s)
+	head := repoSaga(t, `
+        revision: v1.0.0`)
+
+	console, err := scanAgainst(t, head, base, "P1", reg)
+	if err == nil || !strings.Contains(err.Error(),
+		"fails: this change alters what sca reads on api (revision pinned to v1.0.0) since") {
+		t.Fatalf("err = %v, want the pinned revision named\n%s", err, console)
+	}
+}
+
+// A pull request that keeps a control on but changes how it runs, here narrowing a scanner's option
+// for one component, fails until it merges, and the run names the setting. The same settings with
+// their keys in another order pass, as does one more scanner turned on, and the digest the failing
+// run prints gets an intended change through.
+func TestAControlsSettingsAreHeldToTheBase(t *testing.T) {
+	s, reg := stagedPair()
+	base := scanBase(t, shopSaga(t, "", `
+      trivyFs:
+        pkgTypes: [os, library]
+        dbRepository: [mirror.example.com/trivy-db]`), reg)
+	introduce(s)
+
+	narrowed := shopSaga(t, `
+    controls:
+      sca:
+        trivyFs:
+          pkgTypes: [os]`, `
+      trivyFs:
+        pkgTypes: [os, library]
+        dbRepository: [mirror.example.com/trivy-db]`)
+	console, err := scanAgainst(t, narrowed, base, "P1", reg)
+	if err == nil || !strings.Contains(err.Error(),
+		"fails: this change alters what sca reads on api (setting trivyFs changed) since") {
+		t.Fatalf("err = %v, want the changed setting named\n%s", err, console)
+	}
+	if want := "This change alters what sca reads on api (setting trivyFs changed), so what it adds there " +
+		"may not have been looked for."; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+	var trusted bytes.Buffer
+	if err := runScan(context.Background(), narrowed, scanOptions{outputDir: t.TempDir(), noPublish: true, base: base,
+		failOnNew: "P1", trustDescriptorChange: digestIn(t, console)}, reg, &trusted); err != nil {
+		t.Errorf("the trusted change failed: %v\n%s", err, trusted.String())
+	}
+
+	for name, extra := range map[string]string{
+		"the same settings in another order": `
+      trivyFs:
+        dbRepository: [mirror.example.com/trivy-db]
+        pkgTypes: [os, library]`,
+		"one more scanner turned on": `
+      trivyFs:
+        pkgTypes: [os, library]
+        dbRepository: [mirror.example.com/trivy-db]
+      retirejs:
+        enabled: true`,
+	} {
+		if out, err := scanAgainst(t, shopSaga(t, "", extra), base, "P1", reg); err != nil {
+			t.Errorf("%s: err = %v\n%s", name, err, out)
+		}
 	}
 }
 
@@ -320,6 +454,57 @@ func TestADescriptorChangeIsTrustedByItsDigest(t *testing.T) {
 	if err := runScan(context.Background(), head, scanOptions{outputDir: t.TempDir(), noPublish: true,
 		trustDescriptorChange: digest}, reg, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "needs a base to compare against") {
 		t.Errorf("scan without --base: err = %v", err)
+	}
+}
+
+// A pull request that adds a scanner's ignore file, or edits one in the second of two
+// repositories, fails until it merges, naming the file and its repository, and passes with the
+// digest the failing run printed. A file left as the base had it holds nothing.
+func TestAFileThatSetsFindingsAsideIsHeldToTheBase(t *testing.T) {
+	s, reg := stagedPair()
+	s.configs = map[string]map[string]string{webRepo: {".trivyignore": "1111111111111111"}}
+	path := shopSaga(t, "", "")
+	base := scanBase(t, path, reg)
+
+	// Nothing changed: the same file in web holds nothing.
+	if console, err := scanAgainst(t, path, base, "P4", reg); err != nil {
+		t.Fatalf("an unchanged file failed the change: %v\n%s", err, console)
+	}
+
+	s.configs = map[string]map[string]string{
+		apiRepo: {".gitleaksignore": "2222222222222222"},
+		webRepo: {".trivyignore": "3333333333333333"},
+	}
+	console, err := scanAgainst(t, path, base, "P4", reg)
+	const clause = "this change adds .gitleaksignore in api.git and changes .trivyignore in web.git"
+	if err == nil || !strings.Contains(err.Error(), "fails: "+clause+" since") {
+		t.Fatalf("err = %v, want the files named\n%s", err, console)
+	}
+	if want := "This change adds .gitleaksignore in api.git and changes .trivyignore in web.git, which can set " +
+		"findings aside or change what a scanner finds, so the gate holds until it merges."; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+
+	// draugr diff reads the same two files the same way.
+	headOut := t.TempDir()
+	if err := runScan(context.Background(), path, scanOptions{outputDir: headOut, noPublish: true}, reg, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := diffIn(t, t.TempDir(), base, filepath.Join(headOut, "results.sarif"), "--fail-on-new", "P4"); err == nil ||
+		err.Error() != "differential gate: "+clause {
+		t.Errorf("draugr diff: err = %v\n%s", err, out)
+	}
+
+	trusted := t.TempDir()
+	var out bytes.Buffer
+	if err := runScan(context.Background(), path, scanOptions{outputDir: trusted, noPublish: true, base: base,
+		failOnNew: "P4", trustDescriptorChange: digestIn(t, console)}, reg, &out); err != nil {
+		t.Fatalf("the trusted change failed: %v\n%s", err, out.String())
+	}
+	newBlock, _ := gateOf(t, trusted)["new"].(map[string]any)
+	files, _ := newBlock["files"].([]any)
+	if newBlock["verdict"] != "pass" || len(files) != 2 {
+		t.Errorf("gate.new = %v, want a pass that lists both files", newBlock)
 	}
 }
 

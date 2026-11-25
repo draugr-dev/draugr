@@ -2,9 +2,26 @@ package saga
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+// A component's settings lie over the project's: its keys win, nested maps merge key by key, a
+// nested mapping decoded as ControllerSettings merges like a plain map, a scalar replaces a map, and
+// neither input changes.
+func TestMergeSettings(t *testing.T) {
+	under := map[string]any{"a": 1, "nested": ControllerSettings{"x": 1, "y": 2}, "k": map[string]any{"a": 1}}
+	over := map[string]any{"b": 2, "nested": map[string]any{"y": 3, "z": 4}, "k": "scalar"}
+	got := MergeSettings(under, over)
+	want := map[string]any{"a": 1, "b": 2, "nested": map[string]any{"x": 1, "y": 3, "z": 4}, "k": "scalar"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("MergeSettings = %v, want %v", got, want)
+	}
+	if len(under) != 3 || under["nested"].(ControllerSettings)["y"] != 2 || len(over) != 3 {
+		t.Errorf("an input changed: under = %v, over = %v", under, over)
+	}
+}
 
 // A descriptor names its project once, at the top level. The accessor is what everything reads,
 // and an empty one is a run a platform files under nothing.

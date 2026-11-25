@@ -342,6 +342,9 @@ func writeEvidenceNotes(w io.Writer, d Data) {
 	if line := silencedLine(d); line != "" {
 		accepted = append(accepted, row{"scanner exclusions", strings.TrimPrefix(line, "scanner exclusions: ")})
 	}
+	for _, u := range unlistedRows(d) {
+		accepted = append(accepted, row{"`" + u.where + "`", u.said})
+	}
 	if len(accepted) > 0 {
 		_, _ = fmt.Fprintln(w, "### Accepted")
 		_, _ = fmt.Fprintln(w)

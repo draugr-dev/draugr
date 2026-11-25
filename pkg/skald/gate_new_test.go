@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
 	"github.com/draugr-dev/draugr/pkg/saga"
 	"github.com/draugr-dev/draugr/pkg/sarif"
@@ -180,5 +181,51 @@ func TestADroppedControlFailsTheGateOnNewFindings(t *testing.T) {
 	}
 	if data, _ := json.Marshal(describeNew(&NewFindings{}, "P1")); strings.Contains(string(data), "dropped") {
 		t.Errorf("new = %s: nothing dropped should leave the field out", data)
+	}
+}
+
+// A file this run adds or changes that can set findings aside fails the gate on new findings by
+// itself and is named, and a run that trusted the change passes and still names it.
+func TestAHeldFileFailsTheGateOnNewFindings(t *testing.T) {
+	files := []HeldFile{{Repository: "https://example.com/api.git", Path: ".gitleaksignore", Change: "added"},
+		{Path: "vex/pyyaml.openvex.json", Change: "changed"}}
+	got := describeNew(&NewFindings{Files: files}, "P1")
+	if got.Verdict != string(norn.Fail) {
+		t.Errorf("verdict = %q, want fail with no new finding but a held file", got.Verdict)
+	}
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `"files":[{"repository":"https://example.com/api.git","path":".gitleaksignore","change":"added"},` +
+		`{"path":"vex/pyyaml.openvex.json","change":"changed"}]`; !strings.Contains(string(data), want) {
+		t.Errorf("new = %s, want %s", data, want)
+	}
+	if got := describeNew(&NewFindings{Files: files, Trusted: true}, "P1"); got.Verdict != string(norn.Pass) || len(got.Files) != 2 {
+		t.Errorf("trusted: %+v", got)
+	}
+}
+
+// report.json names each configuration file that kept findings from a scanner without listing
+// them, per repository.
+func TestTheUnlistedSetAsidesAreInTheDocument(t *testing.T) {
+	run := prioritizedRun()
+	run.Unlisted = []engine.UnlistedSetAside{
+		{Repository: "https://example.com/api.git", File: ".semgrepignore", Scanner: "semgrep"},
+		{Repository: "https://example.com/web.git", File: ".gitleaks.toml", Scanner: "gitleaks"},
+	}
+	var buf bytes.Buffer
+	if err := RenderJSONFor(&buf, "shop", saga.Release{Version: "1"}, run, sampleVerdict(), "", nil,
+		sarif.MarshalOptions{}, Provenance{}); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Unlisted []engine.UnlistedSetAside `json:"unlistedSetAsides"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(doc.Unlisted, run.Unlisted) {
+		t.Errorf("unlistedSetAsides = %+v", doc.Unlisted)
 	}
 }

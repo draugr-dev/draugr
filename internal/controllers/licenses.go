@@ -162,7 +162,7 @@ const filePatternsKey = "filePatterns"
 // its licenses.
 func scaFilePatterns(model saga.Model, comp *saga.Component) []string {
 	key := configKeyFor(trivyFSScanner)
-	blk := deepMerge(controlBlocks(model.Config.Controls, "sca")[key], controlBlocks(comp.Controls, "sca")[key])
+	blk := saga.MergeSettings(controlBlocks(model.Config.Controls, "sca")[key], controlBlocks(comp.Controls, "sca")[key])
 	return settingStrings(blk, filePatternsKey)
 }
 

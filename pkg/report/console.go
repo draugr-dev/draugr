@@ -2479,6 +2479,12 @@ func writeAccepted(w io.Writer, col tui.Painter, d Data, full bool) {
 		})
 	}
 
+	// A file that kept findings from a scanner and left no count: lit, because what it covered is
+	// nowhere in the report and the row is the only sign it applied.
+	for _, u := range unlistedRows(d) {
+		rows = append(rows, acceptedRow{where: u.where, said: []string{u.said}, lit: true})
+	}
+
 	// A rule that matched nothing is doing nothing, and read as a clause on the row that counts the
 	// ones that worked it arrived at the same volume as them. Usually a typo, a rule id that moved,
 	// a path pattern that does not mean what it looks like, or a finding somebody fixed and forgot
