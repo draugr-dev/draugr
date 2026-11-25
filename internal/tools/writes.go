@@ -113,13 +113,16 @@ type Unwritable struct {
 	Stays bool
 }
 
-// UnwritableFor returns the first place the tool writes as it runs that cannot be written, or nil
-// when every one can or the tool writes nowhere Draugr knows of. A place that does not exist yet
-// is judged by the nearest directory above it that does, since the tool makes the rest.
+// UnwritableFor returns every place the tool writes as it runs that cannot be written, in the
+// order toolWrites lists them, or nil when every one can or the tool writes nowhere Draugr knows
+// of. Every place rather than the first, so one doctor run names all a user has to move. A place
+// that does not exist yet is judged by the nearest directory above it that does, since the tool
+// makes the rest.
 //
 // Tested by writing, not by reading permission bits: a read-only mount, an ACL and running as root
 // each make the bits say something other than what a write would do.
-func UnwritableFor(tool string) *Unwritable {
+func UnwritableFor(tool string) []Unwritable {
+	var out []Unwritable
 	for _, w := range toolWrites[tool] {
 		path := os.Getenv(w.Var)
 		if path == "" && w.Default != nil {
@@ -129,13 +132,13 @@ func UnwritableFor(tool string) *Unwritable {
 			continue
 		}
 		if !canWrite(path) {
-			return &Unwritable{
+			out = append(out, Unwritable{
 				Path: path, Var: w.Var, Stays: w.Stays,
 				Named: os.Getenv(w.Var) != "" && !UnderDraugrHome(path),
-			}
+			})
 		}
 	}
-	return nil
+	return out
 }
 
 // canWrite reports whether path, or the nearest existing directory above it, takes a write.

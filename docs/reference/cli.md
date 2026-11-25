@@ -1765,9 +1765,9 @@ A tool is also reported as unusable (`✗ no data`) when it is installed but its
 not: `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates.
 
 It is reported as `✗ can't write` when it cannot write where it keeps its downloads or settings,
-such as Trivy's database under a read-only home directory. The row names the place and the setting
-that moves it: [`DRAUGR_HOME`](#environment), which moves every tool's, or the tool's own variable
-where somebody set it to that place.
+such as Trivy's database under a read-only home directory. The row names each such place and the
+setting that moves it: [`DRAUGR_HOME`](#environment), which moves every tool's, or the tool's own
+variable where somebody set it to that place.
 
 ### Versions
 
@@ -1992,8 +1992,8 @@ The JSON's top-level fields are `draugr`, `descriptor`, `toolsDir`, `tools`, `mi
 one the `TOOLS` heading names, which is `~/.draugr/bin` or `bin/` under [`DRAUGR_HOME`](#environment).
 `missing` counts each required tool that is absent or has no data. An optional tool that is absent
 is listed and not counted. A tool with no data carries the hint for getting it. A tool that cannot
-write where it keeps its data carries `cannotWrite`, the place, and a hint saying what moves it, and
-fails the check as a missing one does.
+write where it keeps its data carries `cannotWrite`, the first such place, and a hint naming each
+place and what moves it, and fails the check as a missing one does.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
@@ -2157,8 +2157,8 @@ tool. Semgrep reads its settings there too, a `semgrep login` included; set `SEM
 to keep using yours.
 gosec and govulncheck build the code they read with Go, whose build and module caches follow Go's
 own `GOCACHE` and `GOMODCACHE`, as they do for `go build`. `draugr doctor` checks that both take a
-write wherever gosec or govulncheck is among the tools, and a cache that does not is a `can't write`
-row naming the variable that moves it.
+write wherever gosec or govulncheck is among the tools. Where either cache does not, the tool's row
+is `can't write` and names each cache that fails with the variable that moves it.
 
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what

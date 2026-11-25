@@ -1,0 +1,1 @@
+- **`draugr doctor` names every place a tool cannot write in one run.** With both of Go's caches unwritable, gosec's and govulncheck's rows name `GOMODCACHE` and `GOCACHE` together, so moving one does not reveal the other only on the next run.

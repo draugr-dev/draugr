@@ -114,25 +114,37 @@ func TestUnwritableForNamesTheToolsDefault(t *testing.T) {
 	t.Setenv("HOME", home)
 
 	got := UnwritableFor("trivy")
-	if got == nil {
-		t.Fatal("trivy's cache is under a read-only home and was reported writable")
+	if len(got) != 1 {
+		t.Fatalf("UnwritableFor(trivy) = %+v, want its one cache under the read-only home", got)
 	}
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := filepath.Join(cache, "trivy"); got.Path != want || got.Var != "TRIVY_CACHE_DIR" || got.Named {
-		t.Errorf("UnwritableFor(trivy) = %+v, want %s from the default", *got, want)
+	if want := filepath.Join(cache, "trivy"); got[0].Path != want || got[0].Var != "TRIVY_CACHE_DIR" || got[0].Named {
+		t.Errorf("UnwritableFor(trivy) = %+v, want %s from the default", got[0], want)
 	}
-	if u := UnwritableFor("semgrep"); u == nil || u.Path != filepath.Join(home, ".semgrep", "settings.yml") {
-		t.Errorf("UnwritableFor(semgrep) = %+v", u)
+	// Semgrep writes its settings and its log in one directory, and both are named.
+	semgrep := UnwritableFor("semgrep")
+	if len(semgrep) != 2 || semgrep[0].Path != filepath.Join(home, ".semgrep", "settings.yml") ||
+		semgrep[1].Path != filepath.Join(home, ".semgrep", "semgrep.log") {
+		t.Errorf("UnwritableFor(semgrep) = %+v, want its settings file and its log", semgrep)
 	}
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go on PATH to say where its caches are")
 	}
-	want := filepath.Join(home, "go", "pkg", "mod")
-	if u := UnwritableFor("gosec"); u == nil || u.Path != want || u.Var != "GOMODCACHE" || !u.Stays || u.Named {
-		t.Errorf("UnwritableFor(gosec) = %+v, want Go's default module cache %s", u, want)
+	// Both of Go's caches are under the home at their defaults, and one run names both, so whoever
+	// moves the first does not learn of the second only on the next run.
+	gosec := UnwritableFor("gosec")
+	if len(gosec) != 2 {
+		t.Fatalf("UnwritableFor(gosec) = %+v, want Go's module and build caches", gosec)
+	}
+	mod, build := gosec[0], gosec[1]
+	if want := filepath.Join(home, "go", "pkg", "mod"); mod.Path != want || mod.Var != "GOMODCACHE" || !mod.Stays || mod.Named {
+		t.Errorf("first = %+v, want Go's default module cache %s", mod, want)
+	}
+	if build.Var != "GOCACHE" || !strings.HasPrefix(build.Path, home) || !build.Stays || build.Named {
+		t.Errorf("second = %+v, want Go's default build cache under %s", build, home)
 	}
 }
 
@@ -157,13 +169,13 @@ func TestUnwritableForChecksGosCaches(t *testing.T) {
 	}
 	for _, tool := range []string{"gosec", "govulncheck"} {
 		u := UnwritableFor(tool)
-		if u == nil || u.Path != ro || u.Var != "GOCACHE" || !u.Stays || !u.Named {
-			t.Errorf("UnwritableFor(%s) = %+v, want %s named by GOCACHE", tool, u, ro)
+		if len(u) != 1 || u[0].Path != ro || u[0].Var != "GOCACHE" || !u[0].Stays || !u[0].Named {
+			t.Errorf("UnwritableFor(%s) = %+v, want only %s, named by GOCACHE", tool, u, ro)
 		}
 	}
 	t.Setenv("GOCACHE", "off")
 	if u := UnwritableFor("gosec"); u != nil {
-		t.Errorf("with GOCACHE=off Go writes no build cache, and gosec was reported as %+v", *u)
+		t.Errorf("with GOCACHE=off Go writes no build cache, and gosec was reported as %+v", u)
 	}
 }
 
@@ -174,7 +186,7 @@ func TestUnwritableForWithoutGoReportsNothing(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	t.Setenv("HOME", readOnlyDir(t))
 	if u := UnwritableFor("gosec"); u != nil {
-		t.Errorf("UnwritableFor(gosec) with no go = %+v", *u)
+		t.Errorf("UnwritableFor(gosec) with no go = %+v", u)
 	}
 }
 
@@ -187,12 +199,12 @@ func TestUnwritableForFollowsAVariableSomebodySet(t *testing.T) {
 	t.Setenv("TRIVY_CACHE_DIR", ro)
 
 	got := UnwritableFor("trivy")
-	if got == nil || got.Path != ro || !got.Named {
+	if len(got) != 1 || got[0].Path != ro || !got[0].Named {
 		t.Fatalf("UnwritableFor(trivy) = %+v, want %s, named by its variable", got, ro)
 	}
 	t.Setenv("TRIVY_CACHE_DIR", filepath.Join(t.TempDir(), "a", "b"))
 	if got := UnwritableFor("trivy"); got != nil {
-		t.Errorf("a place that does not exist yet under a writable directory is writable: %+v", *got)
+		t.Errorf("a place that does not exist yet under a writable directory is writable: %+v", got)
 	}
 }
 
@@ -205,7 +217,7 @@ func TestUnwritableUnderDraugrHomeIsNotNamed(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := UnwritableFor("syft")
-	if got == nil || got.Named {
+	if len(got) != 1 || got[0].Named {
 		t.Fatalf("UnwritableFor(syft) = %+v, want unwritable and not named", got)
 	}
 }
