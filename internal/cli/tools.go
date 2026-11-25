@@ -198,11 +198,12 @@ func newToolsInstallCommand() *cobra.Command {
 	opts := &toolsInstallOptions{}
 	cmd := &cobra.Command{
 		Use:   "install [tool...]",
-		Short: "Download pinned, checksum-verified tools into ~/.draugr/bin",
+		Short: "Download pinned, checksum-verified tools into ~/.draugr/bin, or DRAUGR_HOME's bin/",
 		Long: "Download pinned scanner/utility binaries, verify each against a SHA-256 recorded in\n" +
 			"Draugr, and install them into ~/.draugr/bin (which Draugr adds to PATH automatically).\n" +
 			"Set DRAUGR_HOME to an absolute path to install into its bin/ instead, with the tools'\n" +
-			"data beside it, and every command then looks there.\n" +
+			"data beside it, and every command then looks there. What the tools write as they run,\n" +
+			"such as Trivy's database, goes under it too.\n" +
 			"With no arguments, installs what a scan of this directory runs: its descriptor's\n" +
 			"scanners, or with no descriptor, what `draugr init` would enable for the tree. With\n" +
 			"--saga, what that descriptor runs; with --all, every tool Draugr can provision. Prints\n" +

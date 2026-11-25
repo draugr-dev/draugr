@@ -124,7 +124,7 @@ win over a settings file.
 | | |
 |---|---|
 | `DRAUGR_CONFIG` | the machine or organization settings file to read, instead of the discovered ones |
-| `DRAUGR_HOME` | where Draugr keeps what it downloads, in place of `~/.draugr`. [`tools install`](#draugr-tools-install-tool) writes to its `bin/`, the tools' data goes to its `data/` and the feeds to its `feeds/`. Every command looks in its `bin/` before `PATH`, and [`doctor`](#draugr-doctor-sagayaml) names it. Must be an absolute path, because a relative one stops every command. `~/.draugr/config.yaml` stays where it is |
+| `DRAUGR_HOME` | where Draugr keeps what it downloads, in place of `~/.draugr`. [`tools install`](#draugr-tools-install-tool) writes to its `bin/`, the tools' data goes to its `data/` and the feeds to its `feeds/`. What the tools write as they run, such as Trivy's database and Semgrep's settings, goes under `data/` too, as [`tools install`](#draugr-tools-install-tool) lists. Every command looks in its `bin/` before `PATH`, and [`doctor`](#draugr-doctor-sagayaml) names it. Must be an absolute path, because a relative one stops every command. `~/.draugr/config.yaml` stays where it is |
 | `DRAUGR_OFFLINE` | make no network calls. Equivalent to `--offline` |
 | `DRAUGR_NO_UPDATE_CHECK` | skip the check for a newer release, without disabling the rest of the network |
 | `DRAUGR_NO_TIPS` | suppress the console's contextual tips |
@@ -1745,7 +1745,7 @@ control name this build does not provide with the message
 With a descriptor, it **exits non-zero** when:
 
 - the descriptor cannot be loaded or names a control this build does not provide;
-- a required tool is missing or has no data;
+- a required tool is missing, has no data, or cannot write where it keeps its data;
 - a target check fails;
 - under `--policy`, the organization's [policy](#policy) would refuse or fail the scan;
 - a `draugr-api` publisher has an endpoint with neither a token nor a
@@ -1763,6 +1763,11 @@ binary.
 
 A tool is also reported as unusable (`✗ no data`) when it is installed but its supporting data is
 not: `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates.
+
+It is reported as `✗ can't write` when it cannot write where it keeps its downloads or settings,
+such as Trivy's database under a read-only home directory. The row names the place and the setting
+that moves it: [`DRAUGR_HOME`](#environment), which moves every tool's, or the tool's own variable
+where somebody set it to that place.
 
 ### Versions
 
@@ -1985,9 +1990,10 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 The JSON's top-level fields are `draugr`, `descriptor`, `toolsDir`, `tools`, `missing`, `targets`,
 `policy`, `data` and `uncoveredSurfaces`. `toolsDir` is the directory looked in before `PATH`, the
 one the `TOOLS` heading names, which is `~/.draugr/bin` or `bin/` under [`DRAUGR_HOME`](#environment).
-`missing` counts each required tool that is absent or has no data,
-the count the exit code is decided on. An optional tool that is absent is listed and not counted.
-A tool with no data carries the hint for getting it.
+`missing` counts each required tool that is absent or has no data. An optional tool that is absent
+is listed and not counted. A tool with no data carries the hint for getting it. A tool that cannot
+write where it keeps its data carries `cannotWrite`, the place, and a hint saying what moves it, and
+fails the check as a missing one does.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
@@ -2134,6 +2140,24 @@ draugr tools install --saga draugr.saga.yaml   # into /opt/draugr/bin
 draugr doctor draugr.saga.yaml                 # TOOLS  looked for in /opt/draugr/bin (DRAUGR_HOME), then on PATH
 ```
 
+What the tools write as they run goes under `data/` as well, so a scan needs nothing from the home
+directory. Draugr sets each tool's own variable to a directory there, unless it is already set:
+
+| Tool | Variable | Under `data/` |
+|---|---|---|
+| Trivy | `TRIVY_CACHE_DIR` | `trivy/` |
+| Grype | `GRYPE_DB_CACHE_DIR` | `grype/db/` |
+| Syft | `SYFT_CACHE_DIR` | `syft/` |
+| Semgrep | `SEMGREP_SETTINGS_FILE`, `SEMGREP_LOG_FILE` | `semgrep/` |
+| cosign | `TUF_ROOT` | `cosign/` |
+| Nuclei | `NUCLEI_CONFIG_DIR`, `NUCLEI_TEMPLATES_DIR` | `nuclei/` |
+
+Those tools then keep their caches under `DRAUGR_HOME`, apart from any other install of the same
+tool. Semgrep reads its settings there too, a `semgrep login` included; set `SEMGREP_SETTINGS_FILE`
+to keep using yours.
+gosec and govulncheck build the code they read with Go, whose build and module caches follow Go's
+own `GOCACHE` and `GOMODCACHE`, as they do for `go build`.
+
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
 the descriptor there runs, or, with no descriptor, what a zero-config scan runs, which is what
@@ -2275,8 +2299,9 @@ the same paths under [`DRAUGR_HOME`](#environment) when it is set. A copy instal
 Each tool's own cache stays unless `--caches` is given: Trivy's and Grype's vulnerability
 databases, Nuclei's templates, and the smaller ones Syft, Notation and cosign keep. A tool's settings
 are not a cache and stay either way, such as `~/.config/nuclei` and Semgrep's login in `~/.semgrep`.
-The caches sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR`
-moves it, so removing them also empties the cache of any other install of the same tool.
+The caches sit at the tool's default location, or where its own variable moves it, such as
+`TRIVY_CACHE_DIR`, which `DRAUGR_HOME` sets. At the default, removing them also empties the cache of
+any other install of the same tool.
 `~/.draugr/feeds` belongs to no tool, and [`draugr feeds`](#draugr-feeds) manages it.
 
 Name the tools to remove, or pass `--all`; with neither, the command is an error.

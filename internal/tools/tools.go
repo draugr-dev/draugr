@@ -135,6 +135,9 @@ type Status struct {
 	// BuildGo is the Go release the binary was built with, read for a tool Draugr builds with Go
 	// (GoToolchain). Empty for any other tool, and where the file carries no build information.
 	BuildGo string
+	// Unwritable is a place the tool writes as it runs that cannot be written, which fails a scan
+	// as surely as the tool being absent. Nil where every such place can be, or nobody asked.
+	Unwritable *Unwritable
 }
 
 // LookPathFunc resolves a binary name to a path (defaults to exec.LookPath).
