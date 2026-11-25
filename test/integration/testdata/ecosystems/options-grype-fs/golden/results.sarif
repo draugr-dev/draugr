@@ -53,7 +53,8 @@
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./options-grype-fs\",\"path\":\".grype.yaml\",\"digests\":[\"be302726a8a386fa\"]}]"
             },
             "tool": "draugr/declared"
           },

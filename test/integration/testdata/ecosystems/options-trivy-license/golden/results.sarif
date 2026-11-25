@@ -333,7 +333,8 @@
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./options-trivy-license\",\"path\":\".trivyignore\",\"digests\":[\"03b1f65a7fa51c40\"]}]"
             },
             "tool": "draugr/declared"
           },

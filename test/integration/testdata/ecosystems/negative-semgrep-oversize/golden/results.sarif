@@ -58,14 +58,15 @@
               "exposure": "",
               "repositories": "[\"./negative-semgrep-oversize\"]",
               "repositoryScopes": "[{\"url\":\"./negative-semgrep-oversize\"}]",
-              "settings": "{\"sast\":{\"semgrep\":\"f32f7297ea2a3091\"}}"
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
             },
             "tool": "draugr/declared"
           },

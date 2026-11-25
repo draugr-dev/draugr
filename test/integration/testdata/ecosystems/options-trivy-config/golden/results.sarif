@@ -75,7 +75,8 @@
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./options-trivy-config\",\"path\":\".trivyignore\",\"digests\":[\"120f8df1d90abce0\"]},{\"kind\":\"setting\",\"path\":\"./checks\",\"digests\":[\"7872fc021e4aba86\"]}]"
             },
             "tool": "draugr/declared"
           },

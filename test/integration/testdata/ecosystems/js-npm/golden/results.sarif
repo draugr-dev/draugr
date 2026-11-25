@@ -22,14 +22,15 @@
               "exposure": "",
               "repositories": "[\"./js-npm\"]",
               "repositoryScopes": "[{\"url\":\"./js-npm\"}]",
-              "settings": "{\"sast\":{\"semgrep\":\"fa26100c4a53f776\"},\"sca\":{\"retirejs\":\"26b3426b2593763c\"}}"
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"},\"sca\":{\"retirejs\":\"26b3426b2593763c\"}}"
             },
             "tool": "draugr/declared"
           },
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
             },
             "tool": "draugr/declared"
           },

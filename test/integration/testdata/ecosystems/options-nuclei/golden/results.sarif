@@ -180,7 +180,8 @@
           {
             "fields": {
               "controls": "[]",
-              "exclusions": "[]"
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"setting\",\"path\":\"./custom/sealed-custom.yaml\",\"digests\":[\"d1d23fd2d1213694\"]}]"
             },
             "tool": "draugr/declared"
           },
