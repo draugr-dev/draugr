@@ -988,6 +988,13 @@ type summary struct {
 	// importedNeedsLookup is how many of those importedNoCVE counts also need the lookup, so a run
 	// whose lookup note already counts them does not count them twice.
 	importedNeedsLookup int
+	// byEcosystem counts the findings that name no CVE and do name an advisory id, by the OSV.dev
+	// ecosystem whose advisories could give them one (exploit.OSVEcosystem). importedByEcosystem
+	// counts the imported ones among them, for the reason importedNeedsLookup does.
+	byEcosystem, importedByEcosystem map[string]int
+	// bySource counts the findings whose CVE an OSV.dev record gave, by the record's source and
+	// license, for the attribution those licenses ask for.
+	bySource map[sourceLicense]int
 	// onKEV is how many findings KEV lists, whether or not it raised them. Counted over every
 	// finding, for the reason bySignal is.
 	onKEV int
@@ -1117,6 +1124,18 @@ func summarize(d Data) summary {
 				if exploit.NeedsLookup(res) {
 					s.importedNeedsLookup++
 				}
+			}
+			if eco := exploit.OSVEcosystem(res); eco != "" {
+				s.byEcosystem = countUp(s.byEcosystem, eco)
+				if importedVulnerability(res) {
+					s.importedByEcosystem = countUp(s.importedByEcosystem, eco)
+				}
+			}
+			if l := res.CVELookup; l != nil && l.Source != "" {
+				if s.bySource == nil {
+					s.bySource = map[sourceLicense]int{}
+				}
+				s.bySource[sourceLicense{l.Source, l.License}]++
 			}
 			if exploit.NeedsLookup(res) {
 				s.needsLookup++

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -499,7 +500,7 @@ func TestResolveFeedLimit(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if limit != defaultFeedLimit() || limit.maxAge != feeds.DefaultMaxAge {
+			if !reflect.DeepEqual(limit, defaultFeedLimit()) || limit.maxAge != feeds.DefaultMaxAge {
 				t.Errorf("limit = %+v, want the default", limit)
 			}
 			if want := "Stale after 24h · default · --saga applies a descriptor's config.exploitability.maxAge"; limit.line() != want {
@@ -589,5 +590,63 @@ func TestFeedsHelpSaysWhenAScanFetches(t *testing.T) {
 	}
 	if strings.Contains(long, "never fetches") || strings.Contains(long, "without the network") {
 		t.Errorf("draugr feeds --help says a scan does not fetch:\n%s", long)
+	}
+}
+
+// A descriptor naming OSV.dev advisories puts their feeds on the status, missing until fetched, and
+// an update with no feed named fetches them beside the others. Without a descriptor an advisory feed
+// is listed only once something cached it.
+func TestFeedsCommandsCarryTheAdvisoriesADescriptorNames(t *testing.T) {
+	dir := cacheHome(t)
+	for _, n := range feeds.Names() {
+		seed(t, dir, n, kevJSON, time.Hour)
+	}
+	path := writeSaga(t, `
+project: app
+release:
+  version: "1.0"
+config:
+  exploitability:
+    kev: cache
+    advisories: [crates.io]
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+`)
+	run := func(args ...string) string {
+		t.Helper()
+		cmd := newFeedsCommand()
+		var buf bytes.Buffer
+		cmd.SetOut(&buf)
+		cmd.SetErr(io.Discard)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		return buf.String()
+	}
+
+	if got := run("status"); strings.Contains(got, "osv-") {
+		t.Errorf("an advisory feed nothing asked for was listed:\n%s", got)
+	}
+	got := run("status", "--saga", path)
+	if !strings.Contains(got, "osv-crates.io is not cached. Run `draugr feeds update osv-crates.io`") ||
+		!strings.Contains(got, "OSV.dev advisories for crates.io · https://storage.googleapis.com/osv-vulnerabilities/crates.io/all.zip") {
+		t.Errorf("the descriptor's advisories are missing from the status:\n%s", got)
+	}
+
+	calls := stubFetch(t, `[{"id":"RUSTSEC-2016-0001","aliases":["CVE-2016-10931"]}]`, nil)
+	if got := run("update", "--saga", path); !strings.Contains(got, "osv-crates.io fetching") || *calls != 1 {
+		t.Errorf("update fetched %d feeds, want only osv-crates.io:\n%s", *calls, got)
+	}
+	if got := run("status"); !strings.Contains(got, "osv-crates.io") || strings.Contains(got, "not cached") {
+		t.Errorf("a cached advisory feed is listed without a descriptor:\n%s", got)
+	}
+	if _, err := feedNames([]string{"osv-npm"}); err != nil {
+		t.Errorf("an advisory feed named on the command line: %v", err)
+	}
+	if _, err := feedNames([]string{"osv-maven"}); err == nil || !strings.Contains(err.Error(), "osv-npm") {
+		t.Errorf("err = %v, want the known feeds, advisory ones included", err)
 	}
 }

@@ -3,6 +3,7 @@ package report
 import (
 	"fmt"
 	"html/template"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -185,7 +186,141 @@ func signals(d Data, s summary) (rows []signalRow, notes []string) {
 	if note := lookupNote(d, s); note != "" {
 		notes = append(notes, note)
 	}
+	if note := advisoriesNote(d, s); note != "" {
+		notes = append(notes, note)
+	}
+	if note := unresolvedNote(d, s); note != "" {
+		notes = append(notes, note)
+	}
+	if note := sourcesNote(s); note != "" {
+		notes = append(notes, note)
+	}
 	return rows, notes
+}
+
+// sourceLicense is the database an OSV.dev record came from and the license it is under.
+type sourceLicense struct{ source, license string }
+
+// countUp adds one to m[k], making m where it is nil.
+func countUp(m map[string]int, k string) map[string]int {
+	if m == nil {
+		m = map[string]int{}
+	}
+	m[k]++
+	return m
+}
+
+// osvEcosystemOrder is the order ecosystems are named in, the order config.exploitability.advisories
+// documents them.
+var osvEcosystemOrder = []string{"npm", "PyPI", "crates.io", "Go"}
+
+// advisoriesOff are the ecosystems whose findings name only an advisory id and whose OSV.dev
+// advisories this run did not read, with how many findings each holds. Go's findings are left to
+// lookupNote where the Go vulnerability database was not read either, since that is the lookup
+// every Go run can make.
+func advisoriesOff(d Data, s summary) (ecos []string, counts []int) {
+	return advisoryEcosystems(s, func(eco string) bool {
+		return !consulted(d, "osv-"+strings.ToLower(eco)) && (eco != "Go" || consulted(d, exploit.DatasetGoVulnDB))
+	})
+}
+
+// advisoriesUnresolved are the ecosystems whose OSV.dev advisories this run read and whose findings
+// still name only an advisory id: their records list no CVE, or the records a finding's ids lead to
+// disagree on one, which resolves nothing.
+func advisoriesUnresolved(d Data, s summary) (ecos []string, counts []int) {
+	return advisoryEcosystems(s, func(eco string) bool { return consulted(d, "osv-"+strings.ToLower(eco)) })
+}
+
+// advisoryEcosystems are the ecosystems keep accepts that hold findings naming only an advisory id,
+// with how many each holds, in osvEcosystemOrder.
+func advisoryEcosystems(s summary, keep func(eco string) bool) (ecos []string, counts []int) {
+	for _, eco := range osvEcosystemOrder {
+		if n := s.byEcosystem[eco]; n > 0 && keep(eco) {
+			ecos, counts = append(ecos, eco), append(counts, n)
+		}
+	}
+	return ecos, counts
+}
+
+// countedByEcosystem renders "2 npm and 1 crates.io findings", and the ecosystems' values as
+// config.exploitability.advisories spells them.
+func countedByEcosystem(ecos []string, counts []int) (phrase string, values []string) {
+	var parts []string
+	total := 0
+	for i, eco := range ecos {
+		parts = append(parts, fmt.Sprintf("%d %s", counts[i], eco))
+		values = append(values, strings.ToLower(eco))
+		total += counts[i]
+	}
+	return english.And(parts) + " " + english.Choose(total, "finding", "findings"), values
+}
+
+// unresolvedNote says how many findings KEV and EPSS could not check although their ecosystem's
+// OSV.dev advisories were read, because no record gave them one CVE.
+func unresolvedNote(d Data, s summary) string {
+	if !consulted(d, exploit.SignalKEV) && !consulted(d, exploit.SignalEPSS) {
+		return ""
+	}
+	ecos, counts := advisoriesUnresolved(d, s)
+	if len(ecos) == 0 {
+		return ""
+	}
+	phrase, _ := countedByEcosystem(ecos, counts)
+	return fmt.Sprintf("KEV and EPSS did not check %s with an advisory id and no CVE: OSV.dev's records "+
+		"of their ids list no CVE, or different ones, so they are ranked without KEV or EPSS.", phrase)
+}
+
+// advisoriesNote says how many findings KEV and EPSS could not check because they name only an
+// advisory id and the run read no OSV.dev advisories for their ecosystem, and which entries of
+// config.exploitability.advisories would look their CVEs up.
+//
+// Empty where neither KEV nor EPSS was read, which their own rows already say.
+func advisoriesNote(d Data, s summary) string {
+	if !consulted(d, exploit.SignalKEV) && !consulted(d, exploit.SignalEPSS) {
+		return ""
+	}
+	ecos, counts := advisoriesOff(d, s)
+	if len(ecos) == 0 {
+		return ""
+	}
+	phrase, values := countedByEcosystem(ecos, counts)
+	return fmt.Sprintf("KEV and EPSS did not check %s with an advisory id and no CVE. "+
+		"config.exploitability.advisories: [%s] looks up their CVEs.", phrase, strings.Join(values, ", "))
+}
+
+// sourcesNote credits the databases whose OSV.dev records gave findings their CVE, with each
+// record's license, which for most of them asks that the source be named. Each finding's record is
+// linked from its cveLookup in report.json and results.sarif.
+func sourcesNote(s summary) string {
+	if len(s.bySource) == 0 {
+		return ""
+	}
+	keys := make([]sourceLicense, 0, len(s.bySource))
+	total := 0
+	for k, n := range s.bySource {
+		keys = append(keys, k)
+		total += n
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].source != keys[j].source {
+			return keys[i].source < keys[j].source
+		}
+		return keys[i].license < keys[j].license
+	})
+	named := func(k sourceLicense) string {
+		if k.license == "" {
+			return k.source
+		}
+		return k.source + " (" + k.license + ")"
+	}
+	if len(keys) == 1 {
+		return fmt.Sprintf("CVE from OSV.dev for %s, from the %s", english.Count(total, "finding"), named(keys[0]))
+	}
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%d from the %s", s.bySource[k], named(k)))
+	}
+	return fmt.Sprintf("CVE from OSV.dev for %s: %s", english.Count(total, "finding"), strings.Join(parts, ", "))
 }
 
 // lookupNote says how many findings KEV and EPSS could not check because they name only a Go or
@@ -264,6 +399,18 @@ func noCVENotes(d Data, s summary) []string {
 	if lookupNote(d, s) != "" {
 		// The lookup note already counts those a lookup would match, and says what to run.
 		n -= s.importedNeedsLookup
+	}
+	// So do the advisories notes, by ecosystem.
+	var counted []string
+	if advisoriesNote(d, s) != "" {
+		counted, _ = advisoriesOff(d, s)
+	}
+	if unresolvedNote(d, s) != "" {
+		unresolved, _ := advisoriesUnresolved(d, s)
+		counted = append(counted, unresolved...)
+	}
+	for _, eco := range counted {
+		n -= s.importedByEcosystem[eco]
 	}
 	if n == 0 {
 		return nil

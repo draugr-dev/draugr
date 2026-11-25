@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -452,12 +453,13 @@ func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
 func TestExploitabilityConfigRoundTripsThroughLoad(t *testing.T) {
 	m, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\n" +
 		"config:\n  exploitability:\n    kev: cache\n    epss: auto\n" +
-		"    epssThreshold: 0.1\n    maxAge: 168h\n"))
+		"    epssThreshold: 0.1\n    maxAge: 168h\n    advisories: [npm, crates.io]\n"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	x := m.Config.Exploitability
-	if x == nil || x.KEV != "cache" || x.EPSS != FeedSourceAuto || x.MaxAge != "168h" {
+	if x == nil || x.KEV != "cache" || x.EPSS != FeedSourceAuto || x.MaxAge != "168h" ||
+		!slices.Equal(x.Advisories, []AdvisoryEcosystem{AdvisoryNpm, AdvisoryCrates}) {
 		t.Fatalf("exploitability config = %+v", x)
 	}
 	if x.EPSSThreshold == nil || *x.EPSSThreshold != 0.1 {
@@ -496,6 +498,21 @@ func TestExploitabilityConfigValidation(t *testing.T) {
 			"maxAge is not a duration",
 			"config:\n  exploitability:\n    maxAge: \"3 days\"\n",
 			"not a duration",
+		},
+		{
+			"an ecosystem with no advisories feed",
+			"config:\n  exploitability:\n    kev: cache\n    advisories: [maven]\n",
+			`config.exploitability.advisories "maven" is not an ecosystem Draugr reads advisories for (want npm, pypi, crates.io or go)`,
+		},
+		{
+			"an ecosystem twice",
+			"config:\n  exploitability:\n    epss: cache\n    advisories: [npm, npm]\n",
+			`config.exploitability.advisories lists "npm" twice`,
+		},
+		{
+			"advisories with neither kev nor epss",
+			"config:\n  exploitability:\n    advisories: [npm]\n",
+			"config.exploitability.advisories needs config.exploitability.kev or epss, which match the CVEs it finds",
 		},
 	}
 	for _, c := range cases {

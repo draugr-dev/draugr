@@ -66,7 +66,11 @@ type source struct {
 	zipped bool
 	// check, when set, is run over a freshly extracted feed before it replaces the cached copy, so
 	// a download that is not what it should be never displaces one that is.
-	check      func(path string) error
+	check func(path string) error
+	// index, when set, reads the downloaded archive at path and returns what the cache keeps in
+	// its place. The archive is written to a temporary file rather than held in memory, and only
+	// the index is kept.
+	index      func(path string) ([]byte, error)
 	describe   string
 	publisher  string
 	licenseURL string
@@ -172,13 +176,16 @@ func Load(dir string) map[Name]Record {
 func Fetch(ctx context.Context, dir string, n Name, client *http.Client) (Record, error) {
 	src, ok := sources[n]
 	if !ok {
-		return Record{}, fmt.Errorf("unknown feed %q; known feeds are %s", n, list(Names()))
+		return Record{}, fmt.Errorf("unknown feed %q; known feeds are %s", n, list(append(Names(), AdvisoryNames()...)))
 	}
 	if client == nil {
 		client = &http.Client{Timeout: 3 * time.Minute}
 	}
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return Record{}, fmt.Errorf("create feed cache: %w", err)
+	}
+	if src.index != nil {
+		return fetchIndexed(ctx, client, dir, n, src)
 	}
 
 	data, err := get(ctx, client, src.url)

@@ -167,6 +167,21 @@ func (m *Model) Validate() error {
 					"config.exploitability.maxAge %q is not a duration (want e.g. 24h, 30m, 168h)", x.MaxAge))
 			}
 		}
+		if len(x.Advisories) > 0 && x.KEV == "" && x.EPSS == "" {
+			errs = append(errs, errors.New("config.exploitability.advisories needs config.exploitability.kev or "+
+				"epss, which match the CVEs it finds: set one, or remove advisories"))
+		}
+		seen := map[AdvisoryEcosystem]bool{}
+		for _, e := range x.Advisories {
+			switch {
+			case !slices.Contains(AdvisoryEcosystems, e):
+				errs = append(errs, fmt.Errorf("config.exploitability.advisories %q is not an ecosystem Draugr reads "+
+					"advisories for (want %s)", e, orList(AdvisoryEcosystems)))
+			case seen[e]:
+				errs = append(errs, fmt.Errorf("config.exploitability.advisories lists %q twice", e))
+			}
+			seen[e] = true
+		}
 		// A path is anything else, and cannot be checked here, the descriptor may name a file this
 		// machine does not have, which is a legitimate thing for a shared descriptor to do and a
 		// scan-time error rather than a validation one.
