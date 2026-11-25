@@ -178,7 +178,9 @@ and `intrusive` stays excluded until `intrusive: true`.
 matches `-etags` against every template it loads, including those named with `-t`. A template you
 write that changes the endpoint therefore needs the `intrusive` tag; without the tag, nothing tells
 Draugr or Nuclei what it does. Each path resolves relative to where Draugr runs. A URL is refused,
-because Nuclei would download it.
+because Nuclei would download it. A pull request that edits a template file, or any file under a
+template directory, is held to its base until it merges, as [`draugr
+diff`](../../docs/reference/cli.md#draugr-diff-basesarif-headsarif) describes.
 
 **`interactsh: false`** passes `-ni`. A template that needs an out-of-band callback makes the
 endpoint call one of Nuclei's public interactsh servers (`oast.pro`, `oast.live`, `oast.site`,

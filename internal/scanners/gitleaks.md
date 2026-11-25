@@ -97,6 +97,13 @@ with its own file, or with the built-in rules where it has none.
 `config` replaces the repository's file, as `--config` does when Gitleaks runs by hand. Use it for
 an organization-wide ruleset that lives outside every repository.
 
+Gitleaks drops what an allowlist matches before it writes its report, so nothing records what the
+allowlist kept. Where the scan extends a `.gitleaks.toml` that holds one, the run's ACCEPTED block
+names it once per repository, and `report.json` lists it under `unlistedSetAsides`. A pull request
+that adds or edits `.gitleaks.toml`, `.gitleaksignore` or the ruleset `config` names is held to its
+base until it merges, as [`draugr diff`](../../docs/reference/cli.md#draugr-diff-basesarif-headsarif)
+describes.
+
 A `.gitleaks.toml` that is a link is read only when it resolves to a file inside the repository. A
 link that points outside it or to nothing, or a directory, is not read; the repository is scanned
 with the built-in rules and the run logs a warning.

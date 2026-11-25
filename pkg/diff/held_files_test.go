@@ -1,0 +1,223 @@
+package diff
+
+import (
+	"bytes"
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/draugr-dev/draugr/pkg/engine"
+	"github.com/draugr-dev/draugr/pkg/sarif"
+)
+
+const (
+	apiURL = "https://example.com/api.git"
+	webURL = "https://example.com/web.git"
+)
+
+// scannerFile is a scanner's configuration file at the root of repo's checkout, read with digests.
+func scannerFile(repo, path string, digests ...string) engine.DeclaredFile {
+	return engine.DeclaredFile{Kind: engine.FileScanner, Repository: repo, Path: path, Digests: digests}
+}
+
+// withFiles is two components on two repositories, both running secrets, and files.
+func withFiles(files ...engine.DeclaredFile) engine.Declarations {
+	return engine.Declarations{
+		Components: []engine.ComponentDeclaration{
+			comp("api", "", "", []string{"secrets"}, []string{apiURL}),
+			comp("web", "", "", []string{"secrets"}, []string{webURL}),
+		},
+		Files: files,
+	}
+}
+
+// A file outside the descriptor that can set findings aside, or decide what a scanner finds, holds
+// the change to its base where the change adds it or reads it with other content. Removing one, or
+// leaving it as it was, passes.
+func TestFilesThatSetFindingsAsideAreHeld(t *testing.T) {
+	vexLocal := engine.DeclaredFile{Kind: engine.FileVEX, Path: "vex/pyyaml.openvex.json", Digests: []string{"aaaaaaaaaaaaaaaa"}}
+	vexRemote := engine.DeclaredFile{Kind: engine.FileVEX, Path: "https://vendor.example.com/vex.json"}
+	ruleset := engine.DeclaredFile{Kind: engine.FileSetting, Path: "rules/sast", Digests: []string{"bbbbbbbbbbbbbbbb"}}
+	edited := func(f engine.DeclaredFile, digest string) engine.DeclaredFile {
+		f.Digests = []string{digest}
+		return f
+	}
+	for _, tc := range []struct {
+		name       string
+		base, head engine.Declarations
+		// want is the exit clause, empty where the change passes.
+		want string
+	}{
+		{name: "unchanged", base: withFiles(scannerFile(apiURL, ".gitleaksignore", "1111111111111111")),
+			head: withFiles(scannerFile(apiURL, ".gitleaksignore", "1111111111111111"))},
+		{name: "removed", base: withFiles(scannerFile(apiURL, ".trivyignore", "1111111111111111"), vexLocal, ruleset),
+			head: withFiles()},
+		{name: ".gitleaksignore added", base: withFiles(),
+			head: withFiles(scannerFile(apiURL, ".gitleaksignore", "1111111111111111")),
+			want: "this change adds .gitleaksignore in api.git"},
+		{name: ".trivyignore added", base: withFiles(), head: withFiles(scannerFile(webURL, ".trivyignore", "1111111111111111")),
+			want: "this change adds .trivyignore in web.git"},
+		{name: ".semgrepignore added", base: withFiles(), head: withFiles(scannerFile(apiURL, ".semgrepignore", "1111111111111111")),
+			want: "this change adds .semgrepignore in api.git"},
+		{name: ".gitleaks.toml changed", base: withFiles(scannerFile(apiURL, ".gitleaks.toml", "1111111111111111")),
+			head: withFiles(scannerFile(apiURL, ".gitleaks.toml", "2222222222222222")),
+			want: "this change changes .gitleaks.toml in api.git"},
+		// The second repository is the one a per-component value would lose.
+		{name: "changed in the second of two repositories",
+			base: withFiles(scannerFile(apiURL, ".trivyignore", "1111111111111111"), scannerFile(webURL, ".trivyignore", "1111111111111111")),
+			head: withFiles(scannerFile(apiURL, ".trivyignore", "1111111111111111"), scannerFile(webURL, ".trivyignore", "2222222222222222")),
+			want: "this change changes .trivyignore in web.git"},
+		{name: "a revision the base read too", base: withFiles(scannerFile(apiURL, ".trivyignore", "1111111111111111", "2222222222222222")),
+			head: withFiles(scannerFile(apiURL, ".trivyignore", "2222222222222222"))},
+		{name: "a revision the base did not read", base: withFiles(scannerFile(apiURL, ".trivyignore", "1111111111111111", "2222222222222222")),
+			head: withFiles(scannerFile(apiURL, ".trivyignore", "1111111111111111", "3333333333333333")),
+			want: "this change changes .trivyignore in api.git"},
+		{name: "a ruleset edited in place", base: withFiles(ruleset), head: withFiles(edited(ruleset, "cccccccccccccccc")),
+			want: "this change changes rules/sast"},
+		{name: "a VEX document on disk changed", base: withFiles(vexLocal), head: withFiles(edited(vexLocal, "dddddddddddddddd")),
+			want: "this change changes vex/pyyaml.openvex.json"},
+		{name: "a VEX document added", base: withFiles(), head: withFiles(vexRemote),
+			want: "this change adds https://vendor.example.com/vex.json"},
+		{name: "a VEX document at a URL the base also read", base: withFiles(vexRemote), head: withFiles(vexRemote)},
+		{name: "added and changed", base: withFiles(vexLocal),
+			head: withFiles(scannerFile(apiURL, ".gitleaksignore", "1111111111111111"), edited(vexLocal, "dddddddddddddddd")),
+			want: "this change adds .gitleaksignore in api.git and changes vex/pyyaml.openvex.json"},
+		{name: "two added and one changed", base: withFiles(vexLocal),
+			head: withFiles(scannerFile(apiURL, ".gitleaksignore", "1"), scannerFile(webURL, ".gitleaksignore", "1"),
+				edited(vexLocal, "dddddddddddddddd")),
+			want: "this change adds .gitleaksignore in api.git and .gitleaksignore in web.git, and changes vex/pyyaml.openvex.json"},
+		// A base from a release that recorded no files reads as reading none.
+		{name: "a base that recorded no files",
+			base: engine.Declarations{Components: withFiles().Components},
+			head: withFiles(scannerFile(apiURL, ".gitleaksignore", "1111111111111111")),
+			want: "this change adds .gitleaksignore in api.git"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(tc.base, tc.head, true, matrixRank)
+			got.Gate = Gate{FailOnPriority: "P1"}
+			if sentence := got.Held.DroppedSentence(); sentence != tc.want {
+				t.Errorf("exit clause = %q, want %q", sentence, tc.want)
+			}
+			if _, failed := verdict(got); failed != (tc.want != "") {
+				t.Errorf("failed = %v, want %v", failed, tc.want != "")
+			}
+		})
+	}
+}
+
+// The held files are said in every format, with the digest that trusts them, and a trusted run says
+// what it waived without failing. A repository is named only where there is more than one.
+func TestHeldFilesAreSaid(t *testing.T) {
+	one := func(files ...engine.DeclaredFile) engine.Declarations {
+		return engine.Declarations{Components: []engine.ComponentDeclaration{comp("api", "", "", []string{"secrets"}, []string{apiURL})},
+			Files: files}
+	}
+	vex := engine.DeclaredFile{Kind: engine.FileVEX, Path: "vex/pyyaml.openvex.json", Digests: []string{"aaaaaaaaaaaaaaaa"}}
+	changedVEX := vex
+	changedVEX.Digests = []string{"bbbbbbbbbbbbbbbb"}
+	base, head := one(vex), one(scannerFile(apiURL, ".gitleaksignore", "1111111111111111"), changedVEX)
+
+	r := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(base, head, true, matrixRank)
+	r.Gate = Gate{FailOnPriority: "P1"}
+	r.Held.Digest = "57a32d4c7cbd861d"
+	const note = "This change adds .gitleaksignore and changes vex/pyyaml.openvex.json, which can set findings aside " +
+		"or change what a scanner finds, so the gate holds until it merges"
+	for _, format := range []string{"console", "markdown"} {
+		var buf bytes.Buffer
+		if err := Render(&buf, format, r, Options{}); err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{note, "add --trust-descriptor-change 57a32d4c7cbd861d",
+			"Nothing new was reported, by a scan the files this change edits may have narrowed."} {
+			if !strings.Contains(buf.String(), want) {
+				t.Errorf("%s does not say %q:\n%s", format, want, buf.String())
+			}
+		}
+	}
+	if got := r.Held.DroppedSentence(); got != "this change adds .gitleaksignore and changes vex/pyyaml.openvex.json" {
+		t.Errorf("exit clause = %q", got)
+	}
+	var doc struct {
+		HeldToBase struct {
+			Files []jsonFile `json:"files"`
+		} `json:"heldToBase"`
+	}
+	if err := json.Unmarshal([]byte(renderJSONString(t, r)), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if f := doc.HeldToBase.Files; len(f) != 2 ||
+		f[0] != (jsonFile{Repository: apiURL, Path: ".gitleaksignore", Change: "added"}) ||
+		f[1] != (jsonFile{Path: "vex/pyyaml.openvex.json", Change: "changed"}) {
+		t.Errorf("files = %+v", f)
+	}
+
+	trusted := Compare(sarif.Report{}, sarif.Report{}).TrustChange(base, head, true, matrixRank)
+	trusted.Gate = Gate{FailOnPriority: "P1"}
+	if _, failed := verdict(trusted); failed {
+		t.Error("a trusted change that adds a file failed")
+	}
+	notes := trusted.Held.Notes()
+	if len(notes) != 2 || notes[1] != "This change adds .gitleaksignore and changes vex/pyyaml.openvex.json, "+
+		"which can set findings aside or change what a scanner finds" {
+		t.Errorf("trusted notes = %q", notes)
+	}
+	same := Compare(sarif.Report{}, sarif.Report{}).TrustChange(head, head, true, matrixRank)
+	if notes := same.Held.Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "--trust-descriptor-change changed nothing") {
+		t.Errorf("notes = %q with nothing held", notes)
+	}
+
+	// Beside a stopped control, the files follow it in one clause.
+	stopped := one(scannerFile(apiURL, ".gitleaksignore", "1111111111111111"))
+	stopped.Components[0].Controls = nil
+	both := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(one(), stopped, true, matrixRank)
+	if got := both.Held.DroppedSentence(); got != "this change stops secrets on api, which the base ran, and adds .gitleaksignore" {
+		t.Errorf("exit clause = %q", got)
+	}
+	// A repository spelled as a local path is named whole.
+	if got := (Held{namesRepositories: true}).name(FileChange{Repository: ".", Path: ".trivyignore"}); got != ".trivyignore in ." {
+		t.Errorf("name = %q", got)
+	}
+}
+
+// An accepted finding the base did not have, set aside by a comment in the source, is listed as
+// accepted by this change in the console and the pull-request comment. A finding that was counting
+// at the base and is excused now, and one a descriptor rule excuses, keep the plain listing.
+func TestAnInlineDirectiveTheChangeAddsIsListedAsItsOwn(t *testing.T) {
+	directive := func(r sarif.Result, why string) sarif.Result {
+		r.Suppression = &sarif.Suppression{Kind: "inSource", Justification: why, Origin: sarif.OriginTool}
+		return r
+	}
+	was := res("semgrep", "rule-was", sarif.LevelError, "c.py", 9, "P2")
+	head := sarif.Report{Results: []sarif.Result{
+		directive(res("semgrep", "rule-new", sarif.LevelError, "b.py", 7, "P2"), "nosemgrep"),
+		directive(res("gitleaks", "generic-api-key", sarif.LevelError, "d.py", 3, "P2"), ""),
+		directive(was, "nosemgrep"),
+		suppressed(res("trivy", "CVE-SELF", sarif.LevelError, "go.mod", 2, "P2")),
+	}}
+	r := Compare(sarif.Report{Results: []sarif.Result{was}}, head)
+	if tripped := r.GateNew("", "P1"); len(tripped) != 0 {
+		t.Errorf("tripped = %+v: an inline directive is not held", tripped)
+	}
+	var console, markdown bytes.Buffer
+	if err := Render(&console, "console", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Render(&markdown, "markdown", r, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Count(console.String(), "accepted by this change: suppressed in source (nosemgrep)"); got != 1 {
+		t.Errorf("console says it %d times, want once, for rule-new:\n%s", got, console.String())
+	}
+	if !strings.Contains(console.String(), "accepted by this change: suppressed in source\n") {
+		t.Errorf("console does not list the allow comment without a reason:\n%s", console.String())
+	}
+	if got := strings.Count(console.String(), "accepted by this change"); got != 2 {
+		t.Errorf("console says it %d times, want twice:\n%s", got, console.String())
+	}
+	if !strings.Contains(markdown.String(), "| **accepted**<br>_by this change: suppressed in source (nosemgrep)_ | P2 | high | `rule-new` |") {
+		t.Errorf("markdown does not mark rule-new as accepted by this change:\n%s", markdown.String())
+	}
+	if got := strings.Count(markdown.String(), "by this change"); got != 2 {
+		t.Errorf("markdown says it %d times, want twice:\n%s", got, markdown.String())
+	}
+}

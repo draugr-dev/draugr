@@ -140,8 +140,10 @@ separately, findings from two repositories that share a path stay two findings.
 
 A match that an `ignore:` rule in the repository's `.grype.yaml` set aside is reported suppressed
 with `origin: scanner`, `.grype.yaml` as its source, and the rule's `reason`. Grype runs at the root
-of the checkout, and a checkout scoped by `paths:` keeps that file, so a rule in it applies to every
-component the repository holds. `.grype/config.yaml` is read only from a checkout with no `paths:`.
+of the checkout, and a checkout scoped by `paths:` keeps that file and `.grype/config.yaml`, so a
+rule in either applies to every component the repository holds. A pull request that adds or edits
+either file is held to its base until it merges, as [`draugr
+diff`](../../docs/reference/cli.md#draugr-diff-basesarif-headsarif) describes.
 [`grype`](grype.md#exclusions) has how the excluded matches are read, and what is not reported.
 
 ## The database

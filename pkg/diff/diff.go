@@ -751,6 +751,27 @@ func (c Change) NeedsSomebody() bool { return c != ChangeFixed }
 type Entry struct {
 	Change Change
 	sarif.Result
+	// arrived is set on an accepted finding the base had no finding of.
+	arrived bool
+}
+
+// acceptedHere says, of an accepted finding the base did not have that a comment in the source
+// sets aside, that the acceptance is this change's: "accepted by this change: suppressed in source
+// (reason)". Empty for any other entry.
+//
+// Such a comment sits on the line the finding is on, so the change that brought the finding
+// brought the comment, and nothing else in the listing tells a reviewer the acceptance is new. The
+// gate does not hold it, since the finding stays in the report marked suppressed and is listed
+// here for the review it asks for.
+func acceptedHere(e Entry) string {
+	if e.Change != ChangeAccepted || !e.arrived || !e.SilencedInSource() {
+		return ""
+	}
+	out := "accepted by this change: suppressed in source"
+	if why := strings.TrimSpace(e.Suppression.Justification); why != "" {
+		out += " (" + why + ")"
+	}
+	return out
 }
 
 // Changed is every finding this change touched, worst first.
@@ -771,7 +792,8 @@ func (r Result) Changed() []Entry {
 		{ChangeFixed, r.Fixed},
 	} {
 		for _, f := range group.fs {
-			out = append(out, Entry{Change: group.change, Result: f})
+			out = append(out, Entry{Change: group.change, Result: f,
+				arrived: group.change == ChangeAccepted && r.arrivedHere(f)})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {

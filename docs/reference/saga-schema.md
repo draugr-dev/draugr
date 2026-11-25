@@ -591,8 +591,10 @@ come from one place and cannot disagree.
 **A pull request that changes a control's settings is held to its base.** A scanner switched,
 turned off or given other options, or a setting of the control's own changed, here or in a
 component's `controls`, fails the new-findings gate on a pull request until it merges, since what the
-change adds may not have been looked for. Turning on one more scanner passes. [`draugr
-diff`](cli.md#draugr-diff-basesarif-headsarif) names the setting that changed and how to trust it.
+change adds may not have been looked for. Turning on one more scanner passes. A ruleset or template a
+setting names, edited in place under a setting that still names it, fails the same way, a directory
+by any file under it. [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) names the setting or
+file that changed and how to trust it.
 
 ### Scanning an API from its specification
 
@@ -2130,7 +2132,9 @@ paths: [services/web, go.mod, go.sum]
 A workspace member whose lockfile sits at the root and is not named appears under **Caveats** as
 `unread-files` with `no lockfile`, so a missing entry shows in the report. The scanners' configuration at the root is
 kept for every component whatever `paths` says: `.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`,
-`.semgrepignore`, `.gitleaks.toml`, `.gitleaksignore` and `.grype.yaml`.
+`.semgrepignore`, `.gitleaks.toml`, `.gitleaksignore`, `.grype.yaml` and `.grype/config.yaml`. Each
+tool reads them at the root of the checkout only; a file of the same name inside `paths` is not read
+in its place.
 
 **An entry the repository does not hold is an error**, naming the entry, at the revision being
 scanned.
@@ -2149,7 +2153,9 @@ same repository are two different scans, cached separately, and their findings s
 **A pull request that narrows a scope is held to its base.** On a pull request, a change that
 narrows `paths`, adds an `ignore` entry or changes `revision` fails the new-findings gate until it
 merges, because what it adds may not have been looked for; [`draugr
-diff`](cli.md#draugr-diff-basesarif-headsarif) says what narrowed and how to trust the change.
+diff`](cli.md#draugr-diff-basesarif-headsarif) says what narrowed and how to trust the change. So
+does a change that adds or edits one of the scanners' configuration files above, which can set its
+own findings aside without touching the descriptor; one it removes passes.
 
 **History findings follow the same scope.** Git history cannot be checked out by subtree, so
 `gitleaks` with `history: true` walks every commit in the repository. Draugr keeps a history
@@ -2464,8 +2470,10 @@ rule in a file the scanner reads such as `.trivyignore`, `.gitleaksignore` or `.
 than letting them disappear, because a finding somebody excluded and a finding nobody ever had look
 identical once the scanner has dropped it.
 
-An exclusion the scanner records in no output format cannot be reported, such as a
-`#trivy:ignore` comment in an IaC file. Where a scanner reports
+An exclusion the scanner records in no output format cannot be counted, such as a
+`#trivy:ignore` comment in an IaC file. Where a run read a `.semgrepignore`, or a `.gitleaks.toml`
+with an allowlist, the block names the file once per repository, `.semgrepignore kept some files
+from semgrep; what it covered is not listed`, and `report.json` lists it under `unlistedSetAsides`. Where a scanner reports
 only some of its exclusions, its page in the [catalog](catalog.md) says which.
 [`config.exclude`](#configexclude) keeps the finding and the reason in every case.
 
@@ -2714,6 +2722,13 @@ decision you are answerable for, while an imported one stays a claim somebody el
 **A source that cannot be read fails the run.** Not a warning and never a skip: a scan that
 quietly dropped a supplier's analysis would report more findings than the last one with nothing
 saying why, which reads exactly like a codebase that got worse.
+
+**A pull request that adds a source, or edits a `path` source, is held to its base.** It fails the
+new-findings gate until it merges, since a `not_affected` statement the change writes can excuse a
+finding the change adds; [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) names the document
+and how to trust the change. A `url` or `repository` source the base already read is compared by
+where it is and not by what it says, because the change cannot edit it and the base already chose
+to trust it.
 
 
 ## SBOM generation

@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"path"
 	"slices"
 	"strings"
 
@@ -25,7 +26,8 @@ type Ranker func(res sarif.Result, exposure saga.Exposure, criticality saga.Crit
 // failed it on. So the base's declaration stands beside the head's until the change merges: a new
 // finding ranks by the more exposed and more critical of the two classifications, a control the base
 // turned on is still expected over everything it read, and only an exclusion the base already had
-// accepts a new finding.
+// accepts a new finding. The same holds for the files outside the descriptor that set findings
+// aside or decide what a scanner finds: one the change adds or edits fails it until it merges.
 type Held struct {
 	// Unrecorded is set where the base report recorded no declaration, a report written by a
 	// release that did not record one. The head's declaration then decides alone, and a reader is
@@ -42,6 +44,16 @@ type Held struct {
 	// SelfAccepted are new findings set aside by an exclusion the base did not have. They are listed
 	// as accepted, and the gate counts them as new until the exclusion merges.
 	SelfAccepted []sarif.Result
+	// Files are the files outside the descriptor that the head adds or reads with other content
+	// than the base did: a VEX document, a scanner's own configuration file such as
+	// `.gitleaksignore`, or a ruleset a setting names. Each can set findings aside or change what a
+	// scanner finds, which the comparison cannot see past, so any one of them fails the change
+	// until it merges. One list rather than one per control, since a VEX document or an ignore file
+	// applies across controls.
+	Files []FileChange
+	// namesRepositories says the comparison covers more than one repository, so a file is named
+	// with the repository whose checkout held it.
+	namesRepositories bool
 	// Trusted is set where the run was told to trust the change's descriptor, as
 	// --trust-descriptor-change tells it. The head's declaration then decides the gate: Raised,
 	// Dropped and SelfAccepted say what the base's would have decided, and decide nothing.
@@ -84,6 +96,121 @@ type Narrowing struct {
 	// Settings are the keys of the control's settings the head added, removed or changed, sorted:
 	// a scanner's block or a setting of the control's own.
 	Settings []string
+}
+
+// FileChange is a file the head adds, or reads with other content than the base did, that can set
+// findings aside or change what a scanner finds.
+type FileChange struct {
+	// Repository is the URL of the repository whose checkout held a scanner's file, empty for a VEX
+	// document or a setting's file.
+	Repository string
+	// Path is as the run records it: from the root of the checkout, or as the descriptor writes it.
+	Path string
+	// Added is set where the base read no such file.
+	Added bool
+}
+
+// changedFiles are the files of head that base did not read, or read with other content.
+//
+// A file is the same file where its kind, repository and path agree. It changed where the head
+// read it with a digest none of the base's reads of it had; a repository read at two revisions has
+// a digest for each. A VEX document fetched from a URL or read from another repository has no
+// digest and is compared by where it is: a change cannot edit it, and the base already chose to
+// trust it. A file the head removes is not a change, since removing one only widens what is
+// reported.
+//
+// A report from a release that recorded no files reads as reading none, so a head with any is held
+// as though it added them.
+func changedFiles(base, head engine.Declarations) []FileChange {
+	type key struct {
+		kind             engine.FileKind
+		repository, path string
+	}
+	baseOf := make(map[key]engine.DeclaredFile, len(base.Files))
+	for _, f := range base.Files {
+		baseOf[key{f.Kind, f.Repository, f.Path}] = f
+	}
+	var out []FileChange
+	for _, f := range head.Files {
+		b, ok := baseOf[key{f.Kind, f.Repository, f.Path}]
+		switch {
+		case !ok:
+			out = append(out, FileChange{Repository: f.Repository, Path: f.Path, Added: true})
+		case slices.ContainsFunc(f.Digests, func(d string) bool { return !slices.Contains(b.Digests, d) }):
+			out = append(out, FileChange{Repository: f.Repository, Path: f.Path})
+		}
+	}
+	return out
+}
+
+// manyRepositories reports whether the two declarations name more than one repository between
+// them, by component or by a file a checkout held.
+func manyRepositories(base, head engine.Declarations) bool {
+	seen := ""
+	for _, d := range []engine.Declarations{base, head} {
+		var urls []string
+		for _, c := range d.Components {
+			urls = append(urls, c.Repositories...)
+		}
+		for _, f := range d.Files {
+			if f.Repository != "" {
+				urls = append(urls, f.Repository)
+			}
+		}
+		for _, u := range urls {
+			if seen == "" {
+				seen = u
+			} else if u != seen {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// name is how a reader is shown f: its path, and the repository's last segment after it where the
+// comparison covers more than one, `.gitleaksignore in api.git`.
+func (h Held) name(f FileChange) string {
+	if !h.namesRepositories || f.Repository == "" {
+		return f.Path
+	}
+	repo := path.Base(strings.TrimRight(f.Repository, "/"))
+	if repo == "." || repo == "/" {
+		repo = f.Repository
+	}
+	return f.Path + " in " + repo
+}
+
+// filesClause names what the change did to the files, as a reader says it: "adds .gitleaksignore
+// and changes vex/pyyaml.openvex.json". Empty where it did nothing.
+func (h Held) filesClause() string {
+	var added, changed []string
+	for _, f := range h.Files {
+		if f.Added {
+			added = append(added, h.name(f))
+		} else {
+			changed = append(changed, h.name(f))
+		}
+	}
+	var parts []string
+	if len(added) > 0 {
+		parts = append(parts, "adds "+english.And(added))
+	}
+	if len(changed) > 0 {
+		parts = append(parts, "changes "+english.And(changed))
+	}
+	// A comma where the first list has one of its own, so "adds a, b and c, and changes d" reads as
+	// two lists rather than one.
+	sep := " and "
+	if len(added) > 1 {
+		sep = ", and "
+	}
+	return strings.Join(parts, sep)
+}
+
+// filesNote is the sentence about the files, ending as the run's state requires.
+func (h Held) filesNote(ending string) string {
+	return "This change " + h.filesClause() + ", which can set findings aside or change what a scanner finds" + ending
 }
 
 // RevisionChange is a repository's revision as the base pinned it and as the head pins it, each
@@ -201,9 +328,10 @@ func shortRevision(r string) string {
 }
 
 // Fails reports whether what the base held decides the verdict by itself: a control the base ran
-// is not running, so what the change adds where it ran was never looked for. Never on a run told to
-// trust the change's descriptor.
-func (h Held) Fails() bool { return len(h.Dropped) > 0 && !h.Trusted }
+// is not running, so what the change adds where it ran was never looked for, or the change adds or
+// edits a file that can set its own findings aside. Never on a run told to trust the change's
+// descriptor.
+func (h Held) Fails() bool { return (len(h.Dropped) > 0 || len(h.Files) > 0) && !h.Trusted }
 
 // HoldToBase holds the comparison to the declaration its base recorded, as Held describes.
 //
@@ -253,6 +381,8 @@ func (r Result) HoldToBase(base, head engine.Declarations, baseRecorded bool, ra
 		raise(&h.SelfAccepted[i])
 	}
 
+	h.Files = changedFiles(base, head)
+	h.namesRepositories = manyRepositories(base, head)
 	h.Dropped = dropped(base, head)
 	if len(h.Dropped) > 0 {
 		fixed := r.Fixed[:0:0]
@@ -634,6 +764,9 @@ func (h Held) Notes() []string {
 	notes = append(notes, h.droppedNotes(func(stopped string) string {
 		return "The base ran " + stopped + " and this change does not"
 	})...)
+	if len(h.Files) > 0 {
+		notes = append(notes, h.filesNote(", so the gate holds until it merges"))
+	}
 	if n := len(h.Raised); n > 0 {
 		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "ranks", "rank")+
 			" by the base's exposure and criticality, which this change lowers, until it merges")
@@ -642,7 +775,7 @@ func (h Held) Notes() []string {
 		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "is", "are")+
 			" excused by an exclusion this change adds, and "+english.Choose(n, "counts", "count")+" as new until it merges")
 	}
-	if h.Digest != "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted) > 0 {
+	if h.Digest != "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted)+len(h.Files) > 0 {
 		notes = append(notes, "If this change to the descriptor is intended, add --trust-descriptor-change "+h.Digest+
 			" to the pipeline file in this pull request; it trusts this descriptor only, not a later edit")
 	}
@@ -652,7 +785,7 @@ func (h Held) Notes() []string {
 // trustedNotes are Notes for a run told to trust the change's descriptor: that it was told, and what
 // the base's declaration would have decided had it not been.
 func (h Held) trustedNotes() []string {
-	if len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted) == 0 {
+	if len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted)+len(h.Files) == 0 {
 		return []string{"--trust-descriptor-change changed nothing: this change declares what the base did, " +
 			"so the switch can come out of the pipeline"}
 	}
@@ -660,6 +793,9 @@ func (h Held) trustedNotes() []string {
 	notes = append(notes, h.droppedNotes(func(stopped string) string {
 		return "This change stops " + stopped + ", which the base ran"
 	})...)
+	if len(h.Files) > 0 {
+		notes = append(notes, h.filesNote(""))
+	}
 	if n := len(h.Raised); n > 0 {
 		notes = append(notes, english.Count(n, "new finding")+" would rank higher by the base's exposure and criticality, which this change lowers")
 	}
@@ -729,12 +865,10 @@ func narrowedList(ds []Dropped) string {
 	return english.And(parts)
 }
 
-// DroppedSentence is the clause a failing run exits with for the controls the base ran and the head
-// does not, empty where there are none: those it stopped, then those it narrowed.
+// DroppedSentence is the clause a failing run exits with for what the base held, empty where it
+// held nothing: the controls the change stopped, those it narrowed, then the files it added or
+// changed.
 func (h Held) DroppedSentence() string {
-	if len(h.Dropped) == 0 {
-		return ""
-	}
 	off, narrowed := splitDropped(h.Dropped)
 	var parts []string
 	if len(off) > 0 {
@@ -742,6 +876,12 @@ func (h Held) DroppedSentence() string {
 	}
 	if len(narrowed) > 0 {
 		parts = append(parts, "alters "+narrowedList(narrowed))
+	}
+	if len(h.Files) > 0 {
+		parts = append(parts, h.filesClause())
+	}
+	if len(parts) == 0 {
+		return ""
 	}
 	return "this change " + strings.Join(parts, ", and ")
 }

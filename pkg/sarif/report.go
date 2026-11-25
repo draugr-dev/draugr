@@ -1454,6 +1454,20 @@ type Provenance struct {
 	Detail []Field `json:"detail,omitempty"`
 }
 
+// The prefixes of the Provenance.Detail keys a repository scanner records about the scanners' own
+// configuration files at the root of the checkout it read, each followed by the file's path from
+// that root. The engine reads them into the run's declaration and takes them out of the report.
+const (
+	// DetailConfigFile is a configuration file the checkout held, such as `.trivyignore`, with its
+	// content digest as the value. Recorded because each can set findings aside or change what a
+	// scanner finds, as surely as the descriptor can.
+	DetailConfigFile = "configFile:"
+	// DetailUnlistedSetAside is a configuration file the scanner honored that keeps findings from
+	// it without listing what it kept, such as `.semgrepignore`, with the scanner's name as the
+	// value. The run says so, since nothing else in the report would.
+	DetailUnlistedSetAside = "unlistedSetAside:"
+)
+
 // Field is one statement in a Provenance entry.
 //
 // A slice of pairs rather than a map: rendering needs a stable order, and alphabetical is the

@@ -403,8 +403,17 @@ than declared, an `ignore` entry for generated files, a repository's `revision` 
 release, or a control's settings changed, such as `sca` moved from `trivyFs` to another scanner or a
 `semgrep` ruleset swapped. Each of the last three changes what a scan reads or looks for, as a
 shorter `paths` does, so it fails the gate until it merges like a control turned off. Turning on one
-more scanner, a block that sets only `enabled: true`, passes. The failing run prints a digest of the
-pull request's descriptor:
+more scanner, a block that sets only `enabled: true`, passes.
+
+The same holds for a file outside the descriptor that can set a finding aside or change what a
+scanner finds: a VEX document the descriptor names, a `.trivyignore`, `.gitleaksignore`,
+`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, or a ruleset a setting
+names, edited in place. A pull request that adds one or edits one fails until it merges, and the run
+names it: `This change adds .gitleaksignore, which can set findings aside or change what a scanner
+finds, so the gate holds until it merges.` A comment beside the line, such as `# nosemgrep`, is not
+held; the listing marks the finding `accepted by this change` for a reviewer to read.
+
+The failing run prints a digest of the pull request's descriptor, which covers those files too:
 
 ```console
 The base ran sca on api and this change does not, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed.

@@ -49,6 +49,16 @@ func TestTheDeclarationSurvivesTheReportFile(t *testing.T) {
 		Controls:   []string{"secrets"},
 		Exclusions: []saga.ExcludeRule{{Paths: []string{"vendor/**"}}, {Rules: []string{"G104"}}},
 		Settings:   map[string]engine.ControlSettings{"secrets": {"gitleaks": "8899aabbccddeeff"}},
+		// A file in each of two repositories, one read at two revisions, a VEX document on disk and
+		// one at a URL, and a ruleset a setting names.
+		Files: []engine.DeclaredFile{
+			{Kind: engine.FileScanner, Repository: "https://example.com/api-worker.git", Path: ".trivyignore", Digests: []string{"1111111111111111"}},
+			{Kind: engine.FileScanner, Repository: "https://example.com/api.git", Path: ".gitleaksignore",
+				Digests: []string{"2222222222222222", "3333333333333333"}},
+			{Kind: engine.FileSetting, Path: "rules/sast", Digests: []string{"4444444444444444"}},
+			{Kind: engine.FileVEX, Path: "https://vendor.example.com/vex.json"},
+			{Kind: engine.FileVEX, Path: "vex/pyyaml.openvex.json", Digests: []string{"5555555555555555"}},
+		},
 	}
 	run := sampleRun()
 	run.Declared = declared
@@ -190,5 +200,33 @@ func TestTheDigestNamesOneDeclaration(t *testing.T) {
 	}
 	if len(digests) != 5 {
 		t.Errorf("%d digests for five declarations: a change to a control's settings should change the digest", len(digests))
+	}
+
+	// A file that can set findings aside names another declaration when it is added or edited, in
+	// either of two repositories. A declaration without files writes no field and keeps its digest.
+	withFiles := func(files ...engine.DeclaredFile) engine.Declarations {
+		d := declared
+		d.Files = files
+		return d
+	}
+	if fields := DeclaredProvenance(withFiles())[0].Fields; len(fields) != 2 {
+		t.Errorf("a project entry without files writes %d fields, want the two it wrote before", len(fields))
+	}
+	ignore := func(repo, digest string) engine.DeclaredFile {
+		return engine.DeclaredFile{Kind: engine.FileScanner, Repository: repo, Path: ".gitleaksignore", Digests: []string{digest}}
+	}
+	api, web := "https://example.com/api.git", "https://example.com/web.git"
+	fileDigests := map[string]bool{}
+	for _, d := range []engine.Declarations{
+		withFiles(),
+		withFiles(ignore(api, "1111111111111111")),
+		withFiles(ignore(api, "2222222222222222")),
+		withFiles(ignore(api, "1111111111111111"), ignore(web, "1111111111111111")),
+		withFiles(ignore(api, "1111111111111111"), ignore(web, "2222222222222222")),
+	} {
+		fileDigests[DeclaredDigest(d)] = true
+	}
+	if len(fileDigests) != 5 || DeclaredDigest(withFiles()) != digest {
+		t.Errorf("%d digests for five declarations, or a declaration without files changed its digest", len(fileDigests))
 	}
 }

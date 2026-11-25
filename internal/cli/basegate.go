@@ -136,6 +136,7 @@ func (g baseGate) compare(run engine.Result) (comparison, error) {
 			Introduced: compared.Counted().New,
 			Tripped:    compared.Tripped,
 			Dropped:    droppedControls(compared.Held.Dropped),
+			Files:      heldFiles(compared.Held.Files),
 			Trusted:    compared.Held.Trusted,
 		},
 		result:  compared,
@@ -244,6 +245,19 @@ func droppedControls(dropped []diff.Dropped) []skald.DroppedControl {
 	var out []skald.DroppedControl
 	for _, d := range dropped {
 		out = append(out, skald.DroppedControl{Component: d.Component, Control: d.Control})
+	}
+	return out
+}
+
+// heldFiles are the files a comparison held to its base, as report.json records them.
+func heldFiles(files []diff.FileChange) []skald.HeldFile {
+	var out []skald.HeldFile
+	for _, f := range files {
+		change := "changed"
+		if f.Added {
+			change = "added"
+		}
+		out = append(out, skald.HeldFile{Repository: f.Repository, Path: f.Path, Change: change})
 	}
 	return out
 }

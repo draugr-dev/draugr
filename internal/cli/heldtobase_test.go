@@ -457,6 +457,57 @@ func TestADescriptorChangeIsTrustedByItsDigest(t *testing.T) {
 	}
 }
 
+// A pull request that adds a scanner's ignore file, or edits one in the second of two
+// repositories, fails until it merges, naming the file and its repository, and passes with the
+// digest the failing run printed. A file left as the base had it holds nothing.
+func TestAFileThatSetsFindingsAsideIsHeldToTheBase(t *testing.T) {
+	s, reg := stagedPair()
+	s.configs = map[string]map[string]string{webRepo: {".trivyignore": "1111111111111111"}}
+	path := shopSaga(t, "", "")
+	base := scanBase(t, path, reg)
+
+	// Nothing changed: the same file in web holds nothing.
+	if console, err := scanAgainst(t, path, base, "P4", reg); err != nil {
+		t.Fatalf("an unchanged file failed the change: %v\n%s", err, console)
+	}
+
+	s.configs = map[string]map[string]string{
+		apiRepo: {".gitleaksignore": "2222222222222222"},
+		webRepo: {".trivyignore": "3333333333333333"},
+	}
+	console, err := scanAgainst(t, path, base, "P4", reg)
+	const clause = "this change adds .gitleaksignore in api.git and changes .trivyignore in web.git"
+	if err == nil || !strings.Contains(err.Error(), "fails: "+clause+" since") {
+		t.Fatalf("err = %v, want the files named\n%s", err, console)
+	}
+	if want := "This change adds .gitleaksignore in api.git and changes .trivyignore in web.git, which can set " +
+		"findings aside or change what a scanner finds, so the gate holds until it merges."; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+
+	// draugr diff reads the same two files the same way.
+	headOut := t.TempDir()
+	if err := runScan(context.Background(), path, scanOptions{outputDir: headOut, noPublish: true}, reg, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := diffIn(t, t.TempDir(), base, filepath.Join(headOut, "results.sarif"), "--fail-on-new", "P4"); err == nil ||
+		err.Error() != "differential gate: "+clause {
+		t.Errorf("draugr diff: err = %v\n%s", err, out)
+	}
+
+	trusted := t.TempDir()
+	var out bytes.Buffer
+	if err := runScan(context.Background(), path, scanOptions{outputDir: trusted, noPublish: true, base: base,
+		failOnNew: "P4", trustDescriptorChange: digestIn(t, console)}, reg, &out); err != nil {
+		t.Fatalf("the trusted change failed: %v\n%s", err, out.String())
+	}
+	newBlock, _ := gateOf(t, trusted)["new"].(map[string]any)
+	files, _ := newBlock["files"].([]any)
+	if newBlock["verdict"] != "pass" || len(files) != 2 {
+		t.Errorf("gate.new = %v, want a pass that lists both files", newBlock)
+	}
+}
+
 // runScanTrusting scans path against base under a P4 gate on new findings with digest typed as
 // --trust-descriptor-change, and returns the console and the error.
 func runScanTrusting(t *testing.T, path, base, digest string, reg *engine.Registry) (string, error) {

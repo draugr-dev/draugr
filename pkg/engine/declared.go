@@ -1,13 +1,12 @@
 package engine
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
 
+	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -30,6 +29,57 @@ type Declarations struct {
 	// Settings are the settings of each of Controls, keyed by control. A control with none is
 	// absent.
 	Settings map[string]ControlSettings
+	// Files are the files outside the descriptor that can set findings aside or change what a
+	// scanner finds, as this run read them, sorted: the VEX documents the descriptor names, the
+	// scanners' own configuration files at the root of each checkout, and the rulesets and
+	// templates a control's settings name. Each is recorded by a digest of its content, never the
+	// content. A file that is not there is not recorded.
+	//
+	// Recorded because a change can set its own finding aside in a file of its own as surely as in
+	// the descriptor, and edit a ruleset in place under a setting that does not change.
+	Files []DeclaredFile
+}
+
+// FileKind is where a declared file was read from.
+type FileKind string
+
+const (
+	// FileVEX is a VEX document the descriptor names, under config.vexSources or a component's vex.
+	FileVEX FileKind = "vex"
+	// FileScanner is one of the scanners' own configuration files at the root of a checkout, such
+	// as `.trivyignore` (see git.RootConfig).
+	FileScanner FileKind = "scanner"
+	// FileSetting is a file or directory a control's setting names, such as a Semgrep ruleset.
+	FileSetting FileKind = "setting"
+)
+
+// DeclaredFile is one file a run read that can set findings aside or change what a scanner finds.
+type DeclaredFile struct {
+	Kind FileKind `json:"kind"`
+	// Repository is the URL of the repository whose checkout held a scanner's file, as the
+	// descriptor writes it. Empty for the other kinds, which are read where Draugr runs or from
+	// where the descriptor points.
+	Repository string `json:"repository,omitempty"`
+	// Path is as written: a scanner's file from the root of its checkout, a VEX source's path, URL
+	// or `repository#path`, or the path a setting gives.
+	Path string `json:"path"`
+	// Digests name what each read of the file found, sorted, each once: more than one where
+	// components read one repository at two revisions. None for a VEX document fetched from a URL
+	// or read from another repository, which a change cannot edit and which is compared by where
+	// it is.
+	Digests []string `json:"digests,omitempty"`
+}
+
+// UnlistedSetAside is a scanner's configuration file that kept findings from the scanner without
+// listing what it kept.
+type UnlistedSetAside struct {
+	// Repository is the URL of the repository whose checkout held the file, as the descriptor
+	// writes it.
+	Repository string `json:"repository"`
+	// File is its path from the root of the checkout.
+	File string `json:"file"`
+	// Scanner is the scanner that honored it.
+	Scanner string `json:"scanner"`
 }
 
 // ControlSettings are a control's settings as a run read them, one digest for each top-level key: a
@@ -179,6 +229,5 @@ func SettingDigest(value any) string {
 		// also writes a map's keys in sorted order, so the same value still names itself alike.
 		b = []byte(fmt.Sprintf("%#v", value))
 	}
-	sum := sha256.Sum256(b)
-	return hex.EncodeToString(sum[:8])
+	return git.ContentDigest(b)
 }

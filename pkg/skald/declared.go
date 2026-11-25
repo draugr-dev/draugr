@@ -26,6 +26,10 @@ const (
 	// declaredSettings holds each control's settings as digests, written only where some control
 	// has settings, so a declaration with none names itself as it did before they were recorded.
 	declaredSettings = "settings"
+	// declaredFiles holds the files outside the descriptor that can set findings aside or change
+	// what a scanner finds, each with its digests, written only where the run read any, for the same
+	// reason.
+	declaredFiles = "files"
 )
 
 // declaredExclusion is the part of a config.exclude rule that decides which findings it sets
@@ -44,20 +48,21 @@ type declaredExclusion struct {
 // the change under review, and a change that declares its component less exposed, turns a control
 // off or excludes the finding it adds would otherwise be judged by the declaration it introduces.
 func DeclaredProvenance(d engine.Declarations) []sarif.Provenance {
-	if len(d.Components) == 0 && len(d.Controls) == 0 && len(d.Exclusions) == 0 {
+	if len(d.Components) == 0 && len(d.Controls) == 0 && len(d.Exclusions) == 0 && len(d.Files) == 0 {
 		return nil
 	}
 	exclusions := make([]declaredExclusion, 0, len(d.Exclusions))
 	for _, rule := range d.Exclusions {
 		exclusions = append(exclusions, declaredExclusion{Paths: rule.Paths, Rules: rule.Rules})
 	}
-	out := []sarif.Provenance{{
-		Tool: DeclaredProvenanceTool,
-		Fields: withSettings([]sarif.Field{
-			{Key: declaredControls, Value: jsonList(d.Controls)},
-			{Key: declaredExclusions, Value: jsonList(exclusions)},
-		}, d.Settings),
-	}}
+	project := withSettings([]sarif.Field{
+		{Key: declaredControls, Value: jsonList(d.Controls)},
+		{Key: declaredExclusions, Value: jsonList(exclusions)},
+	}, d.Settings)
+	if len(d.Files) > 0 {
+		project = append(project, sarif.Field{Key: declaredFiles, Value: jsonList(d.Files)})
+	}
+	out := []sarif.Provenance{{Tool: DeclaredProvenanceTool, Fields: project}}
 	for _, c := range d.Components {
 		out = append(out, sarif.Provenance{
 			Tool:      DeclaredProvenanceTool,
@@ -123,6 +128,7 @@ func DeclaredOfReport(rep sarif.Report) (engine.Declarations, bool) {
 		if p.Component == "" {
 			d.Controls = readList[string](fieldOf(p, declaredControls))
 			d.Settings = readSettings(fieldOf(p, declaredSettings))
+			d.Files = readList[engine.DeclaredFile](fieldOf(p, declaredFiles))
 			for _, e := range readList[declaredExclusion](fieldOf(p, declaredExclusions)) {
 				d.Exclusions = append(d.Exclusions, saga.ExcludeRule{Paths: e.Paths, Rules: e.Rules})
 			}

@@ -55,6 +55,9 @@ func (repoController) Aggregate(reports []sarif.Report) (plugin.ControlResult, e
 type stagedScanner struct {
 	findings  map[string][]sarif.Result
 	revisions map[string]string
+	// configs are the scanners' configuration files each repository's checkout holds, by path, with
+	// their digests, recorded as a repository scanner records them.
+	configs map[string]map[string]string
 }
 
 func (*stagedScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: "staged"} }
@@ -72,9 +75,14 @@ func (s *stagedScanner) Scan(_ context.Context, target plugin.Target, _ plugin.C
 		f.Repository = url
 		out = append(out, f)
 	}
+	var detail []sarif.Field
+	for path, digest := range s.configs[url] {
+		detail = append(detail, sarif.Field{Key: sarif.DetailConfigFile + path, Value: digest})
+	}
 	return sarif.Report{Tool: "staged", Results: out, Provenance: []sarif.Provenance{{
 		Tool:   "staged",
 		Fields: []sarif.Field{{Key: "repository", Value: url}, {Key: "revision", Value: s.revisions[url]}},
+		Detail: detail,
 	}}}, nil
 }
 
