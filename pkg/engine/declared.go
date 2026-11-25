@@ -139,10 +139,10 @@ type RepositoryScope struct {
 // nothing, a component with no image under images, still ran as far as the descriptor is
 // concerned, and the question a comparison asks of it is whether the change turned it off.
 //
-// Settings are digested as the descriptor wrote them, each `${{ }}` reference as the reference: a
-// pipeline variable can hold a different value on every run, such as a path under a temporary
-// directory, and a pull request cannot change it. The content of a file such a path names is
-// recorded among Files.
+// Settings and each repository's scope are recorded as the descriptor wrote them, each `${{ }}`
+// reference as the reference: a pipeline variable can hold a different value on every run, such as
+// a path under a temporary directory or the commit a job checked out, and a pull request cannot
+// change it. The content of a file such a path names is recorded among Files.
 func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 	var d Declarations
 	for _, name := range sortedControllerNames(e.reg.controllers) {
@@ -162,7 +162,7 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 		c := ComponentDeclaration{Name: comp.Name, Exposure: comp.Exposure, Criticality: comp.Criticality}
 		for _, repo := range comp.Repositories {
 			c.Repositories = append(c.Repositories, repo.URL)
-			c.Scopes = append(c.Scopes, RepositoryScope{URL: repo.URL, Paths: repo.Paths, Ignore: repo.Ignore, Revision: repo.Revision})
+			c.Scopes = append(c.Scopes, scopeAsWritten(&model, repo))
 		}
 		for _, name := range sortedControllerNames(e.reg.controllers) {
 			if !e.scope.includesControl(name) || e.reg.controllers[name].Info().Scope != plugin.ScopeComponent {
@@ -183,6 +183,23 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 	}
 	slices.Sort(d.Controls)
 	return d
+}
+
+// scopeAsWritten is the part of repo a component's scans read, as the descriptor wrote it. A revision
+// written as `${{ GITHUB_SHA }}` holds the base's commit in the base's scan and the head's in the
+// head's, so recording the value would read every pull request as moving the revision.
+func scopeAsWritten(model *saga.Model, repo saga.Repository) RepositoryScope {
+	s := RepositoryScope{
+		URL:      model.AsWritten(repo.URL).(string),
+		Revision: model.AsWritten(repo.Revision).(string),
+	}
+	if repo.Paths != nil {
+		s.Paths = model.AsWritten(repo.Paths).([]string)
+	}
+	if repo.Ignore != nil {
+		s.Ignore = model.AsWritten(repo.Ignore).([]string)
+	}
+	return s
 }
 
 // SettingsOf is a control's settings as a run reads them, project with component laid over it as

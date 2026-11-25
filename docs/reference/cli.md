@@ -1333,9 +1333,10 @@ scan reads (`.trivyignore`, `.trivyignore.yaml`, `trivy.yaml`, `.grype.yaml`, `.
 `.semgrepignore`, `.gitleaksignore` and `.gitleaks.toml`), and each ruleset or template a control's
 setting names (Gitleaks and Semgrep `config`, trivy-config `checks`, Nuclei `templates`), a
 directory by every file under it. A setting or a file is recorded as a digest and never as its
-value, since a value may hold a credential. A setting is digested as the descriptor writes it, a
-`${{ NAME }}` reference as the reference, and a file it names by that reference, since a pipeline
-variable may hold another value on every run. Whatever threshold applies, typed or not, the diff holds
+value, since a value may hold a credential. A repository's `url`, `paths`, `ignore` and `revision`
+are recorded as the descriptor writes them, and a setting is digested that way, a `${{ NAME }}`
+reference as the reference and a file it names by that reference, since a pipeline variable such as
+`GITHUB_SHA` holds another value on every run. Whatever threshold applies, typed or not, the diff holds
 the change to the base's declaration until it merges:
 
 - A new finding ranks by the more exposed and the more critical of the base's classification and the

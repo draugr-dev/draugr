@@ -265,3 +265,72 @@ func TestTheVEXDocumentsReadAreRecorded(t *testing.T) {
 		t.Errorf("files = %+v\nwant %+v", got, want)
 	}
 }
+
+func TestRepositoryScopesAreRecordedAsWritten(t *testing.T) {
+	descriptor := []byte(`project: shop
+release: { version: "1.0" }
+components:
+  - name: api
+    repositories:
+      - url: ${{ REMOTE }}/api
+        revision: ${{ SHA }}
+        paths: ["${{ SUBDIR }}"]
+        ignore: ["${{ SUBDIR }}/vendor/"]
+      - url: ${{ REMOTE }}/web
+        revision: ${{ SHA }}
+`)
+	t.Setenv(saga.SagaEnvsVar, "REMOTE,SHA,SUBDIR")
+	declare := func(remote, sha, subdir string) []RepositoryScope {
+		t.Helper()
+		t.Setenv("REMOTE", remote)
+		t.Setenv("SHA", sha)
+		t.Setenv("SUBDIR", subdir)
+		model, err := saga.Load(descriptor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := New(NewRegistry()).declarations(*model, time.Now())
+		if len(d.Components) != 1 {
+			t.Fatalf("components = %+v", d.Components)
+		}
+		return d.Components[0].Scopes
+	}
+	base := declare("/runner/1", "1111111111111111111111111111111111111111", "src")
+	head := declare("/runner/2", "2222222222222222222222222222222222222222", "lib")
+	if !reflect.DeepEqual(base, head) {
+		t.Errorf("one descriptor under two runs' values recorded two scopes:\n  %+v\n  %+v", base, head)
+	}
+	want := []RepositoryScope{
+		{URL: "${{ REMOTE }}/api", Revision: "${{ SHA }}", Paths: []string{"${{ SUBDIR }}"},
+			Ignore: []string{"${{ SUBDIR }}/vendor/"}},
+		{URL: "${{ REMOTE }}/web", Revision: "${{ SHA }}"},
+	}
+	if !reflect.DeepEqual(base, want) {
+		t.Errorf("scopes = %+v, want each field as written: %+v", base, want)
+	}
+}
+
+func TestARepositoryScopeWithoutReferencesIsRecordedAsItReads(t *testing.T) {
+	model, err := saga.Load([]byte(`project: shop
+release: { version: "1.0" }
+components:
+  - name: api
+    repositories:
+      - url: .
+        revision: v1
+        paths: [src]
+        ignore: [src/vendor/]
+      - url: ../web
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := New(NewRegistry()).declarations(*model, time.Now()).Components[0].Scopes
+	want := []RepositoryScope{
+		{URL: ".", Revision: "v1", Paths: []string{"src"}, Ignore: []string{"src/vendor/"}},
+		{URL: "../web"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("scopes = %+v, want %+v", got, want)
+	}
+}
