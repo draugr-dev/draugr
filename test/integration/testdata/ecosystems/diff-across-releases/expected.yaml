@@ -24,11 +24,12 @@ findings:
     package: pip Flask 0.12.2
 
 base:
-  release: 0.189.3
+  release: 0.189.4
   diff: 0
   scanBase: 0
-  # 0.189.3 recorded no .semgrepignore below the root, so the comparison reads src/.semgrepignore at
-  # the base's commit. A checkout without that commit cannot show the file was there.
+  # A base from 0.189.4 or later records src/.semgrepignore itself, so the comparison reads nothing
+  # at the base's commit and passes where the checkout lacks it. A base from an earlier release
+  # held the file as added there (internal/cli/olderbase_test.go covers that read).
   unread:
-    diff: 1
-    contains: "src/.semgrepignore is held as though this change added it"
+    diff: 0
+    contains: "pass"
