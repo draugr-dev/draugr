@@ -1,0 +1,19 @@
+project: diff-across-releases
+release:
+  version: "1.0"
+config:
+  gate:
+    failOnNew: P1
+  controls:
+    sca:
+      enabled: true
+    secrets:
+      enabled: true
+    sast:
+      enabled: true
+      semgrep:
+        config: ${{ DRAUGR_SEALED_SEMGREP_RULES }}
+components:
+  - name: diff-across-releases
+    repositories:
+      - url: ./diff-across-releases

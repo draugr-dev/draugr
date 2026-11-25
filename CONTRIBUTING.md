@@ -354,6 +354,16 @@ PATH="$HOME/.draugr/bin:$PATH" DRAUGR_BIN="$PWD/bin/draugr" \
 `expected.yaml`: that file states what the scan has to find, and changing it is a decision to make
 in review.
 
+A `diff-` scenario also compares this tree's scan with a base report an earlier release wrote, as a
+pull request is compared on the day its pipeline upgrades. The base follows the releases: once it is
+older than the two newest in `CHANGELOG.md`, `TestEachSealedBaseIsFromARecentRelease` fails until
+`base.release` names the newest one and the base is written again by it:
+
+```bash
+DRAUGR_BIN=<that release's draugr> PATH="$HOME/.draugr/bin:$PATH" \
+  go test -tags integration -run 'TestSealedScenarios/diff-' ./test/integration/ -write-sealed-base
+```
+
 ### Live and air-gapped runs
 
 The Integration workflow runs the same scenarios outside the pull request tier, in these jobs:
