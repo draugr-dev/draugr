@@ -561,17 +561,25 @@ func (s repoScanner) provenance(repo plugin.RepositoryTarget, tree git.Tree, cfg
 	if tree.Dir == "" {
 		return p
 	}
-	for _, name := range git.RootConfig() {
+	recorded := map[string]bool{}
+	record := func(name string) {
 		path := filepath.Join(tree.Dir, filepath.FromSlash(name))
-		if info, err := os.Stat(path); err != nil || info.IsDir() {
-			continue
+		if info, err := os.Stat(path); err != nil || info.IsDir() || recorded[name] {
+			return
 		}
 		if digest, ok := git.PathDigest(path); ok {
 			p.Detail = append(p.Detail, sarif.Field{Key: sarif.DetailConfigFile + name, Value: digest})
+			recorded[name] = true
 		}
+	}
+	for _, name := range git.RootConfig() {
+		record(name)
 	}
 	if s.unlisted != nil {
 		for _, name := range s.unlisted(tree.Dir, cfg) {
+			// A file the scanner reads below the root, such as a .semgrepignore in a subdirectory,
+			// sets findings aside as the root's does, so it is held to its base the same way.
+			record(name)
 			p.Detail = append(p.Detail, sarif.Field{Key: sarif.DetailUnlistedSetAside + name, Value: s.info.Name})
 		}
 	}

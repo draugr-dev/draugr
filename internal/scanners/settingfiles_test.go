@@ -37,16 +37,19 @@ func configDetail(rep sarif.Report, prefix string) map[string]string {
 // A repository scan records the scanners' configuration files at the root of the checkout it read,
 // by a digest of each, from a real checkout of each of two repositories. A component scoped to a
 // subtree still has the root's files, which the tools read, and a file of the same name in the
-// subtree is not one the tools read there. A file that is not there is not recorded.
+// subtree is not one the tools read there, except a .semgrepignore, which Semgrep reads in every
+// directory. A file that is not there, or outside the paths the checkout keeps, is not recorded.
 func TestARepositoryScanRecordsTheConfigFilesItsCheckoutHeld(t *testing.T) {
 	api := writeTree(t, map[string]string{
-		".trivyignore":              "CVE-2024-0001\n",
-		".grype/config.yaml":        "ignore: []\n",
-		".grype/other.yaml":         "not read\n",
-		".semgrepignore":            "tests/\n",
-		"services/api/.trivyignore": "CVE-2024-0002\n",
-		"services/api/main.py":      "print('x')\n",
-		"services/web/main.py":      "print('y')\n",
+		".trivyignore":                "CVE-2024-0001\n",
+		".grype/config.yaml":          "ignore: []\n",
+		".grype/other.yaml":           "not read\n",
+		".semgrepignore":              "tests/\n",
+		"services/api/.trivyignore":   "CVE-2024-0002\n",
+		"services/api/.semgrepignore": "generated/\n",
+		"services/web/.semgrepignore": "vendor/\n",
+		"services/api/main.py":        "print('x')\n",
+		"services/web/main.py":        "print('y')\n",
 	})
 	web := writeTree(t, map[string]string{".gitleaksignore": "abc:def:1\n", "main.go": "package main\n"})
 	repoAt(t, api)
@@ -66,14 +69,15 @@ func TestARepositoryScanRecordsTheConfigFilesItsCheckoutHeld(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		".trivyignore":       git.ContentDigest([]byte("CVE-2024-0001\n")),
-		".grype/config.yaml": git.ContentDigest([]byte("ignore: []\n")),
-		".semgrepignore":     git.ContentDigest([]byte("tests/\n")),
+		".trivyignore":                git.ContentDigest([]byte("CVE-2024-0001\n")),
+		".grype/config.yaml":          git.ContentDigest([]byte("ignore: []\n")),
+		".semgrepignore":              git.ContentDigest([]byte("tests/\n")),
+		"services/api/.semgrepignore": git.ContentDigest([]byte("generated/\n")),
 	}
 	if got := configDetail(rep, sarif.DetailConfigFile); !reflect.DeepEqual(got, want) {
 		t.Errorf("api's files = %v\nwant %v", got, want)
 	}
-	if got := configDetail(rep, sarif.DetailUnlistedSetAside); !reflect.DeepEqual(got, map[string]string{".semgrepignore": "semgrep"}) {
+	if got := configDetail(rep, sarif.DetailUnlistedSetAside); !reflect.DeepEqual(got, map[string]string{".semgrepignore": "semgrep", "services/api/.semgrepignore": "semgrep"}) {
 		t.Errorf("api's unlisted = %v", got)
 	}
 
@@ -191,5 +195,32 @@ func TestAnAllowlistIsReadFromWhatTheFileDeclares(t *testing.T) {
 		if got := gitleaksDeclaresAllowlist([]byte(tc.toml)); got != tc.want {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
 		}
+	}
+}
+
+// Semgrep reads a .semgrepignore in every directory it scans, so each one the checkout holds is
+// named by its path from the root, sorted. A directory of that name, a dangling link and the git
+// directory, which Semgrep does not scan, name nothing.
+func TestEverySemgrepignoreInTheCheckoutIsNamed(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		"src/.semgrepignore":          "calc.py\n",
+		"src/deep/er/.semgrepignore":  "x.py\n",
+		".semgrepignore":              "tests/\n",
+		".git/hooks/.semgrepignore":   "not read\n",
+		"docs/.semgrepignore/keep.md": "a directory, not a file\n",
+		"src/app.py":                  "print('x')\n",
+	})
+	if err := os.MkdirAll(filepath.Join(dir, "lib"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "missing"), filepath.Join(dir, "lib", ".semgrepignore")); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{".semgrepignore", "src/.semgrepignore", "src/deep/er/.semgrepignore"}
+	if got := semgrepUnlisted(dir, nil); !reflect.DeepEqual(got, want) {
+		t.Errorf("named %q, want %q", got, want)
+	}
+	if got := semgrepUnlisted(filepath.Join(dir, "does-not-exist"), nil); got != nil {
+		t.Errorf("a checkout that is not there: %q", got)
 	}
 }

@@ -2,8 +2,10 @@ package scanners
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/draugr-dev/draugr/pkg/plugin"
@@ -62,17 +64,34 @@ func (s nucleiScanner) SettingFiles(cfg plugin.Config) []string {
 	return out
 }
 
-// semgrepIgnoreFile is the file Semgrep reads, from the root of the tree it scans, for paths to
-// leave out of the scan.
+// semgrepIgnoreFile is the file Semgrep reads for paths to leave out of the scan, at the root of the
+// tree it scans and in every directory below it, as git reads a .gitignore.
 const semgrepIgnoreFile = ".semgrepignore"
 
-// semgrepUnlisted names .semgrepignore where the checkout holds one. Semgrep leaves the files it
-// names out of the scan and its report says nothing of what they held.
+// semgrepUnlisted names every .semgrepignore the checkout holds, by its path from the root, sorted.
+// Semgrep leaves the files each one names out of the scan and its report says nothing of what they
+// held. A directory that cannot be read is one Semgrep cannot read either.
 func semgrepUnlisted(dir string, _ plugin.Config) []string {
-	if info, err := os.Stat(filepath.Join(dir, semgrepIgnoreFile)); err != nil || !info.Mode().IsRegular() {
+	var out []string
+	_ = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		switch {
+		case err != nil:
+			return nil
+		case d.IsDir() && d.Name() == ".git":
+			return filepath.SkipDir
+		case d.IsDir() || d.Name() != semgrepIgnoreFile:
+			return nil
+		}
+		if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+			return nil
+		}
+		if rel, err := filepath.Rel(dir, path); err == nil {
+			out = append(out, filepath.ToSlash(rel))
+		}
 		return nil
-	}
-	return []string{semgrepIgnoreFile}
+	})
+	slices.Sort(out)
+	return out
 }
 
 // gitleaksUnlisted names .gitleaks.toml where the scan extends it and it holds an allowlist.
