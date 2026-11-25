@@ -12,6 +12,20 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.5] - 2026-11-25
+
+### Fixed
+
+- **A scan runs with a home directory it cannot write to.** With `DRAUGR_HOME` set, what Trivy, Grype, Syft, Semgrep, cosign and Nuclei write as they run goes under it, so `sca` and `sast` no longer fail there. `draugr doctor` marks a tool that cannot write where it keeps its data, names the place, and fails.
+
+- **`draugr feeds --help` says when a scan fetches a feed itself.** It said a scan never does. A scan fetches KEV or EPSS set to `auto` when the copy is missing or stale, and, online, fetches the Go vulnerability database again when a copy you fetched is too old or fails its checks.
+
+- **Pull requests no longer warn that the branch's code-scanning configuration is missing.** The new findings the GitHub Action uploads on a pull request now carry the scan's category, so code scanning compares them with the branch's analysis in that category.
+
+- **REPORTS fits your terminal with a long `-o` path.** Each report's path stays whole on its line, with what the file is for on the next, instead of padding every row past the edge.
+
+- **The HTML report names every way findings were set aside.** It now lists a setting such as `config.controls.sca.devDependencies: suppress`, and a scanner configuration file such as `.semgrepignore` that kept findings without listing them, as the console and Markdown reports already did.
+
 ## [0.189.4] - 2026-11-25
 
 ### Fixed
@@ -7577,7 +7591,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.4...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.5...HEAD
+[0.189.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.5
 [0.189.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.4
 [0.189.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.3
 [0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2
