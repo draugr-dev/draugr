@@ -1,1 +1,0 @@
-- **A pull request whose descriptor sets a repository's `revision` from a pipeline variable, such as `${{ GITHUB_SHA }}`, passes the gate again when the descriptor is unchanged.** 0.189.2 read the base's commit and the head's as a moved revision and failed every such pull request. `url`, `paths` and `ignore` are compared as written too.
