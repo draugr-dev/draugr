@@ -50,8 +50,8 @@ The two fields are facts about your architecture and your business, which no sca
 and they sit in the descriptor where a reviewer sees them. A component that declares neither is
 ranked as public and critical and marked `assumed` in the report, as
 [Components](prioritization.md#components) describes. The feeds come from a local cache that
-`draugr feeds update` fills, so a scan never reaches the network for them and the report names the
-copy it read.
+`draugr feeds update` fills, and the report names the copy it read. Set to `cache`, a scan never
+reaches the network for them.
 
 ## Removal
 

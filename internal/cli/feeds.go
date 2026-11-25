@@ -24,11 +24,16 @@ func newFeedsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "feeds",
 		Short: "Manage the datasets a scan reads from ~/.draugr/feeds",
-		Long: "Fetch and inspect the cached datasets a scan reads without the network:\n\n" +
+		Long: "Fetch and inspect the cached datasets a scan reads:\n\n" +
 			"  kev       CISA's catalog of vulnerabilities exploited in the wild\n" +
 			"  epss      FIRST's scores for the likelihood of exploitation\n" +
 			"  govulndb  the Go vulnerability database, read by govulncheck\n\n" +
-			"A scan reads the cache and never fetches on its own. Update it with this command.",
+			"A scan reads the cache, and fetches on its own in two cases only:\n\n" +
+			"  kev, epss  when --kev, --epss or config.exploitability says auto and the copy is\n" +
+			"             missing or older than its maximum age\n" +
+			"  govulndb   online, when a copy this command fetched is too old or fails its checks;\n" +
+			"             a machine with no copy is not given one\n\n" +
+			"Anything else waits for this command.",
 	}
 	cmd.AddCommand(newFeedsUpdateCommand())
 	cmd.AddCommand(newFeedsStatusCommand())

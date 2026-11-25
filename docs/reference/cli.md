@@ -2335,8 +2335,16 @@ draugr tools list
 
 ## `draugr feeds`
 
-Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. A scan reads the cache and
-fetches a feed only when `--kev` or `--epss` (or `config.exploitability`) says `auto`.
+Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. A scan reads the cache, and
+fetches on its own in two cases only:
+
+- `kev` and `epss`, when `--kev`, `--epss` or `config.exploitability` says `auto` and the copy is
+  missing or older than its maximum age.
+- `govulndb`, online, when a copy `draugr feeds update` fetched is too old or fails its checks
+  ([govulncheck](../../internal/scanners/govulncheck.md#data)). A machine with no copy is not given
+  one.
+
+Anything else waits for `draugr feeds update`.
 
 | Feed | Dataset | Read by |
 |------|---------|---------|
