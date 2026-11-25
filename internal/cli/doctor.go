@@ -357,7 +357,7 @@ func runDoctor(
 		}
 	}
 	if unwritable > 0 && inventoryOnly && !run.json {
-		_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted, unwritableAdvice(unwritable)))
+		_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted, unwritableAdvice(statuses)))
 	}
 	if (missing > 0 || unwritable > 0) && inventoryOnly {
 		// --strict asks about the tools that are present, and a missing one does not answer that.
@@ -382,7 +382,7 @@ func runDoctor(
 		return fmt.Errorf("%s", advice)
 	}
 	if unwritable > 0 {
-		return errors.New(unwritableAdvice(unwritable))
+		return errors.New(unwritableAdvice(statuses))
 	}
 	// After the missing-tool checks and before the surface note: a target this machine cannot
 	// reach fails the scan the way a missing tool does, where an uncovered surface only narrows it.
@@ -1240,17 +1240,40 @@ func failsOnNotChecked(model *saga.Model) bool {
 // every tool's place at once, so it is the advice unless the tool's own variable was set to the
 // place by somebody other than Draugr, in which case that variable is what to change.
 func unwritableNote(u tools.Unwritable) string {
+	if u.Stays && !u.Named {
+		return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, u.Var)
+	}
 	if u.Named {
 		return fmt.Sprintf("can't write %s, which %s names", u.Path, u.Var)
 	}
 	return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, draugrhome.EnvVar)
 }
 
-// unwritableAdvice is the verdict when tools cannot write where they keep their data.
-func unwritableAdvice(n int) string {
-	return fmt.Sprintf("%s can't write where %s %s data, so a scan using %s would fail. Set "+
-		"DRAUGR_HOME to a directory this user can write to, and what the tools write goes there; the "+
-		"Notes column names each place.",
+// unwritableAdvice is the verdict when tools cannot write where they keep their data. DRAUGR_HOME is
+// the advice where it moves every place that failed; Go's caches stay where Go's own settings put
+// them, so a failure there is answered by the variable its row names.
+func unwritableAdvice(statuses []tools.Status) string {
+	n, stays := 0, 0
+	for _, st := range statuses {
+		if st.Unwritable == nil || st.Tool.Optional {
+			continue
+		}
+		n++
+		if st.Unwritable.Stays {
+			stays++
+		}
+	}
+	lead := fmt.Sprintf("%s can't write where %s %s data, so a scan using %s would fail.",
 		english.Count(n, "tool"), english.Choose(n, "it keeps", "they keep"), english.Choose(n, "its", "their"),
 		english.Choose(n, "it", "them"))
+	switch stays {
+	case 0:
+		return lead + " Set DRAUGR_HOME to a directory this user can write to, and what the tools write " +
+			"goes there; the Notes column names each place."
+	case n:
+		return lead + " Set the variable the Notes column names to a directory this user can write to."
+	default:
+		return lead + " Set the variable each row of the Notes column names to a directory this user " +
+			"can write to."
+	}
 }

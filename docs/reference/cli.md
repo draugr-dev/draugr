@@ -2156,7 +2156,9 @@ Those tools then keep their caches under `DRAUGR_HOME`, apart from any other ins
 tool. Semgrep reads its settings there too, a `semgrep login` included; set `SEMGREP_SETTINGS_FILE`
 to keep using yours.
 gosec and govulncheck build the code they read with Go, whose build and module caches follow Go's
-own `GOCACHE` and `GOMODCACHE`, as they do for `go build`.
+own `GOCACHE` and `GOMODCACHE`, as they do for `go build`. `draugr doctor` checks that both take a
+write wherever gosec or govulncheck is among the tools, and a cache that does not is a `can't write`
+row naming the variable that moves it.
 
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
