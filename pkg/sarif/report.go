@@ -1273,6 +1273,10 @@ type Report struct {
 	// the check it passes, fails or produces nothing, so a check the scan could not evaluate and one
 	// it found clean have to be told apart here rather than read off the results.
 	Unchecked []Unchecked `json:"unchecked,omitempty"`
+	// ToolVersion is the version the first run's tool driver names, read back from a SARIF file: for
+	// a report Draugr wrote, the release that wrote it, which a comparison reads to know what an
+	// older release did not record. Empty for a report built in memory or written without one.
+	ToolVersion string `json:"toolVersion,omitempty"`
 }
 
 // Unchecked is one check a scan could not evaluate.

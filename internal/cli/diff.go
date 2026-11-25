@@ -329,6 +329,9 @@ func compareWithBase(baseName string, base sarif.Report, headName string, head s
 	baseDeclared, recorded := skald.DeclaredOfReport(base)
 	headDeclared, _ := skald.DeclaredOfReport(head)
 	digest := skald.DeclaredDigest(headDeclared)
+	// Before the base is read as not having a file its release never recorded: the checkout this
+	// runs in holds the base's commit, and the file as that commit has it is the base's evidence.
+	baseDeclared, older := readOlderBase(context.Background(), workingDir(), base, baseDeclared, headDeclared)
 	compared := diff.Compare(base, head)
 	if trust != "" && trust == digest {
 		compared = compared.TrustChange(baseDeclared, headDeclared, recorded, scanpolicy.RankUnder)
@@ -336,6 +339,7 @@ func compareWithBase(baseName string, base sarif.Report, headName string, head s
 		compared = compared.HoldToBase(baseDeclared, headDeclared, recorded, scanpolicy.RankUnder)
 		compared.Held.TrustNamedOther = trust
 	}
+	older.markUnread(&compared.Held)
 	compared.Held.Digest = digest
 	return compared, nil
 }

@@ -1066,6 +1066,10 @@ type jsonFile struct {
 	Path       string `json:"path"`
 	// Change is "added" or "changed".
 	Change string `json:"change"`
+	// BaseUnread says why a file the base report's release did not record could not be read at
+	// the base's commit, where it could not, so it is held as added: "commitMissing" where the
+	// checkout lacks the commit, "commitUnknown" where the base names none it can be read at.
+	BaseUnread Unread `json:"baseUnread,omitempty"`
 }
 
 // heldJSON is h for the JSON format, nil where the base decided nothing beyond the head.
@@ -1081,7 +1085,7 @@ func heldJSON(h Held) *jsonHeld {
 		if f.Added {
 			change = "added"
 		}
-		out.Files = append(out.Files, jsonFile{Repository: f.Repository, Path: f.Path, Change: change})
+		out.Files = append(out.Files, jsonFile{Repository: f.Repository, Path: f.Path, Change: change, BaseUnread: f.BaseUnread})
 	}
 	for _, rr := range h.Raised {
 		out.Raised = append(out.Raised, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: "raised"})

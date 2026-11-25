@@ -65,6 +65,9 @@ type Held struct {
 	// head's, so the base's decided. A switch left in a pipeline after its pull request merged
 	// names the descriptor that merged, and the next change to it is held to the base again.
 	TrustNamedOther string
+	// BaseVersion is the release that wrote the base report, set where a file in Files is
+	// BaseUnread, so the run can say which release did not record it.
+	BaseVersion string
 }
 
 // Dropped is a control the base ran that the head does not.
@@ -108,7 +111,24 @@ type FileChange struct {
 	Path string
 	// Added is set where the base read no such file.
 	Added bool
+	// BaseUnread is set where the base report could not have recorded the file, written by a
+	// release that recorded no scanner's file below a checkout's root, and the file could not be
+	// read at the base's commit either, with why. Held as added, since nothing shows the base had it.
+	BaseUnread Unread
 }
+
+// Unread is why a file the base report could not have recorded was not read at the base's commit.
+type Unread string
+
+const (
+	// CommitMissing is a base commit the checkout the comparison runs in does not hold, as in a
+	// shallow clone. Fetching it settles the file.
+	CommitMissing Unread = "commitMissing"
+	// CommitUnknown is a base report that names no commit for the repository, or read it with
+	// uncommitted changes that no commit holds, or a directory git cannot read. Only a scan of the
+	// base by a release that records the file settles it.
+	CommitUnknown Unread = "commitUnknown"
+)
 
 // changedFiles are the files of head that base did not read, or read with other content.
 //
@@ -186,9 +206,13 @@ func (h Held) name(f FileChange) string {
 func (h Held) filesClause() string {
 	var added, changed []string
 	for _, f := range h.Files {
-		if f.Added {
+		switch {
+		case f.BaseUnread != "":
+			// Named in a note of its own: nothing shows that this change added it.
+			continue
+		case f.Added:
 			added = append(added, h.name(f))
-		} else {
+		default:
 			changed = append(changed, h.name(f))
 		}
 	}
@@ -211,6 +235,54 @@ func (h Held) filesClause() string {
 // filesNote is the sentence about the files, ending as the run's state requires.
 func (h Held) filesNote(ending string) string {
 	return "This change " + h.filesClause() + ", which can set findings aside or change what a scanner finds" + ending
+}
+
+// unreadNotes name the files the base report could not have recorded and that could not be read
+// at the base's commit, one note for each reason, with what settles them. None where there are none.
+func (h Held) unreadNotes() []string {
+	release := "an older release"
+	if h.BaseVersion != "" {
+		release = "Draugr " + h.BaseVersion
+	}
+	var notes []string
+	for _, why := range []Unread{CommitMissing, CommitUnknown} {
+		names := h.unreadNames(why)
+		if len(names) == 0 {
+			continue
+		}
+		n := len(names)
+		note := english.And(names) + " " + english.Choose(n, "is", "are") + " held as though this change added " +
+			english.Choose(n, "it", "them") + ". The base report is from " + release + ", which did not record " +
+			english.Choose(n, "it", "them")
+		if why == CommitMissing {
+			note += ", and the base's commit is not in this checkout to read " + english.Choose(n, "it", "them") +
+				" from. Fetch the full history (fetch-depth: 0 in actions/checkout, GIT_DEPTH: 0 on GitLab), " +
+				"or scan the base with this release"
+		} else {
+			note += ", and " + english.Choose(n, "it", "they") + " cannot be read at the base's commit. " +
+				"Scan the base with this release"
+		}
+		notes = append(notes, note)
+	}
+	return notes
+}
+
+// unreadNames names the files in Files unread for why, or for any reason where why is empty, as a
+// reader is shown them.
+func (h Held) unreadNames(why Unread) []string {
+	var names []string
+	for _, f := range h.Files {
+		if f.BaseUnread != "" && (why == "" || f.BaseUnread == why) {
+			names = append(names, h.name(f))
+		}
+	}
+	return names
+}
+
+// onlyUnread reports whether what holds the change is files the base could not have recorded,
+// and nothing the change did.
+func (h Held) onlyUnread() bool {
+	return len(h.Files) > 0 && h.filesClause() == "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted) == 0
 }
 
 // RevisionChange is a repository's revision as the base pinned it and as the head pins it, each
@@ -764,9 +836,10 @@ func (h Held) Notes() []string {
 	notes = append(notes, h.droppedNotes(func(stopped string) string {
 		return "The base ran " + stopped + " and this change does not"
 	})...)
-	if len(h.Files) > 0 {
+	if h.filesClause() != "" {
 		notes = append(notes, h.filesNote(", so the gate holds until it merges"))
 	}
+	notes = append(notes, h.unreadNotes()...)
 	if n := len(h.Raised); n > 0 {
 		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "ranks", "rank")+
 			" by the base's exposure and criticality, which this change lowers, until it merges")
@@ -775,7 +848,12 @@ func (h Held) Notes() []string {
 		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "is", "are")+
 			" excused by an exclusion this change adds, and "+english.Choose(n, "counts", "count")+" as new until it merges")
 	}
-	if h.Digest != "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted)+len(h.Files) > 0 {
+	if h.Digest != "" && h.onlyUnread() {
+		// The change did not touch the file, so there is no intent to ask about: the switch is a way
+		// past the base, and says what it gives up.
+		notes = append(notes, "To pass anyway, add --trust-descriptor-change "+h.Digest+" to the pipeline file; it accepts "+
+			english.And(h.unreadNames(""))+" as it is now, unchecked against the base")
+	} else if h.Digest != "" && len(h.Raised)+len(h.Dropped)+len(h.SelfAccepted)+len(h.Files) > 0 {
 		// "This change" rather than "this change to the descriptor": the digest covers the files the
 		// descriptor's run read as well, and a change that edits only an ignore file is trusted the
 		// same way.
@@ -796,7 +874,7 @@ func (h Held) trustedNotes() []string {
 	notes = append(notes, h.droppedNotes(func(stopped string) string {
 		return "This change stops " + stopped + ", which the base ran"
 	})...)
-	if len(h.Files) > 0 {
+	if h.filesClause() != "" {
 		notes = append(notes, h.filesNote(""))
 	}
 	if n := len(h.Raised); n > 0 {
@@ -880,11 +958,19 @@ func (h Held) DroppedSentence() string {
 	if len(narrowed) > 0 {
 		parts = append(parts, "alters "+narrowedList(narrowed))
 	}
-	if len(h.Files) > 0 {
-		parts = append(parts, h.filesClause())
+	if clause := h.filesClause(); clause != "" {
+		parts = append(parts, clause)
 	}
-	if len(parts) == 0 {
+	unread := h.unreadNames("")
+	switch {
+	case len(parts) == 0 && len(unread) == 0:
 		return ""
+	case len(unread) == 0:
+		return "this change " + strings.Join(parts, ", and ")
 	}
-	return "this change " + strings.Join(parts, ", and ")
+	clause := english.And(unread) + " cannot be read at the base's commit"
+	if len(parts) == 0 {
+		return clause
+	}
+	return "this change " + strings.Join(parts, ", and ") + ", and " + clause
 }
