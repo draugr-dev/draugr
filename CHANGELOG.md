@@ -14,13 +14,19 @@ _Nothing yet._
 
 ## [0.189.2] - 2026-11-25
 
+### Changed
+
+- **A finding set aside by an inline directive on a line a change adds is now listed as accepted by that change.** The console and the pull request comment read `accepted by this change: suppressed in source (nosemgrep)` for a `# nosemgrep`, `gitleaks:allow` or `#nosec`, and the gate does not hold.
+
+- **Comparing a 0.189.2 head against a base report from 0.189.1 or earlier can hold the change.** Scan the base with the same release as the head, as the GitHub, GitLab and Azure templates already do.
+
 ### Fixed
 
-- **A pull request that adds an `ignore` entry or changes a repository's `revision` now fails the gate on new findings until it merges.** Either changes what the scan reads, so the head could miss what the change adds. The run names what changed; if the change is intended, `--trust-descriptor-change` with the digest it prints lets it through.
+- **A pull request that adds an `ignore` entry or changes a repository's `revision` now fails the gate until it merges.** The run names what changed, and `--trust-descriptor-change` with the digest it prints lets an intended change through.
 
-- **A pull request that adds or edits a file that can set findings aside now fails the gate until it merges.** A VEX document, `.trivyignore`, `.gitleaksignore`, `.semgrepignore`, `.gitleaks.toml` or a ruleset a setting names can hide the change's own finding as surely as the descriptor. Pass an intended change with the `--trust-descriptor-change` digest the run prints.
+- **A pull request that adds or edits a file that can set findings aside now fails the gate until it merges.** This covers a VEX document, `.trivyignore`, `.gitleaksignore`, `.semgrepignore`, `.gitleaks.toml` and a ruleset a setting names. Pass an intended change with the digest the run prints.
 
-- **A pull request that changes a control's settings now fails the new-findings gate until it merges.** Switching sca's scanner, narrowing a scanner's options or changing a control's own setting changes what the scan looks for, as turning it off does. Turning on one more scanner passes. Trust an intended change with the digest the run prints.
+- **A pull request that changes a control's settings now fails the gate until it merges.** This covers switching sca's scanner, narrowing a scanner's options and changing a control's own setting. Turning on one more scanner still passes. Trust an intended change with the digest the run prints.
 
 ## [0.189.1] - 2026-11-24
 
