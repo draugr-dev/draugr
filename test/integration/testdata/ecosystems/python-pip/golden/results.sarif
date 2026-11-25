@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./python-pip\"]",
-              "repositoryScopes": "[{\"url\":\"./python-pip\"}]"
+              "repositoryScopes": "[{\"url\":\"./python-pip\"}]",
+              "settings": "{\"sast\":{\"semgrep\":\"5f38d4123714953c\"}}"
             },
             "tool": "draugr/declared"
           },

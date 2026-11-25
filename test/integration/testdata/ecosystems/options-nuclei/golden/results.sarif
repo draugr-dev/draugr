@@ -125,7 +125,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[]",
-              "repositoryScopes": "[]"
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"4820640b71552716\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -147,7 +148,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[]",
-              "repositoryScopes": "[]"
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"b57045df3485c478\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -158,7 +160,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[]",
-              "repositoryScopes": "[]"
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"3c29d225da748524\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -169,7 +172,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[]",
-              "repositoryScopes": "[]"
+              "repositoryScopes": "[]",
+              "settings": "{\"dast\":{\"nuclei\":\"4946fb5edf99e8f9\"}}"
             },
             "tool": "draugr/declared"
           },

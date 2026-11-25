@@ -1,0 +1,1 @@
+- **A pull request that changes a control's settings now fails the new-findings gate until it merges.** Switching sca's scanner, narrowing a scanner's options or changing a control's own setting changes what the scan looks for, as turning it off does. Turning on one more scanner passes. Trust an intended change with the digest the run prints.

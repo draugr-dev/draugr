@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./python-pip-ranges\"]",
-              "repositoryScopes": "[{\"url\":\"./python-pip-ranges\"}]"
+              "repositoryScopes": "[{\"url\":\"./python-pip-ranges\"}]",
+              "settings": "{\"sca\":{\"trivyFs\":\"36651e11ed229123\"}}"
             },
             "tool": "draugr/declared"
           },

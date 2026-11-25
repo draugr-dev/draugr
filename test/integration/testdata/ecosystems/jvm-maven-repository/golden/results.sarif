@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./jvm-maven-repository\"]",
-              "repositoryScopes": "[{\"url\":\"./jvm-maven-repository\"}]"
+              "repositoryScopes": "[{\"url\":\"./jvm-maven-repository\"}]",
+              "settings": "{\"sca\":{\"trivyFs\":\"3fb3871f02e3d8cc\"}}"
             },
             "tool": "draugr/declared"
           },

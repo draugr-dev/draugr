@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./go-nested\"]",
-              "repositoryScopes": "[{\"url\":\"./go-nested\"}]"
+              "repositoryScopes": "[{\"url\":\"./go-nested\"}]",
+              "settings": "{\"sast\":{\"gosec\":\"26b3426b2593763c\",\"semgrep\":\"b532abd7275db62a\"}}"
             },
             "tool": "draugr/declared"
           },

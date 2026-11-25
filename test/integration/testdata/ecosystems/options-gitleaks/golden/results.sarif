@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./options-gitleaks\"]",
-              "repositoryScopes": "[{\"url\":\"./options-gitleaks\"}]"
+              "repositoryScopes": "[{\"url\":\"./options-gitleaks\"}]",
+              "settings": "{\"secrets\":{\"gitleaks\":\"c5578666b245d5bc\"}}"
             },
             "tool": "draugr/declared"
           },

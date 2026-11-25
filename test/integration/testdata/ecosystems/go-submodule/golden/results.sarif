@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./go-submodule\"]",
-              "repositoryScopes": "[{\"url\":\"./go-submodule\"}]"
+              "repositoryScopes": "[{\"url\":\"./go-submodule\"}]",
+              "settings": "{\"sast\":{\"gosec\":\"26b3426b2593763c\",\"semgrep\":\"c4849047f7d29df6\"}}"
             },
             "tool": "draugr/declared"
           },

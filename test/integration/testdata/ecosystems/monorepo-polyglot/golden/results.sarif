@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./monorepo-polyglot\"]",
-              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/api\"]}]"
+              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/api\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"1888f607cd0b50f5\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -40,7 +41,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./monorepo-polyglot\"]",
-              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/web\"]}]"
+              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/web\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"1888f607cd0b50f5\"}}"
             },
             "tool": "draugr/declared"
           },
@@ -59,7 +61,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./monorepo-polyglot\"]",
-              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/worker\"]}]"
+              "repositoryScopes": "[{\"url\":\"./monorepo-polyglot\",\"paths\":[\"services/worker\"]}]",
+              "settings": "{\"sast\":{\"semgrep\":\"1888f607cd0b50f5\"}}"
             },
             "tool": "draugr/declared"
           },

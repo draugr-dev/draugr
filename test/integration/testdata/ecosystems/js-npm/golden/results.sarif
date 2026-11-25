@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./js-npm\"]",
-              "repositoryScopes": "[{\"url\":\"./js-npm\"}]"
+              "repositoryScopes": "[{\"url\":\"./js-npm\"}]",
+              "settings": "{\"sast\":{\"semgrep\":\"fa26100c4a53f776\"},\"sca\":{\"retirejs\":\"26b3426b2593763c\"}}"
             },
             "tool": "draugr/declared"
           },

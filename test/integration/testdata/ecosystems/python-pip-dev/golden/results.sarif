@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./python-pip-dev\"]",
-              "repositoryScopes": "[{\"url\":\"./python-pip-dev\"}]"
+              "repositoryScopes": "[{\"url\":\"./python-pip-dev\"}]",
+              "settings": "{\"sca\":{\"trivyFs\":\"d5bae3889c185459\"}}"
             },
             "tool": "draugr/declared"
           },

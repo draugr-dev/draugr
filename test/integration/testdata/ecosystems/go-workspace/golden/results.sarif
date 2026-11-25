@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./go-workspace\"]",
-              "repositoryScopes": "[{\"url\":\"./go-workspace\"}]"
+              "repositoryScopes": "[{\"url\":\"./go-workspace\"}]",
+              "settings": "{\"sast\":{\"gosec\":\"26b3426b2593763c\",\"semgrep\":\"0c220a07695ad837\"}}"
             },
             "tool": "draugr/declared"
           },

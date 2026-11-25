@@ -21,7 +21,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./python-setuptools\"]",
-              "repositoryScopes": "[{\"url\":\"./python-setuptools\"}]"
+              "repositoryScopes": "[{\"url\":\"./python-setuptools\"}]",
+              "settings": "{\"sca\":{\"grypeFs\":\"26b3426b2593763c\"}}"
             },
             "tool": "draugr/declared"
           },

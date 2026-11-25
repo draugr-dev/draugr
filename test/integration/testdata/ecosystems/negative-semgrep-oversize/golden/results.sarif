@@ -57,7 +57,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./negative-semgrep-oversize\"]",
-              "repositoryScopes": "[{\"url\":\"./negative-semgrep-oversize\"}]"
+              "repositoryScopes": "[{\"url\":\"./negative-semgrep-oversize\"}]",
+              "settings": "{\"sast\":{\"semgrep\":\"f32f7297ea2a3091\"}}"
             },
             "tool": "draugr/declared"
           },

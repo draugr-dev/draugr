@@ -68,7 +68,8 @@
               "criticality": "",
               "exposure": "",
               "repositories": "[\"./options-trivy-fs\"]",
-              "repositoryScopes": "[{\"url\":\"./options-trivy-fs\",\"paths\":[\"os-only\"]}]"
+              "repositoryScopes": "[{\"url\":\"./options-trivy-fs\",\"paths\":[\"os-only\"]}]",
+              "settings": "{\"sca\":{\"trivyFs\":\"0a96b177f20a5a6d\"}}"
             },
             "tool": "draugr/declared"
           },
