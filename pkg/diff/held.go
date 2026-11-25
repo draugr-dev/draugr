@@ -115,6 +115,9 @@ type FileChange struct {
 	// release that recorded no scanner's file below a checkout's root, and the file could not be
 	// read at the base's commit either, with why. Held as added, since nothing shows the base had it.
 	BaseUnread Unread
+	// FetchBase is the command that fetches the base's commit into the checkout the comparison ran
+	// in, set where BaseUnread is CommitMissing and the checkout has a remote to fetch it from.
+	FetchBase string
 }
 
 // Unread is why a file the base report could not have recorded was not read at the base's commit.
@@ -256,8 +259,12 @@ func (h Held) unreadNotes() []string {
 			english.Choose(n, "it", "them")
 		if why == CommitMissing {
 			note += ", and the base's commit is not in this checkout to read " + english.Choose(n, "it", "them") +
-				" from. Fetch the full history (fetch-depth: 0 in actions/checkout, GIT_DEPTH: 0 on GitLab), " +
-				"or scan the base with this release"
+				" from. "
+			if fetch := h.fetchCommands(); len(fetch) > 0 {
+				note += "Fetch " + english.Choose(len(fetch), "it", "them") + " with " + english.And(fetch) + ", or scan the base with this release"
+			} else {
+				note += "Fetch the base's commit, or scan the base with this release"
+			}
 		} else {
 			note += ", and " + english.Choose(n, "it", "they") + " cannot be read at the base's commit. " +
 				"Scan the base with this release"
@@ -265,6 +272,21 @@ func (h Held) unreadNotes() []string {
 		notes = append(notes, note)
 	}
 	return notes
+}
+
+// fetchCommands are the commands that fetch the base's commits the checkout lacks, each once and
+// quoted as code, in the order the files are listed.
+func (h Held) fetchCommands() []string {
+	var cmds []string
+	for _, f := range h.Files {
+		if f.BaseUnread != CommitMissing || f.FetchBase == "" {
+			continue
+		}
+		if c := "`" + f.FetchBase + "`"; !slices.Contains(cmds, c) {
+			cmds = append(cmds, c)
+		}
+	}
+	return cmds
 }
 
 // unreadNames names the files in Files unread for why, or for any reason where why is empty, as a

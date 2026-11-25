@@ -504,6 +504,14 @@ Pin the version in both places if you take this route:
 and re-scan the base whenever you move it. The cache above avoids the whole question, which is why
 it is the one to reach for first.
 
+A stored base from 0.189.3 or earlier also recorded no `.semgrepignore` below a checkout's root, so
+the comparison reads that file at the commit the base was scanned at. A shallow clone, which is what
+`actions/checkout` makes by default, does not hold that commit, and a nested `.semgrepignore` is then
+held as though the pull request added it. The run prints the command that fetches the one commit it
+needs, `git fetch --no-tags --depth 1 origin <commit>`. Scanning the base again with the new release
+settles it too. The action and the GitLab and Azure templates scan both sides with one release, so
+they never compare against an older base.
+
 ## In CI: let the action do it
 
 On GitHub, you don't wire this up by hand. The first-party action's default **`mode: auto`** runs a
@@ -543,11 +551,6 @@ This is [`examples/github-actions.yml`](../../examples/github-actions.yml). The 
 `main` so that a pull request from a branch of this repository runs once, as a diff, rather than
 once more as a full scan of the branch. `fail-on-new` is set in the workflow because `draugr init`
 writes no `config.gate.failOnNew`, and a diff with no threshold fails on nothing.
-
-`fetch-depth: 0` also matters on the day a pipeline upgrades past 0.189.3. A base report from 0.189.3
-or earlier did not record a `.semgrepignore` below the root, so the diff reads the file at the base's
-commit. In a shallow clone, which lacks that commit, a nested `.semgrepignore` is held as though the
-pull request added it, until the history is fetched or the base is scanned again with the new release.
 
 `diff-view: actions` changes what the comment says, grouping the change into the things somebody
 would do rather than listing every finding. GitLab's template takes `DRAUGR_DIFF_VIEW`, and Azure's
