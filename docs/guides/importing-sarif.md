@@ -17,7 +17,8 @@ A repository's GitHub code-scanning and Dependabot alerts can be read from GitHu
 file at all ([Import GitHub's alerts](#import-githubs-alerts)).
 
 The steps below use Bandit, which writes no commit into its SARIF, so they include binding the file
-to the commit it scanned. Another tool's file follows the same steps, with the limits
+to the commit it scanned. Another tool's file follows the same steps, with its own export command and
+quirks ([Import each tool's file](importing-each-tool.md)) and the limits
 [Before you import](../../internal/scanners/sarif-import.md#before-you-import) lists. The ones a
 first import meets:
 
@@ -423,6 +424,8 @@ through a converter your pipeline runs on its output: [Write a converter](writin
 
 ## See also
 
+- [Import each tool's file](importing-each-tool.md): the export command, the control and the quirks
+  for CodeQL, Snyk, Checkmarx One, Fortify, Semgrep, Checkov, KICS, gosec and others.
 - [`components[].imports`](../reference/saga-schema.md#componentsimports) in the Saga reference.
 - The [`sarif-import` scanner](../../internal/scanners/sarif-import.md): how severities are read,
   every field under **Measured against**, and the errors a file can produce.

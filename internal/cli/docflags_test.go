@@ -86,6 +86,25 @@ var notOurs = map[string]string{
 	"--ignore-scripts":   "npm's",
 	"--require-hashes":   "pip's",
 	"--cache":            "npm's",
+	"--rm":               "docker run's",
+
+	// Each tool's export flags, in the guide to importing each tool's file.
+	"--sarif-output":      "Semgrep's",
+	"--error":             "Semgrep's",
+	"--sarif-file-output": "Snyk's",
+	"--report-format":     "Checkmarx One's cx",
+	"--output-path":       "Checkmarx One's cx",
+	"--output-name":       "Checkmarx One's cx and KICS'",
+	"--scan-id":           "Checkmarx One's cx",
+	"--threshold":         "Checkmarx One's cx",
+	"--av":                "Fortify fcli's",
+	"--rel":               "Fortify fcli's",
+	"--file":              "Grype's",
+	"--output-file":       "OSV-Scanner's",
+	"--output-file-path":  "Checkov's",
+	"--soft-fail":         "Checkov's",
+	"--report-formats":    "KICS'",
+	"--ignore-on-exit":    "KICS'",
 
 	// Ours and gone. Named only where the removal is explained, which is the one place naming
 	// them helps: somebody arriving from a descriptor that used them needs to find out what
