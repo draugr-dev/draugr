@@ -16,7 +16,7 @@ _Nothing yet._
 
 ### Fixed
 
-- **A pull request whose descriptor sets a repository's `revision` from a pipeline variable, such as `${{ GITHUB_SHA }}`, passes the gate again when the descriptor is unchanged.** 0.189.2 read the base's commit and the head's as a moved revision and failed every such pull request. `url`, `paths` and `ignore` are compared as written too.
+- **A pull request passes the gate again when a repository's `revision` is set from a pipeline variable, such as `${{ GITHUB_SHA }}`, and the descriptor is unchanged.** 0.189.2 read each commit as a moved revision and failed every such pull request. The gate now compares `url`, `paths`, `ignore` and `revision` as the descriptor writes them, not as the variables resolve.
 
 ## [0.189.2] - 2026-11-25
 
