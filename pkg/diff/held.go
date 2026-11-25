@@ -20,11 +20,12 @@ type Ranker func(res sarif.Result, exposure saga.Exposure, criticality saga.Crit
 // Held is what a comparison's base declaration decided beyond what the head's declared.
 //
 // The head's descriptor is part of the change under review. Read alone, a pull request that declares
-// its component less exposed, turns a control off or excludes the finding it adds is judged by the
-// declaration it introduces, and passes a gate its base would have failed it on. So the base's
-// declaration stands beside the head's until the change merges: a new finding ranks by the more
-// exposed and more critical of the two classifications, a control the base turned on is still
-// expected, and only an exclusion the base already had accepts a new finding.
+// its component less exposed, turns a control off, narrows what its scan reads or excludes the
+// finding it adds is judged by the declaration it introduces, and passes a gate its base would have
+// failed it on. So the base's declaration stands beside the head's until the change merges: a new
+// finding ranks by the more exposed and more critical of the two classifications, a control the base
+// turned on is still expected over everything it read, and only an exclusion the base already had
+// accepts a new finding.
 type Held struct {
 	// Unrecorded is set where the base report recorded no declaration, a report written by a
 	// release that did not record one. The head's declaration then decides alone, and a reader is
@@ -60,6 +61,71 @@ type Dropped struct {
 	Component string
 	// Control is the control's name.
 	Control string
+	// Narrowed says how the head stopped reading part of what the base read, where a component still
+	// runs the control there: its paths, an ignore entry or its revision. Zero where the control
+	// no longer runs on some part the base read, which the reader is told as the control stopped.
+	Narrowed Narrowing
+}
+
+// Narrowing is how a change narrowed what a control reads of a repository a component declares,
+// while still running the control on it.
+//
+// A reader told "this change stops secrets on api" after adding one ignore line would look for a
+// control turned off and find none, so the run names what narrowed instead.
+type Narrowing struct {
+	// Paths is set where the head's paths no longer select everything the base's did.
+	Paths bool
+	// Ignore are the ignore entries the head added over the part, as written.
+	Ignore []string
+	// Revisions are the revisions the head reads the repository at in place of the base's.
+	Revisions []RevisionChange
+}
+
+// RevisionChange is a repository's revision as the base pinned it and as the head pins it, each
+// empty where it pins none.
+type RevisionChange struct {
+	From, To string
+}
+
+// narrowed reports whether n says anything.
+func (n Narrowing) narrowed() bool { return n.Paths || len(n.Ignore) > 0 || len(n.Revisions) > 0 }
+
+// with is n and o together, each entry once, in the order they were met.
+func (n Narrowing) with(o Narrowing) Narrowing {
+	n.Paths = n.Paths || o.Paths
+	for _, e := range o.Ignore {
+		if !slices.Contains(n.Ignore, e) {
+			n.Ignore = append(n.Ignore, e)
+		}
+	}
+	for _, r := range o.Revisions {
+		if !slices.Contains(n.Revisions, r) {
+			n.Revisions = append(n.Revisions, r)
+		}
+	}
+	return n
+}
+
+// String names what narrowed as a reader says it: "ignore src/client.py; revision pinned to v2".
+func (n Narrowing) String() string {
+	var parts []string
+	if n.Paths {
+		parts = append(parts, "narrower paths")
+	}
+	if len(n.Ignore) > 0 {
+		parts = append(parts, "ignore "+english.And(n.Ignore))
+	}
+	for _, r := range n.Revisions {
+		switch {
+		case r.From == "":
+			parts = append(parts, "revision pinned to "+r.To)
+		case r.To == "":
+			parts = append(parts, "revision "+r.From+" unpinned")
+		default:
+			parts = append(parts, "revision "+r.To+", not "+r.From)
+		}
+	}
+	return strings.Join(parts, "; ")
 }
 
 // Fails reports whether what the base held decides the verdict by itself: a control the base ran
@@ -235,15 +301,20 @@ func stricterOf(f *sarif.Result, cands []engine.ComponentDeclaration) (saga.Expo
 //
 // A per-component control is read by what it covered: each part of a repository the base component
 // declared, or the component itself where it declared none. A control still covers a part at the
-// head where the components running it there select every path the base component selected, so a
-// repository moved to another component, or a component renamed or merged with a neighbor, keeps its
-// controls. A part nobody running the control selects any more has lost it, whether the component
-// stopped the control or narrowed its paths.
+// head where the components running it there select every path the base component selected, at the
+// revision it read and ignoring nothing it did not, so a repository moved to another component, or a
+// component renamed or merged with a neighbor, keeps its controls. A part nobody running the control
+// reads that way any more has lost it, whether the component stopped the control, narrowed its
+// paths, added an ignore entry or changed its revision.
 //
 // Components often share one repository and split it by paths. Read by its URL alone, a repository
 // is still covered while any one of them runs the control, and a component that stops the control on
-// its own part would pass. The paths decide where both reports recorded them; a report from a
+// its own part would pass. The scopes decide where both reports recorded them; a report from a
 // release that recorded only the URL is compared by URL.
+//
+// A part lost while a component still runs the control on it is lost to a narrowed scope, and the
+// Dropped says how. Where the control no longer runs on one of the parts at all, it reads as
+// stopped, the stronger of the two.
 func dropped(base, head engine.Declarations) []Dropped {
 	var out []Dropped
 	for _, c := range base.Controls {
@@ -256,14 +327,25 @@ func dropped(base, head engine.Declarations) []Dropped {
 	for _, b := range base.Components {
 		for _, control := range b.Controls {
 			var lost bool
+			var narrowed Narrowing
 			switch {
 			case len(b.Repositories) == 0:
 				h, ok := headOf[b.Name]
 				lost = !ok || !slices.Contains(h.Controls, control)
 			case byScope:
-				lost = slices.ContainsFunc(b.Scopes, func(s engine.RepositoryScope) bool {
-					return !coversScope(head, s, control)
-				})
+				stopped := false
+				for _, s := range b.Scopes {
+					covered, how := coversScope(head, b.Name, s, control)
+					if covered {
+						continue
+					}
+					lost = true
+					stopped = stopped || !how.narrowed()
+					narrowed = narrowed.with(how)
+				}
+				if stopped {
+					narrowed = Narrowing{}
+				}
 			default:
 				lost = slices.ContainsFunc(b.Repositories, func(repo string) bool {
 					return !slices.ContainsFunc(head.Components, func(h engine.ComponentDeclaration) bool {
@@ -272,7 +354,7 @@ func dropped(base, head engine.Declarations) []Dropped {
 				})
 			}
 			if lost {
-				out = append(out, Dropped{Component: b.Name, Control: control})
+				out = append(out, Dropped{Component: b.Name, Control: control, Narrowed: narrowed})
 			}
 		}
 	}
@@ -287,13 +369,34 @@ func recordsScopes(d engine.Declarations) bool {
 	})
 }
 
-// coversScope reports whether the head components running control still select everything s
-// selected of its repository. Paths are read the way a checkout reads them, so `services/web` and
-// `services/web/**` are one subtree and an entry naming the root is the whole repository. The whole
-// repository is covered only by a component that selects it whole, since paths cannot show that a
-// set of subtrees adds up to every file.
-func coversScope(head engine.Declarations, s engine.RepositoryScope, control string) bool {
-	var held []string
+// coversScope reports whether the head components running control still read everything s read of
+// its repository, and where they do not but still read some of it, how they narrowed it.
+//
+// Paths are read the way a checkout reads them, so `services/web` and `services/web/**` are one
+// subtree and an entry naming the root is the whole repository. The whole repository is covered only
+// by a component that selects it whole, since paths cannot show that a set of subtrees adds up to
+// every file.
+//
+// A head scope counts only where it reads the revision s read and ignores nothing s did not. Each
+// narrows the scan as surely as a path: an ignore entry over the file a change adds a finding to
+// takes the finding out, and a revision pinned to another commit reads a tree without the change.
+// Ignore entries are compared as written, so an entry spelled differently counts as new; that is the
+// direction to be wrong in, and --trust-descriptor-change passes a change that means it.
+//
+// How it narrowed is read from the head component named name where that component still runs the
+// control over the part, since a neighbor's own entries were never what read it; from the others
+// otherwise.
+//
+// A report from 0.189.1 recorded scopes without ignore entries or revisions, and reads as declaring
+// none. Both scans of a pull request run on one binary, so the base and the head record alike.
+func coversScope(head engine.Declarations, name string, s engine.RepositoryScope, control string) (bool, Narrowing) {
+	want := git.Selected(s.Paths)
+	// held is what the head scopes reading as s did select, and reached what every head scope
+	// running the control over this part selects. own and others are what the rest changed, in
+	// the component named name and in the others.
+	var held, reached []string
+	var heldWhole, reachedWhole bool
+	var own, others Narrowing
 	for _, h := range head.Components {
 		if !slices.Contains(h.Controls, control) {
 			continue
@@ -303,22 +406,71 @@ func coversScope(head engine.Declarations, s engine.RepositoryScope, control str
 				continue
 			}
 			sel := git.Selected(hs.Paths)
-			if sel == nil {
-				return true
+			if !overlaps(want, sel) {
+				continue
 			}
-			held = append(held, sel...)
+			added := slices.DeleteFunc(slices.Clone(hs.Ignore), func(e string) bool { return slices.Contains(s.Ignore, e) })
+			same := len(added) == 0 && hs.Revision == s.Revision
+			if !same {
+				this := Narrowing{Ignore: added}
+				if hs.Revision != s.Revision {
+					this.Revisions = []RevisionChange{{From: s.Revision, To: hs.Revision}}
+				}
+				if h.Name == name {
+					own = own.with(this)
+				} else {
+					others = others.with(this)
+				}
+			}
+			if sel == nil {
+				reachedWhole = true
+				heldWhole = heldWhole || same
+				continue
+			}
+			reached = append(reached, sel...)
+			if same {
+				held = append(held, sel...)
+			}
 		}
 	}
-	want := git.Selected(s.Paths)
+	if heldWhole || within(want, held) {
+		return true, Narrowing{}
+	}
+	if !reachedWhole && len(reached) == 0 {
+		return false, Narrowing{}
+	}
+	how := own
+	if !how.narrowed() {
+		how = others
+	}
+	how.Paths = !reachedWhole && !within(want, reached)
+	return false, how
+}
+
+// within reports whether every path of want lies inside one of selected. Never for the whole
+// repository, a nil want.
+func within(want, selected []string) bool {
 	if want == nil {
 		return false
 	}
 	for _, p := range want {
-		if !slices.ContainsFunc(held, func(h string) bool { return p == h || strings.HasPrefix(p, h+"/") }) {
+		if !slices.ContainsFunc(selected, func(h string) bool { return p == h || strings.HasPrefix(p, h+"/") }) {
 			return false
 		}
 	}
 	return true
+}
+
+// overlaps reports whether two selections share any path, nil standing for the whole repository.
+func overlaps(a, b []string) bool {
+	if a == nil || b == nil {
+		return true
+	}
+	return slices.ContainsFunc(a, func(p string) bool {
+		return slices.ContainsFunc(b, func(h string) bool {
+			return p == h || strings.HasPrefix(p, h+"/") || strings.HasPrefix(h, p+"/")
+		})
+	})
 }
 
 // Notes are the sentences that say what the base's declaration decided, in the order a reader needs
@@ -337,13 +489,9 @@ func (h Held) Notes() []string {
 		notes = append(notes, "--trust-descriptor-change "+h.TrustNamedOther+
 			" names another descriptor than this change's ("+h.Digest+"), so the base's decides")
 	}
-	if len(h.Dropped) > 0 {
-		note := "The base ran " + droppedList(h.Dropped) + " and this change does not, so nothing it adds there was looked for"
-		if n := len(h.Unscanned); n > 0 {
-			note += ", and " + english.Count(n, "finding") + " from the base " + english.Choose(n, "reads", "read") + " as not scanned rather than fixed"
-		}
-		notes = append(notes, note)
-	}
+	notes = append(notes, h.droppedNotes(func(stopped string) string {
+		return "The base ran " + stopped + " and this change does not"
+	})...)
 	if n := len(h.Raised); n > 0 {
 		notes = append(notes, english.Count(n, "new finding")+" "+english.Choose(n, "ranks", "rank")+
 			" by the base's exposure and criticality, which this change lowers, until it merges")
@@ -367,13 +515,9 @@ func (h Held) trustedNotes() []string {
 			"so the switch can come out of the pipeline"}
 	}
 	notes := []string{"--trust-descriptor-change: this change's descriptor decides the gate, not the base's"}
-	if len(h.Dropped) > 0 {
-		note := "This change stops " + droppedList(h.Dropped) + ", which the base ran, so nothing it adds there was looked for"
-		if n := len(h.Unscanned); n > 0 {
-			note += ", and " + english.Count(n, "finding") + " from the base " + english.Choose(n, "reads", "read") + " as not scanned rather than fixed"
-		}
-		notes = append(notes, note)
-	}
+	notes = append(notes, h.droppedNotes(func(stopped string) string {
+		return "This change stops " + stopped + ", which the base ran"
+	})...)
 	if n := len(h.Raised); n > 0 {
 		notes = append(notes, english.Count(n, "new finding")+" would rank higher by the base's exposure and criticality, which this change lowers")
 	}
@@ -396,11 +540,61 @@ func droppedList(ds []Dropped) string {
 	return english.And(parts)
 }
 
+// droppedNotes are the notes for the controls the head stopped and those it narrowed, with the
+// count of the base's findings left unscanned on the last. stopped words the first from the list of
+// stopped controls; the second reads the same whether or not the run trusts the change.
+func (h Held) droppedNotes(stopped func(list string) string) []string {
+	off, narrowed := splitDropped(h.Dropped)
+	var notes []string
+	if len(off) > 0 {
+		notes = append(notes, stopped(droppedList(off))+", so nothing it adds there was looked for")
+	}
+	if len(narrowed) > 0 {
+		notes = append(notes, "This change narrows "+narrowedList(narrowed)+
+			" from what the base read, so nothing it adds in the part left out was looked for")
+	}
+	if n := len(h.Unscanned); n > 0 && len(notes) > 0 {
+		notes[len(notes)-1] += ", and " + english.Count(n, "finding") + " from the base " +
+			english.Choose(n, "reads", "read") + " as not scanned rather than fixed"
+	}
+	return notes
+}
+
+// splitDropped parts ds into the controls the head stopped and the ones it narrowed.
+func splitDropped(ds []Dropped) (stopped, narrowed []Dropped) {
+	for _, d := range ds {
+		if d.Narrowed.narrowed() {
+			narrowed = append(narrowed, d)
+			continue
+		}
+		stopped = append(stopped, d)
+	}
+	return stopped, narrowed
+}
+
+// narrowedList names narrowed controls as a reader says them: "what secrets reads on api (ignore
+// src/client.py) and what sca reads on web (narrower paths)".
+func narrowedList(ds []Dropped) string {
+	parts := make([]string, 0, len(ds))
+	for _, d := range ds {
+		parts = append(parts, "what "+d.Control+" reads on "+d.Component+" ("+d.Narrowed.String()+")")
+	}
+	return english.And(parts)
+}
+
 // DroppedSentence is the clause a failing run exits with for the controls the base ran and the head
-// does not, empty where there are none.
+// does not, empty where there are none: those it stopped, then those it narrowed.
 func (h Held) DroppedSentence() string {
 	if len(h.Dropped) == 0 {
 		return ""
 	}
-	return "this change stops " + droppedList(h.Dropped) + ", which the base ran"
+	off, narrowed := splitDropped(h.Dropped)
+	var parts []string
+	if len(off) > 0 {
+		parts = append(parts, "stops "+droppedList(off)+", which the base ran")
+	}
+	if len(narrowed) > 0 {
+		parts = append(parts, "narrows "+narrowedList(narrowed)+" from what the base read")
+	}
+	return "this change " + strings.Join(parts, ", and ")
 }

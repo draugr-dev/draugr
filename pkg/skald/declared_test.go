@@ -32,8 +32,9 @@ func TestTheDeclarationSurvivesTheReportFile(t *testing.T) {
 				Controls:     []string{"code", "deps"},
 				Repositories: []string{"https://example.com/api.git", "https://example.com/api-worker.git"},
 				Scopes: []engine.RepositoryScope{
-					{URL: "https://example.com/api.git", Paths: []string{"services/api", "go.mod"}},
-					{URL: "https://example.com/api-worker.git"},
+					{URL: "https://example.com/api.git", Paths: []string{"services/api", "go.mod"},
+						Ignore: []string{"services/api/testdata/", "**/*.min.js"}},
+					{URL: "https://example.com/api-worker.git", Revision: "v1.4.0"},
 				},
 			},
 			// A component that declares no classification and turns nothing on: it reads back with
@@ -122,5 +123,19 @@ func TestTheDigestNamesOneDeclaration(t *testing.T) {
 		Repositories: []string{"https://example.com/api.git"}}}
 	if DeclaredDigest(edited) == digest {
 		t.Error("a lowered exposure kept the digest")
+	}
+
+	// An ignore entry and a revision narrow what a scan reads, so each names another declaration.
+	scoped := func(s engine.RepositoryScope) engine.Declarations {
+		d := declared
+		d.Components = []engine.ComponentDeclaration{{Name: "api", Exposure: "public", Controls: []string{"sca"},
+			Repositories: []string{s.URL}, Scopes: []engine.RepositoryScope{s}}}
+		return d
+	}
+	plain := DeclaredDigest(scoped(engine.RepositoryScope{URL: "https://example.com/api.git"}))
+	ignoring := DeclaredDigest(scoped(engine.RepositoryScope{URL: "https://example.com/api.git", Ignore: []string{"src/client.py"}}))
+	pinned := DeclaredDigest(scoped(engine.RepositoryScope{URL: "https://example.com/api.git", Revision: "v1.4.0"}))
+	if plain == ignoring || plain == pinned || ignoring == pinned {
+		t.Errorf("digests %q, %q, %q: an ignore entry or a revision should change the digest", plain, ignoring, pinned)
 	}
 }

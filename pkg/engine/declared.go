@@ -39,19 +39,28 @@ type ComponentDeclaration struct {
 	// repository from one component to another by them, where a change renames a component or moves
 	// a repository between two.
 	Repositories []string
-	// Scopes are the same repositories, each with the paths the component's scans read of it. Two
-	// components that share a repository split it by paths, so a control still runs on the
-	// repository after one of them stops it on its own part, and only the paths say which part
-	// nobody scans any more. Empty in a report written before scans recorded them.
+	// Scopes are the same repositories, each with the part of it the component's scans read: the
+	// paths, the ignore entries and the revision. Two components that share a repository split it
+	// by paths, so a control still runs on the repository after one of them stops it on its own
+	// part, and only the scope says which part nobody scans any more. Empty in a report written
+	// before scans recorded them.
 	Scopes []RepositoryScope
 }
 
 // RepositoryScope is one repository a component declares and the part of it the component's scans
 // read.
+//
+// Each field narrows what a scan reads, so each is recorded: a change's own descriptor could
+// otherwise narrow what its scan reads, with an ignore entry over the file it adds a finding to or a
+// revision pinned to a commit that does not hold the change, and pass with nothing new.
 type RepositoryScope struct {
 	URL string `json:"url"`
 	// Paths are as the descriptor wrote them, none for the whole repository.
 	Paths []string `json:"paths,omitempty"`
+	// Ignore are the entries the descriptor's ignore removes from the scan, as written.
+	Ignore []string `json:"ignore,omitempty"`
+	// Revision is the revision the descriptor pins, empty where it pins none.
+	Revision string `json:"revision,omitempty"`
 }
 
 // declarations reads what model declares, for the part of it this engine's scope covers.
@@ -77,7 +86,7 @@ func (e *Engine) declarations(model saga.Model, now time.Time) Declarations {
 		c := ComponentDeclaration{Name: comp.Name, Exposure: comp.Exposure, Criticality: comp.Criticality}
 		for _, repo := range comp.Repositories {
 			c.Repositories = append(c.Repositories, repo.URL)
-			c.Scopes = append(c.Scopes, RepositoryScope{URL: repo.URL, Paths: repo.Paths})
+			c.Scopes = append(c.Scopes, RepositoryScope{URL: repo.URL, Paths: repo.Paths, Ignore: repo.Ignore, Revision: repo.Revision})
 		}
 		for _, name := range sortedControllerNames(e.reg.controllers) {
 			if !e.scope.includesControl(name) || e.reg.controllers[name].Info().Scope != plugin.ScopeComponent {

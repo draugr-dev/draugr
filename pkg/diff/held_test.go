@@ -205,6 +205,167 @@ func TestAControlIsReadByThePartOfTheRepositoryItCovered(t *testing.T) {
 	}
 }
 
+// declared is a component declaring the repositories of scopes, recorded as a scan records them.
+func declared(name string, controls []string, scopes ...engine.RepositoryScope) engine.ComponentDeclaration {
+	urls := make([]string, 0, len(scopes))
+	for _, s := range scopes {
+		urls = append(urls, s.URL)
+	}
+	c := comp(name, "", "", controls, urls)
+	c.Scopes = scopes
+	return c
+}
+
+// An ignore entry or a revision narrows what a scan reads as surely as paths do, so a head scope
+// covers a base one only where it reads the same revision and ignores nothing the base did not. Each
+// component declares two repositories, so a value read per component rather than per repository,
+// an entry moved from one repository to the other, would read as unchanged.
+func TestAControlIsHeldToTheIgnoreAndRevisionItRead(t *testing.T) {
+	secrets := []string{"secrets"}
+	mono := func(paths string, ignore ...string) engine.RepositoryScope {
+		return engine.RepositoryScope{URL: ".", Paths: []string{paths}, Ignore: ignore}
+	}
+	lib := func(revision string, ignore ...string) engine.RepositoryScope {
+		return engine.RepositoryScope{URL: "r/lib", Revision: revision, Ignore: ignore}
+	}
+	ui := func(revision string, ignore ...string) engine.RepositoryScope {
+		return engine.RepositoryScope{URL: "r/ui", Revision: revision, Ignore: ignore}
+	}
+	web := declared("web", secrets, mono("services/web"), ui("v1"))
+	apiLib := lib("v1", "vendor/", "third_party/")
+	base := engine.Declarations{Components: []engine.ComponentDeclaration{
+		declared("api", secrets, mono("services/api", "services/api/testdata/"), apiLib),
+		web,
+	}}
+	for _, tc := range []struct {
+		name string
+		head []engine.ComponentDeclaration
+		// want is the sentence a failing run exits with, empty where nothing was lost.
+		want string
+	}{
+		{name: "nothing changed", head: base.Components},
+		{name: "an ignore entry added",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "services/api/testdata/", "services/api/client.py"), apiLib), web},
+			want: "this change narrows what secrets reads on api (ignore services/api/client.py) from what the base read"},
+		{name: "the same ignore entries in another order",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "services/api/testdata/"), lib("v1", "third_party/", "vendor/")), web}},
+		{name: "the ignore entries removed",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api"), lib("v1")), web}},
+		{name: "ignore entries swapped between the repositories",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "vendor/"), lib("v1", "services/api/testdata/")), web},
+			want: "this change narrows what secrets reads on api (ignore vendor/ and services/api/testdata/) from what the base read"},
+		{name: "an ignore entry added on the other component",
+			head: []engine.ComponentDeclaration{base.Components[0],
+				declared("web", secrets, mono("services/web"), ui("v1", "src/client.py"))},
+			want: "this change narrows what secrets reads on web (ignore src/client.py) from what the base read"},
+		{name: "a neighbor still reads the part without the entry",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api", "services/api/testdata/", "services/api/client.py"), apiLib), web,
+				declared("audit", secrets, mono("services/api"), lib("v1"))}},
+		{name: "a revision pinned at the head",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}, Ignore: []string{"services/api/testdata/"}, Revision: "4b825dc"},
+				apiLib), web},
+			want: "this change narrows what secrets reads on api (revision pinned to 4b825dc) from what the base read"},
+		{name: "the same revision",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"), ui("v1"))}},
+		{name: "a revision removed",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("", "vendor/")), web},
+			want: "this change narrows what secrets reads on api (revision v1 unpinned) from what the base read"},
+		{name: "a revision changed",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"), ui("v2"))},
+			want: "this change narrows what secrets reads on web (revision v2, not v1) from what the base read"},
+		{name: "a revision moved to the other repository",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets,
+				engine.RepositoryScope{URL: ".", Paths: []string{"services/web"}, Revision: "v1"}, ui(""))},
+			want: "this change narrows what secrets reads on web (revision pinned to v1; revision v1 unpinned) from what the base read"},
+		{name: "paths narrowed and an entry added",
+			head: []engine.ComponentDeclaration{declared("api", secrets,
+				mono("services/api/cmd", "services/api/testdata/", "services/api/cmd/x.go"), apiLib), web},
+			want: "this change narrows what secrets reads on api (narrower paths; ignore services/api/cmd/x.go) from what the base read"},
+		{name: "stopped on one and narrowed on the other",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("v2", "vendor/")),
+				declared("web", nil, mono("services/web"), ui("v1"))},
+			want: "this change stops secrets on web, which the base ran, and narrows what secrets reads on api (revision v2, not v1) from what the base read"},
+		// A neighbor reading the repository with entries of its own covers nothing it did not cover
+		// before, and its entries are not what this change narrowed.
+		{name: "a revision changed beside a neighbor's own entries",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("v2", "vendor/")),
+				web, declared("audit", secrets, lib("v1", "docs/"))},
+			want: "this change narrows what secrets reads on api (revision v2, not v1) from what the base read"},
+		// Where the component itself no longer reads the part, what narrowed is the neighbor's.
+		{name: "a part left to a neighbor that ignores more",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/")),
+				web, declared("audit", secrets, lib("v1", "docs/"))},
+			want: "this change narrows what secrets reads on api (ignore docs/) from what the base read"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := (Held{Dropped: dropped(base, engine.Declarations{Components: tc.head})}).DroppedSentence(); got != tc.want {
+				t.Errorf("sentence = %q, want %q", got, tc.want)
+			}
+		})
+	}
+
+	// A base report from 0.189.1 recorded no ignore entries or revisions, and reads as declaring
+	// none: a head that declares them is held as though it added them.
+	unrecorded := engine.Declarations{Components: []engine.ComponentDeclaration{
+		declared("api", secrets, engine.RepositoryScope{URL: "."}, engine.RepositoryScope{URL: "r/lib"}),
+	}}
+	withIgnore := engine.Declarations{Components: []engine.ComponentDeclaration{
+		declared("api", secrets, engine.RepositoryScope{URL: ".", Ignore: []string{"docs/"}}, engine.RepositoryScope{URL: "r/lib"}),
+	}}
+	if got := droppedList(dropped(unrecorded, withIgnore)); got != "secrets on api" {
+		t.Errorf("a base that recorded no ignore entries: dropped = %q", got)
+	}
+}
+
+// A change that adds an ignore entry fails until it merges, says what it narrowed rather than that
+// it stopped the control, and the base's finding from that control reads as not scanned; trusted,
+// it passes and still says so.
+func TestAnAddedIgnoreEntryIsHeldAndCanBeTrusted(t *testing.T) {
+	gone := on(res("gitleaks", "generic-api-key", sarif.LevelError, "services/api/client.py", 1, "P1"), "api", "", "")
+	gone.Control = "secrets"
+	compared := Compare(sarif.Report{Results: []sarif.Result{gone}}, sarif.Report{})
+	scopes := func(ignore ...string) engine.Declarations {
+		return engine.Declarations{Components: []engine.ComponentDeclaration{declared("api", []string{"secrets"},
+			engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}, Ignore: ignore},
+			engine.RepositoryScope{URL: "r/lib"})}}
+	}
+	base, head := scopes(), scopes("services/api/client.py")
+	const narrowed = "This change narrows what secrets reads on api (ignore services/api/client.py) from what the base read, " +
+		"so nothing it adds in the part left out was looked for, and 1 finding from the base reads as not scanned rather than fixed"
+
+	held := compared.HoldToBase(base, head, true, matrixRank)
+	held.Gate = Gate{FailOnPriority: "P4"}
+	if v, failed := verdict(held); v != "FAIL" || !failed {
+		t.Errorf("verdict = %q, %v with an ignore entry added", v, failed)
+	}
+	if len(held.Fixed) != 0 || len(held.Held.Unscanned) != 1 {
+		t.Errorf("fixed = %+v, unscanned = %+v: the ignored file was not looked at", held.Fixed, held.Held.Unscanned)
+	}
+	if notes := held.Held.Notes(); len(notes) == 0 || notes[0] != narrowed || strings.Contains(notes[0], "stops") {
+		t.Errorf("notes = %q", notes)
+	}
+
+	trusted := compared.TrustChange(base, head, true, matrixRank)
+	trusted.Gate = Gate{FailOnPriority: "P4"}
+	if v, failed := verdict(trusted); v != "pass" || failed {
+		t.Errorf("verdict = %q, %v: a trusted change that adds an ignore entry passes", v, failed)
+	}
+	var buf bytes.Buffer
+	if err := Render(&buf, "console", trusted, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"--trust-descriptor-change: this change's descriptor decides the gate, not the base's", narrowed} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("console does not say %q:\n%s", want, buf.String())
+		}
+	}
+}
+
 // A finding the change excused with an exclusion of its own is listed as accepted and gated as new;
 // one an exclusion the base had excused is accepted; and a finding that was counting at the base and
 // is excused now was already there, so it is not the change's to gate.

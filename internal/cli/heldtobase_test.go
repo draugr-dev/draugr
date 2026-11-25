@@ -71,6 +71,18 @@ func TestAScanRecordsWhatItsDescriptorDeclared(t *testing.T) {
 	if len(d.Exclusions) != 1 || strings.Join(d.Exclusions[0].Rules, ",") != "CVE-OLD" {
 		t.Errorf("exclusions = %+v", d.Exclusions)
 	}
+
+	// Each repository is recorded with what narrows its scan: its ignore entries and its revision.
+	if rep, err = loadSARIF(scanBase(t, repoSaga(t, `
+        revision: v1.0.0
+        ignore: [go.mod, docs/]`), reg)); err != nil {
+		t.Fatal(err)
+	}
+	d, _ = skald.DeclaredOfReport(rep)
+	want := []engine.RepositoryScope{{URL: apiRepo, Ignore: []string{"go.mod", "docs/"}, Revision: "v1.0.0"}}
+	if len(d.Components) != 2 || !reflect.DeepEqual(d.Components[0].Scopes, want) {
+		t.Errorf("components = %+v, want api's scope %+v", d.Components, want)
+	}
 }
 
 // A pull request that declares its component less exposed and less critical is ranked by its base's
@@ -158,6 +170,75 @@ func TestAControlTurnedOffOnOnePartOfAMonorepoFails(t *testing.T) {
 	// web's paths written as a glob name the same subtree, and pass.
 	if _, err := scanAgainst(t, monorepoSaga(t, "", "services/web/**"), base, "P1", reg); err != nil {
 		t.Errorf("the same paths written as a glob failed: %v", err)
+	}
+}
+
+// repoSaga is the two-component descriptor with sca on and apiRepoDecl indented under api's
+// repository, where its ignore entries and revision go.
+func repoSaga(t *testing.T, apiRepoDecl string) string {
+	t.Helper()
+	return writeSaga(t, `
+project: shop
+release:
+  version: "1.0"
+config:
+  controls:
+    sca:
+      enabled: true
+components:
+  - name: api
+    repositories:
+      - url: `+apiRepo+apiRepoDecl+`
+  - name: web
+    repositories:
+      - url: `+webRepo+`
+`)
+}
+
+// A pull request that adds an ignore entry over the file holding its new finding fails until it
+// merges. Its own scan reads nothing new, since the entry takes the file out, so only the base's
+// record of what it read shows that nothing the change adds there was looked for. The digest the
+// failing run prints gets an intended entry through, and an entry the base had passes.
+func TestAnIgnoreEntryAChangeAddsIsHeldToTheBase(t *testing.T) {
+	const ignoreGoMod = `
+        ignore: [go.mod]`
+	s, reg := stagedPair()
+	base := scanBase(t, repoSaga(t, ""), reg)
+	ignoringBase := scanBase(t, repoSaga(t, ignoreGoMod), reg)
+	introduce(s)
+	head := repoSaga(t, ignoreGoMod)
+
+	console, err := scanAgainst(t, head, base, "P4", reg)
+	if err == nil || !strings.Contains(err.Error(),
+		"fails: this change narrows what sca reads on api (ignore go.mod) from what the base read since") {
+		t.Fatalf("err = %v, want the narrowing named\n%s", err, console)
+	}
+	if want := "This change narrows what sca reads on api (ignore go.mod) from what the base read, so nothing it adds " +
+		"in the part left out was looked for, and 1 finding from the base reads as not scanned rather than fixed."; !strings.Contains(console, want) {
+		t.Errorf("console does not say %q:\n%s", want, console)
+	}
+
+	if out, err := runScanTrusting(t, head, base, digestIn(t, console), reg); err != nil {
+		t.Errorf("the trusted entry failed: %v\n%s", err, out)
+	}
+	if out, err := scanAgainst(t, head, ignoringBase, "P4", reg); err != nil {
+		t.Errorf("an entry the base had: err = %v\n%s", err, out)
+	}
+}
+
+// A pull request that pins its repository's revision reads another tree than the one it changes, so
+// it fails until it merges, whatever its own scan found.
+func TestARevisionAChangePinsIsHeldToTheBase(t *testing.T) {
+	s, reg := stagedPair()
+	base := scanBase(t, repoSaga(t, ""), reg)
+	introduce(s)
+	head := repoSaga(t, `
+        revision: v1.0.0`)
+
+	console, err := scanAgainst(t, head, base, "P1", reg)
+	if err == nil || !strings.Contains(err.Error(),
+		"fails: this change narrows what sca reads on api (revision pinned to v1.0.0) from what the base read since") {
+		t.Fatalf("err = %v, want the pinned revision named\n%s", err, console)
 	}
 }
 

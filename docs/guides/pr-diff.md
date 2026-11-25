@@ -398,8 +398,11 @@ descriptor.
 
 A pull request is held to the descriptor its base declared until it merges, as the
 [reference](../reference/cli.md#draugr-diff-basesarif-headsarif) describes. Sometimes a descriptor
-change is the point: a control the team no longer wants, or a component that really is less exposed
-than declared. The failing run prints a digest of the pull request's descriptor:
+change is the point: a control the team no longer wants, a component that really is less exposed
+than declared, an `ignore` entry for generated files, or a repository's `revision` moved to a new
+release. Each of the last two narrows what a scan reads, as a shorter `paths` does, so it fails the
+gate until it merges like a control turned off. The failing run prints a digest of the pull
+request's descriptor:
 
 ```console
 The base ran sca on api and this change does not, so nothing it adds there was looked for, and 1 finding from the base reads as not scanned rather than fixed.

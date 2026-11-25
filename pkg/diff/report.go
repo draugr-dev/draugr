@@ -1059,7 +1059,7 @@ func heldJSON(h Held) *jsonHeld {
 		out.Raised = append(out.Raised, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: "raised"})
 	}
 	for _, d := range h.Dropped {
-		out.Dropped = append(out.Dropped, jsonDropped(d))
+		out.Dropped = append(out.Dropped, jsonDropped{Component: d.Component, Control: d.Control})
 	}
 	return out
 }

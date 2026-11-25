@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -35,7 +36,7 @@ func (repoController) Plan(_ saga.Model, comp *saga.Component) ([]plugin.ScanJob
 	}
 	var jobs []plugin.ScanJob
 	for _, r := range comp.Repositories {
-		jobs = append(jobs, plugin.ScanJob{Scanner: "staged", Target: plugin.RepositoryTarget{URL: r.URL}})
+		jobs = append(jobs, plugin.ScanJob{Scanner: "staged", Target: plugin.RepositoryTarget{URL: r.URL, Ignore: r.Ignore}})
 	}
 	return jobs, nil
 }
@@ -48,7 +49,9 @@ func (repoController) Aggregate(reports []sarif.Report) (plugin.ControlResult, e
 }
 
 // stagedScanner reports what the test has put on each repository, and the revision it read, as a
-// repository scanner records them. The test changes both between a base scan and a head scan.
+// repository scanner records them. The test changes both between a base scan and a head scan. A
+// file the target's ignore entries name, or one under a directory they name, is not read, as a
+// checkout leaves it out.
 type stagedScanner struct {
 	findings  map[string][]sarif.Result
 	revisions map[string]string
@@ -57,9 +60,15 @@ type stagedScanner struct {
 func (*stagedScanner) Info() plugin.ScannerInfo { return plugin.ScannerInfo{Name: "staged"} }
 
 func (s *stagedScanner) Scan(_ context.Context, target plugin.Target, _ plugin.Config) (sarif.Report, error) {
-	url := target.(plugin.RepositoryTarget).URL
+	repo := target.(plugin.RepositoryTarget)
+	url := repo.URL
 	out := make([]sarif.Result, 0, len(s.findings[url]))
 	for _, f := range s.findings[url] {
+		if slices.ContainsFunc(repo.Ignore, func(e string) bool {
+			return f.Location.URI == e || strings.HasPrefix(f.Location.URI, strings.TrimSuffix(e, "/")+"/")
+		}) {
+			continue
+		}
 		f.Repository = url
 		out = append(out, f)
 	}

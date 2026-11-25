@@ -2140,6 +2140,11 @@ when the descriptor loads.
 **Scope is part of a target's identity.** Two components pointing at different subtrees of the
 same repository are two different scans, cached separately, and their findings stay apart.
 
+**A pull request that narrows a scope is held to its base.** On a pull request, a change that
+narrows `paths`, adds an `ignore` entry or changes `revision` fails the new-findings gate until it
+merges, because nothing it adds outside what is still read was looked for; [`draugr
+diff`](cli.md#draugr-diff-basesarif-headsarif) says what narrowed and how to trust the change.
+
 **History findings follow the same scope.** Git history cannot be checked out by subtree, so
 `gitleaks` with `history: true` walks every commit in the repository. Draugr keeps a history
 finding only when the path it names would have been checked out, by the rules above. That path is
