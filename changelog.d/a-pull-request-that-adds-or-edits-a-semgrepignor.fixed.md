@@ -1,1 +1,0 @@
-- **A pull request that adds or edits a `.semgrepignore` in any directory of a scanned repository now fails the gate until it merges, as one at the root already did.** Semgrep reads the file wherever it sits. The run names it by its path, such as `src/.semgrepignore`, and the console and Markdown reports list each one as set aside.

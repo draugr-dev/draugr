@@ -1,1 +1,0 @@
-- **`draugr diff` and `scan --base` pass a pull request that leaves a nested `.semgrepignore` alone, against a base report from Draugr 0.189.3 or earlier.** That release did not record them, so the diff reads the file at the base's commit. Where a shallow clone lacks it, the run prints the `git fetch` that settles it.

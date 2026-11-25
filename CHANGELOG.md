@@ -12,6 +12,14 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.4] - 2026-11-25
+
+### Fixed
+
+- **A pull request that adds or edits a `.semgrepignore` in any directory of a scanned repository now fails the gate until it merges, as one at the root already did.** Semgrep reads the file wherever it sits. The run names it by its path, such as `src/.semgrepignore`, and the console and Markdown reports list each one as set aside.
+
+- **`draugr diff` and `scan --base` pass a pull request that leaves a nested `.semgrepignore` alone, against a base report from Draugr 0.189.3 or earlier.** That release did not record them, so the diff reads the file at the base's commit. Where a shallow clone lacks it, the run prints the `git fetch` that settles it.
+
 ## [0.189.3] - 2026-11-25
 
 ### Fixed
@@ -7569,7 +7577,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.3...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.4...HEAD
+[0.189.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.4
 [0.189.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.3
 [0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2
 [0.189.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.1
