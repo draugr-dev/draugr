@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Draugr",
+          "version": "0.189.3",
+          "rules": [
+            {
+              "id": "draugr-fixture-os-popen",
+              "name": "draugr-fixture-os-popen",
+              "shortDescription": {
+                "text": "Semgrep Finding: draugr-fixture-os-popen"
+              },
+              "fullDescription": {
+                "text": "os.popen runs its argument through a shell"
+              },
+              "help": {
+                "text": "os.popen runs its argument through a shell"
+              },
+              "properties": {
+                "tags": [
+                  "scanner:Semgrep OSS"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2018-1000656",
+              "name": "CVE-2018-1000656",
+              "shortDescription": {
+                "text": "Fixture: flask denial of service through crafted JSON"
+              },
+              "fullDescription": {
+                "text": "Fixture advisory for Draugr's sealed tests."
+              },
+              "helpUri": "https://avd.aquasec.com/nvd/cve-2018-1000656",
+              "properties": {
+                "tags": [
+                  "scanner:trivy"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "diff-across-releases/"
+      },
+      "results": [
+        {
+          "ruleId": "draugr-fixture-os-popen",
+          "level": "error",
+          "message": {
+            "text": "os.popen runs its argument through a shell"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "6d268ea3151fc6fcd0391b33ae84329865d7cd6f7cc7488e662e388ff3bc9060"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 7
+                }
+              }
+            }
+          ],
+          "properties": {
+            "priority": "P1",
+            "tool": "Semgrep OSS",
+            "control": "sast",
+            "component": "diff-across-releases",
+            "fingerprint": "ead86e7b85aa5e2470d3f0d7495ab53091453df155956af726ddde825ca28b6c",
+            "repository": "./diff-across-releases",
+            "scanner": "semgrep"
+          }
+        },
+        {
+          "ruleId": "CVE-2018-1000656",
+          "level": "error",
+          "message": {
+            "text": "Flask 0.12.2 → 0.12.3: Fixture: flask denial of service through crafted JSON"
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash/v1": "c6134d23ddc10ef57bd548d1bb483541d46e7a30c14e4bf47a28374a313df0d1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "requirements.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ],
+          "properties": {
+            "priority": "P1",
+            "tool": "trivy",
+            "control": "sca",
+            "component": "diff-across-releases",
+            "fingerprint": "b9fd7d9a120ef153984ee4a042d4e317873cf6277886d36e11b781e6ea4b726c",
+            "repository": "./diff-across-releases",
+            "package": {
+              "name": "Flask",
+              "version": "0.12.2",
+              "fixedVersion": "0.12.3",
+              "purl": "pkg:pypi/flask@0.12.2",
+              "ecosystem": "pip"
+            },
+            "scanner": "trivy-fs"
+          }
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "description": {
+            "text": "The root of the scanned source tree."
+          }
+        }
+      },
+      "properties": {
+        "draugr/provenance": [
+          {
+            "tool": "semgrep",
+            "version": "1.182.1",
+            "fields": {
+              "repository": "./diff-across-releases",
+              "revision": "<commit:0>"
+            }
+          },
+          {
+            "tool": "trivy-fs",
+            "version": "trivy@0.76.1;db@2026-01-01T00:00:00Z",
+            "fields": {
+              "repository": "./diff-across-releases",
+              "revision": "<commit:0>"
+            }
+          },
+          {
+            "tool": "gitleaks",
+            "version": "8.30.1",
+            "fields": {
+              "repository": "./diff-across-releases",
+              "revision": "<commit:0>"
+            }
+          },
+          {
+            "tool": "draugr/declared",
+            "fields": {
+              "controls": "[]",
+              "exclusions": "[]",
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".gitleaksignore\",\"digests\":[\"55074968dc1ca9ca\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".semgrepignore\",\"digests\":[\"e15b1b0e0f10012a\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".trivyignore\",\"digests\":[\"61601e0746629e58\"]},{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
+            }
+          },
+          {
+            "tool": "draugr/declared",
+            "component": "diff-across-releases",
+            "fields": {
+              "controls": "[\"sast\",\"sca\",\"secrets\"]",
+              "criticality": "",
+              "exposure": "",
+              "repositories": "[\"./diff-across-releases\"]",
+              "repositoryScopes": "[{\"url\":\"./diff-across-releases\"}]",
+              "settings": "{\"sast\":{\"semgrep\":\"b7dc266d05bfd164\"}}"
+            }
+          },
+          {
+            "tool": "draugr/gate",
+            "fields": {
+              "failOnNew": "P1"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

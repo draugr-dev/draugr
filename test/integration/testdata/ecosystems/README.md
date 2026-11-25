@@ -14,6 +14,7 @@ exact and change only when Draugr or a pinned tool does.
 | `golden/` | `results.sarif` and `report.json`, normalized, written by `-update-sealed` |
 | `workdir/` | files copied beside the descriptor, for options that name a path relative to it |
 | `live.yaml` | the packages and files each scanner reports against the real databases, written by `-update-live` |
+| `base/` | `results.sarif` from a scan of the scenario by an earlier release, written by `-write-sealed-base` |
 | `served/` | files the sealed server answers GET for, at `http://127.0.0.1:18080` |
 | `home/` | files copied into the container's home directory, such as a Maven `settings.xml` |
 | `image/` | a tree the harness builds into an image and serves as `127.0.0.1:18080/<scenario>:1.0` |
@@ -40,6 +41,16 @@ are separated by commas. The rules Semgrep runs are in [`semgrep.yaml`](semgrep.
   descriptor declares two components or more on the one repository, each scoped by `paths:`, and
   every finding names the `component:` that must report it. A finding reported under a component
   whose paths do not hold it fails the scenario as unexpected.
+- **A scenario about comparing with an earlier release is named `diff-<case>`.** Its `base:` block
+  names the release that wrote `base/results.sarif` and the exit status of `draugr diff` and
+  `draugr scan --base` when the head is this tree's scan of the same repository, unchanged.
+  `unread:` adds a comparison with each of the base's commits replaced by one no repository holds,
+  for what a checkout without the base's commit decides. The base holds the work directory as
+  `<work>` and each fixture commit as `<commit:N>`, its place in `git rev-list --all`, and the
+  harness puts the run's values back. `TestEachSealedBaseIsFromARecentRelease` fails once the base
+  is older than the two newest releases in `CHANGELOG.md`. Set `base.release` to the newest and
+  write the base again with that release's binary as `DRAUGR_BIN` and `-write-sealed-base`, which
+  writes the base and checks nothing else.
 - **Every dependency format has a scenario.** `TestEveryDependencyFormatHasASealedScenario` fails
   on a manifest or lockfile format that no scenario's `repo/` holds and no exception names.
 - **Manifests end in `.fixture`.** A `requirements.txt`, `go.mod` or `package-lock.json` anywhere in
