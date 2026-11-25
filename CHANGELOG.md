@@ -18,7 +18,7 @@ _Nothing yet._
 
 - **A pull request that adds or edits a `.semgrepignore` in any directory of a scanned repository now fails the gate until it merges, as one at the root already did.** Semgrep reads the file wherever it sits. The run names it by its path, such as `src/.semgrepignore`, and the console and Markdown reports list each one as set aside.
 
-- **`draugr diff` and `scan --base` pass a pull request that leaves a nested `.semgrepignore` alone, against a base report from Draugr 0.189.3 or earlier.** That release did not record them, so the diff reads the file at the base's commit. Where a shallow clone lacks it, the run prints the `git fetch` that settles it.
+- **Against a base report kept from Draugr 0.189.3 or earlier, `draugr diff` and `scan --base` pass a pull request that leaves a nested `.semgrepignore` alone.** Those releases did not record nested files, so the diff reads them at the base's commit. A shallow clone without that commit holds the file as added and prints the `git fetch` that clears it.
 
 ## [0.189.3] - 2026-11-25
 
