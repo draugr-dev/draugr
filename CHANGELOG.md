@@ -12,6 +12,16 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.189.2] - 2026-11-25
+
+### Fixed
+
+- **A pull request that adds an `ignore` entry or changes a repository's `revision` now fails the gate on new findings until it merges.** Either changes what the scan reads, so the head could miss what the change adds. The run names what changed; if the change is intended, `--trust-descriptor-change` with the digest it prints lets it through.
+
+- **A pull request that adds or edits a file that can set findings aside now fails the gate until it merges.** A VEX document, `.trivyignore`, `.gitleaksignore`, `.semgrepignore`, `.gitleaks.toml` or a ruleset a setting names can hide the change's own finding as surely as the descriptor. Pass an intended change with the `--trust-descriptor-change` digest the run prints.
+
+- **A pull request that changes a control's settings now fails the new-findings gate until it merges.** Switching sca's scanner, narrowing a scanner's options or changing a control's own setting changes what the scan looks for, as turning it off does. Turning on one more scanner passes. Trust an intended change with the digest the run prints.
+
 ## [0.189.1] - 2026-11-24
 
 ### Fixed
@@ -7547,7 +7557,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.2...HEAD
+[0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2
 [0.189.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.1
 [0.189.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.0
 [0.188.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.188.1
