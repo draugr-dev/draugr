@@ -16,11 +16,11 @@ _Nothing yet._
 
 ### Fixed
 
-- **A scan runs with a home directory it cannot write to.** With `DRAUGR_HOME` set, what Trivy, Grype, Syft, Semgrep, cosign and Nuclei write as they run goes under it, so `sca` and `sast` no longer fail there. `draugr doctor` marks a tool that cannot write where it keeps its data, names the place, and fails.
+- **A scan works when your home directory is read-only.** Set `DRAUGR_HOME` to a directory you can write to, and what Trivy, Grype, Syft, Semgrep, cosign and Nuclei write as they run goes under it, so the scan no longer fails. `draugr doctor` marks a tool that cannot write where it keeps its data, names the place, and fails.
 
-- **`draugr feeds --help` says when a scan fetches a feed itself.** It said a scan never does. A scan fetches KEV or EPSS set to `auto` when the copy is missing or stale, and, online, fetches the Go vulnerability database again when a copy you fetched is too old or fails its checks.
+- **`draugr feeds --help` says when a scan fetches a feed itself.** A scan fetches KEV and EPSS, when set to `auto`, if the copy is missing or stale. Online, it fetches the Go vulnerability database again if a copy you fetched is too old or fails its checks.
 
-- **Pull requests no longer warn that the branch's code-scanning configuration is missing.** The new findings the GitHub Action uploads on a pull request now carry the scan's category, so code scanning compares them with the branch's analysis in that category.
+- **Pull requests no longer warn that the branch's code-scanning configuration is missing.** The GitHub Action now uploads a pull request's new findings under the same category as the branch's own scan, so GitHub can compare the two.
 
 - **REPORTS fits your terminal with a long `-o` path.** Each report's path stays whole on its line, with what the file is for on the next, instead of padding every row past the edge.
 
