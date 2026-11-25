@@ -532,7 +532,26 @@ type ExploitabilityConfig struct {
 	// reason to say "do not tell me it is old", reproducing last quarter's verdict requires last
 	// quarter's feed.
 	MaxAge string `yaml:"maxAge,omitempty"`
+	// Advisories names the ecosystems whose OSV.dev advisories are read to find the CVE of a
+	// finding its scanner named only by a GitHub, PyPI, RustSec or Go advisory id, so KEV and EPSS
+	// can match it. Each is one archive, fetched and read the way kev and epss are; npm's weighs
+	// hundreds of megabytes, which is why each is asked for by name. Empty reads none.
+	Advisories []AdvisoryEcosystem `yaml:"advisories,omitempty"`
 }
+
+// AdvisoryEcosystem is an ecosystem whose OSV.dev advisories a scan can read.
+type AdvisoryEcosystem string
+
+// The ecosystems config.exploitability.advisories accepts.
+const (
+	AdvisoryNpm    AdvisoryEcosystem = "npm"
+	AdvisoryPyPI   AdvisoryEcosystem = "pypi"
+	AdvisoryCrates AdvisoryEcosystem = "crates.io"
+	AdvisoryGo     AdvisoryEcosystem = "go"
+)
+
+// AdvisoryEcosystems lists every AdvisoryEcosystem, in the order the reference documents them.
+var AdvisoryEcosystems = []AdvisoryEcosystem{AdvisoryNpm, AdvisoryPyPI, AdvisoryCrates, AdvisoryGo}
 
 // DependencyHealthConfig turns on ranking by what is known about a dependency itself.
 //

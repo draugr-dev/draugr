@@ -2542,6 +2542,7 @@ config:
     epss: cache
     epssThreshold: 0.5  # optional; default 0.5
     maxAge: 24h         # optional; default 24h
+    advisories: [npm]   # optional; npm | pypi | crates.io | go
 ```
 
 | Key | Meaning |
@@ -2550,6 +2551,7 @@ config:
 | `epss` | FIRST's EPSS scores. A CVE at or above `epssThreshold` is raised **one level**. |
 | `epssThreshold` | The EPSS probability (0–1) that triggers the bump. Zero disables it while leaving KEV in force. |
 | `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns, and before govulncheck stops reading the local Go vulnerability database. `draugr feeds status --saga` and `feeds update --saga` apply the same limit. A Go duration; `0s` never expires a copy. |
+| `advisories` | The ecosystems whose OSV.dev advisories are read to find the CVE of a finding with an advisory id and no CVE: `npm`, `pypi`, `crates.io`, `go`. Needs `kev` or `epss`. Omit to read none. |
 
 KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal works
 without the other. Set one key and omit the other.
@@ -2584,6 +2586,24 @@ keeps in the cache, and matches such a finding on the CVEs of the one record tha
 that is missing or older than `maxAge` is not read, and `auto` does not fetch it. An id that leads to
 more than one record, or to a record with no CVE, resolves nothing. `SIGNALS` then counts the
 findings KEV and EPSS could not check.
+
+**Advisories of other ecosystems.** A GitHub advisory id on an npm package, a PyPI one (`PYSEC-…`)
+or a RustSec one (`RUSTSEC-…`) has no record in the Go database. Each ecosystem `advisories` names
+reads [OSV.dev's](https://google.github.io/osv.dev/data/) archive of that ecosystem's records, one
+feed each (`osv-npm`, `osv-pypi`, `osv-crates.io`, `osv-go`), fetched when `kev` or `epss` is `auto`
+and read from the cache when they are `cache`. A copy the scan cannot read fails it. `go` is used
+for a Go finding whose Go database record lists no CVE. npm's archive measured 211 MB on
+2026-11-17, PyPI's 36 MB and crates.io's 4 MB, and the cache keeps an index of each record's ids
+rather than the archive. [Prioritization](../concepts/prioritization.md#exploitability) has how an
+id resolves and what `SIGNALS` says about it.
+
+The records are under their sources' licenses: GitHub's, PyPA's and the Go team's under CC BY 4.0,
+RustSec's under CC0 1.0 except those adapted from GitHub's, which RustSec marks CC BY 4.0 on the
+record. A CVE found in one names its source, license and record in the finding's `cveLookup`.
+OSV.dev offers the archives over HTTPS with no account and no terms of use
+([OSV-Scanner's terms](../../internal/scanners/osv-scanner.md#license-terms-and-what-is-sent) has the
+reading). Fetching one sends nothing about the repository: it is a download of the archive from
+`storage.googleapis.com`, the request `draugr feeds update osv-npm` makes.
 
 A scan started by an assistant through [`draugr mcp`](../guides/ai-agents-mcp.md) reads `auto` as
 `cache`. It never fetches, and a feed the cache does not hold fails the call with an error naming

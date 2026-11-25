@@ -184,3 +184,35 @@ func TestEachRepositorysFindingIsLookedUpOnItsOwn(t *testing.T) {
 		}
 	}
 }
+
+// The coraza advisory as the two databases held it on 2026-11-25: the Go vulnerability database's
+// record lists only the GitHub advisory, and OSV.dev's Go records list the CVE. With osv-go read, the
+// finding govulncheck names by its GitHub advisory takes that CVE, the key correlation joins Trivy's
+// CVE-named copy on (TestCorrelationJoinsAGHSAOnlyCopyThroughTheLookedUpCVE in pkg/engine). Without
+// it, the finding keeps no CVE.
+func TestAGoFlawTheGoDatabaseGivesNoCVEIsLookedUpInOSV(t *testing.T) {
+	const ghsa, cve = "GHSA-3c6w-j9xm-8h2h", "CVE-2026-107833"
+	gov := exploit.NewAdvisories(exploit.DatasetGoVulnDB, time.Time{}, map[string][]string{"GO-2026-6690": {ghsa}})
+	osvGo := exploit.NewOSVAdvisories("osv-go", time.Date(2026, 11, 25, 0, 0, 0, 0, time.UTC), map[string][]string{
+		"GO-2026-6690": {cve, ghsa},
+		ghsa:           {cve, "GO-2026-6690"},
+	}, nil)
+	res := sarif.Result{RuleID: ghsa, Aliases: []string{"GO-2026-6690"}, Level: sarif.LevelWarning,
+		Package: &sarif.Package{Name: "github.com/corazawaf/coraza/v3", Version: "v3.3.0", Ecosystem: "gomod"}}
+
+	with := exploit.NewFrom(exploit.Options{KEV: map[string]bool{cve: true}, Advisories: gov,
+		OSV: map[string]*exploit.Advisories{"Go": osvGo}})
+	got := DefaultPrioritizer(with)("sca", saga.ExposurePublic, saga.CriticalityCritical, res)
+	if l := got.CVELookup; l == nil || len(l.CVEs) != 1 || l.CVEs[0] != cve || l.Dataset != "osv-go" ||
+		l.Source != "GitHub Advisory Database" || l.URL != "https://osv.dev/vulnerability/"+ghsa {
+		t.Fatalf("lookup = %+v, want %s from osv-go", l, cve)
+	}
+	if got.Escalation == nil || got.Escalation.CVE != cve {
+		t.Errorf("escalation = %+v, want raised on KEV naming %s", got.Escalation, cve)
+	}
+
+	without := exploit.NewFrom(exploit.Options{KEV: map[string]bool{cve: true}, Advisories: gov})
+	if got := DefaultPrioritizer(without)("sca", saga.ExposurePublic, saga.CriticalityCritical, res); got.CVELookup != nil {
+		t.Errorf("lookup = %+v without osv-go, want none", got.CVELookup)
+	}
+}

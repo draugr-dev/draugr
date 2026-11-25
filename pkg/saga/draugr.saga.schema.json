@@ -1646,6 +1646,31 @@
       "additionalProperties": false,
       "description": "Severity enrichment from real-world exploitability signals: CISA's Known Exploited Vulnerabilities catalog and FIRST's EPSS scores. A CVE on KEV becomes critical; a CVE at or above the EPSS threshold is raised one level. Applied before ranking, so priority reflects what is being exploited rather than only what could be. Either signal works without the other. Fetch the data with `draugr feeds update`.",
       "properties": {
+        "advisories": {
+          "description": "Ecosystems whose OSV.dev advisories a scan reads to find the CVE of a finding with a GitHub, PyPI, RustSec or Go advisory id and no CVE, so KEV and EPSS can match it. Each is one archive, fetched when kev or epss is \"auto\" and read from the cache when it is \"cache\"; npm's weighs hundreds of megabytes. Omit to read none.",
+          "items": {
+            "anyOf": [
+              {
+                "const": "npm",
+                "description": "npm packages: GitHub Advisory Database records."
+              },
+              {
+                "const": "pypi",
+                "description": "PyPI packages: PyPI Advisory Database and GitHub Advisory Database records."
+              },
+              {
+                "const": "crates.io",
+                "description": "Rust crates: RustSec and GitHub Advisory Database records."
+              },
+              {
+                "const": "go",
+                "description": "Go modules: Go Vulnerability Database and GitHub Advisory Database records, used for Go findings whose local Go vulnerability database record lists no CVE."
+              }
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
         "epss": {
           "description": "Where the EPSS scores come from: a file path, \"cache\" or \"auto\", the same three choices as kev. Omit to leave EPSS off.",
           "examples": [

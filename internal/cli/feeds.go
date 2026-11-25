@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,10 +28,15 @@ func newFeedsCommand() *cobra.Command {
 		Long: "Fetch and inspect the cached datasets a scan reads:\n\n" +
 			"  kev       CISA's catalog of vulnerabilities exploited in the wild\n" +
 			"  epss      FIRST's scores for the likelihood of exploitation\n" +
-			"  govulndb  the Go vulnerability database, read by govulncheck\n\n" +
+			"  govulndb  the Go vulnerability database, read by govulncheck\n" +
+			"  osv-npm, osv-pypi, osv-crates.io, osv-go\n" +
+			"            OSV.dev's advisories for one ecosystem, read to find the CVE of a finding\n" +
+			"            with an advisory id and no CVE, for each ecosystem\n" +
+			"            config.exploitability.advisories names\n\n" +
 			"A scan reads the cache, and fetches on its own in two cases only:\n\n" +
 			"  kev, epss  when --kev, --epss or config.exploitability says auto and the copy is\n" +
-			"             missing or older than its maximum age\n" +
+			"             missing or older than its maximum age, and the osv- feeds the descriptor\n" +
+			"             names with them\n" +
 			"  govulndb   online, when a copy this command fetched is too old or fails its checks;\n" +
 			"             a machine with no copy is not given one\n\n" +
 			"Anything else waits for this command.",
@@ -44,11 +50,13 @@ func newFeedsUpdateCommand() *cobra.Command {
 	var force bool
 	var sagaPath string
 	cmd := &cobra.Command{
-		Use:   "update [kev|epss|govulndb]",
+		Use:   "update [kev|epss|govulndb|osv-<ecosystem>]",
 		Short: "Fetch the datasets into ~/.draugr/feeds",
 		Long: "Download CISA's KEV catalog, FIRST's EPSS scores and the Go vulnerability database\n" +
 			"into ~/.draugr/feeds, where a scan reads them without touching the network. With no\n" +
-			"arguments, fetches all three.\n\n" +
+			"arguments, fetches kev, epss and govulndb, and the OSV.dev advisories of each ecosystem the\n" +
+			"descriptor --saga names in config.exploitability.advisories. Name an osv- feed to\n" +
+			"fetch it without a descriptor: osv-npm, osv-pypi, osv-crates.io or osv-go.\n\n" +
 			"A cached copy is current for 24h, or for config.exploitability.maxAge in the\n" +
 			"descriptor --saga names.\n\n" +
 			"In CI, run it as its own step so a feed outage surfaces there rather than during a scan.\n" +
@@ -60,20 +68,23 @@ func newFeedsUpdateCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			limit, err := resolveFeedLimit(sagaPath, "feeds update --saga")
+			if err != nil {
+				return err
+			}
 			names, err := feedNames(args)
 			if err != nil {
 				return err
 			}
-			limit, err := resolveFeedLimit(sagaPath, "feeds update --saga")
-			if err != nil {
-				return err
+			if len(args) == 0 {
+				names = append(names, limit.advisories...)
 			}
 			return updateFeeds(cmd, dir, names, force, limit)
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "fetch even if the cached copy is current")
 	cmd.Flags().StringVar(&sagaPath, "saga", "",
-		"descriptor, or directory holding one, to read config.exploitability.maxAge from")
+		"descriptor, or directory holding one, to read config.exploitability.maxAge and advisories from")
 	return cmd
 }
 
@@ -102,12 +113,16 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool,
 		return netpolicy.Refuse("feeds update", strings.Join(urls, "\n                        "))
 	}
 
+	w := 8
+	for _, n := range names {
+		w = max(w, len(n))
+	}
 	for _, n := range names {
 		if rec, ok := cached[n]; ok && !force && !rec.Stale(now, limit.maxAge) {
-			_, _ = fmt.Fprintf(out, "%-8s current (%s old) · --force to fetch anyway\n", n, feeds.HumanAge(rec.Age(now)))
+			_, _ = fmt.Fprintf(out, "%-*s current (%s old) · --force to fetch anyway\n", w, n, feeds.HumanAge(rec.Age(now)))
 			continue
 		}
-		_, _ = fmt.Fprintf(out, "%-8s fetching %s…\n", n, feeds.URL(n))
+		_, _ = fmt.Fprintf(out, "%-*s fetching %s…\n", w, n, feeds.URL(n))
 		rec, err := fetchFeed(cmd.Context(), dir, n, nil)
 		if err != nil {
 			// A copy on disk is worth more than a failed run. The reason this step exists is to stop a scan
@@ -118,7 +133,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool,
 			if !cachedOK {
 				return err
 			}
-			_, _ = fmt.Fprintf(out, "%-8s kept the cached copy (%s old): %v\n", n, feeds.HumanAge(prev.Age(now)), err)
+			_, _ = fmt.Fprintf(out, "%-*s kept the cached copy (%s old): %v\n", w, n, feeds.HumanAge(prev.Age(now)), err)
 			// Warned as well as printed, because the line above is one of several on a step
 			// nobody reads when it succeeds, and this is the run where the ranking is older than
 			// the operator thinks.
@@ -126,7 +141,7 @@ func updateFeeds(cmd *cobra.Command, dir string, names []feeds.Name, force bool,
 				"feed", string(n), "age", feeds.HumanAge(prev.Age(now)), "error", err.Error())
 			continue
 		}
-		_, _ = fmt.Fprintf(out, "%-8s %s (%s)\n", n, feeds.Path(dir, n), feeds.HumanBytes(rec.Bytes))
+		_, _ = fmt.Fprintf(out, "%-*s %s (%s)\n", w, n, feeds.Path(dir, n), feeds.HumanBytes(rec.Bytes))
 	}
 	_, _ = fmt.Fprintf(out, "\n%s\n", limit.line())
 	return nil
@@ -158,7 +173,7 @@ func newFeedsStatusCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&sagaPath, "saga", "",
-		"descriptor, or directory holding one, to read config.exploitability.maxAge from")
+		"descriptor, or directory holding one, to read config.exploitability.maxAge and advisories from")
 	return cmd
 }
 
@@ -168,6 +183,8 @@ type feedLimit struct {
 	// path is the descriptor --saga named, empty without the flag. written is its
 	// config.exploitability.maxAge as written, empty when it sets none.
 	path, written string
+	// advisories are the OSV.dev feeds the descriptor's config.exploitability.advisories names.
+	advisories []feeds.Name
 }
 
 // defaultFeedLimit is the limit a scan applies when no descriptor sets
@@ -207,6 +224,11 @@ func resolveFeedLimit(sagaPath, cmdName string) (feedLimit, error) {
 	if cfg != nil && cfg.MaxAge != "" {
 		limit.written = cfg.MaxAge
 	}
+	if cfg != nil {
+		for _, eco := range cfg.Advisories {
+			limit.advisories = append(limit.advisories, feeds.Ecosystems[string(eco)])
+		}
+	}
 	return limit, nil
 }
 
@@ -230,14 +252,16 @@ func (l feedLimit) line() string {
 // the answer to "what have I got" is "nothing yet", not an error.
 func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 	cached := feeds.Load(dir)
+	listed := statusFeeds(cached, limit)
+	w := nameWidth(listed)
 
-	_, _ = fmt.Fprintf(out, "%-10s %-22s %-14s %-10s %s\n", "FEED", "FETCHED", "AGE", "SIZE", "DIGEST")
+	_, _ = fmt.Fprintf(out, "%-*s %-22s %-14s %-10s %s\n", w, "FEED", "FETCHED", "AGE", "SIZE", "DIGEST")
 	var missing, stale []feeds.Name
-	for _, n := range feeds.Names() {
+	for _, n := range listed {
 		rec, ok := cached[n]
 		if !ok {
 			missing = append(missing, n)
-			_, _ = fmt.Fprintf(out, "%-10s %-22s %-14s %-10s %s\n", n, "-", "-", "-", "-")
+			_, _ = fmt.Fprintf(out, "%-*s %-22s %-14s %-10s %s\n", w, n, "-", "-", "-", "-")
 			continue
 		}
 		age := feeds.HumanAge(rec.Age(now))
@@ -245,8 +269,8 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 			stale = append(stale, n)
 			age += " (stale)"
 		}
-		_, _ = fmt.Fprintf(out, "%-10s %-22s %-14s %-10s %s\n",
-			n, rec.FetchedAt.Format("2006-01-02 15:04Z"), age, feeds.HumanBytes(rec.Bytes), short(rec.SHA256))
+		_, _ = fmt.Fprintf(out, "%-*s %-22s %-14s %-10s %s\n",
+			w, n, rec.FetchedAt.Format("2006-01-02 15:04Z"), age, feeds.HumanBytes(rec.Bytes), short(rec.SHA256))
 	}
 
 	// Named like every other block, with the path beside the title rather than as it. The first
@@ -255,12 +279,12 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 	col := tui.For(out)
 	_, _ = fmt.Fprintf(out, "\n%s  %s\n", col.Paint(tui.StyleMuted, "SOURCES"),
 		col.Paint(tui.StyleMuted, "(cached in "+dir+")"))
-	for _, n := range feeds.Names() {
-		_, _ = fmt.Fprintf(out, "  %-10s %s · %s\n", n, feeds.Describe(n), feeds.URL(n))
+	for _, n := range listed {
+		_, _ = fmt.Fprintf(out, "  %-*s %s · %s\n", w, n, feeds.Describe(n), feeds.URL(n))
 	}
 
 	switch {
-	case len(missing) == len(feeds.Names()):
+	case len(missing) == len(listed):
 		_, _ = fmt.Fprintf(out, "\nNothing cached. Run `draugr feeds update` to fetch all of them.\n")
 	case len(missing) > 0:
 		_, _ = fmt.Fprintf(out, "\n%s %s not cached. Run `draugr feeds update %s`.\n",
@@ -288,6 +312,29 @@ func feedsStatus(out io.Writer, dir string, now time.Time, limit feedLimit) {
 			feeds.HumanAge(limit.maxAge))
 	}
 	_, _ = fmt.Fprintf(out, "\n%s\n", limit.line())
+}
+
+// statusFeeds are the feeds a status lists: every feed a scan can read without being asked, and each
+// OSV.dev advisory feed that is cached or that the descriptor --saga names. An advisory feed nothing
+// asked for is left out, as nothing reads it.
+func statusFeeds(cached map[feeds.Name]feeds.Record, limit feedLimit) []feeds.Name {
+	out := feeds.Names()
+	for _, n := range feeds.AdvisoryNames() {
+		if _, ok := cached[n]; ok || slices.Contains(limit.advisories, n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// nameWidth is the width of the feed-name column: the longest name listed, and no less than the
+// FEED heading's ten.
+func nameWidth(names []feeds.Name) int {
+	w := 10
+	for _, n := range names {
+		w = max(w, len(n))
+	}
+	return w
 }
 
 // short renders a digest at the length people actually compare, with the algorithm named so it
@@ -326,7 +373,7 @@ func feedNames(args []string) ([]feeds.Name, error) {
 	for _, a := range args {
 		n := feeds.Name(strings.ToLower(a))
 		if feeds.URL(n) == "" {
-			return nil, fmt.Errorf("unknown feed %q; known feeds are %s", a, argNames(feeds.Names()))
+			return nil, fmt.Errorf("unknown feed %q; known feeds are %s", a, argNames(append(feeds.Names(), feeds.AdvisoryNames()...)))
 		}
 		out = append(out, n)
 	}

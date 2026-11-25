@@ -2366,7 +2366,7 @@ Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. A scan reads
 fetches on its own in two cases only:
 
 - `kev` and `epss`, when `--kev`, `--epss` or `config.exploitability` says `auto` and the copy is
-  missing or older than its maximum age.
+  missing or older than its maximum age, and the `osv-` feeds the descriptor names with them.
 - `govulndb`, online, when a copy `draugr feeds update` fetched is too old or fails its checks
   ([govulncheck](../../internal/scanners/govulncheck.md#data)). A machine with no copy is not given
   one.
@@ -2378,10 +2378,13 @@ Anything else waits for `draugr feeds update`.
 | `kev` | CISA's Known Exploited Vulnerabilities catalog | [exploitability](saga-schema.md#configexploitability) |
 | `epss` | FIRST's EPSS scores | [exploitability](saga-schema.md#configexploitability) |
 | `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md); also the CVE lookup for `GO-…` and `GHSA-…` findings ([exploitability](saga-schema.md#configexploitability)) |
+| `osv-npm`, `osv-pypi`, `osv-crates.io`, `osv-go` | OSV.dev's advisories for one ecosystem | the CVE lookup for findings with an advisory id and no CVE, where `config.exploitability.advisories` names the ecosystem ([exploitability](saga-schema.md#configexploitability)) |
 
-### `draugr feeds update [kev|epss|govulndb]`
+### `draugr feeds update [kev|epss|govulndb|osv-<ecosystem>]`
 
-Download the feeds into `~/.draugr/feeds`, every feed when none is named. A copy younger than the
+Download the feeds into `~/.draugr/feeds`. With none named, that is `kev`, `epss` and `govulndb`,
+and the `osv-` feed of each ecosystem the descriptor `--saga` names in
+`config.exploitability.advisories`. A copy younger than the
 [limit](#staleness) is left alone unless `--force` is given. Refused under `--offline`.
 
 Each feed gets a line saying it is `current (<age> old)`, or `fetching <url>…` followed by the path
@@ -2391,7 +2394,7 @@ and size written. A fetch that fails with a copy already cached keeps that copy,
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--force` | `false` | Fetch even if the cached copy is current |
-| `--saga` | none | Descriptor, or directory holding one, to read the [limit](#staleness) from. One that does not load is an error |
+| `--saga` | none | Descriptor, or directory holding one, to read the [limit](#staleness) and `advisories` from. One that does not load is an error |
 
 ```bash
 draugr feeds update            # every feed
@@ -2402,7 +2405,10 @@ draugr feeds update --force    # refetch regardless of age
 EPSS is published gzipped and is decompressed on the way in, so the cache holds a CSV the scanner
 can read directly. The Go vulnerability database is published as a zip and unpacked into
 `~/.draugr/feeds/govulndb`, the directory govulncheck's `-db` reads; an archive whose index is
-empty or unreadable is refused and the previous copy kept. Each write is atomic.
+empty or unreadable is refused and the previous copy kept. An OSV.dev archive is downloaded to a
+temporary file and kept as an index of each record's id, aliases and stated license, in
+`osv-<ecosystem>.json`; one with no advisory record is refused and the previous copy kept. Each
+write is atomic.
 
 **In CI, run this as its own step**, so a feed outage shows in that step rather than inside the
 scan.
@@ -2431,6 +2437,10 @@ A copy is `(stale)` here when it is older than the [limit](#staleness). A stale 
 does not fail a scan: it ranks findings on older data, and the report names the age. A stale
 `govulndb` copy is fetched again when a scan starts. When that fetch fails, govulncheck queries
 `vuln.go.dev` instead, and with `--offline` the control reports an error. `--saga` works as it does for `feeds update`.
+
+An `osv-` feed is listed where it is cached, or where the descriptor `--saga` names its ecosystem in
+`config.exploitability.advisories`, in which case a missing copy is named with the command that
+fetches it. One nothing asked for is left out.
 
 ### Staleness
 

@@ -696,6 +696,15 @@ type CVELookup struct {
 	Dataset string `json:"dataset"`
 	// AsOf is the day the copy was fetched, as YYYY-MM-DD.
 	AsOf string `json:"asOf,omitempty"`
+	// Source names the database the record came from, where the dataset gathers several, as an
+	// OSV.dev one does: "GitHub Advisory Database", "RustSec Advisory Database".
+	Source string `json:"source,omitempty"`
+	// License is the license the record is published under, as an SPDX id: "CC-BY-4.0".
+	License string `json:"license,omitempty"`
+	// LicenseURL is the license's deed.
+	LicenseURL string `json:"licenseUrl,omitempty"`
+	// URL links the record, where its source is credited.
+	URL string `json:"url,omitempty"`
 }
 
 // ReachabilityState says whether this project's own code can reach a dependency's vulnerable

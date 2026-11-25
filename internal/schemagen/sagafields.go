@@ -272,6 +272,21 @@ func sagaFields() map[string]map[string]any {
 			"maximum": 1,
 			"minimum": 0,
 		},
+		"exploitabilityConfig.advisories": {
+			"description": "Ecosystems whose OSV.dev advisories a scan reads to find the CVE of a finding with a " +
+				"GitHub, PyPI, RustSec or Go advisory id and no CVE, so KEV and EPSS can match it. Each is " +
+				"one archive, fetched when kev or epss is \"auto\" and read from the cache when it is " +
+				"\"cache\"; npm's weighs hundreds of megabytes. Omit to read none.",
+			"items": map[string]any{
+				"anyOf": vocab(saga.AdvisoryEcosystems,
+					valueDoc{"npm", "npm packages: GitHub Advisory Database records."},
+					valueDoc{"pypi", "PyPI packages: PyPI Advisory Database and GitHub Advisory Database records."},
+					valueDoc{"crates.io", "Rust crates: RustSec and GitHub Advisory Database records."},
+					valueDoc{"go", "Go modules: Go Vulnerability Database and GitHub Advisory Database records, used " +
+						"for Go findings whose local Go vulnerability database record lists no CVE."},
+				),
+			},
+		},
 		"exploitabilityConfig.maxAge": {
 			"description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is " +
 				"stale. It is also the age at which govulncheck stops reading the local Go vulnerability " +
