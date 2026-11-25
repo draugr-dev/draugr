@@ -6,7 +6,7 @@
       "tool": {
         "driver": {
           "name": "Draugr",
-          "version": "0.189.4",
+          "version": "0.189.5",
           "rules": [
             {
               "id": "draugr-fixture-os-popen",
