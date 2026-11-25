@@ -16,9 +16,9 @@ _Nothing yet._
 
 ### Fixed
 
-- **An advisory two imported files name differently is counted once.** A GitHub advisory whose CVE was looked up now joins the other file's copy under that CVE where only one of them gives a package URL, as Trivy's SARIF gives none for a Go module. Before, the two copies counted twice.
+- **An advisory two imported files name by different ids is counted once.** One file names it by GitHub advisory id, the other by CVE. Where the first lists the CVE as an alias, or Draugr looked it up, the two now merge even where only one file gives a package URL, as Trivy's SARIF gives none for a Go module.
 
-- **`draugr doctor` names every place a tool cannot write in one run.** With both of Go's caches unwritable, gosec's and govulncheck's rows name `GOMODCACHE` and `GOCACHE` together, so moving one does not reveal the other only on the next run.
+- **`draugr doctor` lists every place a tool can't write.** Before, a row named only the first. With both `GOMODCACHE` and `GOCACHE` unwritable, the gosec and govulncheck rows now name both in the Notes column, so you can fix both before running again.
 
 ## [0.190.0] - 2026-11-25
 
