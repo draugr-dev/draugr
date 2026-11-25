@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -73,6 +74,59 @@ func TestTheCodeScanningReportIsWhatCodeScanningAccepts(t *testing.T) {
 	}
 	if kept, _ := sarif.CodeScanningRefuses(record); !slices.Contains(kept, "python:3.8-slim") {
 		t.Errorf("results.sarif no longer holds the image reference as the finding's location: %q", kept)
+	}
+}
+
+// The new findings `draugr diff --format sarif` writes from two scans' results.sarif are filed under
+// the head scan's category, the one its own upload on the branch carries, so code scanning compares a
+// pull request with that analysis. Two products in one repository keep two categories.
+func TestDiffSARIFCarriesTheScansCategory(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("DRAUGR_CONFIG", "")
+	t.Chdir(gitRepo(t))
+	seen := map[string]string{}
+	for _, project := range []string{"acme-azure", "acme-gcp"} {
+		head := imageHostAndFile()
+		head.Project = project
+		base := report.Data{Project: project, Version: head.Version}
+		paths := map[string]string{}
+		for name, data := range map[string]report.Data{"base": base, "head": head} {
+			dir := t.TempDir()
+			if err := writeArtifacts(dir, []string{"sarif"}, data, saga.Release{}, data.Run, norn.Result{}, "", ""); err != nil {
+				t.Fatal(err)
+			}
+			paths[name] = filepath.Join(dir, "results.sarif")
+		}
+		var out, errOut bytes.Buffer
+		cmd := newDiffCommand()
+		cmd.SetArgs([]string{paths["base"], paths["head"], "--format", "sarif"})
+		cmd.SetOut(&out)
+		cmd.SetErr(&errOut)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("%s: %v\n%s", project, err, errOut.String())
+		}
+		var doc struct {
+			Runs []struct {
+				Results           []json.RawMessage `json:"results"`
+				AutomationDetails *struct {
+					ID string `json:"id"`
+				} `json:"automationDetails"`
+			} `json:"runs"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatalf("%s: %v\n%s", project, err, out.String())
+		}
+		want := report.AutomationID(project, engine.Scope{})
+		if len(doc.Runs) != 1 || doc.Runs[0].AutomationDetails == nil || doc.Runs[0].AutomationDetails.ID != want {
+			t.Fatalf("%s: the diff's SARIF is not filed under %q:\n%s", project, want, out.String())
+		}
+		if len(doc.Runs[0].Results) != 3 {
+			t.Errorf("%s: %d new findings, want 3", project, len(doc.Runs[0].Results))
+		}
+		seen[doc.Runs[0].AutomationDetails.ID] = project
+	}
+	if len(seen) != 2 {
+		t.Errorf("two products share a category: %v", seen)
 	}
 }
 

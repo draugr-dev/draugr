@@ -892,6 +892,9 @@ func (r *Report) readRun(i int, run sarifRun) runReader {
 	if i == 0 {
 		r.Tool = run.Tool.Driver.Name
 		r.ToolVersion = run.Tool.Driver.Version
+		if run.AutomationDetails != nil {
+			r.AutomationID = run.AutomationDetails.ID
+		}
 	}
 	// The run's own account of itself, read back rather than dropped. A consumer that reloads a
 	// report, `draugr diff`, most of all. Has to be able to tell a scan of everything from a scan of

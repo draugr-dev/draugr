@@ -188,7 +188,9 @@ the first, and both runs would report success.
 
 It is written into the SARIF as `runs[].automationDetails.id`, so it travels with the file and
 applies whether Draugr uploads it or `github/codeql-action/upload-sarif` does. The upload endpoint
-has no category of its own to correct it with.
+has no category of its own to correct it with. The new findings a pull request uploads, from
+`draugr diff --format sarif`, carry the category of the scan they came from, so code scanning
+compares them with that product's analysis on the branch the pull request merges into.
 
 | The descriptor | What the run covered | The category |
 |---|---|---|
