@@ -1,1 +1,0 @@
-- **An imported finding whose path names no file is kept.** A relative path that names no file in the checkout, as gosec writes for a Go module in a subdirectory, is listed under `unread-files`, and `paths:` and `ignore:` no longer leave its finding out on that path.
