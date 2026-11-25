@@ -576,3 +576,18 @@ func TestFeedsCommandsReadSaga(t *testing.T) {
 		}
 	}
 }
+
+// The help says which feeds a scan fetches on its own, since a reader deciding whether a scan
+// touches the network reads it there: kev and epss when set to auto, and govulndb when a copy
+// somebody fetched is refused. A help that says a scan never fetches is wrong for both.
+func TestFeedsHelpSaysWhenAScanFetches(t *testing.T) {
+	long := newFeedsCommand().Long
+	for _, want := range []string{"kev, epss  when", "says auto", "govulndb   online", "fails its checks"} {
+		if !strings.Contains(long, want) {
+			t.Errorf("draugr feeds --help does not say %q:\n%s", want, long)
+		}
+	}
+	if strings.Contains(long, "never fetches") || strings.Contains(long, "without the network") {
+		t.Errorf("draugr feeds --help says a scan does not fetch:\n%s", long)
+	}
+}
