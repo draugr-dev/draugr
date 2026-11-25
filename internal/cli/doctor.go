@@ -279,7 +279,7 @@ func runDoctor(
 		if st.Found && st.DataChecked && !st.DataFound && !t.Optional {
 			missing++
 		}
-		if st.Unwritable != nil && !t.Optional {
+		if len(st.Unwritable) > 0 && !t.Optional {
 			unwritable++
 		}
 	}
@@ -546,8 +546,8 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 			// Found, runnable, and useless. Reported as a failure rather than a note, because it
 			// fails a scan exactly as surely as the binary being absent.
 			status, notes, style = "✗ no data", st.Tool.DataHint, tui.StyleFail
-		case st.Unwritable != nil:
-			status, notes, style = "✗ can't write", unwritableNote(*st.Unwritable), tui.StyleFail
+		case len(st.Unwritable) > 0:
+			status, notes, style = "✗ can't write", unwritableNotes(st.Unwritable), tui.StyleFail
 		default:
 			// The status `tools list` gives the same copy. A tick would tell the reader the copy is
 			// fine when nothing has checked its version.
@@ -904,8 +904,8 @@ type toolReport struct {
 	// same terms as TestedVersion.
 	BuildGo  string `json:"buildGo,omitempty"`
 	TestedGo string `json:"testedGo,omitempty"`
-	// CannotWrite is a place the tool writes as it runs that this user cannot write to, which
-	// fails the scan. Hint then says what moves it.
+	// CannotWrite is the first place the tool writes as it runs that this user cannot write to,
+	// which fails the scan. Hint then names every such place and what moves each.
 	CannotWrite string `json:"cannotWrite,omitempty"`
 }
 
@@ -964,9 +964,9 @@ func writeDoctorJSON(
 		case st.DataChecked && !st.DataFound:
 			// Present and unable to run, so the hint is how to get its data.
 			tr.Hint = st.Tool.DataHint
-		case st.Unwritable != nil:
-			tr.CannotWrite = st.Unwritable.Path
-			tr.Hint = unwritableNote(*st.Unwritable)
+		case len(st.Unwritable) > 0:
+			tr.CannotWrite = st.Unwritable[0].Path
+			tr.Hint = unwritableNotes(st.Unwritable)
 		}
 		report.Tools = append(report.Tools, tr)
 	}
@@ -1249,18 +1249,32 @@ func unwritableNote(u tools.Unwritable) string {
 	return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, draugrhome.EnvVar)
 }
 
+// unwritableNotes is a can't-write row's note for every place the tool cannot write, each with
+// what to change, so a user fixing one does not learn of the next only on the next run.
+func unwritableNotes(us []tools.Unwritable) string {
+	notes := make([]string, len(us))
+	for i, u := range us {
+		notes[i] = unwritableNote(u)
+	}
+	return strings.Join(notes, "; ")
+}
+
 // unwritableAdvice is the verdict when tools cannot write where they keep their data. DRAUGR_HOME is
 // the advice where it moves every place that failed; Go's caches stay where Go's own settings put
 // them, so a failure there is answered by the variable its row names.
 func unwritableAdvice(statuses []tools.Status) string {
 	n, stays := 0, 0
+	vars := map[string]bool{}
 	for _, st := range statuses {
-		if st.Unwritable == nil || st.Tool.Optional {
+		if len(st.Unwritable) == 0 || st.Tool.Optional {
 			continue
 		}
 		n++
-		if st.Unwritable.Stays {
+		if !slices.ContainsFunc(st.Unwritable, func(u tools.Unwritable) bool { return !u.Stays }) {
 			stays++
+		}
+		for _, u := range st.Unwritable {
+			vars[u.Var] = true
 		}
 	}
 	lead := fmt.Sprintf("%s can't write where %s %s data, so a scan using %s would fail.",
@@ -1271,6 +1285,9 @@ func unwritableAdvice(statuses []tools.Status) string {
 		return lead + " Set DRAUGR_HOME to a directory this user can write to, and what the tools write " +
 			"goes there; the Notes column names each place."
 	case n:
+		if len(vars) > 1 {
+			return lead + " Set each variable the Notes column names to a directory this user can write to."
+		}
 		return lead + " Set the variable the Notes column names to a directory this user can write to."
 	default:
 		return lead + " Set the variable each row of the Notes column names to a directory this user " +

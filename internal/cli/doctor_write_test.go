@@ -127,9 +127,9 @@ func TestRunDoctorJSONNamesWhereAToolCannotWrite(t *testing.T) {
 	t.Errorf("no trivy in %s", out.String())
 }
 
-// gosec builds the code through Go, whose module cache stays where Go puts it whatever DRAUGR_HOME
-// says. On a read-only home that cache cannot be written, so doctor fails on gosec's row and names
-// Go's own variable rather than DRAUGR_HOME, which would not move it.
+// gosec builds the code through Go, whose module and build caches stay where Go puts them whatever
+// DRAUGR_HOME says. On a read-only home neither can be written, so doctor fails on gosec's row and
+// names both of Go's own variables in the one run, rather than DRAUGR_HOME, which would move neither.
 func TestRunDoctorChecksGosCachesForGosec(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("no go on PATH to say where its caches are")
@@ -147,22 +147,30 @@ func TestRunDoctorChecksGosCachesForGosec(t *testing.T) {
 	var out bytes.Buffer
 	err := runDoctor(context.Background(), &out, builtins.Registry(),
 		writeSaga(t, doctorSagaSASTGosec), doctorRun{}, fakeDetect("semgrep", "gosec", "git"), nil)
-	want := "1 tool can't write where it keeps its data, so a scan using it would fail. Set the variable " +
+	want := "1 tool can't write where it keeps its data, so a scan using it would fail. Set each variable " +
 		"the Notes column names to a directory this user can write to."
 	if err == nil || err.Error() != want {
 		t.Fatalf("err = %v, want %q\n%s", err, want, out.String())
 	}
-	note := "can't write " + filepath.Join(home, "go", "pkg", "mod") + " · set GOMODCACHE to a writable directory"
-	if !strings.Contains(out.String(), note) {
-		t.Errorf("output missing %q\n%s", note, out.String())
+	flat := strings.Join(strings.Fields(out.String()), " ")
+	for _, note := range []string{
+		"can't write " + filepath.Join(home, "go", "pkg", "mod") + " · set GOMODCACHE to a writable directory",
+		"set GOCACHE to a writable directory",
+	} {
+		if !strings.Contains(flat, note) {
+			t.Errorf("output missing %q\n%s", note, out.String())
+		}
 	}
 }
 
 // The advice names DRAUGR_HOME only where it moves every place that failed.
 func TestUnwritableAdviceFollowsWhatMovesEachPlace(t *testing.T) {
-	trivy := tools.Status{Unwritable: &tools.Unwritable{Path: "/h/.cache/trivy", Var: "TRIVY_CACHE_DIR"}}
-	gosec := tools.Status{Unwritable: &tools.Unwritable{Path: "/h/go/pkg/mod", Var: "GOMODCACHE", Stays: true}}
-	optional := tools.Status{Tool: tools.Tool{Optional: true}, Unwritable: &tools.Unwritable{Path: "/x", Var: "TUF_ROOT"}}
+	trivy := tools.Status{Unwritable: []tools.Unwritable{{Path: "/h/.cache/trivy", Var: "TRIVY_CACHE_DIR"}}}
+	mod := tools.Unwritable{Path: "/h/go/pkg/mod", Var: "GOMODCACHE", Stays: true}
+	build := tools.Unwritable{Path: "/h/.cache/go-build", Var: "GOCACHE", Stays: true}
+	gosec := tools.Status{Unwritable: []tools.Unwritable{mod}}
+	bothCaches := tools.Status{Unwritable: []tools.Unwritable{mod, build}}
+	optional := tools.Status{Tool: tools.Tool{Optional: true}, Unwritable: []tools.Unwritable{{Path: "/x", Var: "TUF_ROOT"}}}
 	for _, c := range []struct {
 		statuses []tools.Status
 		want     string
@@ -170,6 +178,8 @@ func TestUnwritableAdviceFollowsWhatMovesEachPlace(t *testing.T) {
 		{[]tools.Status{trivy, optional}, "1 tool can't write where it keeps its data, so a scan using it would fail. " +
 			"Set DRAUGR_HOME to a directory this user can write to, and what the tools write goes there; the Notes column names each place."},
 		{[]tools.Status{gosec}, "Set the variable the Notes column names to a directory this user can write to."},
+		{[]tools.Status{gosec, gosec}, "Set the variable the Notes column names to a directory this user can write to."},
+		{[]tools.Status{bothCaches}, "Set each variable the Notes column names to a directory this user can write to."},
 		{[]tools.Status{trivy, gosec}, "2 tools can't write where they keep their data, so a scan using them would fail. " +
 			"Set the variable each row of the Notes column names to a directory this user can write to."},
 	} {
@@ -177,7 +187,11 @@ func TestUnwritableAdviceFollowsWhatMovesEachPlace(t *testing.T) {
 			t.Errorf("unwritableAdvice = %q, want it to end %q", got, c.want)
 		}
 	}
-	if got, want := unwritableNote(*gosec.Unwritable), "can't write /h/go/pkg/mod · set GOMODCACHE to a writable directory"; got != want {
-		t.Errorf("unwritableNote = %q, want %q", got, want)
+	if got, want := unwritableNotes(gosec.Unwritable), "can't write /h/go/pkg/mod · set GOMODCACHE to a writable directory"; got != want {
+		t.Errorf("unwritableNotes = %q, want %q", got, want)
+	}
+	if got, want := unwritableNotes(bothCaches.Unwritable), "can't write /h/go/pkg/mod · set GOMODCACHE to a writable directory; "+
+		"can't write /h/.cache/go-build · set GOCACHE to a writable directory"; got != want {
+		t.Errorf("unwritableNotes = %q, want %q", got, want)
 	}
 }
