@@ -16,13 +16,13 @@ _Nothing yet._
 
 ### Added
 
-- **Look up the CVE of npm, PyPI, Rust and Go findings named only by an advisory id.** List ecosystems in `config.exploitability.advisories`, and Draugr reads OSV.dev's advisories for each, so KEV and EPSS reach those findings. Each CVE found names its source and license.
+- **Find the CVE of npm, PyPI, crates.io and Go findings that name only an advisory id.** With `kev` or `epss` on, set `config.exploitability.advisories`, for example `[npm, pypi]`, and Draugr reads those ecosystems' OSV.dev advisories, so KEV and EPSS apply. Each CVE found names its source and license.
 
 ### Fixed
 
-- **An imported finding whose path names no file is kept.** A relative path that names no file in the checkout, as gosec writes for a Go module in a subdirectory, is listed under `unread-files`, and `paths:` and `ignore:` no longer leave its finding out on that path.
+- **An imported finding whose path matches no file in the checkout is kept.** gosec writes such a relative path for a Go module in a subdirectory. The file is listed under `unread-files`, and `paths:` and `ignore:` no longer drop the finding.
 
-- **`draugr doctor` checks Go's module and build caches when gosec or govulncheck runs.** On a read-only home directory it now reports `can't write` and names `GOMODCACHE` or `GOCACHE`, instead of passing a setup whose scan then fails.
+- **`draugr doctor` checks Go's module and build caches when gosec or govulncheck runs.** On a read-only home directory it reports `can't write` and names `GOMODCACHE` or `GOCACHE`, where it used to pass and the scan then failed.
 
 ## [0.189.5] - 2026-11-25
 
