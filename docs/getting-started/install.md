@@ -133,7 +133,10 @@ go install github.com/draugr-dev/draugr/cmd/draugr@latest
 ## Scanners. The tools Draugr runs
 
 With Draugr installed, add the scanners for the controls you use. The fastest way is to let
-Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically):
+Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically). For
+another directory, such as a CI runner's tool cache or a container whose home is read-only, set
+[`DRAUGR_HOME`](../reference/cli.md#environment) to its absolute path first; the tools, and what they
+write as they run, go there:
 
 ```bash
 draugr tools install --saga draugr.saga.yaml   # only what this descriptor's scan will run

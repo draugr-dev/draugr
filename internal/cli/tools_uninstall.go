@@ -25,7 +25,7 @@ func newToolsUninstallCommand() *cobra.Command {
 	opts := &toolsUninstallOptions{}
 	cmd := &cobra.Command{
 		Use:   "uninstall [tool...]",
-		Short: "Remove tools `draugr tools install` put in ~/.draugr",
+		Short: "Remove tools `draugr tools install` put in ~/.draugr, or in DRAUGR_HOME",
 		Long: "Remove the named tools, or with --all every tool Draugr installed, from ~/.draugr, or\n" +
 			"from DRAUGR_HOME when it is set: the binary, its Python or Node environment, and the\n" +
 			"data Draugr keeps for it. A copy of a tool installed any other way is left alone.\n" +

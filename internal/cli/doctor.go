@@ -261,9 +261,14 @@ func runDoctor(
 	}
 
 	statuses := make([]tools.Status, 0, len(required))
-	missing := 0
+	missing, unwritable := 0, 0
 	for _, t := range required {
 		st := detect(ctx, t)
+		// A tool that cannot write its database or its settings stops partway through the scan,
+		// in its own words, after doctor would have said everything was ready.
+		if st.Found {
+			st.Unwritable = tools.UnwritableFor(t.Binary)
+		}
 		statuses = append(statuses, st)
 		if !st.Found && !t.Optional {
 			missing++ // optional tools (e.g. cosign) are reported but don't fail the check
@@ -273,6 +278,9 @@ func runDoctor(
 		// scan, rather than leaving the tool to complain about a symptom afterwards.
 		if st.Found && st.DataChecked && !st.DataFound && !t.Optional {
 			missing++
+		}
+		if st.Unwritable != nil && !t.Optional {
+			unwritable++
 		}
 	}
 
@@ -347,12 +355,17 @@ func runDoctor(
 					"`draugr tools install` to fetch the ones it can; the Notes column says where the rest "+
 					"come from.", missing)))
 		}
+	}
+	if unwritable > 0 && inventoryOnly && !run.json {
+		_, _ = fmt.Fprintf(w, "\n%s\n", tui.For(w).Paint(tui.StyleMuted, unwritableAdvice(unwritable)))
+	}
+	if (missing > 0 || unwritable > 0) && inventoryOnly {
 		// --strict asks about the tools that are present, and a missing one does not answer that.
 		return strictErr()
 	}
 	// With a descriptor, a missing tool is the larger problem, so its message leads and --strict
 	// answers when nothing is missing. Either way the command exits non-zero.
-	if missing == 0 {
+	if missing == 0 && unwritable == 0 {
 		if err := strictErr(); err != nil {
 			return err
 		}
@@ -367,6 +380,9 @@ func runDoctor(
 			return errors.New(advice)
 		}
 		return fmt.Errorf("%s", advice)
+	}
+	if unwritable > 0 {
+		return errors.New(unwritableAdvice(unwritable))
 	}
 	// After the missing-tool checks and before the surface note: a target this machine cannot
 	// reach fails the scan the way a missing tool does, where an uncovered surface only narrows it.
@@ -530,6 +546,8 @@ func writeDoctorTable(w io.Writer, statuses []tools.Status, pins map[string]tool
 			// Found, runnable, and useless. Reported as a failure rather than a note, because it
 			// fails a scan exactly as surely as the binary being absent.
 			status, notes, style = "✗ no data", st.Tool.DataHint, tui.StyleFail
+		case st.Unwritable != nil:
+			status, notes, style = "✗ can't write", unwritableNote(*st.Unwritable), tui.StyleFail
 		default:
 			// The status `tools list` gives the same copy. A tick would tell the reader the copy is
 			// fine when nothing has checked its version.
@@ -886,6 +904,9 @@ type toolReport struct {
 	// same terms as TestedVersion.
 	BuildGo  string `json:"buildGo,omitempty"`
 	TestedGo string `json:"testedGo,omitempty"`
+	// CannotWrite is a place the tool writes as it runs that this user cannot write to, which
+	// fails the scan. Hint then says what moves it.
+	CannotWrite string `json:"cannotWrite,omitempty"`
 }
 
 // writeDoctorJSON writes the report. missing is the count the exit code is decided on, passed in
@@ -943,6 +964,9 @@ func writeDoctorJSON(
 		case st.DataChecked && !st.DataFound:
 			// Present and unable to run, so the hint is how to get its data.
 			tr.Hint = st.Tool.DataHint
+		case st.Unwritable != nil:
+			tr.CannotWrite = st.Unwritable.Path
+			tr.Hint = unwritableNote(*st.Unwritable)
 		}
 		report.Tools = append(report.Tools, tr)
 	}
@@ -1210,4 +1234,23 @@ func isBareURL(hint string) bool {
 func failsOnNotChecked(model *saga.Model) bool {
 	return model != nil && model.Config.Gate != nil &&
 		slices.Contains(model.Config.Gate.FailOnCaveats, saga.CaveatNotChecked)
+}
+
+// unwritableNote is a can't-write row's note: the place, and what to change. DRAUGR_HOME moves
+// every tool's place at once, so it is the advice unless the tool's own variable was set to the
+// place by somebody other than Draugr, in which case that variable is what to change.
+func unwritableNote(u tools.Unwritable) string {
+	if u.Named {
+		return fmt.Sprintf("can't write %s, which %s names", u.Path, u.Var)
+	}
+	return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, draugrhome.EnvVar)
+}
+
+// unwritableAdvice is the verdict when tools cannot write where they keep their data.
+func unwritableAdvice(n int) string {
+	return fmt.Sprintf("%s can't write where %s %s data, so a scan using %s would fail. Set "+
+		"DRAUGR_HOME to a directory this user can write to, and what the tools write goes there; the "+
+		"Notes column names each place.",
+		english.Count(n, "tool"), english.Choose(n, "it keeps", "they keep"), english.Choose(n, "its", "their"),
+		english.Choose(n, "it", "them"))
 }
