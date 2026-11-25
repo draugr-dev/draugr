@@ -273,30 +273,35 @@ func (t *Table) moveRows(cols int) map[int]bool {
 		if t.fits(widths) {
 			return moved
 		}
-		widest, most, next := -1, 0, 0
+		// The widest rows that can move, and the widest of the rows that cannot: a row with nothing in
+		// the last column stays, and still holds the columns open.
+		most, held := 0, 0
 		for j, r := range t.rows {
 			if moved[j] {
 				continue
 			}
-			n := lead(r)
-			if len(r.cells) < cols || r.cells[cols-1].Text == "" || n <= most {
-				// A row with nothing in the last column stays, and still holds the columns open.
-				next = max(next, n)
+			if len(r.cells) < cols || r.cells[cols-1].Text == "" {
+				held = max(held, lead(r))
 				continue
 			}
-			next = max(next, most)
-			widest, most = j, n
+			most = max(most, lead(r))
 		}
-		// Moving the widest row helps only where it alone sets the leading columns' width.
-		if widest < 0 || most <= next {
+		// Moving narrows the leading columns only where the rows that stay are narrower. Rows tied at
+		// the widest move together: one of them moved alone leaves the others setting the same
+		// width, and their last cells are then cut to what is left.
+		if most == 0 || most <= held {
 			return moved
 		}
-		moved[widest] = true
+		for j, r := range t.rows {
+			if !moved[j] && len(r.cells) == cols && r.cells[cols-1].Text != "" && lead(r) == most {
+				moved[j] = true
+			}
+		}
 	}
 }
 
 // writeMoved writes a moved row: its leading cells as the others are written, and its last cell on
-// the next line, starting under the last column and cut to the bound.
+// the next line, under the last column, or one gap in where it would not be whole there.
 func (t *Table) writeMoved(w io.Writer, widths []int, cells []Cell, start int) {
 	last := len(cells) - 1
 	// Its own cells set its own widths where they are wider than the columns, which they may be.
@@ -310,6 +315,12 @@ func (t *Table) writeMoved(w io.Writer, widths []int, cells []Cell, start int) {
 	t.writeLine(w, own, cells[:last])
 	c := cells[last]
 	if t.fit > 0 {
+		// Under the last column where it is whole there. Where the rows left hold that column too far
+		// in, it starts one gap in from the table's edge, as a note does, so it is read whole rather
+		// than cut or pushed past the bound.
+		if start+cellWidth(c) > t.fit {
+			start = width(t.indent) + columnGap
+		}
 		c.Text = clip(c.Text, max(t.fit-start, minLastColumn))
 	}
 	_, _ = fmt.Fprintf(w, "%s%s\n", strings.Repeat(" ", start), t.painter.Link(c.URL, t.painter.Paint(c.Style, c.Text)))
