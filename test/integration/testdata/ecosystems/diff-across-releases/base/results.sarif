@@ -6,7 +6,7 @@
       "tool": {
         "driver": {
           "name": "Draugr",
-          "version": "0.189.3",
+          "version": "0.189.4",
           "rules": [
             {
               "id": "draugr-fixture-os-popen",
@@ -159,7 +159,7 @@
             "fields": {
               "controls": "[]",
               "exclusions": "[]",
-              "files": "[{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".gitleaksignore\",\"digests\":[\"55074968dc1ca9ca\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".semgrepignore\",\"digests\":[\"e15b1b0e0f10012a\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".trivyignore\",\"digests\":[\"61601e0746629e58\"]},{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
+              "files": "[{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".gitleaksignore\",\"digests\":[\"55074968dc1ca9ca\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".semgrepignore\",\"digests\":[\"e15b1b0e0f10012a\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\".trivyignore\",\"digests\":[\"61601e0746629e58\"]},{\"kind\":\"scanner\",\"repository\":\"./diff-across-releases\",\"path\":\"src/.semgrepignore\",\"digests\":[\"eb3534267ee5aaa2\"]},{\"kind\":\"setting\",\"path\":\"${{ DRAUGR_SEALED_SEMGREP_RULES }}\",\"digests\":[\"82dc0775f01c4de0\"]}]"
             }
           },
           {
