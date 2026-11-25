@@ -210,11 +210,11 @@ func TestAnIgnoreEntryAChangeAddsIsHeldToTheBase(t *testing.T) {
 
 	console, err := scanAgainst(t, head, base, "P4", reg)
 	if err == nil || !strings.Contains(err.Error(),
-		"fails: this change narrows what sca reads on api (ignore go.mod) from what the base read since") {
+		"fails: this change alters what sca reads on api (ignore go.mod) since") {
 		t.Fatalf("err = %v, want the narrowing named\n%s", err, console)
 	}
-	if want := "This change narrows what sca reads on api (ignore go.mod) from what the base read, so nothing it adds " +
-		"in the part left out was looked for, and 1 finding from the base reads as not scanned rather than fixed."; !strings.Contains(console, want) {
+	if want := "This change alters what sca reads on api (ignore go.mod), so what it adds there " +
+		"may not have been looked for, and 1 finding from the base reads as not scanned rather than fixed."; !strings.Contains(console, want) {
 		t.Errorf("console does not say %q:\n%s", want, console)
 	}
 
@@ -237,7 +237,7 @@ func TestARevisionAChangePinsIsHeldToTheBase(t *testing.T) {
 
 	console, err := scanAgainst(t, head, base, "P1", reg)
 	if err == nil || !strings.Contains(err.Error(),
-		"fails: this change narrows what sca reads on api (revision pinned to v1.0.0) from what the base read since") {
+		"fails: this change alters what sca reads on api (revision pinned to v1.0.0) since") {
 		t.Fatalf("err = %v, want the pinned revision named\n%s", err, console)
 	}
 }

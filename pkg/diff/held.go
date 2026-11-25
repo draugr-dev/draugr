@@ -73,8 +73,9 @@ type Dropped struct {
 // A reader told "this change stops secrets on api" after adding one ignore line would look for a
 // control turned off and find none, so the run names what narrowed instead.
 type Narrowing struct {
-	// Paths is set where the head's paths no longer select everything the base's did.
-	Paths bool
+	// Paths are the base's paths the head no longer reads all of, as a checkout selects them, with
+	// wholeRepository standing for a base that read the whole repository.
+	Paths []string
 	// Ignore are the ignore entries the head added over the part, as written.
 	Ignore []string
 	// Revisions are the revisions the head reads the repository at in place of the base's.
@@ -87,12 +88,21 @@ type RevisionChange struct {
 	From, To string
 }
 
+// wholeRepository is the entry Narrowing.Paths holds where the base read the whole repository.
+const wholeRepository = ""
+
 // narrowed reports whether n says anything.
-func (n Narrowing) narrowed() bool { return n.Paths || len(n.Ignore) > 0 || len(n.Revisions) > 0 }
+func (n Narrowing) narrowed() bool {
+	return len(n.Paths) > 0 || len(n.Ignore) > 0 || len(n.Revisions) > 0
+}
 
 // with is n and o together, each entry once, in the order they were met.
 func (n Narrowing) with(o Narrowing) Narrowing {
-	n.Paths = n.Paths || o.Paths
+	for _, p := range o.Paths {
+		if !slices.Contains(n.Paths, p) {
+			n.Paths = append(n.Paths, p)
+		}
+	}
 	for _, e := range o.Ignore {
 		if !slices.Contains(n.Ignore, e) {
 			n.Ignore = append(n.Ignore, e)
@@ -106,26 +116,44 @@ func (n Narrowing) with(o Narrowing) Narrowing {
 	return n
 }
 
-// String names what narrowed as a reader says it: "ignore src/client.py; revision pinned to v2".
+// String names what changed as a reader says it: "paths no longer reading all of services/api;
+// ignore src/client.py; revision pinned to v2".
 func (n Narrowing) String() string {
 	var parts []string
-	if n.Paths {
-		parts = append(parts, "narrower paths")
+	if len(n.Paths) > 0 {
+		paths := make([]string, 0, len(n.Paths))
+		for _, p := range n.Paths {
+			if p == wholeRepository {
+				p = "the repository"
+			}
+			paths = append(paths, p)
+		}
+		parts = append(parts, "paths no longer reading all of "+english.And(paths))
 	}
 	if len(n.Ignore) > 0 {
 		parts = append(parts, "ignore "+english.And(n.Ignore))
 	}
 	for _, r := range n.Revisions {
+		from, to := shortRevision(r.From), shortRevision(r.To)
 		switch {
-		case r.From == "":
-			parts = append(parts, "revision pinned to "+r.To)
-		case r.To == "":
-			parts = append(parts, "revision "+r.From+" unpinned")
+		case from == "":
+			parts = append(parts, "revision pinned to "+to)
+		case to == "":
+			parts = append(parts, "revision "+from+" unpinned")
 		default:
-			parts = append(parts, "revision "+r.To+", not "+r.From)
+			parts = append(parts, "revision "+to+", not "+from)
 		}
 	}
 	return strings.Join(parts, "; ")
+}
+
+// shortRevision is a full commit id cut to the twelve characters a reader compares, and any other
+// revision, a tag or a branch, as written.
+func shortRevision(r string) string {
+	if len(r) == 40 && strings.Trim(r, "0123456789abcdef") == "" {
+		return r[:12]
+	}
+	return r
 }
 
 // Fails reports whether what the base held decides the verdict by itself: a control the base ran
@@ -443,8 +471,26 @@ func coversScope(head engine.Declarations, name string, s engine.RepositoryScope
 	if !how.narrowed() {
 		how = others
 	}
-	how.Paths = !reachedWhole && !within(want, reached)
+	how.Paths = nil
+	if !reachedWhole {
+		how.Paths = lostPaths(want, reached)
+	}
 	return false, how
+}
+
+// lostPaths are the paths of want that reached no longer selects all of, wholeRepository where want
+// is the whole repository.
+func lostPaths(want, reached []string) []string {
+	if want == nil {
+		return []string{wholeRepository}
+	}
+	var lost []string
+	for _, p := range want {
+		if !within([]string{p}, reached) {
+			lost = append(lost, p)
+		}
+	}
+	return lost
 }
 
 // within reports whether every path of want lies inside one of selected. Never for the whole
@@ -550,8 +596,8 @@ func (h Held) droppedNotes(stopped func(list string) string) []string {
 		notes = append(notes, stopped(droppedList(off))+", so nothing it adds there was looked for")
 	}
 	if len(narrowed) > 0 {
-		notes = append(notes, "This change narrows "+narrowedList(narrowed)+
-			" from what the base read, so nothing it adds in the part left out was looked for")
+		notes = append(notes, "This change alters "+narrowedList(narrowed)+
+			", so what it adds there may not have been looked for")
 	}
 	if n := len(h.Unscanned); n > 0 && len(notes) > 0 {
 		notes[len(notes)-1] += ", and " + english.Count(n, "finding") + " from the base " +
@@ -573,7 +619,7 @@ func splitDropped(ds []Dropped) (stopped, narrowed []Dropped) {
 }
 
 // narrowedList names narrowed controls as a reader says them: "what secrets reads on api (ignore
-// src/client.py) and what sca reads on web (narrower paths)".
+// src/client.py) and what sca reads on web (revision v2, not v1)".
 func narrowedList(ds []Dropped) string {
 	parts := make([]string, 0, len(ds))
 	for _, d := range ds {
@@ -594,7 +640,7 @@ func (h Held) DroppedSentence() string {
 		parts = append(parts, "stops "+droppedList(off)+", which the base ran")
 	}
 	if len(narrowed) > 0 {
-		parts = append(parts, "narrows "+narrowedList(narrowed)+" from what the base read")
+		parts = append(parts, "alters "+narrowedList(narrowed))
 	}
 	return "this change " + strings.Join(parts, ", and ")
 }

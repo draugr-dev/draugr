@@ -247,7 +247,7 @@ func TestAControlIsHeldToTheIgnoreAndRevisionItRead(t *testing.T) {
 		{name: "an ignore entry added",
 			head: []engine.ComponentDeclaration{declared("api", secrets,
 				mono("services/api", "services/api/testdata/", "services/api/client.py"), apiLib), web},
-			want: "this change narrows what secrets reads on api (ignore services/api/client.py) from what the base read"},
+			want: "this change alters what secrets reads on api (ignore services/api/client.py)"},
 		{name: "the same ignore entries in another order",
 			head: []engine.ComponentDeclaration{declared("api", secrets,
 				mono("services/api", "services/api/testdata/"), lib("v1", "third_party/", "vendor/")), web}},
@@ -256,11 +256,11 @@ func TestAControlIsHeldToTheIgnoreAndRevisionItRead(t *testing.T) {
 		{name: "ignore entries swapped between the repositories",
 			head: []engine.ComponentDeclaration{declared("api", secrets,
 				mono("services/api", "vendor/"), lib("v1", "services/api/testdata/")), web},
-			want: "this change narrows what secrets reads on api (ignore vendor/ and services/api/testdata/) from what the base read"},
+			want: "this change alters what secrets reads on api (ignore vendor/ and services/api/testdata/)"},
 		{name: "an ignore entry added on the other component",
 			head: []engine.ComponentDeclaration{base.Components[0],
 				declared("web", secrets, mono("services/web"), ui("v1", "src/client.py"))},
-			want: "this change narrows what secrets reads on web (ignore src/client.py) from what the base read"},
+			want: "this change alters what secrets reads on web (ignore src/client.py)"},
 		{name: "a neighbor still reads the part without the entry",
 			head: []engine.ComponentDeclaration{declared("api", secrets,
 				mono("services/api", "services/api/testdata/", "services/api/client.py"), apiLib), web,
@@ -269,38 +269,46 @@ func TestAControlIsHeldToTheIgnoreAndRevisionItRead(t *testing.T) {
 			head: []engine.ComponentDeclaration{declared("api", secrets,
 				engine.RepositoryScope{URL: ".", Paths: []string{"services/api"}, Ignore: []string{"services/api/testdata/"}, Revision: "4b825dc"},
 				apiLib), web},
-			want: "this change narrows what secrets reads on api (revision pinned to 4b825dc) from what the base read"},
+			want: "this change alters what secrets reads on api (revision pinned to 4b825dc)"},
 		{name: "the same revision",
 			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"), ui("v1"))}},
+		{name: "a revision pinned to a full commit id",
+			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"),
+				ui("ba0572ef69246154f96b4f625b9229448686aff8"))},
+			want: "this change alters what secrets reads on web (revision ba0572ef6924, not v1)"},
+		{name: "a repository read whole narrowed to a subtree",
+			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"),
+				engine.RepositoryScope{URL: "r/lib", Paths: []string{"src"}, Revision: "v1", Ignore: []string{"vendor/", "third_party/"}}), web},
+			want: "this change alters what secrets reads on api (paths no longer reading all of the repository)"},
 		{name: "a revision removed",
 			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("", "vendor/")), web},
-			want: "this change narrows what secrets reads on api (revision v1 unpinned) from what the base read"},
+			want: "this change alters what secrets reads on api (revision v1 unpinned)"},
 		{name: "a revision changed",
 			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets, mono("services/web"), ui("v2"))},
-			want: "this change narrows what secrets reads on web (revision v2, not v1) from what the base read"},
+			want: "this change alters what secrets reads on web (revision v2, not v1)"},
 		{name: "a revision moved to the other repository",
 			head: []engine.ComponentDeclaration{base.Components[0], declared("web", secrets,
 				engine.RepositoryScope{URL: ".", Paths: []string{"services/web"}, Revision: "v1"}, ui(""))},
-			want: "this change narrows what secrets reads on web (revision pinned to v1; revision v1 unpinned) from what the base read"},
+			want: "this change alters what secrets reads on web (revision pinned to v1; revision v1 unpinned)"},
 		{name: "paths narrowed and an entry added",
 			head: []engine.ComponentDeclaration{declared("api", secrets,
 				mono("services/api/cmd", "services/api/testdata/", "services/api/cmd/x.go"), apiLib), web},
-			want: "this change narrows what secrets reads on api (narrower paths; ignore services/api/cmd/x.go) from what the base read"},
+			want: "this change alters what secrets reads on api (paths no longer reading all of services/api; ignore services/api/cmd/x.go)"},
 		{name: "stopped on one and narrowed on the other",
 			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("v2", "vendor/")),
 				declared("web", nil, mono("services/web"), ui("v1"))},
-			want: "this change stops secrets on web, which the base ran, and narrows what secrets reads on api (revision v2, not v1) from what the base read"},
+			want: "this change stops secrets on web, which the base ran, and alters what secrets reads on api (revision v2, not v1)"},
 		// A neighbor reading the repository with entries of its own covers nothing it did not cover
 		// before, and its entries are not what this change narrowed.
 		{name: "a revision changed beside a neighbor's own entries",
 			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/"), lib("v2", "vendor/")),
 				web, declared("audit", secrets, lib("v1", "docs/"))},
-			want: "this change narrows what secrets reads on api (revision v2, not v1) from what the base read"},
+			want: "this change alters what secrets reads on api (revision v2, not v1)"},
 		// Where the component itself no longer reads the part, what narrowed is the neighbor's.
 		{name: "a part left to a neighbor that ignores more",
 			head: []engine.ComponentDeclaration{declared("api", secrets, mono("services/api", "services/api/testdata/")),
 				web, declared("audit", secrets, lib("v1", "docs/"))},
-			want: "this change narrows what secrets reads on api (ignore docs/) from what the base read"},
+			want: "this change alters what secrets reads on api (ignore docs/)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := (Held{Dropped: dropped(base, engine.Declarations{Components: tc.head})}).DroppedSentence(); got != tc.want {
@@ -335,8 +343,8 @@ func TestAnAddedIgnoreEntryIsHeldAndCanBeTrusted(t *testing.T) {
 			engine.RepositoryScope{URL: "r/lib"})}}
 	}
 	base, head := scopes(), scopes("services/api/client.py")
-	const narrowed = "This change narrows what secrets reads on api (ignore services/api/client.py) from what the base read, " +
-		"so nothing it adds in the part left out was looked for, and 1 finding from the base reads as not scanned rather than fixed"
+	const narrowed = "This change alters what secrets reads on api (ignore services/api/client.py), " +
+		"so what it adds there may not have been looked for, and 1 finding from the base reads as not scanned rather than fixed"
 
 	held := compared.HoldToBase(base, head, true, matrixRank)
 	held.Gate = Gate{FailOnPriority: "P4"}

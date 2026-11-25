@@ -1338,22 +1338,21 @@ until it merges:
   monorepo, turning a control off for one component, or narrowing its `paths`, counts even while
   another component runs the control on the rest of the repository. The base's findings from it read
   as not scanned rather than fixed.
-- `ignore` and `revision` narrow a part as `paths` do. A head component still covers it only where it
-  reads the same `revision` and adds no `ignore` entry, compared as written, so an entry over the file
-  a change adds a finding to, or a `revision` pinned to a commit without the change, fails the gate
-  the same way.
+- `ignore` and `revision` count as `paths` do. A head component still covers a part only where it
+  reads the same `revision` and adds no `ignore` entry, and an entry spelled differently counts as new.
+  So an entry over the file a change adds a finding to, or a `revision` pinned to a commit without the
+  change, fails the gate the same way.
 - A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
   gated as new.
 
 The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
-there was looked for.`, or, where the control still runs, what narrowed: `This change narrows what
-secrets reads on api (ignore src/client.py) from what the base read, so nothing it adds in the part
-left out was looked for.` A change that lowers a classification or adds an exclusion, and adds no
-finding of its own, passes. A base report from a release that did not record the declaration says so
-and leaves the head's to decide. One from 0.189.0 recorded each repository without its `paths`, so
-its controls are compared by repository alone, and one from 0.189.1 without its `ignore` or
-`revision`, which reads as declaring none, so a head that declares either is held as though it added
-them: scan the base with the same release as the head.
+there was looked for.`, or, where the control still runs, what changed: `This change alters what
+secrets reads on api (ignore src/client.py), so what it adds there may not have been looked for.` A
+change that lowers a classification or adds an exclusion, and adds no finding of its own, passes. A
+base report from a release that did not record the declaration says so and leaves the head's to
+decide. One from 0.189.0 recorded each repository without its `paths`, so its controls are compared
+by repository alone. One from 0.189.1 recorded neither `ignore` nor `revision`, so a head that
+declares either looks newly added. Scan the base with the same release as the head.
 
 A diff held to its base prints a digest of the head's descriptor. Given that digest as
 `--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the

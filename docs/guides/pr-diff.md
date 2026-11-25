@@ -400,7 +400,7 @@ A pull request is held to the descriptor its base declared until it merges, as t
 [reference](../reference/cli.md#draugr-diff-basesarif-headsarif) describes. Sometimes a descriptor
 change is the point: a control the team no longer wants, a component that really is less exposed
 than declared, an `ignore` entry for generated files, or a repository's `revision` moved to a new
-release. Each of the last two narrows what a scan reads, as a shorter `paths` does, so it fails the
+release. Each of the last two changes what a scan reads, as a shorter `paths` does, so it fails the
 gate until it merges like a control turned off. The failing run prints a digest of the pull
 request's descriptor:
 

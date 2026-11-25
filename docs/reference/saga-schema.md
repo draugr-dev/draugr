@@ -2142,7 +2142,7 @@ same repository are two different scans, cached separately, and their findings s
 
 **A pull request that narrows a scope is held to its base.** On a pull request, a change that
 narrows `paths`, adds an `ignore` entry or changes `revision` fails the new-findings gate until it
-merges, because nothing it adds outside what is still read was looked for; [`draugr
+merges, because what it adds may not have been looked for; [`draugr
 diff`](cli.md#draugr-diff-basesarif-headsarif) says what narrowed and how to trust the change.
 
 **History findings follow the same scope.** Git history cannot be checked out by subtree, so
