@@ -15,7 +15,7 @@ vulnerable shop, in four steps:
 3. open one finding in the HTML report;
 4. see how a pull request is gated, and run the same gate on your machine.
 
-Every block of output comes from Draugr 0.189.3 on demo commit `bb729745`, run on 2026-11-25. A
+Every block of output comes from Draugr 0.189.4 on demo commit `bb729745`, run on 2026-11-25. A
 newer release or commit prints different counts, and so can a later day, because the scanners read
 advisory databases that change over time. A line reading `…` stands for lines cut from the output.
 
@@ -25,14 +25,14 @@ advisory databases that change over time. A line reading `…` stands for lines 
 
 ## 1. Scan with nothing declared
 
-Install Draugr 0.189.3 into `~/.local/bin`, which [install](install.md) covers in full, and check
+Install Draugr 0.189.4 into `~/.local/bin`, which [install](install.md) covers in full, and check
 the version.
 
 ```console
-$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.189.3 sh
+$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.189.4 sh
 …
 $ draugr version
-draugr 0.189.3 (commit …)
+draugr 0.189.4 (commit …)
 ```
 
 Clone the demo at the commit this page was written against.
@@ -69,7 +69,7 @@ The demo is deliberately vulnerable, so this scan fails. That is the expected re
 ```console
 $ draugr scan .
 …
-DRAUGR  FAIL  draugr-demo  10.177s
+DRAUGR  FAIL  draugr-demo  10.279s
 
  37 P1 28 P2 18 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -169,7 +169,7 @@ is still written.
 ```console
 $ draugr scan --no-publish --report sarif -o before
 …
-DRAUGR  FAIL  draugr-demo 1.0  11.706s
+DRAUGR  FAIL  draugr-demo 1.0  11.963s
 
  303 P1 712 P2 255 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -211,7 +211,7 @@ Scan again.
 ```console
 $ draugr scan --no-publish --report sarif -o after --top 1
 …
-DRAUGR  FAIL  draugr-demo 1.0  10.262s
+DRAUGR  FAIL  draugr-demo 1.0  11.932s
 
  296 P1 704 P2 250 P3 20 P4
 …
