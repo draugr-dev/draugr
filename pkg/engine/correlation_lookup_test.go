@@ -109,3 +109,62 @@ func TestCorrelationThroughALookupCountsTheHigherBand(t *testing.T) {
 		}
 	}
 }
+
+// withoutPURL is a copy whose scanner named the package by ecosystem, name and version and gave no
+// package URL, as Trivy's SARIF names a Go module.
+func withoutPURL(r sarif.Result) sarif.Result {
+	pkg := *r.Package
+	pkg.PURL = ""
+	r.Package = &pkg
+	return r
+}
+
+// A copy with a package URL is keyed on it and a copy without one on its name and version, so the
+// lookup's CVE has to be tried under both. Either file may be the one without: Trivy's SARIF gives
+// none for a Go module and govulncheck's file gives one, and another pair of tools can be the other
+// way round. Two repositories, so the join is per repository and never across them.
+func TestCorrelationJoinsThroughALookupWhereOnlyOneCopyHasAPackageURL(t *testing.T) {
+	const ghsa, cve = "GHSA-3c6w-j9xm-8h2h", "CVE-2026-107833"
+	for _, tc := range []struct {
+		name            string
+		lookedUp, named func(sarif.Result) sarif.Result
+	}{
+		{name: "the CVE copy has no package URL", lookedUp: keep, named: withoutPURL},
+		{name: "the looked-up copy has no package URL", lookedUp: withoutPURL, named: keep},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			build := func(lookup bool) []sarif.Result {
+				var results []sarif.Result
+				for _, repo := range []string{"repo-waf", "repo-edge"} {
+					var l *sarif.CVELookup
+					if lookup {
+						l = govulndbLookup(ghsa, cve)
+					}
+					results = append(results,
+						tc.lookedUp(corazaCopy("govulncheck", "govulncheck-json", ghsa, repo, "P2", l)),
+						tc.named(corazaCopy("Trivy", "sarif", cve, repo, "P2", nil)))
+				}
+				return results
+			}
+
+			ctrls := controlsWith(build(true)...)
+			if groups, _ := applyCorrelation(ctrls); groups != 2 {
+				t.Fatalf("groups = %d, want one per repository", groups)
+			}
+			if n := ctrls["sca"].Report.Counts().Total(); n != 2 {
+				t.Errorf("counted %d, want the flaw once in each repository", n)
+			}
+
+			ctrls = controlsWith(build(false)...)
+			if groups, _ := applyCorrelation(ctrls); groups != 0 {
+				t.Errorf("groups = %d without a lookup, want none", groups)
+			}
+			if n := ctrls["sca"].Report.Counts().Total(); n != 4 {
+				t.Errorf("counted %d without a lookup, want both copies in both repositories", n)
+			}
+		})
+	}
+}
+
+// keep leaves a copy as corazaCopy made it, with its package URL.
+func keep(r sarif.Result) sarif.Result { return r }

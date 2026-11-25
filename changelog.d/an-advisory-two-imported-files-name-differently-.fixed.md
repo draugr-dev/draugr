@@ -1,0 +1,1 @@
+- **An advisory two imported files name differently is counted once.** A GitHub advisory whose CVE was looked up now joins the other file's copy under that CVE where only one of them gives a package URL, as Trivy's SARIF gives none for a Go module. Before, the two copies counted twice.

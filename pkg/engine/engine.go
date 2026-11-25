@@ -3970,6 +3970,20 @@ func correlationGroups(results []sarif.Result) [][]int {
 			if j, seen := first[other]; seen {
 				join(i, j)
 			}
+			// The other scanner's copy may key its package another way: a copy with a package URL is
+			// keyed on the URL, and a copy without one on its name and version, so the id is looked
+			// up under both, as the join through named above matches two copies under one id.
+			// govulncheck's file gives a Go module's package URL, and Trivy's SARIF gives none.
+			if results[i].Package.PURL == "" {
+				if j, seen := named[other]; seen && j >= 0 {
+					join(j, i)
+				}
+			} else if pkg, ok := packageNameKey(results[i].Package); ok {
+				other.pkg = pkg
+				if j, seen := first[other]; seen {
+					join(i, j)
+				}
+			}
 		}
 	}
 
