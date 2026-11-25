@@ -295,6 +295,13 @@ cannot be applied, the finding stays:
   scoped differently. Its findings stay and are counted as not scoped.
 - **No location.** A finding that names no file is kept.
 - **A path outside every checkout.** It is kept as written and listed under `unread-files`.
+- **A path that names no file in the checkout.** A relative path names no file in the checkout of the
+  repository its finding is placed in. This happens when a tool writes paths relative to something
+  other than the repository's root: gosec writes them relative to the Go module it analyzed, so a
+  module in `checkout/` gives `main.go` for `checkout/main.go`. The finding is kept, and the path is
+  listed under `unread-files`, as `names no file in the checkout, so paths: and ignore: do not apply
+  to it`. No other path is guessed for it. A repository named by a remote address has no checkout
+  to look in, so its paths are taken as written.
 
 **Measured against** says what was left out, after `component`:
 

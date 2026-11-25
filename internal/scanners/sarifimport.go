@@ -7,7 +7,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -196,7 +198,8 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	}
 	placeImported(rep.Results, meta, ft.Repositories)
 	toolsSuppressions(rep.Results, ft)
-	keep, scoped := scopeImported(rep.Results, read.outside, ft.Repositories)
+	missing := missingFromCheckout(rep.Results, ft.Repositories)
+	keep, scoped := scopeImported(rep.Results, slices.Concat(read.outside, missing), ft.Repositories)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
 	keep, scoped.folded = foldRepeats(rep.Results)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
@@ -238,7 +241,51 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	for _, p := range read.outside {
 		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: outsideCheckout})
 	}
+	for _, p := range missing {
+		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: namesNoFile})
+	}
 	return rep, nil
+}
+
+// namesNoFile is why a relative path in an imported file was not placed in the component: no file
+// of that name is in the checkout of the repository its finding was placed in. The finding still
+// counts, kept whole rather than scoped, since paths: and ignore: would be judged on a path that is
+// not the file's.
+const namesNoFile = "names no file in the checkout, so paths: and ignore: do not apply to it"
+
+// missingFromCheckout are the findings' relative paths, once each and in order, that name no file in
+// the local checkout of the repository each finding was placed in.
+//
+// A tool can write a path relative to something other than the repository's root: gosec writes it
+// relative to the Go module it analyzed, so a module in a subdirectory gives `main.go` for
+// `checkout/main.go`. Scoped as written, such a finding is judged on a path that is not its file's,
+// and paths: can leave out a finding whose file they hold. No other path is guessed for it, since a
+// file of the same name may be in several directories.
+//
+// A finding placed in no repository, or in one named by a remote address, has no checkout here to
+// look in, and its path is taken as written.
+func missingFromCheckout(results []sarif.Result, repos []plugin.RepositoryTarget) []string {
+	roots := map[string]string{}
+	for _, r := range repos {
+		if !git.IsLocalPath(r.URL) {
+			continue
+		}
+		if abs, err := filepath.Abs(r.URL); err == nil {
+			roots[r.Source()] = abs
+		}
+	}
+	var missing []string
+	for _, r := range results {
+		uri := r.Location.URI
+		root, ok := roots[r.ImportedRepository]
+		if !ok || uri == "" || uri == "." || filepath.IsAbs(uri) || slices.Contains(missing, uri) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(uri))); errors.Is(err, fs.ErrNotExist) {
+			missing = append(missing, uri)
+		}
+	}
+	return missing
 }
 
 // toolsSuppressions settles what a finding the file's tool suppressed does here, as the import's
