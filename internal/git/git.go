@@ -498,21 +498,34 @@ func containedPath(root, rel string) (string, error) {
 // ordering. No remote is not a failure: a repository that exists only on this machine is
 // legitimate, and the caller keeps the path.
 func RemoteURL(ctx context.Context, path string) string {
+	_, url := canonicalRemote(ctx, path)
+	return url
+}
+
+// RemoteName is the name of the remote RemoteURL reads, as `git fetch` takes it, or "" when the
+// checkout has none.
+func RemoteName(ctx context.Context, path string) string {
+	name, _ := canonicalRemote(ctx, path)
+	return name
+}
+
+// canonicalRemote is the remote RemoteURL describes, by name and fetch URL.
+func canonicalRemote(ctx context.Context, path string) (name, url string) {
 	if url := remote(ctx, path, "origin"); url != "" {
-		return url
+		return "origin", url
 	}
 	out, err := exec.CommandContext(ctx, "git", "-C", path, "remote").Output() // #nosec G204 -- the descriptor's own repository path
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	names := strings.Fields(string(out))
 	sort.Strings(names)
 	for _, n := range names {
 		if url := remote(ctx, path, n); url != "" {
-			return url
+			return n, url
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // remote reads one remote's fetch URL.

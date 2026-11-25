@@ -29,7 +29,14 @@ type olderBase struct {
 	version string
 	// unread are the files that could not be read at the base's commit, keyed as Held's Files are,
 	// by repository and path, each with why.
-	unread map[[2]string]diff.Unread
+	unread map[[2]string]unreadFile
+}
+
+// unreadFile is why a file could not be read at the base's commit, with the command that fetches
+// the commit where the checkout lacks it and has a remote to fetch it from.
+type unreadFile struct {
+	why   diff.Unread
+	fetch string
 }
 
 // readOlderBase settles, from the checkout the comparison runs in, the scanners' files below a
@@ -66,13 +73,13 @@ func readOlderBase(ctx context.Context, dir string, base sarif.Report, baseDecla
 		if f.Kind != engine.FileScanner || slices.Contains(git.RootConfig(), f.Path) || recorded[key{f.Repository, f.Path}] {
 			continue
 		}
-		digests, why := readAtBase(ctx, dir, base, f)
+		digests, why, fetch := readAtBase(ctx, dir, base, f)
 		switch {
 		case why != "":
 			if ob.unread == nil {
-				ob.unread = map[[2]string]diff.Unread{}
+				ob.unread = map[[2]string]unreadFile{}
 			}
-			ob.unread[[2]string{f.Repository, f.Path}] = why
+			ob.unread[[2]string{f.Repository, f.Path}] = unreadFile{why: why, fetch: fetch}
 		case len(digests) > 0:
 			files = append(files, engine.DeclaredFile{Kind: engine.FileScanner, Repository: f.Repository, Path: f.Path, Digests: digests})
 		}
@@ -92,11 +99,15 @@ func olderThanNestedFiles(version string) bool {
 // readAtBase is the digest of f at each commit the base report read f's repository at, as a
 // checkout of that commit holds it. None where no such commit held the file. why says what stopped
 // a read: diff.CommitMissing for a commit the checkout does not hold, diff.CommitUnknown where the
-// base names none it can be read at or git cannot read the checkout.
-func readAtBase(ctx context.Context, dir string, base sarif.Report, f engine.DeclaredFile) (digests []string, why diff.Unread) {
+// base names none it can be read at or git cannot read the checkout. fetch is the command that
+// fetches the missing commits, where the checkout has a remote to fetch them from.
+//
+// The comparison never fetches them itself. Reading the base touches only the checkout already on
+// disk, so a comparison in a pipeline with no route out behaves as it does anywhere else.
+func readAtBase(ctx context.Context, dir string, base sarif.Report, f engine.DeclaredFile) (digests []string, why diff.Unread, fetch string) {
 	revisions, ok := baseRevisions(ctx, dir, base, f.Repository)
 	if !ok {
-		return nil, diff.CommitUnknown
+		return nil, diff.CommitUnknown, ""
 	}
 	repo := dir
 	if git.IsLocalPath(f.Repository) {
@@ -107,13 +118,19 @@ func readAtBase(ctx context.Context, dir string, base sarif.Report, f engine.Dec
 	}
 	// A directory git cannot read is no checkout to fetch into.
 	if exec.CommandContext(ctx, "git", "-C", repo, "rev-parse", "--git-dir").Run() != nil { // #nosec G204 -- the descriptor's own repository path or the working directory
-		return nil, diff.CommitUnknown
+		return nil, diff.CommitUnknown, ""
+	}
+	// The commits first: a missing commit and a file the commit does not hold are two answers.
+	var missing []string
+	for _, rev := range revisions {
+		if exec.CommandContext(ctx, "git", "-C", repo, "cat-file", "-e", rev+"^{commit}").Run() != nil { // #nosec G204 -- a commit id from the base report, checked as one
+			missing = append(missing, rev)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, diff.CommitMissing, fetchCommand(ctx, dir, repo, missing)
 	}
 	for _, rev := range revisions {
-		// The commit itself first: a missing commit and a file the commit does not hold are two answers.
-		if exec.CommandContext(ctx, "git", "-C", repo, "cat-file", "-e", rev+"^{commit}").Run() != nil { // #nosec G204 -- a commit id from the base report, checked as one
-			return nil, diff.CommitMissing
-		}
 		// --filters converts the content as a checkout would, line endings included, which is what
 		// the base's scanner read.
 		out, err := exec.CommandContext(ctx, "git", "-C", repo, "cat-file", "--filters", rev+":"+f.Path).Output() // #nosec G204 -- a commit id from the base report and a path the head report recorded
@@ -125,7 +142,42 @@ func readAtBase(ctx context.Context, dir string, base sarif.Report, f engine.Dec
 		}
 	}
 	slices.Sort(digests)
-	return digests, ""
+	return digests, "", ""
+}
+
+// fetchCommand is the command that fetches revisions into the checkout at repo from the remote its
+// identity names, written to run from dir: `git fetch --no-tags --depth 1 origin <commit>`, with
+// `-C <path>` for a checkout elsewhere. The read needs only that commit, at depth 1, not the full
+// history. Empty where the checkout has no remote.
+func fetchCommand(ctx context.Context, dir, repo string, revisions []string) string {
+	remote := git.RemoteName(ctx, repo)
+	if remote == "" {
+		return ""
+	}
+	cmd := "git "
+	if filepath.Clean(repo) != filepath.Clean(dir) {
+		at := repo
+		if rel, err := filepath.Rel(dir, repo); err == nil && !strings.HasPrefix(rel, "..") {
+			at = rel
+		}
+		cmd += "-C " + shellWord(at) + " "
+	}
+	return cmd + "fetch --no-tags --depth 1 " + shellWord(remote) + " " + strings.Join(revisions, " ")
+}
+
+// shellWord is s as one word a POSIX shell reads back unchanged: as it is where it holds nothing a
+// shell treats specially, single-quoted otherwise.
+func shellWord(s string) string {
+	if s != "" && strings.IndexFunc(s, special) < 0 {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// special reports whether a shell could read r as something other than itself.
+func special(r rune) bool {
+	plain := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("._/-+:@=", r)
+	return !plain
 }
 
 // baseRevisions are the commits the base report's repository scanners read repository at. ok is
@@ -177,8 +229,9 @@ func identityOf(ctx context.Context, dir, repository string) string {
 // and names the release that wrote the base.
 func (ob olderBase) markUnread(h *diff.Held) {
 	for i, f := range h.Files {
-		if why := ob.unread[[2]string{f.Repository, f.Path}]; why != "" {
-			h.Files[i].BaseUnread = why
+		if u := ob.unread[[2]string{f.Repository, f.Path}]; u.why != "" {
+			h.Files[i].BaseUnread = u.why
+			h.Files[i].FetchBase = u.fetch
 			h.BaseVersion = ob.version
 		}
 	}

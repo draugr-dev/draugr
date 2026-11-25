@@ -245,6 +245,7 @@ func TestAnInlineDirectiveTheChangeAddsIsListedAsItsOwn(t *testing.T) {
 // does add is still said as added beside it.
 func TestAFileTheBaseCouldNotRecordIsNamedApart(t *testing.T) {
 	nested := scannerFile(apiURL, "src/.semgrepignore", "1111111111111111")
+	const fetch = "git fetch --no-tags --depth 1 origin 0123456789012345678901234567890123456789"
 	held := func(why Unread, files ...engine.DeclaredFile) Result {
 		r := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(withFiles(), withFiles(files...), true, matrixRank)
 		r.Gate = Gate{FailOnPriority: "P1"}
@@ -253,6 +254,9 @@ func TestAFileTheBaseCouldNotRecordIsNamedApart(t *testing.T) {
 		for i, f := range r.Held.Files {
 			if f.Path == "src/.semgrepignore" {
 				r.Held.Files[i].BaseUnread = why
+				if why == CommitMissing {
+					r.Held.Files[i].FetchBase = fetch
+				}
 			}
 		}
 		return r
@@ -263,7 +267,7 @@ func TestAFileTheBaseCouldNotRecordIsNamedApart(t *testing.T) {
 	}
 	const missing = "src/.semgrepignore in api.git is held as though this change added it. The base report is from " +
 		"Draugr 0.189.3, which did not record it, and the base's commit is not in this checkout to read it from. " +
-		"Fetch the full history (fetch-depth: 0 in actions/checkout, GIT_DEPTH: 0 on GitLab), or scan the base with this release"
+		"Fetch it with `" + fetch + "`, or scan the base with this release"
 	const trust = "To pass anyway, add --trust-descriptor-change 81c9337fcb7ea4d9 to the pipeline file; it accepts " +
 		"src/.semgrepignore in api.git as it is now, unchecked against the base"
 	var buf bytes.Buffer
@@ -320,5 +324,28 @@ func TestAFileTheBaseCouldNotRecordIsNamedApart(t *testing.T) {
 	both.Held.BaseVersion = ""
 	if notes := strings.Join(both.Held.Notes(), "\n"); !strings.Contains(notes, "The base report is from an older release,") {
 		t.Errorf("notes = %q", notes)
+	}
+
+	// A checkout with no remote has no command to give, and the note still says what to fetch.
+	bare := held(CommitMissing, nested)
+	bare.Held.Files[0].FetchBase = ""
+	if notes := strings.Join(bare.Held.Notes(), "\n"); !strings.Contains(notes, "not in this checkout to read it from. "+
+		"Fetch the base's commit, or scan the base with this release") {
+		t.Errorf("notes = %q", notes)
+	}
+
+	// Two files missing the same commit name its command once; two commits, each.
+	two := held(CommitMissing, nested, scannerFile(apiURL, "lib/.semgrepignore", "3333333333333333"))
+	for i := range two.Held.Files {
+		two.Held.Files[i].BaseUnread = CommitMissing
+		two.Held.Files[i].FetchBase = fetch
+	}
+	if notes := strings.Join(two.Held.Notes(), "\n"); strings.Count(notes, fetch) != 1 {
+		t.Errorf("one commit, notes = %q", notes)
+	}
+	const otherFetch = "git -C libs/web fetch --no-tags --depth 1 origin ffffffffffffffffffffffffffffffffffffffff"
+	two.Held.Files[1].FetchBase = otherFetch
+	if notes := strings.Join(two.Held.Notes(), "\n"); !strings.Contains(notes, "Fetch them with `"+fetch+"` and `"+otherFetch+"`") {
+		t.Errorf("two commits, notes = %q", notes)
 	}
 }

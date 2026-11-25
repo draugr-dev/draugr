@@ -75,7 +75,7 @@ func TestAnOlderBaseIsReadAtItsCommit(t *testing.T) {
 		t.Helper()
 		return readOlderBase(ctx, repo, base, engine.Declarations{}, head)
 	}
-	unreadOf := func(ob olderBase) diff.Unread { return ob.unread[[2]string{repo, "src/.semgrepignore"}] }
+	unreadOf := func(ob olderBase) diff.Unread { return ob.unread[[2]string{repo, "src/.semgrepignore"}].why }
 
 	t.Run("the base's commit holds it", func(t *testing.T) {
 		got, ob := read(t, baseReport("0.189.3", identity, []string{rev}), head)
@@ -181,7 +181,7 @@ func TestAnOlderBaseIsReadFromTheCheckoutItRunsIn(t *testing.T) {
 	head := engine.Declarations{Files: []engine.DeclaredFile{{Kind: engine.FileScanner, Repository: url,
 		Path: "src/.semgrepignore", Digests: []string{digest}}}}
 	if _, ob := readOlderBase(ctx, t.TempDir(), baseReport("0.189.3", identityOf(ctx, repo, url), []string{rev}),
-		engine.Declarations{}, head); ob.unread[[2]string{url, "src/.semgrepignore"}] != diff.CommitUnknown {
+		engine.Declarations{}, head); ob.unread[[2]string{url, "src/.semgrepignore"}].why != diff.CommitUnknown {
 		t.Errorf("unread = %v outside the checkout", ob.unread)
 	}
 }
@@ -218,5 +218,81 @@ func TestCompareWithBaseReadsAnOlderBaseFromTheWorkingDirectory(t *testing.T) {
 	}
 	if len(compared.Held.Files) != 1 || compared.Held.Files[0].BaseUnread != diff.CommitMissing || compared.Held.BaseVersion != "0.189.3" {
 		t.Errorf("held = %+v, version %q", compared.Held.Files, compared.Held.BaseVersion)
+	}
+}
+
+// Where the checkout lacks the base's commit, the run names the command that fetches it: that one
+// commit, at depth 1, from the remote the checkout's identity comes from, with -C for a repository
+// the descriptor names by a path below the working directory. The comparison runs none of it.
+func TestAMissingBaseCommitNamesTheFetchThatSettlesIt(t *testing.T) {
+	ctx := context.Background()
+	dir := gitRepo(t)
+	// A path the descriptor names is found from the working directory, as `draugr diff` runs.
+	t.Chdir(dir)
+	missing := strings.Repeat("0123456789", 4)
+	other := strings.Repeat("f", 40)
+	run := func(t *testing.T, repo string, args ...string) {
+		t.Helper()
+		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil { // #nosec G204 -- test fixture
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	fetchOf := func(t *testing.T, repository string, revisions ...string) olderBase {
+		t.Helper()
+		head := engine.Declarations{Files: []engine.DeclaredFile{{Kind: engine.FileScanner, Repository: repository,
+			Path: "src/.semgrepignore", Digests: []string{"1111111111111111"}}}}
+		_, ob := readOlderBase(ctx, dir, baseReport("0.189.3", identityOf(ctx, dir, repository), revisions), engine.Declarations{}, head)
+		return ob
+	}
+
+	// No remote: nothing to fetch from, and the note falls back to saying what to fetch.
+	if u := fetchOf(t, ".", missing).unread[[2]string{".", "src/.semgrepignore"}]; u.why != diff.CommitMissing || u.fetch != "" {
+		t.Errorf("no remote: %+v", u)
+	}
+
+	run(t, dir, "remote", "add", "upstream", "https://example.com/api.git")
+	u := fetchOf(t, ".", missing, other).unread[[2]string{".", "src/.semgrepignore"}]
+	if want := "git fetch --no-tags --depth 1 upstream " + missing + " " + other; u.fetch != want {
+		t.Errorf("fetch = %q, want %q", u.fetch, want)
+	}
+
+	sub := filepath.Join(dir, "libs", "my lib")
+	if err := os.MkdirAll(sub, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	run(t, sub, "init", "-q")
+	run(t, sub, "remote", "add", "origin", "https://example.com/lib.git")
+	if u := fetchOf(t, "libs/my lib", missing).unread[[2]string{"libs/my lib", "src/.semgrepignore"}]; u.fetch !=
+		"git -C 'libs/my lib' fetch --no-tags --depth 1 origin "+missing {
+		t.Errorf("fetch in a nested checkout = %q", u.fetch)
+	}
+
+	// Carried onto the held file, so the note can quote it.
+	head := engine.Declarations{Files: []engine.DeclaredFile{{Kind: engine.FileScanner, Repository: ".",
+		Path: "src/.semgrepignore", Digests: []string{"1111111111111111"}}}}
+	got, ob := readOlderBase(ctx, dir, baseReport("0.189.3", identityOf(ctx, dir, "."), []string{missing}), engine.Declarations{}, head)
+	r := diff.Compare(sarif.Report{}, sarif.Report{}).HoldToBase(got, head, true, nil)
+	ob.markUnread(&r.Held)
+	if len(r.Held.Files) != 1 || r.Held.Files[0].FetchBase != "git fetch --no-tags --depth 1 upstream "+missing {
+		t.Errorf("held = %+v", r.Held.Files)
+	}
+	if notes := strings.Join(r.Held.Notes(), "\n"); !strings.Contains(notes, "Fetch it with `git fetch --no-tags --depth 1 upstream "+missing+"`") {
+		t.Errorf("notes = %q", notes)
+	}
+}
+
+// A word the shell would split or expand is quoted, and a quote inside it survives.
+func TestShellWordQuotesWhatAShellWouldRead(t *testing.T) {
+	for in, want := range map[string]string{
+		"origin":     "origin",
+		"libs/api-1": "libs/api-1",
+		"my lib":     "'my lib'",
+		"it's":       `'it'\''s'`,
+		"$HOME":      "'$HOME'",
+		"":           "''",
+	} {
+		if got := shellWord(in); got != want {
+			t.Errorf("shellWord(%q) = %s, want %s", in, got, want)
+		}
 	}
 }

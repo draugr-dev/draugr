@@ -1373,7 +1373,9 @@ the change to the base's declaration until it merges:
   reads the file at the commit the base report names, from the checkout it runs in, so an unchanged
   file passes and an edited one is held as changed. Where it cannot read it, because the checkout
   lacks the commit (a shallow clone), the report names no commit, or the base was scanned with
-  uncommitted changes, the file is held as added and the run says how to settle it.
+  uncommitted changes, the file is held as added and the run says how to settle it. For a missing
+  commit that is the command fetching it, `git fetch --no-tags --depth 1 origin <commit>`, which the
+  comparison prints and never runs.
 - A comment in the source that sets a finding aside, such as `# nosemgrep`, `gitleaks:allow` or
   `#nosec`, is not held: the finding stays in the report marked suppressed. Where the base did not
   have the finding, the listing says `accepted by this change: suppressed in source (nosemgrep)`,
