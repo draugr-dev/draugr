@@ -2,6 +2,7 @@ package tools
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -21,6 +22,9 @@ func clearToolWriteVars(t *testing.T) {
 	}
 	t.Setenv("XDG_CACHE_HOME", "")
 	t.Setenv("XDG_CONFIG_HOME", "")
+	// Go's defaults come from GOPATH and its settings file as well, so neither may leak in.
+	t.Setenv("GOPATH", "")
+	t.Setenv("GOENV", "off")
 }
 
 // readOnlyDir is a directory nothing can be written into, or a skip where the test runs as root,
@@ -54,6 +58,12 @@ func TestDraugrHomeMovesWhatEachToolWrites(t *testing.T) {
 	for tool, writes := range toolWrites {
 		for _, w := range writes {
 			got := os.Getenv(w.Var)
+			if w.Stays {
+				if got != "" {
+					t.Errorf("%s: %s = %q, but Go's caches stay where Go puts them", tool, w.Var, got)
+				}
+				continue
+			}
 			if w.Var == "TRIVY_CACHE_DIR" {
 				if got != mine {
 					t.Errorf("TRIVY_CACHE_DIR was set before Draugr ran and is now %q", got)
@@ -117,8 +127,54 @@ func TestUnwritableForNamesTheToolsDefault(t *testing.T) {
 	if u := UnwritableFor("semgrep"); u == nil || u.Path != filepath.Join(home, ".semgrep", "settings.yml") {
 		t.Errorf("UnwritableFor(semgrep) = %+v", u)
 	}
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go on PATH to say where its caches are")
+	}
+	want := filepath.Join(home, "go", "pkg", "mod")
+	if u := UnwritableFor("gosec"); u == nil || u.Path != want || u.Var != "GOMODCACHE" || !u.Stays || u.Named {
+		t.Errorf("UnwritableFor(gosec) = %+v, want Go's default module cache %s", u, want)
+	}
+}
+
+// gosec and govulncheck load the code through the Go toolchain, so a module or build cache that
+// cannot be written stops them. Go's caches are checked where Go puts them, and DRAUGR_HOME does
+// not move them.
+func TestUnwritableForChecksGosCaches(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("no go on PATH to say where its caches are")
+	}
+	clearToolWriteVars(t)
+	t.Setenv(draugrhome.EnvVar, t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("GOMODCACHE", filepath.Join(t.TempDir(), "mod"))
+	ro := filepath.Join(readOnlyDir(t), "go-build")
+	t.Setenv("GOCACHE", ro)
+	if err := PointToolWritesUnderDraugrHome(); err != nil {
+		t.Fatal(err)
+	}
+	if got := os.Getenv("GOCACHE"); got != ro {
+		t.Fatalf("DRAUGR_HOME moved GOCACHE to %q", got)
+	}
+	for _, tool := range []string{"gosec", "govulncheck"} {
+		u := UnwritableFor(tool)
+		if u == nil || u.Path != ro || u.Var != "GOCACHE" || !u.Stays || !u.Named {
+			t.Errorf("UnwritableFor(%s) = %+v, want %s named by GOCACHE", tool, u, ro)
+		}
+	}
+	t.Setenv("GOCACHE", "off")
 	if u := UnwritableFor("gosec"); u != nil {
-		t.Errorf("gosec writes nothing Draugr knows of, and was reported as %+v", *u)
+		t.Errorf("with GOCACHE=off Go writes no build cache, and gosec was reported as %+v", *u)
+	}
+}
+
+// With no go on PATH there is nothing to say where Go's caches are, and nothing is reported. The
+// tool's own check then fails for want of Go.
+func TestUnwritableForWithoutGoReportsNothing(t *testing.T) {
+	clearToolWriteVars(t)
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("HOME", readOnlyDir(t))
+	if u := UnwritableFor("gosec"); u != nil {
+		t.Errorf("UnwritableFor(gosec) with no go = %+v", *u)
 	}
 }
 

@@ -1,11 +1,14 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/draugr-dev/draugr/internal/draugrhome"
 )
@@ -19,20 +22,28 @@ type toolWrite struct {
 	Under string
 	// Default is where the tool puts it when Var is unset, or "" where that cannot be worked out.
 	Default func() string
+	// Stays is true for a place DRAUGR_HOME does not move, because the tool shares it with other
+	// work on the machine. It is still checked, and Var is what moves it.
+	Stays bool
 }
 
 // toolWrites lists, for each tool Draugr installs, what it writes as it runs and the variable that
 // moves it. Each variable is the tool's own and was read from a run of the version Draugr pins.
 //
 // The tools that write under the data directory already, because Draugr passes them a path
-// (gitleaks, retire.js, osv-scanner), are not here, and neither are Go's build and module caches,
-// which gosec and govulncheck use through the Go toolchain and which follow Go's own settings, as
-// they do for `go build`. Semgrep's version-check cache is not here either, because Draugr turns
-// that check off.
+// (gitleaks, retire.js, osv-scanner), are not here. Semgrep's version-check cache is not here
+// either, because Draugr turns that check off.
+//
+// gosec and govulncheck build the code they read with the Go toolchain, which writes Go's module
+// and build caches. Those stay where Go's own settings put them, so a scan shares them with
+// `go build` rather than downloading every module again, and they are listed only so doctor
+// checks that they take a write.
 var toolWrites = map[string][]toolWrite{
-	"trivy": {{Var: "TRIVY_CACHE_DIR", Under: "trivy", Default: inUserCache("trivy")}},
-	"grype": {{Var: "GRYPE_DB_CACHE_DIR", Under: filepath.Join("grype", "db"), Default: inUserCache("grype", "db")}},
-	"syft":  {{Var: "SYFT_CACHE_DIR", Under: "syft", Default: inUserCache("syft")}},
+	"gosec":       goCaches,
+	"govulncheck": goCaches,
+	"trivy":       {{Var: "TRIVY_CACHE_DIR", Under: "trivy", Default: inUserCache("trivy")}},
+	"grype":       {{Var: "GRYPE_DB_CACHE_DIR", Under: filepath.Join("grype", "db"), Default: inUserCache("grype", "db")}},
+	"syft":        {{Var: "SYFT_CACHE_DIR", Under: "syft", Default: inUserCache("syft")}},
 	// Semgrep makes the directory these name when it is missing.
 	"semgrep": {
 		{Var: "SEMGREP_SETTINGS_FILE", Under: filepath.Join("semgrep", "settings.yml"), Default: inSemgrepDir("settings.yml")},
@@ -63,7 +74,7 @@ func PointToolWritesUnderDraugrHome() error {
 	}
 	for _, writes := range toolWrites {
 		for _, w := range writes {
-			if os.Getenv(w.Var) != "" {
+			if w.Stays || os.Getenv(w.Var) != "" {
 				continue
 			}
 			if err := os.Setenv(w.Var, filepath.Join(root, w.Under)); err != nil {
@@ -97,6 +108,9 @@ type Unwritable struct {
 	// Named is true where Var was set to Path by somebody other than Draugr, so Var is what to
 	// change; otherwise Path is the tool's default or under DRAUGR_HOME, and DRAUGR_HOME is.
 	Named bool
+	// Stays is true where DRAUGR_HOME does not move Path, so Var is what to change whether or not
+	// anybody set it.
+	Stays bool
 }
 
 // UnwritableFor returns the first place the tool writes as it runs that cannot be written, or nil
@@ -115,7 +129,10 @@ func UnwritableFor(tool string) *Unwritable {
 			continue
 		}
 		if !canWrite(path) {
-			return &Unwritable{Path: path, Var: w.Var, Named: os.Getenv(w.Var) != "" && !UnderDraugrHome(path)}
+			return &Unwritable{
+				Path: path, Var: w.Var, Stays: w.Stays,
+				Named: os.Getenv(w.Var) != "" && !UnderDraugrHome(path),
+			}
 		}
 	}
 	return nil
@@ -151,6 +168,35 @@ func canWrite(path string) bool {
 			return false
 		}
 		p = parent
+	}
+}
+
+// goCaches are the Go toolchain's module and build caches, which gosec and govulncheck fill as they
+// load the code. Where Go puts each is what `go env` prints, which applies GOPATH, the user cache
+// directory and any `go env -w` setting the way the toolchain does.
+var goCaches = []toolWrite{
+	{Var: "GOMODCACHE", Default: goEnv("GOMODCACHE"), Stays: true},
+	{Var: "GOCACHE", Default: goEnv("GOCACHE"), Stays: true},
+}
+
+// goEnvTimeout bounds `go env`, which reads only the environment and Go's own settings file.
+const goEnvTimeout = 10 * time.Second
+
+// goEnv is the value `go env` prints for name, or "" where no go is on PATH, it fails, or the
+// value is "off", which for GOCACHE means Go writes no build cache.
+func goEnv(name string) func() string {
+	return func() string {
+		ctx, cancel := context.WithTimeout(context.Background(), goEnvTimeout)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "go", "env", name).Output() // #nosec G204 -- a fixed variable name
+		if err != nil {
+			return ""
+		}
+		v := strings.TrimSpace(string(out))
+		if v == "off" {
+			return ""
+		}
+		return v
 	}
 }
 

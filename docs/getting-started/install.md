@@ -136,7 +136,9 @@ With Draugr installed, add the scanners for the controls you use. The fastest wa
 Draugr fetch pinned, verified copies into `~/.draugr/bin` (added to your `PATH` automatically). For
 another directory, such as a CI runner's tool cache or a container whose home is read-only, set
 [`DRAUGR_HOME`](../reference/cli.md#environment) to its absolute path first; the tools, and what they
-write as they run, go there:
+write as they run, go there. Go's module and build caches, which gosec and govulncheck fill, stay
+where Go keeps them; set `GOMODCACHE` and `GOCACHE` where the home directory is read-only, and
+`draugr doctor` checks that both take a write:
 
 ```bash
 draugr tools install --saga draugr.saga.yaml   # only what this descriptor's scan will run
