@@ -409,7 +409,7 @@ components:
 
 | field | meaning |
 |---|---|
-| `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, and each import reads that control's results from the file. `sarif`, `trivy-json` and `draugr-converter` take any control |
+| `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, and each import reads that control's results from the file. `sarif` and `draugr-converter` take any control |
 | `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
 | `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
 | `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
@@ -423,7 +423,8 @@ components:
 #### Import formats
 
 - **`sarif`**, the default: a SARIF 2.1.0 log, from any tool.
-- **`trivy-json`**: what `trivy fs --format json` writes.
+- **`trivy-json`**: what `trivy fs --format json` writes, for `sca`, or what `trivy image --format json`
+  writes, for `images`. Each is read for its vulnerabilities, and an import into the other control is refused.
 - **`govulncheck-json`**: what `govulncheck -format json` writes, for `sca`.
 - **`grype-json`**: what `grype dir:<path> -o json` writes, for `sca`. Only a directory scan is read.
 - **`osv-scanner-json`**: what `osv-scanner scan --format json` writes, for `sca`. Only lockfile and

@@ -384,6 +384,31 @@ func TestAnImportedToolJSONPlacesAbsolutePaths(t *testing.T) {
 	}
 }
 
+// A Trivy file is read in the control its scan belongs to: an image scan in images, a filesystem scan
+// in sca. In the other, its findings would read as that control's, so the file is refused.
+func TestATrivyFileIsReadInTheControlItsScanBelongsTo(t *testing.T) {
+	image := filepath.Join("testdata", "sarif-import", "trivy-image-alpine.json")
+	fs := filepath.Join("testdata", "sarif-import", "trivy-fs-gomod.json")
+	for _, c := range []struct{ name, path, control, want string }{
+		{"an image scan in images", image, "images", ""},
+		{"a filesystem scan in sca", fs, "sca", ""},
+		{"an image scan in sca", image, "sca", "an image scan; import it into images"},
+		{"a filesystem scan in images", fs, "images", "a filesystem scan; images reads trivy image --format json"},
+	} {
+		rep, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: c.path,
+			Format: saga.ImportFormatTrivyJSON, Control: c.control}, nil)
+		switch {
+		case c.want == "" && (err != nil || len(rep.Results) == 0):
+			t.Errorf("%s: %d findings, err %v, want the file read", c.name, len(rep.Results), err)
+		case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+			t.Errorf("%s: err = %v, want %q", c.name, err, c.want)
+		}
+	}
+	if err := trivyImportControl("", "images"); err == nil || !strings.Contains(err.Error(), "a Trivy scan;") {
+		t.Errorf("no ArtifactType in images: %v", err)
+	}
+}
+
 // A file that is not the format the import names is refused, rather than read as a clean scan, in
 // words the errors block keeps whole: its last clause, within 80 characters.
 func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {

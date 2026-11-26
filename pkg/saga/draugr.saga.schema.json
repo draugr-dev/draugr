@@ -2362,6 +2362,34 @@
           "if": {
             "properties": {
               "format": {
+                "const": "trivy-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "control": {
+                "anyOf": [
+                  {
+                    "const": "sca",
+                    "description": "A filesystem scan's vulnerable dependencies, from trivy fs --format json."
+                  },
+                  {
+                    "const": "images",
+                    "description": "An image scan's vulnerable packages, from trivy image --format json."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
                 "const": "veracode-pipeline-json"
               }
             },
@@ -3253,6 +3281,34 @@
                   {
                     "const": "sca",
                     "description": "The file's vulnerable packages, from the lockfiles and SBOMs OSV-Scanner read."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "trivy-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "control": {
+                "anyOf": [
+                  {
+                    "const": "sca",
+                    "description": "A filesystem scan's vulnerable dependencies, from trivy fs --format json."
+                  },
+                  {
+                    "const": "images",
+                    "description": "An image scan's vulnerable packages, from trivy image --format json."
                   }
                 ]
               }

@@ -1071,7 +1071,7 @@ func TestValidateImportFormat(t *testing.T) {
 		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
 	}
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
-	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
+	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "trivy-json", Control: "images"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
 		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping},
 		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}, {Format: "mend-json"}} {
 		if err := with(imp); err != nil {
@@ -1116,6 +1116,7 @@ func TestValidateImportFormat(t *testing.T) {
 		{Import{Format: "mend-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
 			"nothing to apply to, since Mend's dependency JSON records no suppression. Remove it"},
 		{Import{Format: "mend-json", Control: "sast"}, "imports[0]: a mend-json file holds no sast results; import it into sca"},
+		{Import{Format: "trivy-json", Control: "secrets"}, "imports[0]: a trivy-json file holds no secrets results; import it into sca or images"},
 		{Import{Format: "govulncheck-json", Control: "sast"}, "imports[0]: a govulncheck-json file holds no sast results; import it into sca"},
 		{Import{Format: "grype-json", Control: "images"}, "imports[0]: a grype-json file holds no images results; import it into sca"},
 		{Import{Format: "osv-scanner-json", Control: "licenses"}, "imports[0]: an osv-scanner-json file holds no licenses results; import it into sca"},

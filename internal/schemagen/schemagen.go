@@ -671,6 +671,8 @@ var importFormatControlDocs = map[string]string{
 	saga.ImportFormatCheckmarxOneJSON + " sca":         "The file's SCA results, Checkmarx's scan of the dependencies.",
 	saga.ImportFormatCheckmarxOneJSON + " iac":         "The file's KICS results, Checkmarx's scan of infrastructure as code.",
 	saga.ImportFormatMendJSON + " sca":                 "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
+	saga.ImportFormatTrivyJSON + " sca":                "A filesystem scan's vulnerable dependencies, from trivy fs --format json.",
+	saga.ImportFormatTrivyJSON + " images":             "An image scan's vulnerable packages, from trivy image --format json.",
 	saga.ImportFormatGovulncheckJSON + " sca":          "The file's vulnerable Go modules, the only results govulncheck writes.",
 	saga.ImportFormatGrypeJSON + " sca":                "The file's matches, the dependencies a Grype directory scan found vulnerable.",
 	saga.ImportFormatOSVScannerJSON + " sca":           "The file's vulnerable packages, from the lockfiles and SBOMs OSV-Scanner read.",
