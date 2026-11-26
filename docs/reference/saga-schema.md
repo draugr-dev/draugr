@@ -663,13 +663,13 @@ controls`](cli.md#draugr-controls) lists and what the [JSON
 Schema](../guides/editor-support.md) offers for autocompletion. All three
 come from one place and cannot disagree.
 
-**A pull request that changes a control's settings is held to its base.** A scanner switched,
-turned off or given other options, or a setting of the control's own changed, here or in a
-component's `controls`, fails the new-findings gate on a pull request until it merges, since what the
-change adds may not have been looked for. Turning on one more scanner passes. A ruleset or template a
-setting names, edited in place under a setting that still names it, fails the same way, a directory
-by any file under it. [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) names the setting or
-file that changed and how to trust it.
+**A pull request that changes a control's settings is held to its base.** A scanner switched, turned
+off or given other options, or a setting of the control's own changed, here or in a component's
+`controls`, fails the new-findings gate on a pull request until the pipeline trusts the change,
+since what the change adds may not have been looked for. Turning on one more scanner passes. A
+ruleset or template a setting names, edited in place under a setting that still names it, fails the
+same way, a directory by any file under it. [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif)
+names the setting or file that changed and how to trust it.
 
 ### Scanning an API from its specification
 

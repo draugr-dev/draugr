@@ -859,7 +859,9 @@ func (h Held) Notes() []string {
 		return "The base ran " + stopped + " and this change does not"
 	})...)
 	if h.filesClause() != "" {
-		notes = append(notes, h.filesNote(", so the gate holds until it merges"))
+		// "Fails until trusted" rather than "holds until it merges": a required check that holds until
+		// the merge it is required for reads as a deadlock, and the way past it is the next line.
+		notes = append(notes, h.filesNote(", so the gate fails until the pipeline trusts this change"))
 	}
 	notes = append(notes, h.unreadNotes()...)
 	if n := len(h.Raised); n > 0 {
