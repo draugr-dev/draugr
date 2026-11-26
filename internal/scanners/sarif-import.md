@@ -134,7 +134,8 @@ writes no SARIF, so its `results.json` is read into code findings. GitLab's repo
 same way, a SAST report into code findings and a dependency scanning report into findings shaped as
 Draugr's dependency scanners shape theirs. A JFrog simple-json file's dependency scan is read into
 findings shaped the same way. A Checkmarx One JSON file holds SAST, SCA and KICS results, and each
-import of it reads those of the control it names, the SCA results into dependency findings.
+import of it reads those of the control it names, the SCA results into dependency findings. Mend's
+dependency scan writes no SARIF, so its JSON is read into dependency findings too.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -148,6 +149,7 @@ import of it reads those of the control it names, the SCA results into dependenc
 | `gitlab-dependency-scanning` | a dependency scanning report in GitLab's format, schema 15 | this page describes | the advisory under its CVE, else its GHSA id, else the report's own id, its other ids as aliases, the package, its installed version, the fixed version the report's solution names, its package URL and ecosystem for Go and npm, and the severity the report states as the rating |
 | `jfrog-simple-json` | `jf audit --format simple-json` | this page describes | the advisory under its CVE, else Xray's own id, its other ids as aliases, the package, its installed and fixed versions, its package URL for Go and npm, the package type Xray names as its ecosystem, and Xray's severity as the rating, in each manifest that declares a direct dependency bringing it in ([Import JFrog Xray](../../docs/guides/importing-sarif.md#import-jfrog-xray)) |
 | `checkmarx-one-json` | `cx results show --report-format json` | this page describes | the results of the import's control: for `sast` the query at the file and line the data flow starts, its CWE and the line the data flows to; for `sca` the advisory under its CVE, else Checkmarx's own id, its CWE, the package, its installed version, the recommended version as the fix, its package URL for Maven, Go and npm packages with a version, and the ecosystem its identifier names, in each manifest Checkmarx names; for `iac` KICS's query id at the file and line. Each is rated by Checkmarx's severity, and a result triaged Not Exploitable or Ignored is the tool's suppression ([Import Checkmarx One](../../docs/guides/importing-sarif.md#import-checkmarx-one)) |
+| `mend-json` | `mend dep --format json --export-results <file>` | this page describes | the advisory under its CVE, else Mend's own WS- id, the package and installed version its file name gives, named `group:artifact` with its Maven package URL where Mend's fixes name one group for it, the versions Mend's fix names for it above the installed one as the fix, Mend's severity as the rating, and the direct dependency that brings in a transitive one, once per library and manifest however often the tree lists it ([Import Mend](../../docs/guides/importing-sarif.md#import-mend)) |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -662,6 +664,14 @@ that found nothing:
   result with no vulnerability, package or manifest;
 - `severity "SEVERE"; Checkmarx One rates a result CRITICAL, HIGH, MEDIUM, LOW or INFO. Import the
   file cx results show wrote, unedited`, for a severity outside Checkmarx's list;
+- `not Mend's dependency JSON. Write it with mend dep --format json --export-results <file>`, for a
+  file that is not a list of libraries;
+- `library jackson-databind-2.9.5.jar has no dependencyFile, the manifest that declares it, which mend
+  dep writes for every one. Import the file mend dep wrote, unedited`, and the same for a library with
+  no `name` and a vulnerability with no `name`;
+- `severity "SEVERE" of CVE-2018-19362 in jackson-databind-2.9.5.jar; Mend rates a vulnerability
+  CRITICAL, HIGH, MEDIUM or LOW. Import the file mend dep wrote, unedited`, for a severity outside
+  Mend's list;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key
@@ -673,7 +683,8 @@ commit. A file that passes shows how many results it holds and its commit, as
 `SARIF 2.1.0, 3 results, commit 0123456789ab`. A file with no commit shows `commit not stated`, the
 reason, and that the scan lists it under `unbound-imports`. Each row names its component, since two
 components can hold one file to different repositories, and a `checkmarx-one-json` row names its
-control too, since each import of that file reads its own control's results. Under `--offline`, a revision only the
+control too, since each import of that file reads its own control's results. A `mend-json` row names
+`sca`. Under `--offline`, a revision only the
 network can resolve, such as a branch of a remote repository, is not checked, and the row says
 `not checked`. Doctor does not compare paths with the component's checkout: the scan lists a path it
 cannot place under `unread-files`.

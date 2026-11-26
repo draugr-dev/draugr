@@ -60,6 +60,10 @@ components:
         format: checkmarx-one-json
         suppressions: count
         commit: 0123abc
+      - control: sca
+        file: reports/mend-dep.json
+        format: mend-json
+        commit: 0123abc
       - control: sast
         source: github-code-scanning
         tokenEnv: CI_GITHUB_TOKEN

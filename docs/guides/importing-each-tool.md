@@ -26,6 +26,7 @@ release.
 | [Grype](#grype) | `sca` | `grype-json` |
 | [OSV-Scanner](#osv-scanner) | `sca` | `osv-scanner-json` |
 | [JFrog Xray](importing-sarif.md#import-jfrog-xray) | `sca` | `jfrog-simple-json` |
+| [Mend](importing-sarif.md#import-mend) | `sca` | `mend-json` |
 | [Checkov](#checkov) | `iac` | SARIF |
 | [KICS](#kics) | `iac` | SARIF |
 | Black Duck, Coverity, SonarQube, Wiz, Prisma Cloud | | [No file to import yet](#no-file-to-import-yet) |

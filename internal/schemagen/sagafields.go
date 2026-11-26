@@ -540,12 +540,14 @@ func sagaFields() map[string]map[string]any {
 					"scan's SAST, SCA and KICS results. Import it once into each of sast, sca and iac; each import reads its " +
 					"control's results, with Checkmarx's severity and the CWE, and for SCA the package, installed version, " +
 					"recommended version and CVE."},
+				valueDoc{"mend-json", "The JSON mend dep --format json --export-results writes, for sca, with each vulnerable " +
+					"library's package, installed version, the fixed version Mend names for it, CVE and Mend's severity."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, " +
-				"or for OSV-Scanner, Veracode, GitLab's formats, JFrog's and Checkmarx One's by the rating the file states.",
+				"or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's and Mend's by the rating the file states.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
@@ -562,8 +564,8 @@ func sagaFields() map[string]map[string]any {
 				"settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, " +
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
 				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, " +
-				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning and jfrog-simple-json, whose files record " +
-				"no suppression.",
+				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json and mend-json, whose files " +
+				"record no suppression.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

@@ -911,9 +911,9 @@ func validateImportFormat(imp Import, at string) []error {
 	}
 	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
 		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON ||
-		imp.ReadFormat() == ImportFormatCheckmarxOneJSON) {
+		imp.ReadFormat() == ImportFormatCheckmarxOneJSON || imp.ReadFormat() == ImportFormatMendJSON) {
 		// The tools that write GitLab's format are many, and Draugr runs few of them, and none of
-		// JFrog's or Checkmarx's, so the file is rated by the severity it states for each one.
+		// JFrog's, Checkmarx's or Mend's, so the file is rated by the severity it states for each one.
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"it states. Remove severity", at, imp.Format)}
 	}
@@ -943,6 +943,11 @@ func validateImportFormat(imp Import, at string) []error {
 	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatJFrogSimpleJSON {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since JFrog's simple-json records no "+
 			"suppression. Remove it", at)}
+	}
+	// Mend's dependency JSON records no suppression on the libraries it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatMendJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Mend's dependency JSON records "+
+			"no suppression. Remove it", at)}
 	}
 	return nil
 }

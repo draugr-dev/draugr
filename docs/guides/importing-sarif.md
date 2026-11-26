@@ -509,6 +509,46 @@ imports:
   any control but `sast`, `sca` and `iac` is refused. Each error says which.
 - **The import takes no `severity` mapping**: the file states its own rating.
 
+## Import Mend
+
+Mend's code scan writes SARIF, which imports as any other SARIF file does. Its dependency scan,
+`mend dep`, writes no SARIF, so import its JSON into `sca`:
+
+```bash
+mend dep --format json --export-results reports/mend.json
+```
+
+```yaml
+imports:
+  - control: sca
+    file: reports/mend.json
+    format: mend-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerability of a library is a finding** at the version installed, in the manifest Mend
+  names. Its rule is its CVE, so KEV and EPSS reach it, else Mend's own id, such as `WS-2022-0468`.
+  A library the tree lists more than once still gives one finding per vulnerability. A transitive
+  library's detail names the direct dependency that brings it in.
+- **The package and version come from the library's file name**, `jackson-databind-2.9.5.jar`. A name
+  with no hyphen before a digit, such as `foo.jar`, is the package whole, with no version, and the
+  detail says so.
+- **A Maven package is named `group:artifact` and gets a package URL** when Mend's fixes for the
+  library agree on one group, as Trivy names a package in a `pom.xml`. Otherwise it keeps the artifact
+  name, with no package URL.
+- **The fixed version is read from Mend's fix** where it names this package, as `2.9.8` or
+  `com.fasterxml.jackson.core:jackson-databind:2.9.10.8`. Only versions above the installed one count,
+  and several are joined with commas, as Trivy's are.
+- **Mend's whole fix stays in the detail** when it also names another package, names no version above
+  the installed one, or is written in any other form.
+- **Rated by Mend's severity:** `CRITICAL`, `HIGH`, `MEDIUM` and `LOW` as their bands.
+- **Only `commit` binds the file**, since it names no commit.
+- **A file is refused** when it is not a list of libraries, when a library has no `name` or
+  `dependencyFile`, when a vulnerability has no `name`, or when a severity is not one of Mend's, and an
+  import into any control but `sca` is refused. Each error says which.
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

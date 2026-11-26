@@ -189,3 +189,20 @@ checkmarx-one-results.json
   It is used under the Apache License, Version 2.0, that repository's license
   (its LICENSE file), which is also this repository's and is in LICENSE at its
   root. That repository has no NOTICE file.
+
+mend-dep.json
+
+  The JSON of a Mend dependency scan of a Maven project, as mend dep --format
+  json --export-results writes it, copied unchanged from
+  https://github.com/carlspring/mend-actions at commit
+  be7f2e33ff881480a84725d2a90f839006b5c22b: file
+  src/test/resources/dependencies.json (git blob
+  998e971c834c9ad5d5b282a297b8d48249668501), which that repository keeps among
+  its test resources as the output of the mend dep its action runs.
+
+  Copyright 2025 SAP
+  Copyright 2025 Carlspring Limited
+
+  It is used under the Apache License, Version 2.0, that repository's license
+  (its LICENSE.md file), which is also this repository's and is in LICENSE at
+  its root. That repository has no NOTICE file.

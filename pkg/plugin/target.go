@@ -449,9 +449,9 @@ type FileTarget struct {
 	CommitUnset string
 	// Format is what the file is, one of saga.ImportFormats. Empty is SARIF.
 	Format string
-	// Control is the control the descriptor imports the file into. A format holding several tools'
-	// results (saga.ImportFormatControls) reads that control's results from it and leaves the rest
-	// to the file's other imports.
+	// Control is the control the descriptor imports the file into. A format in
+	// saga.ImportFormatControls reads that control's results from it and leaves the rest to the
+	// file's other imports.
 	Control string
 	// CountSuppressed counts the findings the file's tool suppressed, as the descriptor's
 	// imports[].suppressions: count asks, rather than setting them aside.

@@ -1142,6 +1142,9 @@ const (
 	// reads the results of its own control, so the file is imported once into each of sast, sca and
 	// iac (ImportFormatControls).
 	ImportFormatCheckmarxOneJSON = "checkmarx-one-json"
+	// ImportFormatMendJSON is the JSON Mend's CLI writes of a dependency scan with mend dep --format
+	// json --export-results <file>, a list of the libraries it found and their vulnerabilities.
+	ImportFormatMendJSON = "mend-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1150,12 +1153,17 @@ const (
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
 	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
-	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatCheckmarxOneJSON, ImportFormatConverter}
+	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatCheckmarxOneJSON, ImportFormatMendJSON,
+	ImportFormatConverter}
 
-// ImportFormatControls are the controls an import of a format that holds several tools' results may
-// name, by format. A format absent here is read whole into whichever control the import names.
+// ImportFormatControls are the controls an import of a format may name, by format, for a format that
+// holds several tools' results or only one control's. A format absent here is read whole into
+// whichever control the import names.
 var ImportFormatControls = map[string][]string{
 	ImportFormatCheckmarxOneJSON: {"sast", "sca", "iac"},
+	// Mend's dependency scan holds vulnerable libraries only, so an import into any other control
+	// would read packages as that control's findings.
+	ImportFormatMendJSON: {"sca"},
 }
 
 // The services an import's Source names.

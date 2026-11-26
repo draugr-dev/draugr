@@ -1073,7 +1073,7 @@ func TestValidateImportFormat(t *testing.T) {
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
 	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
 		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping},
-		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}} {
+		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}, {Format: "mend-json"}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -1083,7 +1083,7 @@ func TestValidateImportFormat(t *testing.T) {
 		want string
 	}{
 		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, veracode-pipeline-json, ` +
-			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, draugr-converter`},
+			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, mend-json, draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
@@ -1111,6 +1111,11 @@ func TestValidateImportFormat(t *testing.T) {
 			"property, and a checkmarx-one-json file is rated by the severity it states. Remove severity"},
 		{Import{Format: "checkmarx-one-json", Control: "secrets"}, "imports[0]: a checkmarx-one-json file holds no " +
 			"secrets results; import it into sast, sca or iac"},
+		{Import{Format: "mend-json", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a mend-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "mend-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since Mend's dependency JSON records no suppression. Remove it"},
+		{Import{Format: "mend-json", Control: "sast"}, "imports[0]: a mend-json file holds no sast results; import it into sca"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

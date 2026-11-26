@@ -670,6 +670,7 @@ var importFormatControlDocs = map[string]string{
 	saga.ImportFormatCheckmarxOneJSON + " sast": "The file's SAST results, Checkmarx's static analysis of the code.",
 	saga.ImportFormatCheckmarxOneJSON + " sca":  "The file's SCA results, Checkmarx's scan of the dependencies.",
 	saga.ImportFormatCheckmarxOneJSON + " iac":  "The file's KICS results, Checkmarx's scan of infrastructure as code.",
+	saga.ImportFormatMendJSON + " sca":          "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
 }
 
 // importRules are the rules across an import's keys that pkg/saga's validateImports enforces, so an
@@ -725,8 +726,14 @@ func importRules(converter bool) []any {
 			"if":   format(map[string]any{"const": saga.ImportFormatJFrogSimpleJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
+		// Mend's dependency JSON records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatMendJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
 	}
-	// A file holding several tools' results is read into the controls it has results for.
+	// A file holding several tools' results, or one control's only, is read into the controls it has
+	// results for.
 	for _, f := range slices.Sorted(maps.Keys(saga.ImportFormatControls)) {
 		controls := make([]any, 0, len(saga.ImportFormatControls[f]))
 		for _, c := range saga.ImportFormatControls[f] {
