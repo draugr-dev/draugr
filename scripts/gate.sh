@@ -81,6 +81,11 @@ echo "▶ self-scan (sast)"
 # A scanner counts where Draugr finds it: on PATH, or in ~/.draugr/bin, where `draugr tools install`
 # puts it and which need not be on PATH.
 #
+# --no-publish because a pre-push check reports to the person running it and nowhere else. The
+# descriptor's `github` publisher turns on inside GitHub Actions, so a workflow that runs this gate
+# would otherwise upload a sast-only SARIF to code scanning for its branch, or fail for want of a
+# token it never needed.
+#
 # Both of the descriptor's sast scanners, not either. The scan fails its control when one is
 # missing, so a machine holding only Semgrep would fail the gate on "gosec not installed" rather
 # than skip, and the skip below names exactly what to install.
@@ -91,7 +96,7 @@ if [ -x bin/draugr ]; then
 		has_sast_tool "$tool" || missing+=("$tool")
 	done
 	if [ ${#missing[@]} -eq 0 ]; then
-		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips
+		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips --no-publish
 	else
 		echo "  ${missing[*]} not installed, skipping (bin/draugr tools install ${missing[*]})"
 		skipped+=(self-scan)
