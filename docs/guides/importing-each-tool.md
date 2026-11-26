@@ -25,7 +25,7 @@ release.
 | [Trivy](#trivy) | `sca`, `images` | `trivy-json` |
 | [Grype](#grype) | `sca` | `grype-json` |
 | [OSV-Scanner](#osv-scanner) | `sca` | `osv-scanner-json` |
-| [JFrog Xray](importing-sarif.md#import-jfrog-xray) | `sca` | `jfrog-simple-json` |
+| [JFrog](importing-sarif.md#import-jfrog-xray) | `sca`, `sast`, `secrets`, `iac` | `jfrog-simple-json` |
 | [Mend](importing-sarif.md#import-mend) | `sca` | `mend-json` |
 | [Prisma Cloud](importing-sarif.md#import-prisma-cloud) | `images` | `twistcli-json` |
 | [Aqua](importing-sarif.md#import-aqua) | `images` | `aqua-json` |

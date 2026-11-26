@@ -1139,7 +1139,9 @@ const (
 	// format, the gl-dependency-scanning-report.json GitLab's analyzers write.
 	ImportFormatGitLabDependencyScanning = "gitlab-dependency-scanning"
 	// ImportFormatJFrogSimpleJSON is the simple-json JFrog's CLI writes with jf audit --format
-	// simple-json, read for its dependency vulnerabilities.
+	// simple-json, which holds a scan's dependency, SAST, secrets and IaC findings together. Each import
+	// of it reads the results of its own control, so the file is imported once into each of sca, sast,
+	// secrets and iac (ImportFormatControls).
 	ImportFormatJFrogSimpleJSON = "jfrog-simple-json"
 	// ImportFormatCheckmarxOneJSON is the JSON Checkmarx One's CLI writes with cx results show
 	// --report-format json, which holds a scan's SAST, SCA and KICS results together. Each import of it
@@ -1205,9 +1207,9 @@ var ImportFormatControls = map[string][]string{
 	ImportFormatGitLabSAST: {"sast"},
 	// A GitLab dependency scanning report holds vulnerable packages only.
 	ImportFormatGitLabDependencyScanning: {"sca"},
-	// The reader takes the file's dependency vulnerabilities and leaves its SAST, secrets and IaC
-	// results unread, so only sca is read from it.
-	ImportFormatJFrogSimpleJSON: {"sca"},
+	// jf audit's file holds its dependency, SAST, secrets and IaC scans together, and each import of
+	// it reads its own control's.
+	ImportFormatJFrogSimpleJSON: {"sca", "sast", "secrets", "iac"},
 }
 
 // ImportFormatReadsByControl reports whether what a file of format reads as depends on the control it

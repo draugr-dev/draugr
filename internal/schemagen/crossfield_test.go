@@ -104,8 +104,10 @@ func TestTheEditorAndDraugrHoldImportKeysToFormatAndKind(t *testing.T) {
 		{"gitlab-dependency-scanning into sast", file(map[string]any{"format": saga.ImportFormatGitLabDependencyScanning, "control": "sast"}), false, false},
 		{"gitlab-dependency-scanning into sast in a fragment", file(map[string]any{"format": saga.ImportFormatGitLabDependencyScanning, "control": "sast"}), true, false},
 		{"jfrog-simple-json into sca", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "sca"}), false, true},
-		{"jfrog-simple-json into sast", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "sast"}), false, false},
-		{"jfrog-simple-json into sast in a fragment", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "sast"}), true, false},
+		{"jfrog-simple-json into sast", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "sast"}), false, true},
+		{"jfrog-simple-json into secrets", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "secrets"}), false, true},
+		{"jfrog-simple-json into images", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "images"}), false, false},
+		{"jfrog-simple-json into images in a fragment", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "control": "images"}), true, false},
 		{"suppressions on mend-json", file(map[string]any{"format": saga.ImportFormatMendJSON, "control": "sca", "suppressions": "count"}), false, false},
 
 		{"twistcli-json into images", file(map[string]any{"format": saga.ImportFormatTwistcliJSON, "control": "images"}), false, true},

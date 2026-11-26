@@ -55,6 +55,10 @@ components:
         file: reports/jfrog-audit.json
         format: jfrog-simple-json
         commit: 0123abc
+      - control: secrets
+        file: reports/jfrog-audit.json
+        format: jfrog-simple-json
+        commit: 0123abc
       - control: iac
         file: reports/cx-results.json
         format: checkmarx-one-json

@@ -419,7 +419,8 @@ imports:
 
 `jf audit` writes SARIF, but it folds each dependency finding's CVE, package and version into the
 rule id, such as `CVE-2020-8203_lodash_4.17.0`, and gives the fixed version only in a property. Its
-`simple-json` keeps each as a field, so import that into `sca`:
+`simple-json` keeps each as a field. The same file holds JFrog's SAST, secrets and IaC findings, so
+import it once into each control it covers:
 
 ```bash
 jf audit --format simple-json > reports/jfrog.json
@@ -431,7 +432,22 @@ imports:
     file: reports/jfrog.json
     format: jfrog-simple-json
     commit: ${{ GITHUB_SHA }}
+  - control: sast
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+  - control: secrets
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+  - control: iac
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
 ```
+
+Each import reads only its control's findings, and an import of a control whose scan the file does
+not record is refused, so drop the ones your `jf audit` does not run.
 
 - **Each vulnerable package is a finding** at the version installed, in each manifest that declares a
   direct dependency bringing it in. Its rule is its first CVE, so KEV and EPSS reach it, else Xray's own
@@ -446,17 +462,19 @@ imports:
   `Information` as low. `Unknown`, or no severity, ranks high, and the finding says `not scored yet`.
 - **JFrog's contextual analysis is kept in the detail and changes no priority.** A finding JFrog
   marks `Not Applicable` ranks as any other does.
-- **A violation a watch raised is read as well**, and a vulnerability listed in both places is one
-  finding.
+- **A violation a watch raised is read as well**, and a finding listed in both places is one finding.
 - **With `--watches`, `--project` or `--repo-path`**, also pass `--vuln`, or the file holds only what
   Xray's policies flag. Pass `--fail=false` too: a matched Fail build rule otherwise exits 3 and stops
   the pipeline before Draugr reads the file.
-- **Only the dependency scan is read.** The file's SAST, secrets and IaC findings are left out.
-  Reading them is tracked in https://github.com/draugr-dev/draugr/issues/2477.
+- **A SAST, secrets or IaC finding is read at its file and line** under JFrog's rule id, such as
+  `js-template-injection`, with the CWE a SAST rule names. It is rated by JFrog's severity, as a
+  dependency finding is, except that `Unknown` or no severity says `not rated, so ranked high`.
+- **A secret's token validation is kept in the detail and changes no priority.** A secret JFrog marks
+  `Not a token` ranks as any other does.
 - **Only `commit` binds the file**, since it names no commit.
-- **A file is refused** when its dependency scan did not run or failed, when it lists an error, when
-  a severity is not one of Xray's, or when a vulnerability names no package, advisory id or manifest.
-  Each error says which.
+- **A file is refused** when the scan for the import's control did not run or failed, when it lists an
+  error, when a severity is not one of JFrog's, when a vulnerability names no package, advisory id or
+  manifest, or when a code finding names no rule or file. Each error says which.
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
