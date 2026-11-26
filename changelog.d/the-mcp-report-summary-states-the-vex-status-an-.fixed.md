@@ -1,0 +1,1 @@
+- **The MCP report summary states the VEX status an exclusion declared.** results.sarif now keeps a suppression's VEX status and justification, the VEX statement and document it came from, and the service an imported alert was dismissed in, so `summarize_report` and `draugr diff` read a saved report back with them.
