@@ -414,6 +414,12 @@ names it: `This change adds .gitleaksignore, which can set findings aside or cha
 finds, so the gate holds until it merges.` A comment beside the line, such as `# nosemgrep`, is not
 held; the listing marks the finding `accepted by this change` for a reviewer to read.
 
+A `${{ NAME }}` reference is compared as written, not as the value it held in each scan, so
+`revision: ${{ GITHUB_SHA }}` is not a moved revision although the base's commit and the head's
+differ. A literal equal to the value of a variable the descriptor references is recorded as that
+reference, so the two scans' records can show `${{ ROOT }}/rules.yml` where the descriptor says
+`/work/rules.yml`. [Substitution](../reference/saga-schema.md#substitution) describes both.
+
 The failing run prints a digest of the pull request's descriptor, which covers those files too:
 
 ```console

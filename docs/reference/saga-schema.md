@@ -54,6 +54,20 @@ decides.
 export DRAUGR_SAGA_ENVS=STAGING_HOST,DEPLOY_REGION
 ```
 
+A scan runs with the values, and records some fields with the references. Each `results.sarif`
+holds what its descriptor declared, so that
+[`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) can judge a pull request against its base:
+each repository's `url`, `paths`, `ignore` and `revision`, a digest of every control's settings,
+and each VEX document and each file a setting names. Those are recorded as the descriptor writes
+them, `${{ GITHUB_SHA }}` rather than the commit, because a variable can hold another value in
+every job while the descriptor stays the same.
+
+The reference is put back wherever its value appears, so a literal that holds the value of a
+variable the descriptor references elsewhere is recorded as that reference too, in whole or in
+part. With `ROOT` set to `/work`, a literal `/work/rules.yml` is recorded as
+`${{ ROOT }}/rules.yml`. In that job the literal and the reference name the same path. Only a
+variable the descriptor or one of its fragments references, and that holds a value, is put back.
+
 ### Values
 
 Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
