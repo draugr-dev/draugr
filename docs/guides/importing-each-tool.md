@@ -121,7 +121,8 @@ semgrep scan --config <rules> --sarif-output=reports/semgrep.sarif
 - **`--sarif-output` writes a copy of the results**, beside what Semgrep prints.
 - **Run it from the repository's root**, since its paths are relative to where it runs.
 - **Supply Chain findings need the JSON**, since the SARIF names their package and CVE only in the
-  message: [Import Semgrep](importing-sarif.md#import-semgrep).
+  message. The JSON also rates code results from the rule's impact and likelihood, as Draugr's own
+  run does: [Import Semgrep](importing-sarif.md#import-semgrep).
 
 ## gosec
 

@@ -98,6 +98,7 @@ var notOurs = map[string]string{
 	"--error":             "Semgrep's",
 	"--json-output":       "Semgrep's",
 	"--verbose":           "Semgrep's",
+	"--disable-nosem":     "Semgrep's",
 	"--sarif-file-output": "Snyk's",
 	"--report-format":     "Checkmarx One's cx",
 	"--output-path":       "Checkmarx One's cx",
