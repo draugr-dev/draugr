@@ -26,29 +26,17 @@ _Nothing yet._
 
 - **`draugr diff` says why a reranked finding moved.** A component that declared a new exposure or criticality gets one line under `RERANKED`, and a row names what moved that finding alone, such as `↑ KEV`, `↓ unreachable` or a new severity. The pull-request comment and `--format json` carry the same.
 
-- **`draugr tools install` builds govulncheck 1.10.0 with go1.27.4**, which was pinned at 1.9.0 and built with go1.27.3.
-
-- **`draugr tools install` fetches cosign 3.1.6**, which was pinned at 3.1.4.
-
-- **`draugr tools install` fetches grype 0.122.1**, which was pinned at 0.121.0.
-
-- **`draugr tools install` fetches retire 6.1.2**, which was pinned at 6.1.0.
-
-- **`draugr tools install` fetches semgrep 1.187.0**, which was pinned at 1.182.1.
-
-- **`draugr tools install` fetches syft 1.57.2**, which was pinned at 1.55.0.
-
-- **`draugr tools install` fetches trivy 0.76.2**, which was pinned at 0.76.1.
+- **`draugr tools install` fetches newer versions:** cosign 3.1.6 (was 3.1.4), grype 0.122.1 (was 0.121.0), retire 6.1.2 (was 6.1.0), semgrep 1.187.0 (was 1.182.1), syft 1.57.2 (was 1.55.0) and trivy 0.76.2 (was 0.76.1), and it builds govulncheck 1.10.0 with go1.27.4 (was 1.9.0 with go1.27.3).
 
 - **`draugr tools install semgrep` installs the pinned, hash-checked set on Python 3.10 to 3.14, on x86-64 Linux and Apple-silicon macOS.** Before, only the Python the set was resolved with got it, and the others installed unverified. `pip check` now confirms the pinned tree is complete. Linux on arm64 or musl still installs unverified.
 
 ### Fixed
 
-- **`draugr diff` finishes its sentence about a base report that records no declarations**, which ended "so this change's own decide" and now reads "so this change's own declarations decide".
+- **`draugr diff` no longer cuts a word from its note about a base report that records no declarations.** The note now reads "so this change's own declarations decide".
 
-- **The MCP report summary states the VEX status an exclusion declared.** results.sarif now keeps a suppression's VEX status and justification, the VEX statement and document it came from, and the service an imported alert was dismissed in, so `summarize_report` and `draugr diff` read a saved report back with them.
+- **A saved report keeps each suppression's VEX details.** `results.sarif` now records a suppression's VEX status and justification, the VEX statement and document it came from, and the service an imported alert was dismissed in, so the MCP `summarize_report` and `draugr diff` read them back.
 
-- **The provenance control reads GitHub artifact attestations with cosign 3.1.6.** That release refuses an attestation where earlier ones printed it, which stopped the control on an image whose provenance is a GitHub attestation. A declared signer's attestation passes again, and discovery names who signed it.
+- **The provenance control passes again on an image whose provenance is a GitHub artifact attestation.** cosign 3.1.6 refuses such an attestation where earlier versions printed it, which stopped the control. An attestation from a declared signer passes, and discovery names who signed it.
 
 ## [0.192.0] - 2026-11-26
 
