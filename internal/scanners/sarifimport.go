@@ -137,6 +137,7 @@ var importReaders = map[string]importReader{
 	saga.ImportFormatGitLabSAST:               readGitLabSASTImport,
 	saga.ImportFormatGitLabDependencyScanning: readGitLabDependencyScanningImport,
 	saga.ImportFormatJFrogSimpleJSON:          readJFrogSimpleJSONImport,
+	saga.ImportFormatCheckmarxOneJSON:         readCheckmarxOneImport,
 	saga.ImportFormatConverter:                readConverterImport,
 }
 

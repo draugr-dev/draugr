@@ -409,7 +409,7 @@ components:
 
 | field | meaning |
 |---|---|
-| `control` | the control the file's findings belong to, such as `sast` or `sca` |
+| `control` | the control the file's findings belong to, such as `sast` or `sca`. A `checkmarx-one-json` import takes `sast`, `sca` or `iac` and reads that control's results from the file |
 | `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
 | `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
 | `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
@@ -418,7 +418,7 @@ components:
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json` or `draugr-converter` import (none of those files records one) |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, alerts a person dismissed in GitHub, or results triaged Not Exploitable or Ignored in Checkmarx One; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json` or `draugr-converter` import (none of those files records one) |
 
 #### Import formats
 
@@ -441,6 +441,11 @@ components:
 - **`jfrog-simple-json`**: what `jf audit --format simple-json` writes, for `sca`. Each dependency
   vulnerability is read with its package, installed version, fixed version, CVE and Xray's severity
   ([Import JFrog Xray](../guides/importing-sarif.md#import-jfrog-xray)).
+- **`checkmarx-one-json`**: what `cx results show --report-format json` writes, for `sast`, `sca` and
+  `iac`, imported once into each. Each import reads its control's results: SAST with its file, line,
+  query and CWE, SCA with its package, installed version, recommended version, CVE and CWE, and KICS with
+  its file, line and query, each with Checkmarx's severity
+  ([Import Checkmarx One](../guides/importing-sarif.md#import-checkmarx-one)).
 - **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
   with `converter` declaring the converter.
 

@@ -11,6 +11,7 @@
 package schemagen
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -663,6 +664,14 @@ func addFragmentImport(defs, fragProps map[string]any) error {
 	return nil
 }
 
+// importFormatControlDocs say which of a file's results each control an import of it may name reads,
+// by format and control.
+var importFormatControlDocs = map[string]string{
+	saga.ImportFormatCheckmarxOneJSON + " sast": "The file's SAST results, Checkmarx's static analysis of the code.",
+	saga.ImportFormatCheckmarxOneJSON + " sca":  "The file's SCA results, Checkmarx's scan of the dependencies.",
+	saga.ImportFormatCheckmarxOneJSON + " iac":  "The file's KICS results, Checkmarx's scan of infrastructure as code.",
+}
+
 // importRules are the rules across an import's keys that pkg/saga's validateImports enforces, so an
 // editor refuses the import `draugr validate` would. converter is false for a fragment's import,
 // which has no converter key and no draugr-converter format, so the rules about them are left out.
@@ -716,6 +725,23 @@ func importRules(converter bool) []any {
 			"if":   format(map[string]any{"const": saga.ImportFormatJFrogSimpleJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
+	}
+	// A file holding several tools' results is read into the controls it has results for.
+	for _, f := range slices.Sorted(maps.Keys(saga.ImportFormatControls)) {
+		controls := make([]any, 0, len(saga.ImportFormatControls[f]))
+		for _, c := range saga.ImportFormatControls[f] {
+			variant := map[string]any{"const": c}
+			// A pair with no sentence is left without one, which TestEveryClosedVocabularyExplainsItsValues
+			// reports.
+			if doc := importFormatControlDocs[f+" "+c]; doc != "" {
+				variant["description"] = doc
+			}
+			controls = append(controls, variant)
+		}
+		rules = append(rules, map[string]any{
+			"if":   format(map[string]any{"const": f}),
+			"then": map[string]any{"properties": map[string]any{"control": map[string]any{"anyOf": controls}}},
+		})
 	}
 	if converter {
 		// A converter's file needs the converter that wrote it and records no suppressions, and no

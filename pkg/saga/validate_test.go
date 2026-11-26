@@ -1,6 +1,7 @@
 package saga
 
 import (
+	"cmp"
 	"slices"
 	"strings"
 	"testing"
@@ -1066,12 +1067,13 @@ func TestMergingKeepsOneImportOfASource(t *testing.T) {
 // SARIF property, is refused beside a tool's own JSON rather than ignored.
 func TestValidateImportFormat(t *testing.T) {
 	with := func(imp Import) error {
-		imp.Control, imp.File = "sca", "reports/tool.json"
+		imp.Control, imp.File = cmp.Or(imp.Control, "sca"), "reports/tool.json"
 		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
 	}
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
 	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
-		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping}} {
+		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping},
+		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -1081,7 +1083,7 @@ func TestValidateImportFormat(t *testing.T) {
 		want string
 	}{
 		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, veracode-pipeline-json, ` +
-			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, draugr-converter`},
+			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
@@ -1105,6 +1107,10 @@ func TestValidateImportFormat(t *testing.T) {
 			"and a jfrog-simple-json file is rated by the severity it states. Remove severity"},
 		{Import{Format: "jfrog-simple-json", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has " +
 			"nothing to apply to, since JFrog's simple-json records no suppression. Remove it"},
+		{Import{Format: "checkmarx-one-json", Control: "sast", Severity: mapping}, "imports[0].severity maps a SARIF " +
+			"property, and a checkmarx-one-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "checkmarx-one-json", Control: "secrets"}, "imports[0]: a checkmarx-one-json file holds no " +
+			"secrets results; import it into sast, sca or iac"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

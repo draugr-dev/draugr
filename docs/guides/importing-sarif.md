@@ -459,6 +459,56 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
+## Import Checkmarx One
+
+Checkmarx One's JSON holds a scan's SAST, SCA and KICS results in one file. Import that file once
+into each control whose results you want, and each import reads its own:
+
+```bash
+cx results show --scan-id <id> --report-format json --output-path reports    # writes reports/cx_result.json
+```
+
+```yaml
+imports:
+  - control: sast
+    file: reports/cx_result.json
+    format: checkmarx-one-json
+    commit: ${{ GITHUB_SHA }}
+  - control: sca
+    file: reports/cx_result.json
+    format: checkmarx-one-json
+    commit: ${{ GITHUB_SHA }}
+  - control: iac
+    file: reports/cx_result.json
+    format: checkmarx-one-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **A SAST result is a finding** at the file and line where its data flow starts, as Checkmarx's
+  SARIF places it, under its query, such as `SQL_Injection`, with its CWE. Its description is the
+  detail, followed by the file and line the data flows to.
+- **An SCA result is a finding** in the package at the version installed, in each manifest
+  Checkmarx names. Its rule is its CVE, so KEV and EPSS reach it, else Checkmarx's own id. Its fixed
+  version is Checkmarx's recommended version, and where it is not itself a direct dependency, its
+  detail names the direct dependencies that bring it in. Maven, Go and npm packages with a version
+  get a package URL.
+- **A KICS result is a finding** at its file and line, under KICS's query id, the rule Draugr's own
+  [KICS](../../internal/scanners/kics.md) reports it under.
+- **Rated by Checkmarx's severity:** `CRITICAL`, `HIGH`, `MEDIUM` and `LOW` as their bands, and
+  `INFO` as low. No severity ranks high, and the finding says so: `not scored yet` on a dependency,
+  `not rated, so ranked high` on code.
+- **A result triaged Not Exploitable or Ignored in Checkmarx One is one the tool suppressed**: set
+  aside with the state and its comment as the reason, or counted with `suppressions: count`.
+  Proposed Not Exploitable awaits review, and counts.
+- **The file's container image and supply-chain results are not read**, since they describe no file
+  in the repository.
+- **Only `commit` binds the file**, since it names no commit. It is the commit the scan read, which
+  for a scan exported later with `--scan-id` may not be the pipeline's current commit.
+- **A file is refused** when it does not list as many results as its `totalCount`, when a severity is not
+  one of Checkmarx's, or when a result names no query, file, package or manifest, and an import into
+  any control but `sast`, `sca` and `iac` is refused. Each error says which.
+- **The import takes no `severity` mapping**: the file states its own rating.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

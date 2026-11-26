@@ -173,3 +173,19 @@ jfrog-audit-sarif.json
   They are used under the Apache License, Version 2.0, that repository's
   license (its LICENSE file), which is also this repository's and is in
   LICENSE at its root. That repository has no NOTICE file.
+
+checkmarx-one-results.json
+
+  The JSON of a Checkmarx One scan's results, as cx results show
+  --report-format json writes it, copied unchanged from
+  https://github.com/Checkmarx/ast-cli at tag 2.3.72 (commit
+  f4a4da11e850435c63b98a136fb6954d8cd449c9): file
+  internal/commands/data/cx_result.json (git blob
+  420c35961987159a2a2aeb19a56f123c34a7baa4), which that repository's tests of
+  cx chat sast read as a results file. Checkmarx renamed the scanned files for
+  its tests, and its SCA result's cveName reads CWE-78 where the id names
+  CVE-2013-7285.
+
+  It is used under the Apache License, Version 2.0, that repository's license
+  (its LICENSE file), which is also this repository's and is in LICENSE at its
+  root. That repository has no NOTICE file.

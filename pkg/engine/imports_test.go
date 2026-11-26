@@ -36,8 +36,8 @@ func (s *importStub) Scan(_ context.Context, target plugin.Target, _ plugin.Conf
 }
 
 // Two components each importing a file: one job per import, under the control the descriptor
-// names, each file's findings belonging to the component that imports it. The digest of each file
-// and the component's repositories ride on the target.
+// names, each file's findings belonging to the component that imports it. The digest of each file,
+// the control and the component's repositories ride on the target.
 func TestImportsArePlannedUnderTheNamedControl(t *testing.T) {
 	dir := t.TempDir()
 	apiFile, webFile := filepath.Join(dir, "api.sarif"), filepath.Join(dir, "web.sarif")
@@ -73,8 +73,8 @@ func TestImportsArePlannedUnderTheNamedControl(t *testing.T) {
 		t.Errorf("findings by component = %v, want each file's finding on its own component", byComponent)
 	}
 	for _, ft := range stub.targets {
-		if len(ft.Digest) != 64 || ft.Component == "" {
-			t.Errorf("target %+v: want a digest and its component", ft)
+		if len(ft.Digest) != 64 || ft.Component == "" || ft.Control != "sast" {
+			t.Errorf("target %+v: want a digest, its component and its control", ft)
 		}
 		if ft.Component == "api" && (len(ft.Repositories) != 1 || ft.Repositories[0].URL != "https://github.com/acme/api") {
 			t.Errorf("api's import carries repositories %+v, want its own", ft.Repositories)

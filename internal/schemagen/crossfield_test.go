@@ -70,6 +70,13 @@ func TestTheEditorAndDraugrHoldImportKeysToFormatAndKind(t *testing.T) {
 		{"suppressions on gitlab-dependency-scanning", file(map[string]any{"format": saga.ImportFormatGitLabDependencyScanning, "suppressions": "count"}), false, false},
 		{"suppressions on jfrog-simple-json", file(map[string]any{"format": saga.ImportFormatJFrogSimpleJSON, "suppressions": "honor"}), false, false},
 
+		{"checkmarx-one-json into sast", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON}), false, true},
+		{"checkmarx-one-json into iac", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "control": "iac"}), false, true},
+		{"checkmarx-one-json into secrets", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "control": "secrets"}), false, false},
+		{"suppressions on checkmarx-one-json", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "suppressions": "count"}), false, true},
+		{"severity on checkmarx-one-json", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "severity": severity}), false, false},
+		{"checkmarx-one-json into dast in a fragment", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "control": "dast"}), true, false},
+
 		{"draugr-converter with its converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv}), false, true},
 		{"draugr-converter with no converter", file(map[string]any{"format": saga.ImportFormatConverter}), false, false},
 		{"suppressions on draugr-converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv, "suppressions": "count"}), false, false},
