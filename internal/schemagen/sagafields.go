@@ -528,12 +528,18 @@ func sagaFields() map[string]map[string]any {
 					"rated by the CVSS score it states."},
 				valueDoc{"veracode-pipeline-json", "The results.json Veracode's Pipeline Scan writes with -jo true, with each " +
 					"flaw's file, line, CWE and Veracode's severity."},
+				valueDoc{"gitlab-sast", "A SAST report in GitLab's security report format, schema version 15, as GitLab's " +
+					"analyzers and semgrep scan --gitlab-sast write it, with each vulnerability's file, line, rule, CWE and " +
+					"severity."},
+				valueDoc{"gitlab-dependency-scanning", "A dependency scanning report in GitLab's security report format, " +
+					"schema version 15, as GitLab's Gemnasium analyzer writes it, with each vulnerability's package, installed " +
+					"version, fixed version, CVE and severity."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, " +
-				"or for OSV-Scanner and Veracode by the rating the file states.",
+				"or for OSV-Scanner, Veracode and GitLab's formats by the rating the file states.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
@@ -550,7 +556,7 @@ func sagaFields() map[string]map[string]any {
 				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
 				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, " +
-				"and veracode-pipeline-json, whose file records no suppression.",
+				"and veracode-pipeline-json, gitlab-sast and gitlab-dependency-scanning, whose files record no suppression.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

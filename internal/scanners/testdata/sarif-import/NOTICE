@@ -74,3 +74,82 @@ veracode-pipeline-js.sarif
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
+
+gitlab-sast-semgrep-analyzer.json
+gitlab-sast-spotbugs.json
+
+  SAST reports in GitLab's security report format, the output GitLab's own
+  analyzers expect of their test projects, copied unchanged from GitLab's
+  repositories. GitLab writes the placeholder ":AUTO_SKIP:" in the fields
+  that differ between runs, such as each vulnerability's id and the scan's
+  times and versions.
+
+  gitlab-sast-semgrep-analyzer.json is
+  https://gitlab.com/gitlab-org/security-products/analyzers/semgrep, file
+  qa/expect/python/pip-flask/gl-sast-report.json at commit
+  c1bc0a30ae36960e55ed1a33a2548f7a9d4987be (git blob
+  57579908bf5e48f90c17a23d45052eb23ebd0102).
+
+  gitlab-sast-spotbugs.json is
+  https://gitlab.com/gitlab-org/security-products/analyzers/spotbugs, file
+  qa/expect/maven/default/gl-sast-report.json at commit
+  90850a820f74bcaedf29e8c59ebab5b0c3a749f4 (git blob
+  8840a7ab30ea7dd9322caff06efe5432aabda1a1).
+
+  Both repositories carry the same MIT license, reproduced below from their
+  LICENSE files.
+
+  Copyright GitLab Inc.
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+gitlab-dependency-scanning-gemnasium.json
+
+  A dependency scanning report GitLab's Gemnasium analyzer 6.6.8 (image
+  registry.gitlab.com/security-products/gemnasium:6, digest
+  sha256:a6425bfaf3e5e79d701c4a7dc09494552c557c0f0f9402d26f37ecc963d33448)
+  wrote on 2026-11-26 of https://github.com/draugr-dev/draugr-demo at commit
+  ee9ac77, run once to record it, with its vendor directory excluded. It read
+  GitLab's community advisory database,
+  https://gitlab.com/gitlab-org/advisories-community, at commit
+  c93afb89859e7852fed2b1bcb55fb322028b1e6d, from which each vulnerability's
+  name, description and solution come. That database is used under its MIT
+  license, reproduced below from its LICENSE file.
+
+  The MIT License (MIT)
+
+  Copyright (c) 2020 GitLab B.V.
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+  of the Software, and to permit persons to whom the Software is furnished to do
+  so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.

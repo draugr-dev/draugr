@@ -51,6 +51,9 @@ mapfile -t files < <(
     grep -v '^CHANGELOG\.md$' |
     grep -v '^pkg/report/testdata/gitlab/' |
     grep -v '/vendor/' |
+    # A recorded Semgrep run, kept byte for byte so the importer is tested on what Semgrep writes.
+    # The rule messages in it are Semgrep's, and so is their spelling.
+    grep -v '^internal/scanners/testdata/sarif-import/gitlab-sast-semgrep-cli\(\.native\)\?\.json$' |
     # This script states every spelling it rejects, so it cannot be held to its own rule without
     # forbidding itself. The exclusion is the file that defines the rule, and nothing else.
     grep -v '^scripts/check-spelling\.sh$'

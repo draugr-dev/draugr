@@ -129,7 +129,10 @@ or Go advisory, and OSV-Scanner's carries no score. The import's
 with the parser Draugr's own run of that tool uses, so an imported finding is the finding a native
 run makes of the same file. OSV-Scanner's JSON is read into findings shaped as Draugr's dependency
 scanners shape theirs, as [`osv-scanner`](osv-scanner.md) reads its own run, except that an import
-reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Veracode. Pipeline Scan writes no SARIF, so its `results.json` is read into code findings.
+reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Veracode. Pipeline Scan
+writes no SARIF, so its `results.json` is read into code findings. GitLab's reports are read the
+same way, a SAST report into code findings and a dependency scanning report into findings shaped as
+Draugr's dependency scanners shape theirs.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -139,6 +142,8 @@ reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Vera
 | `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
 | `osv-scanner-json` | `osv-scanner scan --format json` | [`osv-scanner`](osv-scanner.md) reads it, with the difference above | the advisory OSV-Scanner matched, every id and alias it groups with it, such as its CVE, the package, its installed and fixed versions, its package URL and ecosystem, and the score OSV-Scanner gives the group |
 | `veracode-pipeline-json` | Pipeline Scan's `results.json`, written with `-jo true` | this page describes | the flaw's file and line, placed in the checkout ([Import Veracode Pipeline Scan](../../docs/guides/importing-sarif.md#import-veracode-pipeline-scan)), its CWE, Veracode's severity as the rating, Veracode's explanation as the detail, and Veracode's flaw hashes as fingerprints |
+| `gitlab-sast` | a SAST report in GitLab's security report format, schema 15 | this page describes | the vulnerability's file and line, its first identifier as the rule, the CWE its identifiers name, the severity the report states as the rating, and its description as the detail ([Import GitLab's security reports](../../docs/guides/importing-sarif.md#import-gitlabs-security-reports)) |
+| `gitlab-dependency-scanning` | a dependency scanning report in GitLab's format, schema 15 | this page describes | the advisory under its CVE, else its GHSA id, else the report's own id, its other ids as aliases, the package, its installed version, the fixed version the report's solution names, its package URL and ecosystem for Go and npm, and the severity the report states as the rating |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -614,6 +619,21 @@ that found nothing:
   for a file whose `scan_status` is not `SUCCESS`, with its message where it gives one;
 - `severity 9; Veracode rates a flaw 0 to 5. Import the results.json Pipeline Scan wrote, unedited`,
   for a flaw rated outside Veracode's scale;
+- `not a GitLab SAST report. Import the gl-sast-report.json a GitLab analyzer wrote, or the file a
+  tool wrote in that format, such as semgrep scan --gitlab-sast`, or `not a GitLab dependency scanning
+  report. Import the gl-dependency-scanning-report.json a GitLab analyzer wrote`, for a file with no
+  `scan` or no `vulnerabilities` list;
+- `schema version "14.1.2". Draugr reads GitLab's SAST schema version 15.x, which GitLab 15 and later
+  require`, for a report of another major version;
+- `a "dependency_scanning" scan, and format gitlab-sast reads a SAST scan. Import the
+  gl-sast-report.json`, for a report of the other kind;
+- `scan status "failure". Draugr reads a scan that succeeded. Run the scan again`, for a report whose
+  scan failed;
+- `a vulnerability names no file, identifier or package, which every one in a GitLab report of this
+  kind carries. Import the file the tool wrote, unedited`, for a vulnerability missing one of them,
+  the package counting in a dependency scanning report only;
+- `severity "Severe"; GitLab's format rates a vulnerability Critical, High, Medium, Low, Info or
+  Unknown. Import the file the tool wrote, unedited`, for a severity outside GitLab's list;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key

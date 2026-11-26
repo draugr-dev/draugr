@@ -1081,7 +1081,7 @@ func TestValidateImportFormat(t *testing.T) {
 		want string
 	}{
 		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, veracode-pipeline-json, ` +
-			`draugr-converter`},
+			`gitlab-sast, gitlab-dependency-scanning, draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
@@ -1093,6 +1093,14 @@ func TestValidateImportFormat(t *testing.T) {
 			"veracode-pipeline-json file is rated by the severity Veracode states. Remove severity"},
 		{Import{Format: "veracode-pipeline-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to " +
 			"apply to, since a Pipeline Scan file records no suppression. Remove it"},
+		{Import{Format: "gitlab-sast", Severity: mapping}, "imports[0].severity maps a SARIF property, and a " +
+			"gitlab-sast file is rated by the severity it states. Remove severity"},
+		{Import{Format: "gitlab-sast", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has nothing to " +
+			"apply to, since a GitLab report records no suppression. Remove it"},
+		{Import{Format: "gitlab-dependency-scanning", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a gitlab-dependency-scanning file is rated by the severity it states. Remove severity"},
+		{Import{Format: "gitlab-dependency-scanning", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since a GitLab report records no suppression. Remove it"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

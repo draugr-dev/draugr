@@ -1128,6 +1128,12 @@ const (
 	// ImportFormatVeracodePipelineJSON is the results.json Veracode's Pipeline Scan writes with
 	// `-jo true`.
 	ImportFormatVeracodePipelineJSON = "veracode-pipeline-json"
+	// ImportFormatGitLabSAST is a SAST report in GitLab's security report format, the
+	// gl-sast-report.json GitLab's analyzers write and other tools write for GitLab.
+	ImportFormatGitLabSAST = "gitlab-sast"
+	// ImportFormatGitLabDependencyScanning is a dependency scanning report in GitLab's security report
+	// format, the gl-dependency-scanning-report.json GitLab's analyzers write.
+	ImportFormatGitLabDependencyScanning = "gitlab-dependency-scanning"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1135,7 +1141,8 @@ const (
 
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
-	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatConverter}
+	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
+	ImportFormatGitLabDependencyScanning, ImportFormatConverter}
 
 // The services an import's Source names.
 const (
