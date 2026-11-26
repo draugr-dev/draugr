@@ -80,12 +80,20 @@ echo "▶ self-scan (sast)"
 #
 # A scanner counts where Draugr finds it: on PATH, or in ~/.draugr/bin, where `draugr tools install`
 # puts it and which need not be on PATH.
+#
+# Both of the descriptor's sast scanners, not either. The scan fails its control when one is
+# missing, so a machine holding only Semgrep would fail the gate on "gosec not installed" rather
+# than skip, and the skip below names exactly what to install.
 has_sast_tool() { command -v "$1" >/dev/null 2>&1 || [ -x "$HOME/.draugr/bin/$1" ]; }
 if [ -x bin/draugr ]; then
-	if has_sast_tool semgrep || has_sast_tool gosec; then
+	missing=()
+	for tool in semgrep gosec; do
+		has_sast_tool "$tool" || missing+=("$tool")
+	done
+	if [ ${#missing[@]} -eq 0 ]; then
 		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips
 	else
-		echo "  no sast scanner found, skipping (pipx install semgrep, or draugr tools install gosec)"
+		echo "  ${missing[*]} not installed, skipping (bin/draugr tools install ${missing[*]})"
 		skipped+=(self-scan)
 	fi
 else

@@ -54,8 +54,9 @@ jobs:
         env:
           ONLY: ${{ inputs.tool }}
           # The listings are public and unauthenticated requests are rate-limited per runner IP,
-          # which is shared. The job's own token lifts that and reaches nothing else.
-          GH_TOKEN: ${{ github.token }}
+          # which is shared. The job's own token lifts that and reaches nothing else. Named
+          # GITHUB_TOKEN because that is the variable Draugr reads (internal/tools/upstream.go).
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           go run ./cmd/draugr tools outdated --json > /tmp/outdated.json
@@ -148,8 +149,8 @@ jobs:
         id: bump
         env:
           TOOL: ${{ matrix.tool }}
-          # For the release listings `tools outdated` reads, as in `behind`.
-          GH_TOKEN: ${{ github.token }}
+          # For the release listings `tools outdated` and pinbump read, as in `behind`.
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           read -r from from_go < <(go run ./cmd/draugr tools outdated --json \
@@ -182,8 +183,13 @@ jobs:
         if: steps.bump.outputs.moved == 'true'
         # The spelling check fails rather than skips without misspell, so it is installed the way
         # ci.yml installs it.
+        # The gate's self-scan runs the sast scanners of Draugr's own descriptor, Semgrep and gosec.
+        # The demo's install above brings Semgrep and not gosec, so gosec is installed here at its
+        # pin, the moved one when gosec is the tool being bumped.
         run: |
+          set -euo pipefail
           go install github.com/client9/misspell/cmd/misspell@v0.3.4
+          go run ./cmd/draugr tools install -y gosec
           MISSPELL="$(go env GOPATH)/bin/misspell" make gate
 
       # The half a hash cannot tell you. Every tool installed for real at the new pin, then a full
