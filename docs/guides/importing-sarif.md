@@ -549,6 +549,48 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
+## Import Prisma Cloud
+
+Import the JSON Prisma Cloud's `twistcli images scan` writes into `images`. The
+`PaloAltoNetworks/prisma-cloud-scan` Action's SARIF names each package only in text, so import the
+JSON rather than that. `twistcli` does not pull the image, so pull or build it first:
+
+```bash
+twistcli images scan --address "$PRISMA_CONSOLE" --user "$PRISMA_ACCESS_KEY" \
+  --password "$PRISMA_SECRET_KEY" --output-file reports/twistcli.json ghcr.io/acme/web:1.0
+```
+
+```yaml
+imports:
+  - control: images
+    file: reports/twistcli.json
+    format: twistcli-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerability of a package is a finding** at the version installed, in the image. Its rule is
+  its CVE, so KEV and EPSS reach it, and its location is the image's name, or its ID where the file
+  names none.
+- **An operating-system package** is one `twistcli` writes as `glibc (used in libc6, libc-bin)`, or
+  lists with the type `os`. It is named by its source package, `glibc`, in the distribution's
+  ecosystem, with the image's operating system, and the binary packages are in the detail.
+- **Any other package** keeps the name `twistcli` gives it, with no ecosystem, and its path in the
+  image is in the detail.
+- **The fixed version is read from the status**, `fixed in` and one or more versions. Where the
+  package's ecosystem is known, only versions above the installed one count; otherwise every version
+  counts. Several are joined with commas, as Trivy's are. `open` is no fix.
+- **The whole status stays in the detail** when it is written in any other form or names no version
+  above the installed one.
+- **Rated by the CVSS score, else `twistcli`'s severity.** A score less severe than the severity is
+  not used, so the finding keeps the severity. `critical`, `high`, `medium` and `low` are their bands,
+  and `important` and `moderate`, a distribution's words, are high and medium.
+- **Compliance results are not read.** They describe how the image is built, such as a missing
+  `HEALTHCHECK`, not a flaw in a package.
+- **Only `commit` binds the file**, since it names no commit.
+- **An import into any control but `images` is refused.**
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

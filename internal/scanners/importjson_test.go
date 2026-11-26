@@ -409,6 +409,31 @@ func TestATrivyFileIsReadInTheControlItsScanBelongsTo(t *testing.T) {
 	}
 }
 
+// An image scan's findings are about the image Trivy scanned, as a native image finding is about the
+// one Draugr asked for: its image and location are the image, and it is placed in no repository, so a
+// component's paths: leave it in and the image is not listed as naming no file in the checkout.
+func TestATrivyImageImportIsAboutTheImage(t *testing.T) {
+	rep, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{
+		Path: filepath.Join("testdata", "sarif-import", "trivy-image-alpine.json"), Format: saga.ImportFormatTrivyJSON,
+		Control: "images", Repositories: []plugin.RepositoryTarget{{URL: t.TempDir(), Paths: []string{"svc"}}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) == 0 {
+		t.Fatal("no findings")
+	}
+	for _, r := range rep.Results {
+		if r.Image != "alpine:3.10" || r.Location.URI != "alpine:3.10" || r.OperatingSystem != "alpine 3.10.9" ||
+			r.ImportedRepository != "" {
+			t.Errorf("%s: image %q at %q, os %q, placed in %q", r.RuleID, r.Image, r.Location.URI, r.OperatingSystem,
+				r.ImportedRepository)
+		}
+	}
+	if len(rep.Inputs) != 0 {
+		t.Errorf("inputs = %+v", rep.Inputs)
+	}
+}
+
 // A file that is not the format the import names is refused, rather than read as a clean scan, in
 // words the errors block keeps whole: its last clause, within 80 characters.
 func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {

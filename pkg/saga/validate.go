@@ -920,9 +920,11 @@ func validateImportFormat(imp Import, at string) []error {
 	}
 	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
 		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON ||
-		imp.ReadFormat() == ImportFormatCheckmarxOneJSON || imp.ReadFormat() == ImportFormatMendJSON) {
+		imp.ReadFormat() == ImportFormatCheckmarxOneJSON || imp.ReadFormat() == ImportFormatMendJSON ||
+		imp.ReadFormat() == ImportFormatTwistcliJSON) {
 		// The tools that write GitLab's format are many, and Draugr runs few of them, and none of
-		// JFrog's, Checkmarx's or Mend's, so the file is rated by the severity it states for each one.
+		// JFrog's, Checkmarx's, Mend's or Prisma Cloud's, so the file is rated by the severity it
+		// states for each one.
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"it states. Remove severity", at, imp.Format)}
 	}
@@ -956,6 +958,11 @@ func validateImportFormat(imp Import, at string) []error {
 	// Mend's dependency JSON records no suppression on the libraries it holds.
 	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatMendJSON {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Mend's dependency JSON records "+
+			"no suppression. Remove it", at)}
+	}
+	// twistcli's JSON records no suppression on the vulnerabilities it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatTwistcliJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since twistcli's JSON records "+
 			"no suppression. Remove it", at)}
 	}
 	return nil

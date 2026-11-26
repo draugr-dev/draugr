@@ -135,12 +135,13 @@ same way, a SAST report into code findings and a dependency scanning report into
 Draugr's dependency scanners shape theirs. A JFrog simple-json file's dependency scan is read into
 findings shaped the same way. A Checkmarx One JSON file holds SAST, SCA and KICS results, and each
 import of it reads those of the control it names, the SCA results into dependency findings. Mend's
-dependency scan writes no SARIF, so its JSON is read into dependency findings too.
+dependency scan writes no SARIF, so its JSON is read into dependency findings too. Prisma Cloud's
+`twistcli` writes no SARIF either, so its image-scan JSON is read into image findings.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
 | `sarif` | a SARIF 2.1.0 log, from any tool (the default) | this page describes | what the file states, as [Dependency findings](#dependency-findings) lists |
-| `trivy-json` | `trivy fs --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded |
+| `trivy-json` | `trivy fs --format json`, or for `images` `trivy image --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded; for an image scan, the image Trivy scanned as its image and location, and the image's operating system for its own packages |
 | `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
 | `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
 | `osv-scanner-json` | `osv-scanner scan --format json` | [`osv-scanner`](osv-scanner.md) reads it, with the difference above | the advisory OSV-Scanner matched, every id and alias it groups with it, such as its CVE, the package, its installed and fixed versions, its package URL and ecosystem, and the score OSV-Scanner gives the group |
@@ -150,6 +151,7 @@ dependency scan writes no SARIF, so its JSON is read into dependency findings to
 | `jfrog-simple-json` | `jf audit --format simple-json` | this page describes | the advisory under its CVE, else Xray's own id, its other ids as aliases, the package, its installed and fixed versions, its package URL for Go and npm, the package type Xray names as its ecosystem, and Xray's severity as the rating, in each manifest that declares a direct dependency bringing it in ([Import JFrog Xray](../../docs/guides/importing-sarif.md#import-jfrog-xray)) |
 | `checkmarx-one-json` | `cx results show --report-format json` | this page describes | the results of the import's control: for `sast` the query at the file and line the data flow starts, its CWE and the line the data flows to; for `sca` the advisory under its CVE, else Checkmarx's own id, its CWE, the package, its installed version, the recommended version as the fix, its package URL for Maven, Go and npm packages with a version, and the ecosystem its identifier names, in each manifest Checkmarx names; for `iac` KICS's query id at the file and line. Each is rated by Checkmarx's severity, and a result triaged Not Exploitable or Ignored is the tool's suppression ([Import Checkmarx One](../../docs/guides/importing-sarif.md#import-checkmarx-one)) |
 | `mend-json` | `mend dep --format json --export-results <file>` | this page describes | the advisory under its CVE, else Mend's own WS- id, the package and installed version its file name gives, named `group:artifact` with its Maven package URL where Mend's fixes name one group for it, the versions Mend's fix names for it above the installed one as the fix, Mend's severity as the rating, and the direct dependency that brings in a transitive one, once per library and manifest however often the tree lists it ([Import Mend](../../docs/guides/importing-sarif.md#import-mend)) |
+| `twistcli-json` | `twistcli images scan --output-file <file>` | this page describes | the advisory under its CVE, the image the file names (else its ID) as its image and location, the package (an operating-system package by its source package, with the image's operating system), its installed and fixed versions, and the CVSS score or `twistcli`'s severity as the rating, whichever is more severe. Compliance results are not read ([Import Prisma Cloud](../../docs/guides/importing-sarif.md#import-prisma-cloud)) |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -672,6 +674,15 @@ that found nothing:
 - `severity "SEVERE" of CVE-2018-19362 in jackson-databind-2.9.5.jar; Mend rates a vulnerability
   CRITICAL, HIGH, MEDIUM or LOW. Import the file mend dep wrote, unedited`, for a severity outside
   Mend's list;
+- `not twistcli's JSON. Write it with twistcli images scan --output-file <file> <image>`, for a file
+  that is not an object with `results`;
+- `vulnerability CVE-2018-6485 in some-docker-image has no packageName, which twistcli writes for every
+  one. Import the file twistcli wrote, unedited`, and the same for an image with no `id` and a
+  vulnerability with no `id`;
+- `severity "severe" of CVE-2018-6485 in glibc; twistcli rates a vulnerability critical, high, medium
+  or low. Import the file twistcli wrote, unedited`, for a severity outside `twistcli`'s list, and
+  `cvss "high" of CVE-2018-6485 in glibc; twistcli writes a number from 0 to 10. Import the file
+  twistcli wrote, unedited`, for a score that is not one;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key

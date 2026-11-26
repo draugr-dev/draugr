@@ -9,6 +9,20 @@ dependency-check-6.1.2.sarif
   07e90e8f7c002d3141d1c307c03da019a9dea680). It is used under DefectDojo's
   BSD 3-Clause license, reproduced below from its LICENSE.md.
 
+twistcli-packagename.json
+twistcli-no-cvss.json
+twistcli-many-vulns.json
+
+  The JSON of three image scans as Prisma Cloud's twistcli images scan
+  --output-file writes it, copied unchanged from DefectDojo's repository at
+  commit cd0a4483a224707f72a0fc3112359089c1446b55: files
+  unittests/scans/twistlock/packagename.json (git blob
+  ca675a1f405d796b8cf509fa8ceac8b84c18a5b2), no_cvss.json (git blob
+  95b327a19d84dba3a3bcdb701ba1ab2ae89b4d8c) and many_vulns.json (git blob
+  682eca6e49d8c7b7326e9c51d6fb032548538346), which DefectDojo's Twistlock
+  parser tests read. They are used under the same BSD 3-Clause license as
+  dependency-check-6.1.2.sarif, reproduced below from its LICENSE.md.
+
   Copyright (c) 2015-2023 DefectDojo, Inc. All rights reserved.
 
   Redistribution and use in source and binary forms, with or without

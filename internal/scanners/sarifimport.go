@@ -139,6 +139,7 @@ var importReaders = map[string]importReader{
 	saga.ImportFormatJFrogSimpleJSON:          readJFrogSimpleJSONImport,
 	saga.ImportFormatCheckmarxOneJSON:         readCheckmarxOneImport,
 	saga.ImportFormatMendJSON:                 readMendDependencyImport,
+	saga.ImportFormatTwistcliJSON:             readTwistcliImport,
 	saga.ImportFormatConverter:                readConverterImport,
 }
 
@@ -497,6 +498,9 @@ func toolJSON(ft plugin.FileTarget) string {
 // repository Draugr can establish, and its findings are placed in none and merge with nothing. A
 // finding counted under a native copy it is not would take a flaw out of the count, so where the
 // repository is in doubt both copies stay counted.
+//
+// A finding about an image is placed in no repository: its location is the image's reference, which
+// names nothing in a checkout.
 func placeImported(results []sarif.Result, meta importLog, repos []plugin.RepositoryTarget) {
 	next := 0
 	for _, run := range meta.Runs {
@@ -514,7 +518,9 @@ func placeImported(results []sarif.Result, meta importLog, repos []plugin.Reposi
 			if next >= len(results) {
 				return
 			}
-			results[next].ImportedRepository = where
+			if results[next].Image == "" {
+				results[next].ImportedRepository = where
+			}
 			next++
 		}
 	}
@@ -595,7 +601,8 @@ func (s importScope) detail() []sarif.Field {
 // every checkout, is somewhere nothing can place, and one with no placed repository could be in any
 // of the component's repositories, each scoped differently. Leaving either out would drop a flaw on a
 // guess. A component that lists one repository several times, a subtree each, keeps a finding inside
-// any of them, as its checkouts together hold it.
+// any of them, as its checkouts together hold it. A finding about an image is in no repository's
+// tree, and stays.
 func scopeImported(results []sarif.Result, outside []string, repos []plugin.RepositoryTarget) ([]bool, importScope) {
 	var s importScope
 	keep := make([]bool, len(results))
@@ -603,7 +610,7 @@ func scopeImported(results []sarif.Result, outside []string, repos []plugin.Repo
 	for i, r := range results {
 		keep[i] = true
 		uri := r.Location.URI
-		if !scoped || uri == "" || uri == "." || slices.Contains(outside, uri) {
+		if !scoped || uri == "" || uri == "." || r.Image != "" || slices.Contains(outside, uri) {
 			continue
 		}
 		if r.ImportedRepository == "" {

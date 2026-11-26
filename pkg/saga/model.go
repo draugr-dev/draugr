@@ -1145,6 +1145,9 @@ const (
 	// ImportFormatMendJSON is the JSON Mend's CLI writes of a dependency scan with mend dep --format
 	// json --export-results <file>, a list of the libraries it found and their vulnerabilities.
 	ImportFormatMendJSON = "mend-json"
+	// ImportFormatTwistcliJSON is the JSON Prisma Cloud's twistcli writes of an image scan with
+	// twistcli images scan --output-file <file>, the image's vulnerable packages.
+	ImportFormatTwistcliJSON = "twistcli-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1154,7 +1157,7 @@ const (
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
 	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
 	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatCheckmarxOneJSON, ImportFormatMendJSON,
-	ImportFormatConverter}
+	ImportFormatTwistcliJSON, ImportFormatConverter}
 
 // ImportFormatControls are the controls an import of a format may name, by format, for a format that
 // holds several tools' results or only one control's. A format absent here is read whole into
@@ -1164,6 +1167,9 @@ var ImportFormatControls = map[string][]string{
 	// Mend's dependency scan holds vulnerable libraries only, so an import into any other control
 	// would read packages as that control's findings.
 	ImportFormatMendJSON: {"sca"},
+	// twistcli's file is an image scan: its vulnerabilities are the image's packages, and its
+	// compliance results, which are not read, describe how the image is built.
+	ImportFormatTwistcliJSON: {"images"},
 	// Trivy's JSON is read for its vulnerabilities only: a filesystem scan's into sca and an image
 	// scan's into images, which the reader holds to the file's ArtifactType.
 	ImportFormatTrivyJSON: {"sca", "images"},

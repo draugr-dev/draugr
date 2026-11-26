@@ -27,9 +27,10 @@ release.
 | [OSV-Scanner](#osv-scanner) | `sca` | `osv-scanner-json` |
 | [JFrog Xray](importing-sarif.md#import-jfrog-xray) | `sca` | `jfrog-simple-json` |
 | [Mend](importing-sarif.md#import-mend) | `sca` | `mend-json` |
+| [Prisma Cloud](importing-sarif.md#import-prisma-cloud) | `images` | `twistcli-json` |
 | [Checkov](#checkov) | `iac` | SARIF |
 | [KICS](#kics) | `iac` | SARIF |
-| Black Duck, Coverity, SonarQube, Wiz, Prisma Cloud | | [No file to import yet](#no-file-to-import-yet) |
+| Black Duck, Coverity, SonarQube, Wiz | | [No file to import yet](#no-file-to-import-yet) |
 
 For every tool:
 
@@ -226,10 +227,6 @@ docker run --rm -v "$PWD":/src -w /src checkmarx/kics:v2.2.1 \
   issues from its Web API is https://github.com/draugr-dev/draugr/issues/2319.
 - **Wiz.** No command is given. Reading Wiz CLI results is
   https://github.com/draugr-dev/draugr/issues/2316.
-- **Prisma Cloud.** `twistcli` writes JSON only. The `PaloAltoNetworks/prisma-cloud-scan` Action,
-  checked on v1.9.0, converts its results to SARIF, but that file describes a container image rather
-  than the repository and names each package only in text. Reading `twistcli`'s JSON is
-  https://github.com/draugr-dev/draugr/issues/2312.
 
 ## See also
 
