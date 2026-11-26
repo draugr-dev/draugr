@@ -1,0 +1,1 @@
+- **A Trivy import is held to the control its scan belongs to.** A `trivy-json` file imported into `secrets`, `iac` or another control is refused instead of reported as that control's findings. An image scan from `trivy image --format json` imports into `images`, and a filesystem scan into `sca`.

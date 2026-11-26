@@ -1164,6 +1164,9 @@ var ImportFormatControls = map[string][]string{
 	// Mend's dependency scan holds vulnerable libraries only, so an import into any other control
 	// would read packages as that control's findings.
 	ImportFormatMendJSON: {"sca"},
+	// Trivy's JSON is read for its vulnerabilities only: a filesystem scan's into sca and an image
+	// scan's into images, which the reader holds to the file's ArtifactType.
+	ImportFormatTrivyJSON: {"sca", "images"},
 	// govulncheck reports vulnerable Go modules, each read at the go.mod of the module it analyzed.
 	ImportFormatGovulncheckJSON: {"sca"},
 	// The reader takes a Grype directory scan only, whose matches are the repository's dependencies.
@@ -1183,11 +1186,11 @@ var ImportFormatControls = map[string][]string{
 	ImportFormatJFrogSimpleJSON: {"sca"},
 }
 
-// ImportFormatSplitsByControl reports whether a file of format holds results for more than one
-// control, so that each import of it reads only its own control's results: one file imported into two
-// controls is then two reads. A format bound to one control is read whole, as a format absent from
-// ImportFormatControls is.
-func ImportFormatSplitsByControl(format string) bool {
+// ImportFormatReadsByControl reports whether what a file of format reads as depends on the control it
+// is imported into: a file holding several controls' results is read for that control's, and a Trivy
+// file is refused in the control its scan does not belong to. One file imported into two controls is
+// then two reads. A format bound to one control reads the same in the only control it may name.
+func ImportFormatReadsByControl(format string) bool {
 	return len(ImportFormatControls[format]) > 1
 }
 

@@ -34,7 +34,8 @@ import (
 // was written from. Everything a native run reads of the build on this machine is left out, because
 // the file was written from another machine's: see readGovulncheckImport.
 
-// readTrivyImport reads the JSON `trivy fs --format json` writes, with the parser trivy-fs uses.
+// readTrivyImport reads the JSON `trivy fs --format json` writes, with the parser trivy-fs uses, or
+// the JSON `trivy image --format json` writes, imported into images.
 //
 // The packages Trivy listed, and the dependency files it read, are left out of the report: a native
 // run reports them for the tree it read, where the tree walk compares them with the checkout and the
@@ -46,7 +47,8 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 		Trivy         struct {
 			Version string `json:"Version"`
 		} `json:"Trivy"`
-		CreatedAt string `json:"CreatedAt"`
+		CreatedAt    string `json:"CreatedAt"`
+		ArtifactType string `json:"ArtifactType"`
 	}
 	// SchemaVersion is the one field every Trivy JSON report opens with, and no SARIF log,
 	// CycloneDX document or other tool's JSON has it. Without the check such a file would decode to
@@ -56,6 +58,9 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 	}
 	if head.SchemaVersion != trivySchemaVersion {
 		return importRead{}, fmt.Errorf("schema %d Trivy JSON; Draugr reads schema %d", head.SchemaVersion, trivySchemaVersion)
+	}
+	if err := trivyImportControl(head.ArtifactType, ft.Control); err != nil {
+		return importRead{}, err
 	}
 	doc, err := decodeTrivyVulns(data)
 	if err != nil {
@@ -82,6 +87,25 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 	run.Results = make([]json.RawMessage, len(rep.Results))
 	return importRead{rep: rep, outside: outside, meta: importLog{Runs: []importRun{run}}, rated: rated,
 		scored: "CVSS score"}, nil
+}
+
+// trivyImageArtifact is the ArtifactType Trivy writes for a container image scan.
+const trivyImageArtifact = "container_image"
+
+// trivyImportControl refuses a Trivy file imported into the control its scan's findings do not
+// belong to: an image's packages are the images control's, and a repository's dependencies are sca's.
+// Both read the same way, so nothing in the findings would show the file in the wrong control.
+// control is empty only where no import names one, and nothing is refused then.
+func trivyImportControl(artifact, control string) error {
+	switch {
+	case control == "":
+		return nil
+	case artifact == trivyImageArtifact && control != "images":
+		return fmt.Errorf("an image scan; import it into images")
+	case artifact != trivyImageArtifact && control == "images":
+		return fmt.Errorf("a %s scan; images reads trivy image --format json", cmp.Or(artifact, "Trivy"))
+	}
+	return nil
 }
 
 // trivySchemaVersion is the version of Trivy's JSON report the parser reads.

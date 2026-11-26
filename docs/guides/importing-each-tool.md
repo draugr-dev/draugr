@@ -22,7 +22,7 @@ release.
 | [Veracode Pipeline Scan](importing-sarif.md#import-veracode-pipeline-scan) | `sast` | `veracode-pipeline-json` |
 | [Semgrep](#semgrep) | `sast` | SARIF |
 | [gosec](#gosec) | `sast` | SARIF |
-| [Trivy](#trivy) | `sca` | `trivy-json` |
+| [Trivy](#trivy) | `sca`, `images` | `trivy-json` |
 | [Grype](#grype) | `sca` | `grype-json` |
 | [OSV-Scanner](#osv-scanner) | `sca` | `osv-scanner-json` |
 | [JFrog Xray](importing-sarif.md#import-jfrog-xray) | `sca` | `jfrog-simple-json` |
@@ -152,6 +152,8 @@ trivy fs --format json -o reports/trivy.json .
 - **Rating:** the CVSS score, else Trivy's severity.
 - **Import the JSON, not the SARIF.** The JSON keeps the package, the fixed version and the CVSS score
   ([Import a tool's own JSON](importing-sarif.md#import-a-tools-own-json)).
+- **An image scan goes in `images`.** Import what `trivy image --format json -o reports/image.json <image>`
+  writes into `images`. Draugr refuses an image scan in `sca` and a filesystem scan in `images`.
 
 ## Grype
 

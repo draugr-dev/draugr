@@ -225,9 +225,9 @@ func TestACheckmarxFileIsCachedPerControl(t *testing.T) {
 	if sast.CacheDetail() == sca.CacheDetail() || !strings.Contains(sca.CacheDetail(), " control=sca") {
 		t.Errorf("sast %q, sca %q", sast.CacheDetail(), sca.CacheDetail())
 	}
-	trivy := plugin.FileTarget{Path: "t.json", Digest: "d", Format: saga.ImportFormatTrivyJSON, Control: "sca"}
-	if strings.Contains(trivy.CacheDetail(), "control=") {
-		t.Errorf("trivy-json keyed on its control: %q", trivy.CacheDetail())
+	grype := plugin.FileTarget{Path: "g.json", Digest: "d", Format: saga.ImportFormatGrypeJSON, Control: "sca"}
+	if strings.Contains(grype.CacheDetail(), "control=") {
+		t.Errorf("grype-json keyed on its control: %q", grype.CacheDetail())
 	}
 	got, err := DescribeFile([]byte(checkmarxFile(checkmarxSASTResult("TO_VERIFY", "HIGH", ""))), sast)
 	if err != nil || got != "Checkmarx One JSON, 1 finding" {
