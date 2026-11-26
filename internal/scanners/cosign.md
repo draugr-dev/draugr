@@ -163,7 +163,13 @@ unsaid.
 
 **Sigstore trust root**, from `tuf-repo-cdn.sigstore.dev`. cosign keeps it under `~/.sigstore`,
 and Draugr warms it once per run with `cosign initialize` so a component with fourteen images does
-not open fourteen concurrent requests for one file.
+not open fourteen concurrent requests for one file. `TUF_ROOT` moves that copy, and `TUF_MIRROR`
+names another repository to fetch it from.
+
+`draugr doctor`, and the `data` row under `draugr scan --evidence`, report the copy cosign holds:
+the version of its root metadata, such as `root 16`, and when cosign last refreshed it. They report
+nothing where cosign has not fetched one yet. A run given `trustRoot` verifies against that file
+instead, and the row still describes the cached copy.
 
 A runner that cannot reach it verifies against a copy instead: point
 `config.controls.provenance.trustRoot` at a trusted-root JSON file, which becomes

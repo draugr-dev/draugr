@@ -183,3 +183,98 @@ func TestARepoScannerWithNoReaderReportsNothing(t *testing.T) {
 		t.Error("modTime or shortDigest mishandled an empty path or a short digest")
 	}
 }
+
+// writeTUFRepo caches root metadata at the version given in a mirror's directory under cache, the
+// layout cosign leaves, with the last refresh recorded beside it when refreshed is not zero.
+func writeTUFRepo(t *testing.T, cache, dirName string, version int, refreshed time.Time) {
+	t.Helper()
+	repo := filepath.Join(cache, dirName)
+	if err := os.MkdirAll(repo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	root := fmt.Sprintf(`{"signed":{"_type":"root","version":%d,"expires":"2027-04-22T19:27:31Z"}}`, version)
+	if err := os.WriteFile(filepath.Join(repo, "root.json"), []byte(root), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "timestamp.json"), []byte(`{"signed":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if refreshed.IsZero() {
+		return
+	}
+	stamp := `{"lastTimestamp":"` + refreshed.Format(time.RFC3339Nano) + `"}`
+	if err := os.WriteFile(repo+".json", []byte(stamp), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// cosign's trust root is dated by the refresh cosign records and named by its root version, from
+// the cache under the home directory where nothing moves it.
+func TestCosignDatesItsTrustRoot(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("TUF_ROOT", "")
+	t.Setenv("TUF_MIRROR", "")
+	if got := cosignTrustRoot(context.Background()); got != nil {
+		t.Errorf("no cache = %+v", got)
+	}
+	refreshed := time.Date(2026, 11, 26, 12, 19, 26, 488079031, time.FixedZone("CST", -6*3600))
+	writeTUFRepo(t, filepath.Join(home, ".sigstore", "root"), "tuf-repo-cdn.sigstore.dev", 16, refreshed)
+	got := cosignTrustRoot(context.Background())
+	if len(got) != 1 || got[0].Name != "Sigstore trust root" || got[0].Version != "root 16" ||
+		!got[0].Downloaded.Equal(refreshed) || got[0].Downloaded.Location() != time.UTC {
+		t.Errorf("cosignTrustRoot = %+v", got)
+	}
+}
+
+// The cache follows TUF_ROOT, and the mirror follows TUF_MIRROR over the one `cosign initialize`
+// recorded, so the copy reported is the one cosign reads.
+func TestCosignFollowsTheCacheAndMirrorItIsGiven(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	cache := t.TempDir()
+	t.Setenv("TUF_ROOT", cache)
+	t.Setenv("TUF_MIRROR", "")
+	refreshed := time.Date(2026, 11, 20, 8, 0, 0, 0, time.UTC)
+	if err := os.WriteFile(filepath.Join(cache, "remote.json"), []byte(`{"mirror":"https://Mirror.example:8443/tuf/root"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeTUFRepo(t, cache, "mirror.example-8443-tuf-root", 3, refreshed)
+	writeTUFRepo(t, cache, "tuf-repo-cdn.sigstore.dev", 16, refreshed)
+	if got := cosignTrustRoot(context.Background()); len(got) != 1 || got[0].Version != "root 3" {
+		t.Errorf("remote.json's mirror = %+v", got)
+	}
+	t.Setenv("TUF_MIRROR", "https://tuf-repo-cdn.sigstore.dev")
+	if got := cosignTrustRoot(context.Background()); len(got) != 1 || got[0].Version != "root 16" {
+		t.Errorf("TUF_MIRROR = %+v", got)
+	}
+}
+
+// Where cosign recorded no refresh, the timestamp metadata's modification time stands for one, and
+// root metadata that cannot be read reports nothing rather than a version nobody read.
+func TestCosignWithoutARecordedRefreshOrARootToRead(t *testing.T) {
+	cache := t.TempDir()
+	t.Setenv("TUF_ROOT", cache)
+	t.Setenv("TUF_MIRROR", "")
+	writeTUFRepo(t, cache, "tuf-repo-cdn.sigstore.dev", 16, time.Time{})
+	fetched := time.Date(2026, 11, 1, 9, 30, 0, 0, time.UTC)
+	repo := filepath.Join(cache, "tuf-repo-cdn.sigstore.dev")
+	if err := os.Chtimes(filepath.Join(repo, "timestamp.json"), fetched, fetched); err != nil {
+		t.Fatal(err)
+	}
+	if got := (&cosignVerifier{}).DataState(context.Background()); len(got) != 1 || !got[0].Downloaded.Equal(fetched) {
+		t.Errorf("DataState = %+v", got)
+	}
+	for _, root := range []string{`not json`, `{"signed":{"version":0}}`} {
+		if err := os.WriteFile(filepath.Join(repo, "root.json"), []byte(root), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if got := cosignTrustRoot(context.Background()); got != nil {
+			t.Errorf("root.json %q = %+v", root, got)
+		}
+	}
+	t.Setenv("TUF_ROOT", "")
+	t.Setenv("HOME", "")
+	if got := cosignTrustRoot(context.Background()); got != nil {
+		t.Errorf("no home directory = %+v", got)
+	}
+}

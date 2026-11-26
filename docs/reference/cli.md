@@ -909,7 +909,7 @@ command; on a runner without a network, copy a newer cache in, as
 | Key | Holds |
 |---|---|
 | `tool`, `data` | the tool and the data source, as the row names them |
-| `version` | the schema version of a Trivy or Grype database, the first twelve characters of the Trivy checks bundle's digest, or the Nuclei template release |
+| `version` | the schema version of a Trivy or Grype database, the first twelve characters of the Trivy checks bundle's digest, the Nuclei template release, or `root` and the version of the Sigstore root metadata cosign holds |
 | `published`, `downloaded` | each an RFC 3339 time in UTC, absent where the tool records none |
 | `tooOld` | the tool's own reason, for a copy it refuses |
 
