@@ -1,0 +1,1 @@
+- **`draugr tools outdated` reads a public release listing when GitHub refuses your `GITHUB_TOKEN`.** It asks again without the token, so setting the token no longer makes a tool fail to compare. A refusal that still stands now prints the reason GitHub gave beside its status.

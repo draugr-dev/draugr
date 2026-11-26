@@ -348,3 +348,73 @@ func TestHostOf(t *testing.T) {
 		}
 	}
 }
+
+// refuseToken answers 403 with GitHub's error body to a request carrying a token, and the listing to
+// one without.
+func refuseToken(listing string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `{"message":"Resource not accessible\n by integration","status":"403"}`)
+			return
+		}
+		_, _ = io.WriteString(w, listing)
+	}
+}
+
+// A token GitHub refuses on a public listing is dropped, and the listing read without it.
+func TestARefusedTokenIsDroppedForAPublicListing(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
+		"api.github.com/repos/aquasecurity/trivy/releases/latest":      refuseToken(`{"tag_name":"v0.80.1"}`),
+		"api.github.com/repos/aquasecurity/kube-bench/releases/latest": refuseToken(`{"tag_name":"v0.17.0"}`),
+	}}
+	client := &http.Client{Transport: tr}
+	for tool, want := range map[string]string{"trivy": "0.80.1", "kube-bench": "0.17.0"} {
+		got, err := Latest(context.Background(), client, tool)
+		if err != nil || got != want {
+			t.Errorf("%s: got %q, %v; want %q", tool, got, err, want)
+		}
+	}
+	if len(tr.seen) != 4 {
+		t.Fatalf("want each listing asked twice, with and then without the token; saw %d requests", len(tr.seen))
+	}
+	for i, r := range tr.seen {
+		if withToken := r.Header.Get("Authorization") != ""; withToken != (i%2 == 0) {
+			t.Errorf("request %d to %s: token sent = %v", i, r.URL.Path, withToken)
+		}
+	}
+}
+
+// A refusal says why where the upstream did, and one that holds without the token says both.
+func TestARefusalSaysWhy(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	refuse := func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = io.WriteString(w, `{"message":"Repository access blocked"}`)
+	}
+	tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){
+		"api.github.com/repos/aquasecurity/trivy/releases/latest": refuse,
+	}}
+	_, err := Latest(context.Background(), &http.Client{Transport: tr}, "trivy")
+	want := "https://api.github.com/repos/aquasecurity/trivy/releases/latest answered 403 Forbidden: " +
+		"Repository access blocked, and without the token: " +
+		"https://api.github.com/repos/aquasecurity/trivy/releases/latest answered 403 Forbidden: Repository access blocked"
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Errorf("got %v\nwant it to hold %q", err, want)
+	}
+}
+
+// A 404 is about the URL, so it is not asked again without the token, and a body that is not
+// GitHub's JSON adds nothing to the status.
+func TestANotFoundIsNotAskedAgain(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "test-token")
+	tr := &upstreamTransport{routes: map[string]func(http.ResponseWriter, *http.Request){}}
+	_, err := Latest(context.Background(), &http.Client{Transport: tr}, "trivy")
+	if err == nil || !strings.HasSuffix(err.Error(), "answered 404 Not Found") {
+		t.Errorf("not found: %v", err)
+	}
+	if len(tr.seen) != 1 {
+		t.Errorf("a 404 was asked %d times", len(tr.seen))
+	}
+}

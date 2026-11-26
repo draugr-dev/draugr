@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go/version"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -213,17 +214,43 @@ func Latest(ctx context.Context, client *http.Client, name string) (string, erro
 }
 
 // getJSON reads a JSON document, refusing a body large enough to be an attack on the reader.
+//
+// GitHub rate-limits by source address for an unauthenticated caller, and a CI runner shares its
+// address with everybody else on the pool. So a token is sent where there is one: it reads public
+// release listings and nothing else, the variable is the one every CI already sets, and its absence
+// is ordinary.
+//
+// A token GitHub refuses is dropped and the listing asked for again without it. The listings are
+// public, so a token only ever raises the limit, and GitHub can refuse a token on a repository that
+// answers anybody without one. Failing there would make setting the token worse than leaving it
+// unset.
 func getJSON(ctx context.Context, client *http.Client, url string, into any) error {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" || !strings.HasPrefix(url, githubAPI) {
+		return getJSONWith(ctx, client, url, "", into)
+	}
+	err := getJSONWith(ctx, client, url, token, into)
+	var refused *refusal
+	if !errors.As(err, &refused) || !refused.ofToken() {
+		return err
+	}
+	slog.Debug("GitHub refused the token; asking without it", "url", url, "status", refused.status,
+		"reason", refused.message)
+	if retry := getJSONWith(ctx, client, url, "", into); retry != nil {
+		return fmt.Errorf("%w, and without the token: %w", err, retry)
+	}
+	return nil
+}
+
+// getJSONWith is one request for getJSON, with token as its bearer when it is not empty.
+func getJSONWith(ctx context.Context, client *http.Client, url, token string, into any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "draugr")
-	// GitHub rate-limits by source address for an unauthenticated caller, and a CI runner shares
-	// its address with everybody else on the pool. A token here reads public release listings and
-	// nothing else; the variable is the one every CI already sets, and its absence is ordinary.
-	if token := os.Getenv("GITHUB_TOKEN"); token != "" && strings.HasPrefix(url, githubAPI) {
+	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	resp, err := client.Do(req)
@@ -240,7 +267,8 @@ func getJSON(ctx context.Context, client *http.Client, url string, into any) err
 			return fmt.Errorf("%s rate-limited this machine; it resets shortly, or set "+
 				"GITHUB_TOKEN to raise the limit", hostOf(url))
 		}
-		return fmt.Errorf("%s answered %s", url, resp.Status)
+		return &refusal{url: url, status: resp.Status, code: resp.StatusCode,
+			message: refusalMessage(resp.Body), withToken: token != ""}
 	}
 	// A truncated body decodes as a JSON error, which reads as an upstream that answered badly
 	// rather than as a limit of ours, so the limit is checked for what it is.
@@ -253,6 +281,47 @@ func getJSON(ctx context.Context, client *http.Client, url string, into any) err
 			"listing should be", url, maxMetadataForTest)
 	}
 	return json.Unmarshal(body, into)
+}
+
+// refusal is an upstream answering anything but 200, other than a rate limit.
+type refusal struct {
+	url, status, message string
+	code                 int
+	withToken            bool
+}
+
+// Error names the URL and the status, and the upstream's own reason where it gave one, since the
+// status alone says that something was refused and not why.
+func (r *refusal) Error() string {
+	if r.message == "" {
+		return fmt.Sprintf("%s answered %s", r.url, r.status)
+	}
+	return fmt.Sprintf("%s answered %s: %s", r.url, r.status, r.message)
+}
+
+// ofToken says whether the refusal may be of the token rather than of the request: a 401 or 403 to
+// a request that carried one. A 404 is about the URL, and is the same with or without a token.
+func (r *refusal) ofToken() bool {
+	return r.withToken && (r.code == http.StatusUnauthorized || r.code == http.StatusForbidden)
+}
+
+// maxRefusalBytes bounds what is read of a refusal's body, which is a sentence and not a listing.
+const maxRefusalBytes = 4 << 10
+
+// refusalMessage is the `message` a GitHub-style JSON error body carries, on one line, or "" when
+// the body holds none.
+func refusalMessage(body io.Reader) string {
+	raw, err := io.ReadAll(io.LimitReader(body, maxRefusalBytes))
+	if err != nil {
+		return ""
+	}
+	var answer struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(raw, &answer) != nil {
+		return ""
+	}
+	return strings.Join(strings.Fields(answer.Message), " ")
 }
 
 // githubAPI is where a token is worth sending, and nowhere else is.
