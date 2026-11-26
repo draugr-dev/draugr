@@ -1,0 +1,1 @@
+- **`draugr tools install` builds govulncheck 1.10.0 with go1.27.4**, which was pinned at 1.9.0 and built with go1.27.3.

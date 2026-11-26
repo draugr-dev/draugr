@@ -40,7 +40,7 @@ var goInstallable = map[string]GoSpec{
 var goVersions = map[string]string{"govulncheck": govulncheckVersion}
 
 // govulncheckVersion is the pinned govulncheck release.
-const govulncheckVersion = "1.9.0"
+const govulncheckVersion = "1.10.0"
 
 // goToolchains is the oldest Go each Go-built tool is built with.
 //
@@ -52,7 +52,7 @@ const govulncheckVersion = "1.9.0"
 var goToolchains = map[string]string{"govulncheck": govulncheckToolchain}
 
 // govulncheckToolchain is the Go release govulncheck is built with where the Go on PATH is older.
-const govulncheckToolchain = "go1.27.3"
+const govulncheckToolchain = "go1.27.4"
 
 // GoTool reports the spec for a tool built with the Go toolchain.
 func GoTool(name string) (GoSpec, bool) {
