@@ -1,1 +1,0 @@
-- **The provenance control reads GitHub artifact attestations with cosign 3.1.6.** That release refuses an attestation where earlier ones printed it, which stopped the control on an image whose provenance is a GitHub attestation. A declared signer's attestation passes again, and discovery names who signed it.
