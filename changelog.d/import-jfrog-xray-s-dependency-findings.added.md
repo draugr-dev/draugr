@@ -1,1 +1,0 @@
-- **Import JFrog Xray's dependency findings.** An import with `format: jfrog-simple-json` reads what `jf audit --format simple-json` writes, each vulnerable package with its installed and fixed version, CVE and Xray's severity, in each manifest that brings it in.
