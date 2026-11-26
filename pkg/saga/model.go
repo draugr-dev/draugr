@@ -1137,6 +1137,11 @@ const (
 	// ImportFormatJFrogSimpleJSON is the simple-json JFrog's CLI writes with jf audit --format
 	// simple-json, read for its dependency vulnerabilities.
 	ImportFormatJFrogSimpleJSON = "jfrog-simple-json"
+	// ImportFormatCheckmarxOneJSON is the JSON Checkmarx One's CLI writes with cx results show
+	// --report-format json, which holds a scan's SAST, SCA and KICS results together. Each import of it
+	// reads the results of its own control, so the file is imported once into each of sast, sca and
+	// iac (ImportFormatControls).
+	ImportFormatCheckmarxOneJSON = "checkmarx-one-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1145,7 +1150,13 @@ const (
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
 	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
-	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatConverter}
+	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatCheckmarxOneJSON, ImportFormatConverter}
+
+// ImportFormatControls are the controls an import of a format that holds several tools' results may
+// name, by format. A format absent here is read whole into whichever control the import names.
+var ImportFormatControls = map[string][]string{
+	ImportFormatCheckmarxOneJSON: {"sast", "sca", "iac"},
+}
 
 // The services an import's Source names.
 const (

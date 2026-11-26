@@ -604,6 +604,33 @@ func TestDoctorChecksAnImportedFileAsItsFormat(t *testing.T) {
 	}
 }
 
+// A file that holds several controls' results is checked once for each control it is imported into,
+// each row naming the control and counting that control's findings, since each import reads its own.
+func TestDoctorChecksAFileOncePerControlItIsReadInto(t *testing.T) {
+	cx := filepath.Join(t.TempDir(), "cx_result.json")
+	doc := `{"results":[` +
+		`{"type":"sast","severity":"HIGH","data":{"queryName":"SQL_Injection","nodes":[{"line":3,"fileName":"/a.java"}]}},` +
+		`{"type":"kics","severity":"LOW","data":{"queryId":"q-1","filename":"/main.tf","line":1}},` +
+		`{"type":"kics","severity":"LOW","data":{"queryId":"q-2","filename":"/main.tf","line":2}}],` +
+		`"totalCount":3,"scanID":"s"}`
+	if err := os.WriteFile(cx, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	at := func(control string) plugin.FileTarget {
+		return plugin.FileTarget{Path: cx, Component: "api", Format: "checkmarx-one-json", Control: control}
+	}
+	got := Run(context.Background(), []plugin.Target{at("sast"), at("iac"), at("iac")}, Options{Offline: true})
+	rows := map[string]string{}
+	for _, c := range got {
+		rows[c.Target] = c.Detail
+	}
+	unbound := ", commit not stated. The scan lists it under unbound-imports"
+	if len(got) != 2 || rows[cx+" · api · sast"] != "Checkmarx One JSON, 1 finding"+unbound ||
+		rows[cx+" · api · iac"] != "Checkmarx One JSON, 2 findings"+unbound {
+		t.Errorf("checks %+v", got)
+	}
+}
+
 // doctor holds an imported file to the commit the scan reads, by the scan's rule, because the scan
 // stops on a file written for another commit: the same commit passes, abbreviated too, another fails
 // in the scan's words, a variable left unset and a file naming neither of two repositories show as

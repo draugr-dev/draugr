@@ -1,0 +1,1 @@
+- **Import Checkmarx One's own JSON.** An import with `format: checkmarx-one-json` reads what `cx results show --report-format json` writes, once into each of `sast`, `sca` and `iac`: code findings with their CWE, dependency findings with their package, versions and CVE, and KICS findings. A result triaged Not Exploitable or Ignored is set aside as the tool's suppression.

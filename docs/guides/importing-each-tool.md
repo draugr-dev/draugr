@@ -17,7 +17,7 @@ release.
 |---|---|---|
 | [CodeQL](#codeql) | `sast` | SARIF |
 | [Snyk](#snyk) | `sast`, `sca` | SARIF |
-| [Checkmarx One](#checkmarx-one) | `sast` | SARIF |
+| [Checkmarx One](#checkmarx-one) | `sast`, `sca`, `iac` | `checkmarx-one-json` |
 | [Fortify](#fortify) | `sast` | SARIF |
 | [Veracode Pipeline Scan](importing-sarif.md#import-veracode-pipeline-scan) | `sast` | `veracode-pipeline-json` |
 | [Semgrep](#semgrep) | `sast` | SARIF |
@@ -77,20 +77,19 @@ snyk test --sarif-file-output=reports/snyk.sarif || [ $? -eq 1 ]
 
 ## Checkmarx One
 
-Checked on `cx` 2.3.72. Findings go in `sast`.
+Checked on `cx` 2.3.72. Findings go in `sast`, `sca` and `iac`, from one file:
 
 ```bash
-cx scan create <options> --report-format sarif --output-path reports    # writes reports/cx_result.sarif
-cx results show --scan-id <id> --report-format sarif --output-name cx_result --output-path reports
+cx results show --scan-id <id> --report-format json --output-path reports    # writes reports/cx_result.json
 ```
 
-The second command exports a scan that already ran, so its import names the commit that scan read.
+`cx scan create <options> --report-format json --output-path reports` writes the same file when the
+scan ends. `cx results show` exports a scan that already ran, so its import names the commit that
+scan read. Import the file once into each control, as
+[Import Checkmarx One](importing-sarif.md#import-checkmarx-one) shows.
 
 - **Exit code:** 0 when `cx` finds something, unless `--threshold` is set.
-- **Rating:** the `security-severity` on each rule. The file names no CWE.
-- **An SCA finding names its package, version and CVE only in text**, at line 1 of the manifest, so
-  it becomes a "Fix <rule>" action rather than an upgrade, and KEV and EPSS do not reach it. Reading
-  Checkmarx One's own JSON is https://github.com/draugr-dev/draugr/issues/2309.
+- **Rating:** Checkmarx's severity on each result.
 
 ## Fortify
 

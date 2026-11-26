@@ -449,6 +449,10 @@ type FileTarget struct {
 	CommitUnset string
 	// Format is what the file is, one of saga.ImportFormats. Empty is SARIF.
 	Format string
+	// Control is the control the descriptor imports the file into. A format holding several tools'
+	// results (saga.ImportFormatControls) reads that control's results from it and leaves the rest
+	// to the file's other imports.
+	Control string
 	// CountSuppressed counts the findings the file's tool suppressed, as the descriptor's
 	// imports[].suppressions: count asks, rather than setting them aside.
 	CountSuppressed bool
@@ -484,7 +488,8 @@ func (t FileTarget) Identity() string {
 // them, the revision it is held to, the repository its findings are placed in and the scope that
 // keeps or leaves out each one; the component it is read for, which its account names; the commit
 // the descriptor holds it to, or the variable that left it
-// unbound; the format it is read as, since one file read by two readers is two answers; whether
+// unbound; the format it is read as, since one file read by two readers is two answers, and for a
+// format that reads one control's results the control; whether
 // the tool's own suppressions are counted; the converter and what it may set; and the descriptor's
 // mapping of its tool's rating where it gives one.
 //
@@ -506,6 +511,11 @@ func (t FileTarget) CacheDetail() string {
 	// A SARIF file's key is as it was before formats existed, so its cached reads stay valid.
 	if t.Format != "" && t.Format != saga.ImportFormatSARIF {
 		detail += " format=" + t.Format
+	}
+	// One file read into two controls by a format that reads each control's results is two answers.
+	// Other formats read the file whole, and their keys stay as they were.
+	if _, perControl := saga.ImportFormatControls[t.Format]; perControl {
+		detail += " control=" + t.Control
 	}
 	for _, r := range t.Repositories {
 		detail += " repo=" + r.Identity()

@@ -133,7 +133,8 @@ reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Vera
 writes no SARIF, so its `results.json` is read into code findings. GitLab's reports are read the
 same way, a SAST report into code findings and a dependency scanning report into findings shaped as
 Draugr's dependency scanners shape theirs. A JFrog simple-json file's dependency scan is read into
-findings shaped the same way.
+findings shaped the same way. A Checkmarx One JSON file holds SAST, SCA and KICS results, and each
+import of it reads those of the control it names, the SCA results into dependency findings.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -146,6 +147,7 @@ findings shaped the same way.
 | `gitlab-sast` | a SAST report in GitLab's security report format, schema 15 | this page describes | the vulnerability's file and line, its first identifier as the rule, the CWE its identifiers name, the severity the report states as the rating, and its description as the detail ([Import GitLab's security reports](../../docs/guides/importing-sarif.md#import-gitlabs-security-reports)) |
 | `gitlab-dependency-scanning` | a dependency scanning report in GitLab's format, schema 15 | this page describes | the advisory under its CVE, else its GHSA id, else the report's own id, its other ids as aliases, the package, its installed version, the fixed version the report's solution names, its package URL and ecosystem for Go and npm, and the severity the report states as the rating |
 | `jfrog-simple-json` | `jf audit --format simple-json` | this page describes | the advisory under its CVE, else Xray's own id, its other ids as aliases, the package, its installed and fixed versions, its package URL for Go and npm, the package type Xray names as its ecosystem, and Xray's severity as the rating, in each manifest that declares a direct dependency bringing it in ([Import JFrog Xray](../../docs/guides/importing-sarif.md#import-jfrog-xray)) |
+| `checkmarx-one-json` | `cx results show --report-format json` | this page describes | the results of the import's control: for `sast` the query at the file and line the data flow starts, its CWE and the line the data flows to; for `sca` the advisory under its CVE, else Checkmarx's own id, its CWE, the package, its installed version, the recommended version as the fix, its package URL for Maven, Go and npm packages with a version, and the ecosystem its identifier names, in each manifest Checkmarx names; for `iac` KICS's query id at the file and line. Each is rated by Checkmarx's severity, and a result triaged Not Exploitable or Ignored is the tool's suppression ([Import Checkmarx One](../../docs/guides/importing-sarif.md#import-checkmarx-one)) |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -649,6 +651,17 @@ that found nothing:
   them;
 - `severity "Severe"; Xray rates a vulnerability Critical, High, Medium, Low, Information or Unknown.
   Import the file jf audit wrote, unedited`, for a severity outside Xray's list;
+- `not Checkmarx One JSON. Write it with cx results show --scan-id <id> --report-format json`, for
+  a file with no `results` list, `totalCount` or `scanID`, such as Checkmarx's SARIF;
+- `the file lists 0 results and counts 75, so results are missing or were added. Import the file cx
+  results show wrote, unedited`, for a file whose `totalCount` is not the number of results it lists;
+- `the import names control "secrets"; import this file into sast, sca or iac`, for an import into
+  another control, which `draugr validate` refuses first;
+- `a SAST result (id 13588362) names no query or file; every result cx results show writes names
+  them. Import the file the CLI wrote, unedited`, and the same for a KICS result, and for an SCA
+  result with no vulnerability, package or manifest;
+- `severity "SEVERE"; Checkmarx One rates a result CRITICAL, HIGH, MEDIUM, LOW or INFO. Import the
+  file cx results show wrote, unedited`, for a severity outside Checkmarx's list;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key
@@ -659,7 +672,8 @@ file the scan would refuse fails doctor with the same message, including one wri
 commit. A file that passes shows how many results it holds and its commit, as
 `SARIF 2.1.0, 3 results, commit 0123456789ab`. A file with no commit shows `commit not stated`, the
 reason, and that the scan lists it under `unbound-imports`. Each row names its component, since two
-components can hold one file to different repositories. Under `--offline`, a revision only the
+components can hold one file to different repositories, and a `checkmarx-one-json` row names its
+control too, since each import of that file reads its own control's results. Under `--offline`, a revision only the
 network can resolve, such as a branch of a remote repository, is not checked, and the row says
 `not checked`. Doctor does not compare paths with the component's checkout: the scan lists a path it
 cannot place under `unread-files`.

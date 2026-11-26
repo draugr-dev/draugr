@@ -903,10 +903,17 @@ func validateImportFormat(imp Import, at string) []error {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"Veracode states. Remove severity", at, imp.Format)}
 	}
+	if controls, ok := ImportFormatControls[imp.ReadFormat()]; ok && imp.Control != "" && !slices.Contains(controls, imp.Control) {
+		// The reader takes the results of the import's control from the file, and the file holds
+		// none for another, so the import would read as a clean scan.
+		return []error{fmt.Errorf("%s: a %s file holds no %s results; import it into %s", at, imp.Format,
+			imp.Control, orList(controls))}
+	}
 	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
-		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON) {
+		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON ||
+		imp.ReadFormat() == ImportFormatCheckmarxOneJSON) {
 		// The tools that write GitLab's format are many, and Draugr runs few of them, and none of
-		// JFrog's, so the file is rated by the severity it states for each vulnerability.
+		// JFrog's or Checkmarx's, so the file is rated by the severity it states for each one.
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"it states. Remove severity", at, imp.Format)}
 	}
