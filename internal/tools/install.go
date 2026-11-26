@@ -155,30 +155,30 @@ var installable = map[string]InstallSpec{
 	},
 	"cosign": {
 		Binary:  "cosign",
-		Version: "3.1.4",
+		Version: "3.1.6",
 		// cosign ships bare release binaries (no archive), so BinaryInArchive is empty. It is the tool
 		// Draugr uses to verify other tools, so it is pinned by SHA-256 (the mandatory floor), using
 		// cosign to verify itself would be circular.
 		Assets: map[string]Asset{
 			"linux/amd64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-amd64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.6/cosign-linux-amd64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-linux-amd64",
-				SHA256:      "424e2c97d0b45fd7a6b608a87f090f35633f4c23ece5f092d48bba11aaf4bbfa",
+				SHA256:      "318a99ade4156a0c4113aa983b46c0a0830fa7896a096c63121ee47b610a94c6",
 			},
 			"linux/arm64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-linux-arm64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.6/cosign-linux-arm64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-linux-arm64",
-				SHA256:      "ade83b7aac62e131cacfe96d958948b2150cc9efec46a570a2649b8e27dedad2",
+				SHA256:      "bbb2ebc765f483cf9fac42da8763dddc2b55b350ee12ea0c44a520a6d6d52334",
 			},
 			"darwin/amd64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-amd64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.6/cosign-darwin-amd64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-darwin-amd64",
-				SHA256:      "9d1e4abe2b6be279ed0d2ff706fde1ccd738747c834e3e6d44039c238867334f",
+				SHA256:      "a91eebd5824c1d40a2f3fb730a65f470ec0acf99e5c63dc7b79c322eeb9b5549",
 			},
 			"darwin/arm64": {
-				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.4/cosign-darwin-arm64",
+				URL:         "https://github.com/sigstore/cosign/releases/download/v3.1.6/cosign-darwin-arm64",
 				URLTemplate: "https://github.com/sigstore/cosign/releases/download/v{version}/cosign-darwin-arm64",
-				SHA256:      "9f9b8cd557cf2e5b3df3373a00baa005a86b02391e3e06dd0ce37b3a1533d3a4",
+				SHA256:      "0ce6045c42e9f21427b3a8b70d54b130ca35cdd88a38358cc303fc6fec7366ba",
 			},
 		},
 	},
