@@ -542,12 +542,14 @@ func sagaFields() map[string]map[string]any {
 					"recommended version and CVE."},
 				valueDoc{"mend-json", "The JSON mend dep --format json --export-results writes, for sca, with each vulnerable " +
 					"library's package, installed version, the fixed version Mend names for it, CVE and Mend's severity."},
+				valueDoc{"twistcli-json", "The JSON twistcli images scan --output-file writes, for images, with each vulnerable " +
+					"package's name, installed and fixed versions, CVE, and CVSS score or Prisma Cloud's severity."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, " +
-				"or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's and Mend's by the rating the file states.",
+				"or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's, Mend's and twistcli's by the rating the file states.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
@@ -564,8 +566,8 @@ func sagaFields() map[string]map[string]any {
 				"settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, " +
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
 				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, " +
-				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json and mend-json, whose files " +
-				"record no suppression.",
+				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json and twistcli-json, " +
+				"whose files record no suppression.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

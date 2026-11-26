@@ -49,6 +49,7 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 		} `json:"Trivy"`
 		CreatedAt    string `json:"CreatedAt"`
 		ArtifactType string `json:"ArtifactType"`
+		ArtifactName string `json:"ArtifactName"`
 	}
 	// SchemaVersion is the one field every Trivy JSON report opens with, and no SARIF log,
 	// CycloneDX document or other tool's JSON has it. Without the check such a file would decode to
@@ -68,6 +69,13 @@ func readTrivyImport(data []byte, ft plugin.FileTarget) (importRead, error) {
 	}
 	rep := trivyVulnReport(doc, importRoot(ft.Repositories), nil)
 	rep.Inputs, rep.Inventory = nil, nil
+	if ref := strings.TrimSpace(head.ArtifactName); head.ArtifactType == trivyImageArtifact && ref != "" {
+		// An image scan's findings are about the image Trivy scanned, as a native run's are about the
+		// one it was asked for (imageRefLocations), and not about a file in a checkout.
+		for i := range rep.Results {
+			rep.Results[i].Location, rep.Results[i].Image = sarif.Location{URI: ref}, ref
+		}
+	}
 	outside := relativeToCheckouts(rep.Results, checkoutRoots(ft.Repositories))
 
 	rated := make([]string, len(rep.Results))
@@ -530,6 +538,7 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatJFrogSimpleJSON:          "JFrog simple-json",
 	saga.ImportFormatCheckmarxOneJSON:         "Checkmarx One JSON",
 	saga.ImportFormatMendJSON:                 "Mend dependency JSON",
+	saga.ImportFormatTwistcliJSON:             "twistcli JSON",
 	saga.ImportFormatConverter:                "converter file",
 }
 

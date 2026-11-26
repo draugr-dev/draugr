@@ -1073,7 +1073,8 @@ func TestValidateImportFormat(t *testing.T) {
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
 	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "trivy-json", Control: "images"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
 		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping},
-		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}, {Format: "mend-json"}} {
+		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}, {Format: "mend-json"},
+		{Format: "twistcli-json", Control: "images"}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -1083,7 +1084,7 @@ func TestValidateImportFormat(t *testing.T) {
 		want string
 	}{
 		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, veracode-pipeline-json, ` +
-			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, mend-json, draugr-converter`},
+			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, mend-json, twistcli-json, draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
@@ -1116,6 +1117,12 @@ func TestValidateImportFormat(t *testing.T) {
 		{Import{Format: "mend-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
 			"nothing to apply to, since Mend's dependency JSON records no suppression. Remove it"},
 		{Import{Format: "mend-json", Control: "sast"}, "imports[0]: a mend-json file holds no sast results; import it into sca"},
+		{Import{Format: "twistcli-json", Control: "images", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a twistcli-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "twistcli-json", Control: "images", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since twistcli's JSON records no suppression. Remove it"},
+		{Import{Format: "twistcli-json", Control: "sca"}, "imports[0]: a twistcli-json file holds no sca results; " +
+			"import it into images"},
 		{Import{Format: "trivy-json", Control: "secrets"}, "imports[0]: a trivy-json file holds no secrets results; import it into sca or images"},
 		{Import{Format: "govulncheck-json", Control: "sast"}, "imports[0]: a govulncheck-json file holds no sast results; import it into sca"},
 		{Import{Format: "grype-json", Control: "images"}, "imports[0]: a grype-json file holds no images results; import it into sca"},

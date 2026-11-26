@@ -418,7 +418,7 @@ components:
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, alerts a person dismissed in GitHub, or results triaged Not Exploitable or Ignored in Checkmarx One; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json`, `mend-json` or `draugr-converter` import (none of those files records one) |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, alerts a person dismissed in GitHub, or results triaged Not Exploitable or Ignored in Checkmarx One; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json`, `mend-json`, `twistcli-json` or `draugr-converter` import (none of those files records one) |
 
 #### Import formats
 
@@ -451,6 +451,10 @@ components:
   vulnerable library is read with its package, installed version, the fixed version Mend's fix names
   for it, CVE and Mend's severity
   ([Import Mend](../guides/importing-sarif.md#import-mend)).
+- **`twistcli-json`**: what Prisma Cloud's `twistcli images scan --output-file <file>` writes, for
+  `images` only. Each vulnerable package is read with its name, installed version, fixed version, CVE,
+  and CVSS score or `twistcli`'s severity
+  ([Import Prisma Cloud](../guides/importing-sarif.md#import-prisma-cloud)).
 - **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
   with `converter` declaring the converter.
 

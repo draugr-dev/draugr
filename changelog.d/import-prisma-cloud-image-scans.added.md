@@ -1,0 +1,1 @@
+- **Import Prisma Cloud image scans.** An import with `format: twistcli-json` reads what `twistcli images scan --output-file` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by its CVSS score or Prisma Cloud's severity.
