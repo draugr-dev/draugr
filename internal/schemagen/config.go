@@ -134,6 +134,13 @@ func configFields() map[string]map[string]any {
 				"of the bound `limitToolThreads` applies, for less memory and CPU and a slower scan, and turns that limit on. " +
 				"Unset means each tool sizes its own pool. Overridden by `--share-workers`.",
 		},
+		"scan.toolMemory": {
+			"description": "The most resident memory one tool may use, with the processes it starts, before Draugr stops it " +
+				"and fails its control, as a whole number of KiB, MiB, GiB or TiB such as `8GiB`. Enforced on Linux only. " +
+				"Unset or `0` means no bound. Overridden by `--tool-memory`.",
+			"type":    "string",
+			"pattern": `^(0|[0-9]+(KiB|MiB|GiB|TiB))$`,
+		},
 		"log": {
 			"description": "What Draugr logs, and in which format.",
 		},

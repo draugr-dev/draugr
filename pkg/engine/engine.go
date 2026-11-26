@@ -1087,12 +1087,31 @@ const limitAdvice = "Rerun with `--limit-tool-threads`, or set `scan.limitToolTh
 // using the most memory when memory runs out, and a run without the limit lets each job's tool size
 // itself to every core, which is what the limit takes back. A run already under the limit is told
 // nothing new: the limit it would name is the one it ran with.
+//
+// A tool Draugr stopped at the run's memory bound (toolexec.ErrOverMemoryBound) is told how to raise
+// the bound first, and the thread limit after it where the run did not have it, since a tool held to
+// fewer threads may fit under the same bound.
 func adviseOnKill(ctx context.Context, err error) error {
+	if errors.Is(err, toolexec.ErrOverMemoryBound) {
+		advice := boundAdvice
+		if !toolexec.LimitsThreads(ctx) {
+			advice += " " + boundLimitAdvice
+		}
+		return advisedError{err: err, advice: advice}
+	}
 	if !errors.Is(err, toolexec.ErrKilled) || toolexec.LimitsThreads(ctx) {
 		return err
 	}
 	return advisedError{err: err, advice: limitAdvice}
 }
+
+// boundAdvice is what a scan whose tool was stopped at the memory bound adds, and boundLimitAdvice
+// what follows it where the run did not limit its tools' threads. No ": " inside either, as for
+// limitAdvice.
+const (
+	boundAdvice      = "Raise `--tool-memory`, or `scan.toolMemory`, to let it finish."
+	boundLimitAdvice = "`--limit-tool-threads` may let it fit under the same bound."
+)
 
 // advisedError is an error followed by a sentence saying what to do about it. It is the error it
 // carries, to errors.Is and errors.As.

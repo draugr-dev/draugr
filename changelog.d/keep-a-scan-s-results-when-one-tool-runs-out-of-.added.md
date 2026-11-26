@@ -1,0 +1,1 @@
+- **Keep a scan's results when one tool runs out of memory, with `--tool-memory 8GiB` or `scan.toolMemory`.** On Linux, Draugr stops a tool once it and the processes it starts pass the bound, and fails only that control, before a memory limit that ends everything inside it is reached. The kernel now kills a tool before Draugr.

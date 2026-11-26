@@ -268,10 +268,14 @@ draugr scan draugr.saga.yaml -j 1      # serial: deterministic output, handy for
 |------|---------|-------------|
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer) |
 | `--limit-tool-threads` | `false` | Hold each tool's threads and Go build processes to its job's share of the machine |
+| `--tool-memory` | none | Stop a tool past this much resident memory, such as `8GiB`, and fail its control (Linux) |
 
-`scan.jobs` and `scan.limitToolThreads` in [`draugr.config.yaml`](configuration.md#scan) set the same
-for every scan on a machine, and a typed flag wins over them. The [CLI
-reference](../reference/cli.md) describes the limit under *Each tool's own parallelism*.
+`scan.jobs`, `scan.limitToolThreads` and `scan.toolMemory` in [`draugr.config.yaml`](configuration.md#scan)
+set the same for every scan on a machine, and a typed flag wins over them. The [CLI
+reference](../reference/cli.md) describes the limit under *Each tool's own parallelism*, and the
+memory bound under *When a tool runs out of memory*. A scan run inside a memory limit, such as a
+systemd scope's `MemoryMax`, keeps its other controls' results when one tool passes it only if the
+limit's owner lets the rest run on, or if `--tool-memory` stops the tool first.
 
 The run's JSON `stats` reports the effective `concurrency` alongside `jobs` (total jobs),
 `scans`, `cacheHits`, and `deduped`, so you can see the effect and tune from evidence. See the

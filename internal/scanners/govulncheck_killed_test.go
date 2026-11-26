@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
@@ -118,6 +119,13 @@ func TestGovulncheckUnfinishedReasonFollowsTheFailure(t *testing.T) {
 	for _, in := range got {
 		if in.Unread != "govulncheck: did not finish, so no Go module here was analyzed" || !in.Analysis {
 			t.Errorf("%s: unread %q, analysis %v", in.Path, in.Unread, in.Analysis)
+		}
+	}
+	// A run Draugr stopped at the memory bound names the bound's flag rather than guessing.
+	stopped := fmt.Errorf("run govulncheck: %w %w", toolexec.ErrOverMemoryBound, toolexec.ErrKilled)
+	for _, in := range govulncheckUnfinished(dir, stopped) {
+		if !strings.Contains(in.Unread, "--tool-memory") || strings.Contains(in.Unread, "most likely") {
+			t.Errorf("%s: unread %q, want the bound named", in.Path, in.Unread)
 		}
 	}
 	if got := govulncheckUnfinished(writeTree(t, map[string]string{"README.md": "x\n"}), exitErr); len(got) != 0 {

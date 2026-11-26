@@ -198,6 +198,7 @@ scan:
   jobs: 4            # scan jobs run at once; 0 is the automatic default
   limitToolThreads: true  # hold each tool to its job's share of the machine, as --limit-tool-threads does
   shareWorkers: true      # hold Semgrep's and Trivy's own pools to that share too, as --share-workers does
+  toolMemory: 8GiB        # stop a tool past 8 GiB and fail its control, as --tool-memory does
 ```
 
 `jobs` is the default for `--jobs` on every scan the machine runs. A project's `jobs: 0` restores
@@ -211,6 +212,11 @@ machine with many cores and little memory per core. A project's `false` turns of
 `shareWorkers` is the default for `--share-workers`, and turns on `limitToolThreads` with it. On,
 Semgrep's analysis processes and Trivy's files in flight are held to each job's share as well, which
 saves more memory and can make a long run slower. A project's `false` turns off a machine's `true`.
+
+`toolMemory` is the default for `--tool-memory`: the resident memory one tool, with the processes it
+starts, may hold before Draugr stops it and fails its control, keeping the rest of the scan. Unset,
+there is no bound, and a project's `0` removes a machine's. It is enforced on Linux only; the [CLI
+reference](../reference/cli.md) explains it under *When a tool runs out of memory*.
 
 ### `log`
 

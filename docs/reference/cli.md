@@ -674,6 +674,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
 | `--limit-tool-threads` | `false` | Hold each tool's threads and Go build processes to its job's share of the parallelism bound, for a machine with many cores and little memory per core. Uses less memory and makes a run slower; left off, each tool sizes itself to the machine, as *Each tool's own parallelism* below explains (or `scan.limitToolThreads` in `draugr.config.yaml`) |
 | `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains. Implies `--limit-tool-threads` (or `scan.shareWorkers` in `draugr.config.yaml`) |
+| `--tool-memory` | none | Stop a tool once it and the processes it starts hold more than this much resident memory, such as `8GiB`, failing its control and keeping the rest of the scan. Linux only, as *When a tool runs out of memory* below explains (or `scan.toolMemory` in `draugr.config.yaml`) |
 | `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -686,8 +687,9 @@ the policy check runs only under `--policy`.
 
 The `--cache-*` flags have counterparts in [`draugr.config.yaml`](#draugr-config) under `cache:`
 (`dir`, `ttl`, `readOnly`, `requireDigest`); `--view`, `--evidence`, `--top` and `--no-tips` under
-`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs` and `--limit-tool-threads` under `scan:`
-(`jobs`, `limitToolThreads`). A flag on the command line wins over the file.
+`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs`, `--limit-tool-threads`, `--share-workers`
+and `--tool-memory` under `scan:` (`jobs`, `limitToolThreads`, `shareWorkers`, `toolMemory`). A flag on
+the command line wins over the file.
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -768,6 +770,36 @@ scope's `MemoryMax`. Where neither reports memory, n is half the CPUs. `stats.pe
 records the largest resident memory any one tool process reached, `stats.peakDraugrMemoryBytes`
 Draugr's own, and `stats.jobMemory` each job's largest tool process; see the [report
 schema](report-schema.md#tool-memory).
+
+**When a tool runs out of memory.** A tool that the kernel kills for memory fails its own control,
+with an error naming the tool, and the other controls' results are reported as usual. On Linux,
+Draugr raises each tool's `oom_score_adj` to 500 as it starts it, so that when memory runs out the
+kernel kills a tool before it kills Draugr, which holds every finished control's results.
+
+That depends on the kernel killing one process and the rest carrying on. Whatever set the memory
+limit may instead end everything inside it once one process is killed. A systemd service or scope
+does that under `OOMPolicy=stop`, which it takes from `DefaultOOMPolicy=` unless it delegates its
+cgroup: the unit "is terminated cleanly by the service manager" (`systemd.scope(5)`), so Draugr is
+sent SIGTERM with every other process in it and the controls still running are canceled. Under
+`OOMPolicy=kill` the kernel kills every process in the unit at once. Run such a scan with
+`OOMPolicy=continue`, or give it a bound below the limit with `--tool-memory`.
+
+`--tool-memory 8GiB`, or `scan.toolMemory: 8GiB` in `draugr.config.yaml`, stops a tool once the
+resident memory of the tool and of the processes it starts, added together, passes 8 GiB. Draugr
+reads it from `/proc` four times a second and stops the tool's whole process group with SIGKILL, so a
+tool can pass the bound by what it allocates in a quarter of a second before it is stopped. Memory
+two of those processes share is counted for each. The control's error names the tool and the bound,
+and says to raise it:
+
+```
+run govulncheck: used more than the 8GiB of memory --tool-memory allows, so Draugr stopped it. Raise `--tool-memory`, or `scan.toolMemory`, to let it finish.
+```
+
+The bound is per tool run, so jobs running at once can together use up to `--jobs` times the bound.
+It takes a whole number of `KiB`, `MiB`, `GiB` or `TiB`. There is no bound by default, so each tool
+may use all the memory the machine gives it, and `0` removes a bound a configuration file set. The
+bound is enforced on Linux only. On macOS and Windows a run given one logs a warning and runs its
+tools unbounded, and the kernel's choice is left as it is.
 
 **Severity bands.** The console reports each finding's severity band (critical, high, medium or
 low), derived from its CVSS score where the scanner supplies one, and `--fail-on` takes the same
@@ -2530,6 +2562,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `scan.jobs` | a whole number of 0 or more; 0, sized to the machine | 0 | How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`. |
 | `scan.limitToolThreads` | true or false | false | Whether each tool's threads and Go build processes are held to its job's share of half the CPUs or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool sizes itself to the machine. Overridden by `--limit-tool-threads`. |
 | `scan.shareWorkers` | true or false | false | Whether Semgrep's analysis processes and Trivy's files in flight are held to each job's share of the bound `limitToolThreads` applies, for less memory and CPU and a slower scan, and turns that limit on. Unset means each tool sizes its own pool. Overridden by `--share-workers`. |
+| `scan.toolMemory` | a size such as 512MiB or 8GiB, or 0 for none | none | The most resident memory one tool may use, with the processes it starts, before Draugr stops it and fails its control, as a whole number of KiB, MiB, GiB or TiB such as `8GiB`. Enforced on Linux only. Unset or `0` means no bound. Overridden by `--tool-memory`. |
 | `tools.<tool>.version` | a release, such as 0.69.3 | Draugr's pin | The version to install, e.g. `0.69.3`. |
 <!-- end of generated config keys -->
 

@@ -42,6 +42,7 @@ scan:
   jobs: 4
   limitToolThreads: true
   shareWorkers: true
+  toolMemory: 8GiB
 log:
   level: info
   format: json

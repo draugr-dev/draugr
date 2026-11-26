@@ -111,6 +111,11 @@ type ScanSettings struct {
 	// share of the machine, as --share-workers does, and turns on LimitToolThreads with it. Off by
 	// default. A pointer, so a more specific file's `false` turns off a less specific file's `true`.
 	ShareWorkers *bool `yaml:"shareWorkers,omitempty"`
+	// ToolMemory is the most resident memory one tool run may use, with the processes it starts,
+	// before Draugr stops it, as --tool-memory sets: a whole number of KiB, MiB, GiB or TiB, such as
+	// 8GiB. Unset or 0 means no bound. A pointer, so a more specific file's `0` removes a less
+	// specific file's bound.
+	ToolMemory *string `yaml:"toolMemory,omitempty"`
 }
 
 // LogSettings configures the log Draugr writes to stderr. Each has a `--log-*` flag that
@@ -451,6 +456,9 @@ func merge(a, b File) File {
 	}
 	if b.Scan.ShareWorkers != nil {
 		out.Scan.ShareWorkers = b.Scan.ShareWorkers
+	}
+	if b.Scan.ToolMemory != nil {
+		out.Scan.ToolMemory = b.Scan.ToolMemory
 	}
 
 	out.Log = a.Log
