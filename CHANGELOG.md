@@ -18,23 +18,23 @@ _Nothing yet._
 
 - **Import Aqua image scans.** An import with `format: aqua-json` reads what Aqua's `scannercli scan --jsonfile` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by Aqua's CVSS score or severity, whichever is more severe.
 
-- **Import Mend's dependency scan.** An import with `format: mend-json` reads the JSON `mend dep --format json --export-results` writes into `sca`: each vulnerable library with its package, installed version, the fixed version Mend names for it, its CVE and Mend's severity, so KEV and EPSS reach it. Transitive libraries name the direct dependency that brings them in.
+- **Import Mend's dependency scan.** An import with `format: mend-json` reads the JSON `mend dep --format json --export-results` writes into `sca`: each vulnerable library with its installed version, the fixed version Mend names, its CVE so KEV and EPSS reach it, and Mend's severity. A transitive library's detail names the direct dependency that brings it in.
 
-- **Import Prisma Cloud image scans.** An import with `format: twistcli-json` reads what `twistcli images scan --output-file` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by its CVSS score or Prisma Cloud's severity.
+- **Import Prisma Cloud image scans.** An import with `format: twistcli-json` reads what `twistcli images scan --output-file` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by its CVSS score, or by Prisma Cloud's severity where that is more severe.
 
-- **Import Semgrep's JSON, Supply Chain findings included.** `format: semgrep-json` reads what `semgrep ci --json-output` writes: code results into `sast`, rated as Draugr's Semgrep run rates them, and Supply Chain results into `sca` with the package, installed and fixed versions and CVE, so KEV and EPSS reach them.
+- **Import Semgrep's JSON, Supply Chain findings included.** `format: semgrep-json` reads what `semgrep ci --json-output` writes. Import the file once into `sast` for code results, rated from each rule's impact and likelihood, and once into `sca` for Supply Chain results, with the package, installed and fixed versions and CVE, so KEV and EPSS reach them.
 
-- **Read a SonarQube project's security issues into `sast`.** An import with `source: sonarqube` and `project:` reads them from SonarQube Cloud, or the server `$SONAR_HOST_URL` names, with `$SONAR_TOKEN`. Each finding keeps its file, line, rule and severity, accepted issues are set aside with their latest comment, and the analysis's commit binds the import.
+- **Read a SonarQube project's security issues into `sast`.** An import with `source: sonarqube` and `project:` reads them from SonarQube Cloud, or the server named in `$SONAR_HOST_URL`, with `$SONAR_TOKEN`. Each finding keeps its file, line, rule and severity. An accepted issue is set aside with its latest comment as the reason. Run the scan after SonarQube analyzes the same commit.
 
-- **Run Draugr in a container you build.** `contrib/docker/Dockerfile` builds an image holding Draugr and the scanners a first scan runs, each downloaded from its maker, and fetches the KEV, EPSS and Go vulnerability feeds before each scan. [Run Draugr in a container](https://draugr.dev/docs/latest/guides/docker/) shows how to build it and keep the feeds and databases in volumes.
+- **Run Draugr in a container you build.** `contrib/docker/Dockerfile` builds an image holding Draugr and the scanners a first scan runs. Before a scan, the container fetches the KEV, EPSS and Go vulnerability feeds, keeping a copy less than a day old. [Run Draugr in a container](https://draugr.dev/docs/latest/guides/docker/) shows how to build it and keep the feeds and databases in volumes.
 
 ### Fixed
 
-- **A Trivy import is held to the control its scan belongs to.** A `trivy-json` file imported into `secrets`, `iac` or another control is refused instead of reported as that control's findings. An image scan from `trivy image --format json` imports into `images`, each finding at the image Trivy scanned, and a filesystem scan into `sca`.
+- **A Trivy import goes only into the control its scan belongs to.** `draugr validate` and the editor refuse a `trivy-json` file imported into `secrets`, `iac` or another control its scan does not cover. An image scan from `trivy image --format json` imports into `images`, each finding at the image Trivy scanned, and a filesystem scan into `sca`.
 
-- **An import is held to the control its format's findings belong to.** A JFrog, GitLab, Veracode, govulncheck, Grype or OSV-Scanner file imported into another control, such as JFrog's dependency findings into `sast`, is refused by `draugr validate` and the editor instead of being reported as that control's findings.
+- **Every import goes only into the control its format's findings belong to.** `draugr validate` and the editor refuse a JFrog, GitLab, Veracode, govulncheck, Grype or OSV-Scanner file imported into another control, such as JFrog's dependency findings into `sast`.
 
-- **`draugr tools outdated` reads a public release listing when GitHub refuses your `GITHUB_TOKEN`.** It asks again without the token, so setting the token no longer makes a tool fail to compare. A refusal that still stands now prints the reason GitHub gave beside its status.
+- **`draugr tools outdated` reads a public release listing when GitHub refuses your `GITHUB_TOKEN`.** It asks again without the token, so a token GitHub rejects no longer stops a tool from being compared. When GitHub refuses the request without the token too, the error prints the reason GitHub gave beside its status.
 
 ## [0.191.0] - 2026-11-26
 
