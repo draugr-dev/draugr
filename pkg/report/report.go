@@ -135,6 +135,10 @@ type Data struct {
 	// the HTML report where it cut a block short, naming only the flags the run lacks.
 	ReportsDir string
 	Reports    []string
+	// Published are the runs the draugr-api servers recorded, set once the run has gone to them and
+	// empty where it went to none. The report a server receives is rendered before it is recorded,
+	// so only what this machine shows and writes afterwards can name them.
+	Published []PublishedRun
 	// Unclassified reports that no component declares exposure or criticality.
 	//
 	// A caveat on every band in the report: with nothing declared, each component is read as public

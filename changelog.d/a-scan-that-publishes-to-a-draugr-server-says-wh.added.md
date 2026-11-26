@@ -1,0 +1,1 @@
+- **A scan that publishes to a Draugr server says where the run went.** The console ends with a Published block, and the HTML report repeats it in its footer. Each names the project, and gives the address of the run's page, or the run's id and the server where the server returns no address.
