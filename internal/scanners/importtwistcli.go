@@ -195,7 +195,7 @@ func twistcliResult(img twistcliImage, ref string, v twistcliVulnerability) (sar
 		return sarif.Result{}, false, fmt.Errorf("severity %q of %s in %s; twistcli rates a vulnerability "+
 			"critical, high, medium or low. Import the file twistcli wrote, unedited", v.Severity, v.ID, v.PackageName)
 	}
-	score, hasScore, ok := twistcliScore(v.CVSS)
+	score, hasScore, ok := jsonCVSSScore(v.CVSS)
 	if !ok {
 		return sarif.Result{}, false, fmt.Errorf("cvss %s of %s in %s; twistcli writes a number from 0 to 10. "+
 			"Import the file twistcli wrote, unedited", string(v.CVSS), v.ID, v.PackageName)
@@ -247,9 +247,9 @@ func twistcliResult(img twistcliImage, ref string, v twistcliVulnerability) (sar
 	return r, hasScore, nil
 }
 
-// twistcliScore reads a CVSS score written as a number or a string, and whether there is one. A
+// jsonCVSSScore reads a CVSS score written as a number or a string, and whether there is one. A
 // score that is absent, null or empty is none; ok is false for one that is not a number from 0 to 10.
-func twistcliScore(raw json.RawMessage) (score float64, has, ok bool) {
+func jsonCVSSScore(raw json.RawMessage) (score float64, has, ok bool) {
 	text := strings.TrimSpace(string(raw))
 	if text == "" || text == "null" || text == `""` {
 		return 0, false, true

@@ -2179,6 +2179,47 @@
           "if": {
             "properties": {
               "format": {
+                "const": "aqua-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "aqua-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "control": {
+                "anyOf": [
+                  {
+                    "const": "images",
+                    "description": "The vulnerable packages Aqua's image scan found in the image."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
                 "const": "checkmarx-one-json"
               }
             },
@@ -2529,9 +2570,13 @@
             {
               "const": "twistcli-json",
               "description": "The JSON twistcli images scan --output-file writes, for images, with each vulnerable package's name, installed and fixed versions, CVE, and CVSS score or Prisma Cloud's severity."
+            },
+            {
+              "const": "aqua-json",
+              "description": "The JSON Aqua's scannercli scan --jsonfile writes, for images, with each vulnerable package's name, installed and fixed versions, CVE, and CVSS score or Aqua's severity."
             }
           ],
-          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's, Mend's and twistcli's by the rating the file states.",
+          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's, Mend's, twistcli's and Aqua's by the rating the file states.",
           "type": "string"
         },
         "repository": {
@@ -2568,7 +2613,7 @@
               "description": "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."
             }
           ],
-          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json and twistcli-json, whose files record no suppression.",
+          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json, twistcli-json and aqua-json, whose files record no suppression.",
           "type": "string"
         },
         "tokenEnv": {
@@ -3153,6 +3198,47 @@
           "if": {
             "properties": {
               "format": {
+                "const": "aqua-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "suppressions": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
+                "const": "aqua-json"
+              }
+            },
+            "required": [
+              "format"
+            ]
+          },
+          "then": {
+            "properties": {
+              "control": {
+                "anyOf": [
+                  {
+                    "const": "images",
+                    "description": "The vulnerable packages Aqua's image scan found in the image."
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "format": {
                 "const": "checkmarx-one-json"
               }
             },
@@ -3534,11 +3620,15 @@
               "description": "The JSON twistcli images scan --output-file writes, for images, with each vulnerable package's name, installed and fixed versions, CVE, and CVSS score or Prisma Cloud's severity."
             },
             {
+              "const": "aqua-json",
+              "description": "The JSON Aqua's scannercli scan --jsonfile writes, for images, with each vulnerable package's name, installed and fixed versions, CVE, and CVSS score or Aqua's severity."
+            },
+            {
               "const": "draugr-converter",
               "description": "The file a converter writes in Draugr's versioned contract, for a tool Draugr has no reader for. Needs converter."
             }
           ],
-          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's, Mend's and twistcli's by the rating the file states.",
+          "description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's, Mend's, twistcli's and Aqua's by the rating the file states.",
           "type": "string"
         },
         "repository": {
@@ -3575,7 +3665,7 @@
               "description": "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."
             }
           ],
-          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json and twistcli-json, whose files record no suppression.",
+          "description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json, twistcli-json and aqua-json, whose files record no suppression.",
           "type": "string"
         },
         "tokenEnv": {

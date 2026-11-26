@@ -591,6 +591,49 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
+## Import Aqua
+
+Import the JSON Aqua's `scannercli scan` writes into `images`. The image is scanned from a
+registry Aqua's console has an integration for, and `--registry` is that integration's name:
+
+```bash
+scannercli scan --host "$AQUA_CONSOLE" --user "$AQUA_USER" --password "$AQUA_PASSWORD" \
+  --registry "$AQUA_REGISTRY" --jsonfile reports/aqua.json acme/web:1.0
+```
+
+```yaml
+imports:
+  - control: images
+    file: reports/aqua.json
+    format: aqua-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerability of a package is a finding** at the version installed, in the image. Its rule is
+  its CVE, so KEV and EPSS reach it, else Aqua's id for it, such as a Debian `DSA`. Its location is
+  the file's `image`, else the reference it was pulled by, else its digest. A package listed twice
+  with the same vulnerability at the same path is one finding, rated by the more severe copy.
+- **An operating-system package** is one whose format is `apk`, `deb` or `rpm`. It is in the
+  distribution's ecosystem and carries the image's operating system. A binary package built from a
+  differently named source package names the source in the detail.
+- **Any other package** is in the ecosystem its format names where Draugr knows it, such as `npm`, and
+  in none otherwise. Aqua names a Java package by its path in the image, and a library it finds by
+  path alone has only that path, which becomes its name. Where Aqua found it is in the detail.
+- **The fixed version is read from `fix_version`**: one version, or several joined by commas. Where
+  the package's ecosystem is known, only versions above the installed one count; otherwise every
+  version counts.
+- **The whole fix stays in the detail** when Aqua writes the vendor's words after the versions or in
+  place of them, or names no version above the installed one.
+- **Rated by the more severe of Aqua's CVSS score and its severity.** `critical`, `high`, `medium`
+  and `low` are their bands, and `negligible`, which Aqua gives where a distribution calls a flaw
+  unimportant, is low. So Aqua's `critical` at a score of 3.7 stays critical, and its `negligible`
+  at a score of 10 is critical.
+- **Sensitive data, malware and image assurance results are not read.**
+- **Only `commit` binds the file**, since it names no commit.
+- **An import into any control but `images` is refused.**
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

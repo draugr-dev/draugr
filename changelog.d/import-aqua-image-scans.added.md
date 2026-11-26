@@ -1,0 +1,1 @@
+- **Import Aqua image scans.** An import with `format: aqua-json` reads what Aqua's `scannercli scan --jsonfile` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by Aqua's CVSS score or severity, whichever is more severe.

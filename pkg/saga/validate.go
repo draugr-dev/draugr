@@ -921,12 +921,12 @@ func validateImportFormat(imp Import, at string) []error {
 	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
 		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON ||
 		imp.ReadFormat() == ImportFormatCheckmarxOneJSON || imp.ReadFormat() == ImportFormatMendJSON ||
-		imp.ReadFormat() == ImportFormatTwistcliJSON) {
+		imp.ReadFormat() == ImportFormatTwistcliJSON || imp.ReadFormat() == ImportFormatAquaJSON) {
 		// The tools that write GitLab's format are many, and Draugr runs few of them, and none of
-		// JFrog's, Checkmarx's, Mend's or Prisma Cloud's, so the file is rated by the severity it
-		// states for each one.
-		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
-			"it states. Remove severity", at, imp.Format)}
+		// JFrog's, Checkmarx's, Mend's, Prisma Cloud's or Aqua's, so the file is rated by the severity
+		// it states for each one.
+		return []error{fmt.Errorf("%s.severity maps a SARIF property, and %s %s file is rated by the severity "+
+			"it states. Remove severity", at, article(imp.Format), imp.Format)}
 	}
 	if imp.Severity != nil && imp.ReadFormat() != ImportFormatSARIF {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated as Draugr's own run "+
@@ -963,6 +963,11 @@ func validateImportFormat(imp Import, at string) []error {
 	// twistcli's JSON records no suppression on the vulnerabilities it holds.
 	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatTwistcliJSON {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since twistcli's JSON records "+
+			"no suppression. Remove it", at)}
+	}
+	// Aqua's scanner JSON records no suppression on the vulnerabilities it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatAquaJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Aqua's scanner JSON records "+
 			"no suppression. Remove it", at)}
 	}
 	return nil
