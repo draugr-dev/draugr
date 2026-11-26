@@ -73,6 +73,7 @@ reads only those. Observed against cosign 3.1.1:
 | 12 | signed, by none of the expected identities | `provenance-unexpected-identity` |
 | 13 | signed, no certificate on the signature | `provenance-unexpected-identity` |
 | 1, message starts `no matching attestations` | signed, the signature does not verify against the declared signer | `provenance-unexpected-identity` |
+| 1, message `no matching signatures exist` | an attestation verified against the declared signer (cosign 3.1.6 and later) | none |
 | anything else | cosign could not answer | the control reports an error |
 
 The last row is the one that matters. cosign returns 1 for everything it has no specific code for,
@@ -87,6 +88,13 @@ entry names a different certificate. The finding is `provenance-unexpected-ident
 message as code 13, since neither signature offers an identity that can be believed. Sign with the declared
 signer, or declare the signer that signs.
 
+Exit 1 with `no matching signatures exist` is the other. From 3.1.6, `cosign verify` accepts only
+cosign's own signing predicate, `https://sigstore.dev/cosign/sign/v1`, and refuses with that
+sentence once something has verified and all of it is an attestation, such as a GitHub artifact
+attestation's SLSA provenance. Where nothing verifies, cosign fails earlier with `no matching
+attestations`, so this sentence means the attestation verified against the identity asked for.
+Against the declared signer that is a pass, as exit 0 was from earlier releases on the same image.
+
 On code 12 the image is read back a second time with a permissive identity pattern, to say **who**
 did sign it. That read never produces a pass; it only supplies a name for a finding that has
 already been made.
@@ -94,7 +102,8 @@ already been made.
 ### An image no signer covers
 
 With no signer to check against, the same permissive read asks who signed the image. Codes 10 and
-11 mean nothing did. Codes 12 and 13, and an exit 1 whose message starts `no matching attestations`,
+11 mean nothing did. Exit 1 with `no matching signatures exist` means an attestation verified, and
+its signer is read with the two probes above. Codes 12 and 13, and an exit 1 whose message starts `no matching attestations`,
 mean the registry holds a signature that does not verify as a Sigstore keyless one: a signature
 made with a key, which carries no certificate, or one that fails verification. The image is
 recorded as signed with its identity unread, and the control goes on to the next image. Any other

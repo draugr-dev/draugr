@@ -422,6 +422,52 @@ func TestCosignKeepsOtherExitOneFailuresAnError(t *testing.T) {
 	}
 }
 
+// cosign 3.1.6's answer once an attestation verified and none of what verified is a cosign
+// signature. Quoted from cmd/cosign/cli/verify/verify.go at v3.1.6.
+const onlyAttestations = "Error: no matching signatures exist"
+
+// From cosign 3.1.6, the declared signer's attestation verifies and cosign still exits 1, because
+// it is not a cosign signature. It is the declared signer, so there is nothing to report, as there
+// was when the same image exited 0.
+func TestCosignPassesTheDeclaredSignersAttestation(t *testing.T) {
+	s, calls := stubCosign(t, said(onlyAttestations))
+	rep := scan(t, s, expecting())
+	if len(rep.Results) != 0 {
+		t.Errorf("the declared signer's attestation was reported: %v", rep.Results)
+	}
+	if len(*calls) != 1 {
+		t.Errorf("a verified attestation needs no second read, got %d calls", len(*calls))
+	}
+	// The sentence is cosign's exit 1; under any other code it is not that answer.
+	s, _ = stubCosign(t, exitsSaying(2, onlyAttestations))
+	if _, err := s.Scan(context.Background(), plugin.ImageTarget{Ref: "ghcr.io/acme/p:1.0"}, expecting()); err == nil {
+		t.Error("an unknown exit code was read as a verified attestation")
+	}
+}
+
+// Discovery with cosign 3.1.6: the permissive read refuses the attestation instead of printing it,
+// and its signer is read from the same two probes as before.
+func TestCosignDiscoversAnAttestationCosignNoLongerPrints(t *testing.T) {
+	const refusal = `Error: no matching attestations: failed to verify certificate identity: ` +
+		`expected SAN value "x", got "https://github.com/acme/payments/.github/workflows/release.yml@refs/heads/main"`
+	const issuerRefusal = `Error: no matching attestations: failed to verify certificate identity: ` +
+		`expected issuer value "y", got "https://token.actions.githubusercontent.com"`
+
+	s, calls := stubCosign(t, said(onlyAttestations), said(refusal), said(issuerRefusal))
+	rep := scan(t, s, plugin.Config{"unmatched": "observe"})
+	if len(rep.Results) != 0 {
+		t.Errorf("observing is not a finding, got %v", rep.Results)
+	}
+	got := rep.Provenance[0].Describe()
+	if !strings.Contains(got, "acme/payments/.github/workflows/release.yml") ||
+		!strings.Contains(got, "https://token.actions.githubusercontent.com") {
+		t.Errorf("account = %q, want the identity and issuer the attestation carries", got)
+	}
+	if len(*calls) != 3 {
+		t.Fatalf("want the permissive read and two probes, got %d calls", len(*calls))
+	}
+}
+
 // A cosign that could not be started has said nothing about the image. Its code has to be one no
 // outcome claims, or a missing binary reads as a pass or as an unsigned image depending on the
 // number it happened to carry. Driven through the real exec, at a path where nothing exists, on
