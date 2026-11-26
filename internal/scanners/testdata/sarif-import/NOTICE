@@ -153,3 +153,23 @@ gitlab-dependency-scanning-gemnasium.json
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
+
+jfrog-audit-simple-json.json
+jfrog-audit-sarif.json
+
+  What JFrog's CLI writes as simple-json and as SARIF of the same jf audit
+  results, the expected output of its own test of those writers, copied
+  unchanged from https://github.com/jfrog/jfrog-cli-security at tag v1.41.4
+  (commit b723b302f57c2a55d190031f1f995fce66acd839):
+
+  jfrog-audit-simple-json.json is file
+  tests/testdata/output/audit/audit_simple_json.json (git blob
+  301f512c1d0bee4d1268bf26d74288be6772ee47), and jfrog-audit-sarif.json is
+  file tests/testdata/output/audit/audit_sarif.json (git blob
+  329181b68b41d0027e4abefe0f6b1b514897d792).
+  TestConvertResults in utils/results/conversion/convertor_test.go there
+  compares each writer's output with them.
+
+  They are used under the Apache License, Version 2.0, that repository's
+  license (its LICENSE file), which is also this repository's and is in
+  LICENSE at its root. That repository has no NOTICE file.

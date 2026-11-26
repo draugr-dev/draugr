@@ -503,6 +503,7 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatVeracodePipelineJSON:     "Veracode Pipeline Scan JSON",
 	saga.ImportFormatGitLabSAST:               "GitLab SAST report",
 	saga.ImportFormatGitLabDependencyScanning: "GitLab dependency scanning report",
+	saga.ImportFormatJFrogSimpleJSON:          "JFrog simple-json",
 	saga.ImportFormatConverter:                "converter file",
 }
 

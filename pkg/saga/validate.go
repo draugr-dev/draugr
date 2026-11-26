@@ -904,9 +904,9 @@ func validateImportFormat(imp Import, at string) []error {
 			"Veracode states. Remove severity", at, imp.Format)}
 	}
 	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
-		imp.ReadFormat() == ImportFormatGitLabDependencyScanning) {
-		// The tools that write GitLab's format are many, and Draugr runs few of them, so the file is
-		// rated by the severity it states for each vulnerability.
+		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON) {
+		// The tools that write GitLab's format are many, and Draugr runs few of them, and none of
+		// JFrog's, so the file is rated by the severity it states for each vulnerability.
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"it states. Remove severity", at, imp.Format)}
 	}
@@ -930,6 +930,11 @@ func validateImportFormat(imp Import, at string) []error {
 	if imp.Suppressions != "" && (imp.ReadFormat() == ImportFormatGitLabSAST ||
 		imp.ReadFormat() == ImportFormatGitLabDependencyScanning) {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since a GitLab report records no "+
+			"suppression. Remove it", at)}
+	}
+	// JFrog's simple-json records no suppression on the vulnerabilities it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatJFrogSimpleJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since JFrog's simple-json records no "+
 			"suppression. Remove it", at)}
 	}
 	return nil

@@ -414,6 +414,51 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the report states its own rating
   and records no suppression.
 
+## Import JFrog Xray
+
+`jf audit` writes SARIF, but it folds each dependency finding's CVE, package and version into the
+rule id, such as `CVE-2020-8203_lodash_4.17.0`, and gives the fixed version only in a property. Its
+`simple-json` keeps each as a field, so import that into `sca`:
+
+```bash
+jf audit --format simple-json > reports/jfrog.json
+```
+
+```yaml
+imports:
+  - control: sca
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerable package is a finding** at the version installed, in each manifest that declares a
+  direct dependency bringing it in. Its rule is its first CVE, so KEV and EPSS reach it, else Xray's own
+  id, such as `XRAY-609848`. Its other CVEs and Xray's id are its aliases, and its detail names the
+  direct dependency that brings it in.
+- **The fixed version is read where Xray names a single version**, `[4.17.19]`. Several such versions
+  are joined with commas, as Trivy's are. A fix written as a range, such as `(,1.2.0)`, leaves the finding with
+  no fixed version, and the range is kept in its detail.
+- **Go and npm packages get a package URL.** Every package keeps the type Xray names, such as `npm`
+  or `Maven`, as its ecosystem.
+- **Rated by Xray's severity:** `Critical`, `High`, `Medium` and `Low` as their bands, and
+  `Information` as low. `Unknown`, or no severity, ranks high, and the finding says `not scored yet`.
+- **JFrog's contextual analysis is kept in the detail and changes no priority.** A finding JFrog
+  marks `Not Applicable` ranks as any other does.
+- **A violation a watch raised is read as well**, and a vulnerability listed in both places is one
+  finding.
+- **With `--watches`, `--project` or `--repo-path`**, also pass `--vuln`, or the file holds only what
+  Xray's policies flag. Pass `--fail=false` too: a matched Fail build rule otherwise exits 3 and stops
+  the pipeline before Draugr reads the file.
+- **Only the dependency scan is read.** The file's SAST, secrets and IaC findings are left out.
+  Reading them is tracked in https://github.com/draugr-dev/draugr/issues/2477.
+- **Only `commit` binds the file**, since it names no commit.
+- **A file is refused** when its dependency scan did not run or failed, when it lists an error, when
+  a severity is not one of Xray's, or when a vulnerability names no package, advisory id or manifest.
+  Each error says which.
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

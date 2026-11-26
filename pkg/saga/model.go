@@ -1134,6 +1134,9 @@ const (
 	// ImportFormatGitLabDependencyScanning is a dependency scanning report in GitLab's security report
 	// format, the gl-dependency-scanning-report.json GitLab's analyzers write.
 	ImportFormatGitLabDependencyScanning = "gitlab-dependency-scanning"
+	// ImportFormatJFrogSimpleJSON is the simple-json JFrog's CLI writes with jf audit --format
+	// simple-json, read for its dependency vulnerabilities.
+	ImportFormatJFrogSimpleJSON = "jfrog-simple-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1142,7 +1145,7 @@ const (
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
 	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
-	ImportFormatGitLabDependencyScanning, ImportFormatConverter}
+	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatConverter}
 
 // The services an import's Source names.
 const (

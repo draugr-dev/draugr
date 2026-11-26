@@ -132,7 +132,8 @@ scanners shape theirs, as [`osv-scanner`](osv-scanner.md) reads its own run, exc
 reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Veracode. Pipeline Scan
 writes no SARIF, so its `results.json` is read into code findings. GitLab's reports are read the
 same way, a SAST report into code findings and a dependency scanning report into findings shaped as
-Draugr's dependency scanners shape theirs.
+Draugr's dependency scanners shape theirs. A JFrog simple-json file's dependency scan is read into
+findings shaped the same way.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -144,6 +145,7 @@ Draugr's dependency scanners shape theirs.
 | `veracode-pipeline-json` | Pipeline Scan's `results.json`, written with `-jo true` | this page describes | the flaw's file and line, placed in the checkout ([Import Veracode Pipeline Scan](../../docs/guides/importing-sarif.md#import-veracode-pipeline-scan)), its CWE, Veracode's severity as the rating, Veracode's explanation as the detail, and Veracode's flaw hashes as fingerprints |
 | `gitlab-sast` | a SAST report in GitLab's security report format, schema 15 | this page describes | the vulnerability's file and line, its first identifier as the rule, the CWE its identifiers name, the severity the report states as the rating, and its description as the detail ([Import GitLab's security reports](../../docs/guides/importing-sarif.md#import-gitlabs-security-reports)) |
 | `gitlab-dependency-scanning` | a dependency scanning report in GitLab's format, schema 15 | this page describes | the advisory under its CVE, else its GHSA id, else the report's own id, its other ids as aliases, the package, its installed version, the fixed version the report's solution names, its package URL and ecosystem for Go and npm, and the severity the report states as the rating |
+| `jfrog-simple-json` | `jf audit --format simple-json` | this page describes | the advisory under its CVE, else Xray's own id, its other ids as aliases, the package, its installed and fixed versions, its package URL for Go and npm, the package type Xray names as its ecosystem, and Xray's severity as the rating, in each manifest that declares a direct dependency bringing it in ([Import JFrog Xray](../../docs/guides/importing-sarif.md#import-jfrog-xray)) |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -634,6 +636,19 @@ that found nothing:
   the package counting in a dependency scanning report only;
 - `severity "Severe"; GitLab's format rates a vulnerability Critical, High, Medium, Low, Info or
   Unknown. Import the file the tool wrote, unedited`, for a severity outside GitLab's list;
+- `not JFrog simple-json. Write it with jf audit --format simple-json`, for a file with no
+  `scansStatus` or no `vulnerabilities` list, such as JFrog's SARIF;
+- `no dependency scan: the file records none. Run jf audit without selecting scanners, or with
+  --sca`, for a file whose `scansStatus` has no `scaScanStatusCode`;
+- `the dependency scan did not succeed (status 1). Draugr reads a scan that succeeded. Run jf audit
+  again`, for a file whose dependency scan failed;
+- `the scan of svc failed (npm install failed), so findings may be missing from the file. Fix it and
+  run jf audit again`, for a file that lists an error, naming the first;
+- `a vulnerability names no package, advisory id or manifest, which every one jf audit writes
+  carries. Import the file jf audit wrote, unedited`, for a vulnerability or violation missing one of
+  them;
+- `severity "Severe"; Xray rates a vulnerability Critical, High, Medium, Low, Information or Unknown.
+  Import the file jf audit wrote, unedited`, for a severity outside Xray's list;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key
