@@ -1143,6 +1143,9 @@ type jsonRerank struct {
 	// Direction is "raised" where head ranks the finding more urgent than base did, "lowered"
 	// otherwise.
 	Direction string `json:"direction"`
+	// Changed is each input to the band that base and head recorded differently. Absent where
+	// neither records a difference: the row says nothing rather than guessing.
+	Changed []Cause `json:"changed,omitempty"`
 }
 
 type jsonSummary struct {
@@ -1188,7 +1191,7 @@ func renderJSON(w io.Writer, r Result) error {
 		} else {
 			doc.Summary.Lowered++
 		}
-		doc.Reranked = append(doc.Reranked, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: direction})
+		doc.Reranked = append(doc.Reranked, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: direction, Changed: rr.Causes()})
 	}
 	if doc.New == nil {
 		doc.New = []sarif.Result{}

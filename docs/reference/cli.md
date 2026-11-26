@@ -1280,8 +1280,11 @@ its component.
 **Reranked** is a finding in both scans and excused in neither, in the same component, whose priority band
 changed: a component that declared its exposure or criticality, or a new exploitation signal. A
 `RERANKED` table lists each with the band it had and the band it has (`P1 → P3`), raised ones
-first, and the headline counts how many were raised and how many lowered. A reranked finding is not
-counted as unchanged. A finding that changed component and band is moved, not reranked, and its
+first, and the headline counts how many were raised and how many lowered. A line under the heading
+names a component's changed exposure or criticality. The line under a row names what moved that
+finding alone, such as `↑ KEV` or `↓ unreachable`. Both appear only where both scans record the
+input. A reranked finding
+is not counted as unchanged. A finding that changed component and band is moved, not reranked, and its
 band change is in `PRIORITY CHANGED`.
 
 New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, ranked by priority,

@@ -67,19 +67,30 @@ func rerankedComponents(rs []Rerank) bool {
 // A row each, as the moves whose band changed get one. The band is what a reader triages by, so a
 // change to it is a change to their list, and the descriptor edit or signal behind it is the part
 // of the change to check.
+//
+// What moved each band is said where both scans record it: a line under the heading for a component
+// whose declared classification moved every row of it, and under a row what moved that finding
+// alone. The compact view keeps the component lines and drops the rest with the sentence.
 func writeReranked(w io.Writer, col tui.Painter, r Result, opts Options) {
 	if len(r.Reranked) == 0 {
 		return
 	}
 	shown, heading := capReranks(r.Reranked, opts.Top)
 	_, _ = fmt.Fprintf(w, "\n%s  %s\n", col.Paint(tui.StyleMuted, "RERANKED"), col.Paint(tui.StyleMuted, heading))
+	why := explainReranks(shown)
+	for _, line := range why.components {
+		_, _ = fmt.Fprintf(w, "  %s\n", line)
+	}
+	if len(why.components) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
 	withComponent := rerankedComponents(shown)
 	cols := []string{"Priority", "Severity", "Rule", "Scanner"}
 	if withComponent {
 		cols = append(cols, "Component")
 	}
 	t := tui.NewTable(col, append(cols, "Location")...).Indent("  ").StyledNotes()
-	for _, rr := range shown {
+	for i, rr := range shown {
 		cells := []tui.Cell{
 			tui.Styled(tui.PriorityStyle(rr.Priority), rerankBand(rr)),
 			tui.PlainCell(string(rr.RankedSeverity())),
@@ -94,7 +105,11 @@ func writeReranked(w io.Writer, col tui.Painter, r Result, opts Options) {
 			t.Row(cells...)
 			continue
 		}
-		t.RowWithNotes([]string{findingTitle(Entry{Result: rr.Result})}, cells...)
+		notes := []string{findingTitle(Entry{Result: rr.Result})}
+		if why.rows[i] != "" {
+			notes = append(notes, why.rows[i])
+		}
+		t.RowWithNotes(notes, cells...)
 	}
 	t.Render(w)
 	if len(shown) < len(r.Reranked) {
@@ -110,15 +125,27 @@ func writeMarkdownReranked(w io.Writer, r Result, opts Options) {
 	}
 	shown, heading := capReranks(r.Reranked, opts.Top)
 	_, _ = fmt.Fprintf(w, "\n### Reranked · %s\n\n", heading)
-	withComponent := rerankedComponents(shown)
-	if withComponent {
-		_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Scanner | Component | Location |")
-		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|---|")
-	} else {
-		_, _ = fmt.Fprintln(w, "| Priority | Severity | Rule | Scanner | Location |")
-		_, _ = fmt.Fprintln(w, "|---|---|---|---|---|")
+	why := explainReranks(shown)
+	for _, line := range why.components {
+		comp, causes, _ := strings.Cut(line, ": ")
+		_, _ = fmt.Fprintf(w, "- **%s**: %s\n", comp, causes)
 	}
-	for _, rr := range shown {
+	if len(why.components) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+	withComponent := rerankedComponents(shown)
+	withWhy := why.anyRow()
+	cols := []string{"Priority", "Severity", "Rule", "Scanner"}
+	if withComponent {
+		cols = append(cols, "Component")
+	}
+	cols = append(cols, "Location")
+	if withWhy {
+		cols = append(cols, "Why")
+	}
+	_, _ = fmt.Fprintln(w, "| "+strings.Join(cols, " | ")+" |")
+	_, _ = fmt.Fprintln(w, strings.Repeat("|---", len(cols))+"|")
+	for i, rr := range shown {
 		id := "`" + rr.RuleID + "`"
 		if u := r.HelpURI(rr.RuleID); u != "" {
 			id = "[" + id + "](" + u + ")"
@@ -127,8 +154,12 @@ func writeMarkdownReranked(w io.Writer, r Result, opts Options) {
 		if withComponent {
 			component = " " + dash(rr.Component) + " |"
 		}
-		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s |\n", rerankBand(rr), rr.RankedSeverity(), id,
-			dash(rr.Tool), component, loc(rr.Location.URI, rr.Location.StartLine))
+		reason := ""
+		if withWhy {
+			reason = " " + why.rows[i] + " |"
+		}
+		_, _ = fmt.Fprintf(w, "| %s | %s | %s | %s |%s %s |%s\n", rerankBand(rr), rr.RankedSeverity(), id,
+			dash(rr.Tool), component, loc(rr.Location.URI, rr.Location.StartLine), reason)
 	}
 	if len(shown) < len(r.Reranked) {
 		_, _ = fmt.Fprintf(w, "\n_…and %d not listed._\n", len(r.Reranked)-len(shown))

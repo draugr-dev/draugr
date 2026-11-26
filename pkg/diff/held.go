@@ -846,7 +846,7 @@ func (h Held) Notes() []string {
 	var notes []string
 	if h.Unrecorded {
 		return []string{"The base report records no exposure, criticality, controls or exclusions, " +
-			"so this change's own decide"}
+			"so this change's own declarations decide"}
 	}
 	if h.Trusted {
 		return h.trustedNotes()

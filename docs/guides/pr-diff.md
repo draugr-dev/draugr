@@ -314,7 +314,7 @@ gate does not read them, since nobody introduced them.
 
 The headline says how many were raised and how many lowered. The `RERANKED` table lists each finding
 with the band it had and the band it has, raised ones first. Here the `worker` and `platform` components
-declared their context between the two scans:
+declared their context between the two scans, and a line under the heading names what each declared:
 
 ```console
 $ draugr diff out-base/results.sarif out-head/results.sarif --fail-on-new P1 --view compact
@@ -328,6 +328,9 @@ Gate: fails on any P1 this change introduces.
 Nothing is new or fixed. Only priorities changed.
 
 RERANKED  5 · 5 lowered
+  worker: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+  platform: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+
   Priority  Severity  Rule                                                                        Scanner      Component  Location
   P1 → P2   critical  CVE-2026-4800                                                               trivy        worker     worker/package-lock.json:73
   P1 → P3   high      KSV-0014                                                                    Trivy        platform   deploy/pod.yaml:8
@@ -339,12 +342,34 @@ TRY
   --format markdown  the comment a pull request gets
 ```
 
+A component whose reranked rows all moved because it declared a new exposure or criticality gets
+one line under the heading. `(assumed)` marks a value it had not declared, which Draugr ranks as
+`public` and `critical`. What moved a single finding goes on the line under its row:
+
+- `↑ KEV` or `↑ EPSS`: an exploitation signal raised the severity.
+- `↓ unreachable`: reachability analysis found no path from the code to it, so the severity was
+  lowered.
+- `↓ pinned`: a lockfile pins the reference, which holds the band at P3.
+- `↑ floor`: the control holds the band up whatever the component declares, or `↑ converter <name>`
+  where a declared converter does.
+- `↑ minimum severity high`: the control's minimum severity raised the scanner's rating.
+- `severity medium → high`: the scanner rated the finding again.
+- `no longer KEV`, `no longer unreachable` and the like: the base had the mark and the head does not.
+- `(was EPSS)`: the head has a different value for the same mark.
+
+`--view compact` drops the lines under the rows and keeps the component lines. A row with no line
+under it moved only for its component's line, or had the same recorded inputs in both scans. A base written before 0.189.0 in which no
+finding carries an exposure or criticality names no classification, because it cannot say what its
+components declared.
+
 A finding that changed component and band is moved rather than reranked, because the component it
 moved to is why its band changed, and `PRIORITY CHANGED` lists it with both. `--top` caps the
 reranked rows and `--min-priority` leaves them alone, as it leaves moved ones. `--format markdown`
-carries the table under `### Reranked`, and `--format json` lists each finding under `reranked`
-with the band it had in `base` (`fromPriority`) and which way it went (`direction`), counted in the
-summary's `reranked`, `raised` and `lowered`.
+carries the table under `### Reranked`, with the component lines as a list above it and a `Why`
+column where a row has its own. `--format json` lists each finding under `reranked` with the band it
+had in `base` (`fromPriority`), which way it went (`direction`) and what changed (`changed`, each
+with its `input`, the `from` and `to` values the scans recorded and the console's `text`), counted
+in the summary's `reranked`, `raised` and `lowered`.
 
 ### Where the base comes from
 

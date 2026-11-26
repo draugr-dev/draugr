@@ -1,0 +1,1 @@
+- **`draugr diff` finishes its sentence about a base report that records no declarations**, which ended "so this change's own decide" and now reads "so this change's own declarations decide".
