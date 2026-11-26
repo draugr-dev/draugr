@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // FakeDataReaders answers every tool's data reader from canned output for the rest of t, so a test
@@ -33,4 +34,7 @@ func FakeDataReaders(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(osv, "all.zip"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("TUF_ROOT", "")
+	t.Setenv("TUF_MIRROR", "")
+	writeTUFRepo(t, filepath.Join(home, ".sigstore", "root"), "tuf-repo-cdn.sigstore.dev", 16, time.Date(2026, 11, 26, 18, 19, 26, 0, time.UTC))
 }

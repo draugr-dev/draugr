@@ -185,6 +185,12 @@ func (s *cosignVerifier) Prewarm(ctx context.Context) error {
 	return nil
 }
 
+// DataState reports the Sigstore trust root's version and when this machine last fetched it
+// (implements plugin.DataStater).
+func (s *cosignVerifier) DataState(ctx context.Context) []plugin.DataState {
+	return cosignTrustRoot(ctx)
+}
+
 // Scan verifies one image against the expectation the control resolved for it.
 func (s *cosignVerifier) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	img, ok := target.(plugin.ImageTarget)

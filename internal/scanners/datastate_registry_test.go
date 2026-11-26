@@ -13,9 +13,7 @@ import (
 // noDataReaderYet names the scanners that keep data on this machine and have no reader for it yet,
 // each with what is missing. An entry is a known gap rather than a pass, and the test fails once the
 // scanner reports its data, so the entry goes when the reader arrives.
-var noDataReaderYet = map[string]string{
-	"cosign": "cosign keeps the Sigstore trust root under ~/.sigstore, and nothing reads its version or fetch time",
-}
+var noDataReaderYet = map[string]string{}
 
 // Every registered scanner that keeps data on this machine reports how current it is, under the
 // names it declares, so the report and the network list in doctor speak of the same thing.

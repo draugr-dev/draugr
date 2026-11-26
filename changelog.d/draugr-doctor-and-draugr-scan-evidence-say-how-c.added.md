@@ -1,0 +1,1 @@
+- **`draugr doctor` and `draugr scan --evidence` say how current the Sigstore trust root is.** They name the version of the trust root cosign holds and when cosign last refreshed it, as they do for the Trivy and Grype databases and the Nuclei template set.

@@ -124,10 +124,7 @@ type Unwritable struct {
 func UnwritableFor(tool string) []Unwritable {
 	var out []Unwritable
 	for _, w := range toolWrites[tool] {
-		path := os.Getenv(w.Var)
-		if path == "" && w.Default != nil {
-			path = w.Default()
-		}
+		path := w.path()
 		if path == "" {
 			continue
 		}
@@ -139,6 +136,29 @@ func UnwritableFor(tool string) []Unwritable {
 		}
 	}
 	return out
+}
+
+// WritePath is where the tool writes what the variable v names: the variable's value, or the
+// tool's own default where it is unset. "" where neither can be worked out, or where toolWrites
+// lists no such variable for the tool.
+func WritePath(tool, v string) string {
+	for _, w := range toolWrites[tool] {
+		if w.Var == v {
+			return w.path()
+		}
+	}
+	return ""
+}
+
+// path is where the tool writes: Var's value, or Default where Var is unset.
+func (w toolWrite) path() string {
+	if p := os.Getenv(w.Var); p != "" {
+		return p
+	}
+	if w.Default != nil {
+		return w.Default()
+	}
+	return ""
 }
 
 // canWrite reports whether path, or the nearest existing directory above it, takes a write.

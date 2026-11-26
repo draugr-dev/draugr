@@ -264,3 +264,25 @@ func TestEveryDefaultIsUnderHome(t *testing.T) {
 		}
 	}
 }
+
+// WritePath answers with the variable's value where it is set, the tool's default where it is not,
+// and nothing for a variable the tool does not read.
+func TestWritePathFollowsTheVariableThenTheDefault(t *testing.T) {
+	clearToolWriteVars(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if got, want := WritePath("cosign", "TUF_ROOT"), filepath.Join(home, ".sigstore", "root"); got != want {
+		t.Errorf("default = %q, want %q", got, want)
+	}
+	set := filepath.Join(t.TempDir(), "tuf")
+	t.Setenv("TUF_ROOT", set)
+	if got := WritePath("cosign", "TUF_ROOT"); got != set {
+		t.Errorf("set = %q, want %q", got, set)
+	}
+	if got := WritePath("cosign", "TRIVY_CACHE_DIR"); got != "" {
+		t.Errorf("a variable cosign does not read = %q", got)
+	}
+	if got := WritePath("no-such-tool", "TUF_ROOT"); got != "" {
+		t.Errorf("an unknown tool = %q", got)
+	}
+}

@@ -166,12 +166,73 @@ func retireData(context.Context) []plugin.DataState {
 	return []plugin.DataState{{Name: "advisory database", Downloaded: modTime(path)}}
 }
 
+// sigstoreMirror is the TUF repository cosign fetches the Sigstore trust root from unless told
+// otherwise.
+const sigstoreMirror = "https://tuf-repo-cdn.sigstore.dev"
+
+// cosignTrustRoot is the state of the Sigstore trust root cosign keeps. cosign caches the TUF
+// repository it fetches the root from under TUF_ROOT, ~/.sigstore/root by default, in a directory
+// named after the mirror: the mirror is TUF_MIRROR, or the one `cosign initialize` recorded in
+// remote.json. Beside that directory, <mirror>.json holds when cosign last refreshed it.
+//
+// The version is the root metadata's, the number Sigstore gives each signed set of root keys. The
+// download time is the last refresh, or timestamp.json's modification time where the refresh was
+// not recorded. Nothing where no root metadata is cached, because then cosign has not fetched one.
+func cosignTrustRoot(context.Context) []plugin.DataState {
+	cache := tools.WritePath("cosign", "TUF_ROOT")
+	if cache == "" {
+		return nil
+	}
+	mirror := os.Getenv("TUF_MIRROR")
+	if mirror == "" {
+		var remote struct {
+			Mirror string `json:"mirror"`
+		}
+		// #nosec G304 G703 -- cosign's own cache, where TUF_ROOT or the home directory puts it; read, never written
+		if b, err := os.ReadFile(filepath.Join(cache, "remote.json")); err == nil && json.Unmarshal(b, &remote) == nil {
+			mirror = remote.Mirror
+		}
+	}
+	if mirror == "" {
+		mirror = sigstoreMirror
+	}
+	repo := filepath.Join(cache, tufDirName(mirror))
+	var root struct {
+		Signed struct {
+			Version int `json:"version"`
+		} `json:"signed"`
+	}
+	b, err := os.ReadFile(filepath.Join(repo, "root.json")) // #nosec G304 G703 -- cosign's own cache, read, never written
+	if err != nil || json.Unmarshal(b, &root) != nil || root.Signed.Version <= 0 {
+		return nil
+	}
+	st := plugin.DataState{Name: "Sigstore trust root", Version: "root " + strconv.Itoa(root.Signed.Version)}
+	var refreshed struct {
+		LastTimestamp time.Time `json:"lastTimestamp"`
+	}
+	// #nosec G304 G703 -- cosign's own record of its last refresh, beside the cache; read, never written
+	if b, err := os.ReadFile(repo + ".json"); err == nil && json.Unmarshal(b, &refreshed) == nil {
+		st.Downloaded = refreshed.LastTimestamp.UTC()
+	}
+	if st.Downloaded.IsZero() {
+		st.Downloaded = modTime(filepath.Join(repo, "timestamp.json"))
+	}
+	return []plugin.DataState{st}
+}
+
+// tufDirName is the directory cosign names a mirror's cache after: the address without its
+// scheme, with each slash and colon a dash, in lower case.
+func tufDirName(mirror string) string {
+	name := strings.TrimPrefix(strings.TrimPrefix(mirror, "https://"), "http://")
+	return strings.ToLower(strings.NewReplacer("/", "-", ":", "-").Replace(name))
+}
+
 // modTime is a file's or directory's modification time, or zero where it cannot be read.
 func modTime(path string) time.Time {
 	if path == "" {
 		return time.Time{}
 	}
-	fi, err := os.Stat(path)
+	fi, err := os.Stat(path) // #nosec G703 -- a stat of a tool's own data file, which reads nothing from it
 	if err != nil {
 		return time.Time{}
 	}
