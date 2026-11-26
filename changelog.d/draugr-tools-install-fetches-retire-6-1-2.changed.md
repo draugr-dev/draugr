@@ -1,0 +1,1 @@
+- **`draugr tools install` fetches retire 6.1.2**, which was pinned at 6.1.0.
