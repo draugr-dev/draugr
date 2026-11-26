@@ -458,7 +458,7 @@ func TestADescriptorChangeIsTrustedByItsDigest(t *testing.T) {
 }
 
 // A pull request that adds a scanner's ignore file, or edits one in the second of two
-// repositories, fails until it merges, naming the file and its repository, and passes with the
+// repositories, fails until the pipeline trusts it, naming the file and its repository, and passes with the
 // digest the failing run printed. A file left as the base had it holds nothing.
 func TestAFileThatSetsFindingsAsideIsHeldToTheBase(t *testing.T) {
 	s, reg := stagedPair()
@@ -481,7 +481,7 @@ func TestAFileThatSetsFindingsAsideIsHeldToTheBase(t *testing.T) {
 		t.Fatalf("err = %v, want the files named\n%s", err, console)
 	}
 	if want := "This change adds .gitleaksignore in api.git and changes .trivyignore in web.git, which can set " +
-		"findings aside or change what a scanner finds, so the gate holds until it merges."; !strings.Contains(console, want) {
+		"findings aside or change what a scanner finds, so the gate fails until the pipeline trusts this change."; !strings.Contains(console, want) {
 		t.Errorf("console does not say %q:\n%s", want, console)
 	}
 
@@ -493,6 +493,8 @@ func TestAFileThatSetsFindingsAsideIsHeldToTheBase(t *testing.T) {
 	if out, err := diffIn(t, t.TempDir(), base, filepath.Join(headOut, "results.sarif"), "--fail-on-new", "P4"); err == nil ||
 		err.Error() != "differential gate: "+clause {
 		t.Errorf("draugr diff: err = %v\n%s", err, out)
+	} else if !strings.Contains(out, "DRAUGR DIFF  FAIL  2 files need trust  ") {
+		t.Errorf("draugr diff does not count the held files first:\n%s", out)
 	}
 
 	trusted := t.TempDir()

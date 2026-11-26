@@ -1394,13 +1394,13 @@ the change to the base's declaration until it merges:
   gate the way a narrowed `paths` does, on one component or on a project-wide control.
 - A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
   gated as new.
-- A file the change adds, or reads with other content than the base did, fails the gate until it
-  merges, whichever control it applies to: a `not_affected` statement in a VEX document, a line in
-  `.trivyignore` or `.gitleaksignore`, an allowlist in `.gitleaks.toml`, or a ruleset edited in place
-  under a setting that still names it. A file the change removes passes, since that only widens what
-  is reported. A VEX document fetched from a URL or read from another repository is compared by
-  where it is, not by what it says, because the change cannot edit it and the base already chose to
-  trust it.
+- A file the change adds, or reads with other content than the base did, fails the gate until
+  the pipeline trusts the change, whichever control it applies to: a `not_affected` statement in a
+  VEX document, a line in `.trivyignore` or `.gitleaksignore`, an allowlist in `.gitleaks.toml`, or
+  a ruleset edited in place under a setting that still names it. A file the change removes passes,
+  since that only widens what is reported. A VEX document fetched from a URL or read from another
+  repository is compared by where it is, not by what it says, because the change cannot edit it and
+  the base already chose to trust it.
 - A base report from 0.189.3 or earlier did not record a `.semgrepignore` below the root. The diff
   reads the file at the commit the base report names, from the checkout it runs in, so an unchanged
   file passes and an edited one is held as changed. Where it cannot read it, because the checkout
@@ -1413,21 +1413,24 @@ the change to the base's declaration until it merges:
   have the finding, the listing says `accepted by this change: suppressed in source (nosemgrep)`,
   with the tool's reason where it gave one and the directive's name where it gave none.
 
-The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
-there was looked for.`, or, where the control still runs, what changed: `This change alters what
-secrets reads on api (ignore src/client.py), so what it adds there may not have been looked for.` or
-`This change alters what sca reads on api (setting trivyFs changed), so what it adds there may not
-have been looked for.` or `This change adds .gitleaksignore and changes vex/pyyaml.openvex.json,
-which can set findings aside or change what a scanner finds, so the gate holds until it merges.`,
-naming the repository after a file where the run reads more than one (`.gitleaksignore in
-api.git`). A change that lowers a classification or adds an exclusion, and adds no finding of its
-own, passes. A base report from a release that did not record the declaration says so and leaves
-the head's to decide. One from 0.189.0 recorded each repository without its `paths`, so its
-controls are compared by repository alone. One from 0.189.1 recorded neither `ignore` nor
-`revision`, so a head that declares either looks newly added. It recorded no control's settings
-either, and reads as declaring none, so a head with settings is held until trusted. It recorded no
-files either, and reads as reading none, so a head that reads any of them is held until trusted.
-Scan the base with the same release as the head.
+The diff says each, for example `The base ran sca on api and this change does not, so nothing it
+adds there was looked for.`, or, where the control still runs, what changed: `This change alters
+what secrets reads on api (ignore src/client.py), so what it adds there may not have been looked
+for.` or `This change alters what sca reads on api (setting trivyFs changed), so what it adds there
+may not have been looked for.` or `This change adds .gitleaksignore and changes
+vex/pyyaml.openvex.json, which can set findings aside or change what a scanner finds, so the gate
+fails until the pipeline trusts this change.`, naming the repository after a file where the run
+reads more than one (`.gitleaksignore in api.git`). When a gate is set and the change is not
+trusted, the first line counts what failed the run before any finding: `2 files need trust`, `1
+control stopped` or `1 control narrowed`, as in
+`DRAUGR DIFF  FAIL  2 files need trust  3 unchanged`. A change that lowers a classification or adds
+an exclusion, and adds no finding of its own, passes. A base report from a release that did not
+record the declaration says so and leaves the head's to decide. One from 0.189.0 recorded each
+repository without its `paths`, so its controls are compared by repository alone. One from 0.189.1
+recorded neither `ignore` nor `revision`, so a head that declares either looks newly added. It
+recorded no control's settings either, and reads as declaring none, so a head with settings is held
+until trusted. It recorded no files either, and reads as reading none, so a head that reads any of
+them is held until trusted. Scan the base with the same release as the head.
 
 A diff held to its base prints a digest of the head's descriptor. Given that digest as
 `--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the

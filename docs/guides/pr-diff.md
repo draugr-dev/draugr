@@ -409,17 +409,18 @@ change is the point: a control the team no longer wants, a component that really
 than declared, an `ignore` entry for generated files, a repository's `revision` moved to a new
 release, or a control's settings changed, such as `sca` moved from `trivyFs` to another scanner or a
 `semgrep` ruleset swapped. Each of the last three changes what a scan reads or looks for, as a
-shorter `paths` does, so it fails the gate until it merges like a control turned off. Turning on one
-more scanner, a block that sets only `enabled: true`, passes.
+shorter `paths` does, so it fails the gate like a control turned off, until the pipeline trusts the
+change. Turning on one more scanner, a block that sets only `enabled: true`, passes.
 
 The same holds for a file outside the descriptor that can set a finding aside or change what a
 scanner finds: a VEX document the descriptor names, a `.trivyignore`, `.gitleaksignore`,
-`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, a `.semgrepignore` in
-any of its directories, or a ruleset a setting
-names, edited in place. A pull request that adds one or edits one fails until it merges, and the run
-names it: `This change adds .gitleaksignore, which can set findings aside or change what a scanner
-finds, so the gate holds until it merges.` A comment beside the line, such as `# nosemgrep`, is not
-held; the listing marks the finding `accepted by this change` for a reviewer to read.
+`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, a `.semgrepignore` in any
+of its directories, or a ruleset a setting names, edited in place. A pull request that adds one or
+edits one fails until the pipeline trusts it, and the run names it: `This change adds
+.gitleaksignore, which can set findings aside or change what a scanner finds, so the gate fails
+until the pipeline trusts this change.`, and its first line counts it, `1 file needs trust`. A
+comment beside the line, such as `# nosemgrep`, is not held; the listing marks the finding `accepted
+by this change` for a reviewer to read.
 
 A `${{ NAME }}` reference is compared as written, not as the value it held in each scan, so
 `revision: ${{ GITHUB_SHA }}` is not a moved revision although the base's commit and the head's

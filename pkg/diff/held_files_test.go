@@ -3,6 +3,7 @@ package diff
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -121,13 +122,14 @@ func TestHeldFilesAreSaid(t *testing.T) {
 	r.Gate = Gate{FailOnPriority: "P1"}
 	r.Held.Digest = "57a32d4c7cbd861d"
 	const note = "This change adds .gitleaksignore and changes vex/pyyaml.openvex.json, which can set findings aside " +
-		"or change what a scanner finds, so the gate holds until it merges"
+		"or change what a scanner finds, so the gate fails until the pipeline trusts this change"
 	for _, format := range []string{"console", "markdown"} {
 		var buf bytes.Buffer
 		if err := Render(&buf, format, r, Options{}); err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{note, "add --trust-descriptor-change 57a32d4c7cbd861d",
+		heading := map[string]string{"console": "FAIL  2 files need trust  0 unchanged", "markdown": "**FAIL** · ⏸️ 2 files need trust · 0 unchanged"}[format]
+		for _, want := range []string{note, heading, "add --trust-descriptor-change 57a32d4c7cbd861d",
 			"Nothing new was reported, by a scan the files this change edits may have narrowed."} {
 			if !strings.Contains(buf.String(), want) {
 				t.Errorf("%s does not say %q:\n%s", format, want, buf.String())
@@ -347,5 +349,38 @@ func TestAFileTheBaseCouldNotRecordIsNamedApart(t *testing.T) {
 	two.Held.Files[1].FetchBase = otherFetch
 	if notes := strings.Join(two.Held.Notes(), "\n"); !strings.Contains(notes, "Fetch them with `"+fetch+"` and `"+otherFetch+"`") {
 		t.Errorf("two commits, notes = %q", notes)
+	}
+}
+
+// The headline leads with what failed the run by itself, so a FAIL with no new finding still counts
+// its reason, and counts nothing where the switch trusted the change or no gate was set.
+func TestTheHeadlineCountsWhatHeldTheRun(t *testing.T) {
+	held := Held{
+		Dropped: []Dropped{
+			{Component: "api", Control: "sca"},
+			{Component: "web", Control: "sca"},
+			{Component: "api", Control: "secrets", Narrowed: Narrowing{Ignore: []string{"src/client.py"}}},
+		},
+		Files: []FileChange{{Path: ".gitleaksignore", Added: true}},
+	}
+	gated := Gate{FailOnPriority: "P1"}
+	for _, tc := range []struct {
+		name  string
+		r     Result
+		emoji bool
+		want  []string
+	}{
+		{"held", Result{Gate: gated, Held: held}, false,
+			[]string{"2 controls stopped", "1 control narrowed", "1 file needs trust", "0 unchanged"}},
+		{"held, in a comment", Result{Gate: gated, Held: held}, true,
+			[]string{"⏸️ 2 controls stopped", "⏸️ 1 control narrowed", "⏸️ 1 file needs trust", "0 unchanged"}},
+		{"trusted", Result{Gate: gated, Held: Held{Files: held.Files, Trusted: true}}, false, []string{"0 unchanged"}},
+		{"no gate", Result{Held: held}, false, []string{"0 unchanged"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := headline(tc.r, tc.emoji); !slices.Equal(got, tc.want) {
+				t.Errorf("headline = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
