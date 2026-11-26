@@ -1,0 +1,1 @@
+- **`draugr tools install semgrep` installs the pinned, hash-checked set on Python 3.10 to 3.14, on x86-64 Linux and Apple-silicon macOS.** Before, only the Python the set was resolved with got it, and the others installed unverified. `pip check` now confirms the pinned tree is complete. Linux on arm64 or musl still installs unverified.

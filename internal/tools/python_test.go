@@ -418,7 +418,7 @@ func TestInstallPythonToolRecordsWhatEndedUpOnPath(t *testing.T) {
 	root := t.TempDir()
 	destDir := filepath.Join(root, "bin")
 	log := filepath.Join(t.TempDir(), "calls")
-	fakePython(t, log, "--require-hashes")
+	fakePython(t, log, "--require-hashes", "check")
 
 	// An empty version asks for the pinned one, which is how `tools install semgrep` arrives here.
 	got, err := installPythonTool(t.Context(), "semgrep", "", destDir, pythonInstallable["semgrep"])
@@ -467,6 +467,35 @@ func TestInstallPythonToolDropsToUnverifiedOnFallback(t *testing.T) {
 	if rec.Verified != LevelUnverified {
 		t.Errorf("level = %q, want %q, nothing in this binary checked what was installed",
 			rec.Verified, LevelUnverified)
+	}
+}
+
+// The hashed install succeeding is not enough to be pinned: with --no-deps pip never asks whether
+// the set is the whole tree, and a platform whose dependencies differ from the ones the set was
+// resolved on would get a tool missing a package. `pip check` failing sends the install to the
+// fallback, which fills the gap and drops the claim.
+func TestInstallPythonToolDropsToUnverifiedWhenTheTreeIsIncomplete(t *testing.T) {
+	root := t.TempDir()
+	log := filepath.Join(t.TempDir(), "calls")
+	fakePython(t, log, "--require-hashes", "semgrep==") // every install works, `pip check` does not
+
+	got, err := installPythonTool(t.Context(), "semgrep", "", filepath.Join(root, "bin"),
+		pythonInstallable["semgrep"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Verified != LevelUnverified || got.ProvenanceNote == "" {
+		t.Errorf("level = %q, note = %q, want %q with a reason, `pip check` found the tree incomplete",
+			got.Verified, got.ProvenanceNote, LevelUnverified)
+	}
+	calls, err := os.ReadFile(log) // #nosec G304 -- a path this test just created
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(calls)), "\n")
+	if len(lines) != 3 || !strings.Contains(lines[0], "--require-hashes") || lines[1] != "check" ||
+		!strings.Contains(lines[2], "semgrep==") {
+		t.Errorf("pip calls = %q, want the hashed install, `pip check`, then the fallback", lines)
 	}
 }
 

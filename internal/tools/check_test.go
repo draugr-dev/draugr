@@ -295,7 +295,7 @@ func TestALanguagePackageIsNotRebuiltWhenCurrent(t *testing.T) {
 	root := t.TempDir()
 	destDir := filepath.Join(root, "bin")
 	log := filepath.Join(t.TempDir(), "calls")
-	fakePython(t, log, "--require-hashes")
+	fakePython(t, log, "--require-hashes", "check")
 
 	first, err := InstallVersion(t.Context(), "semgrep", "", destDir, nil, false)
 	if err != nil {

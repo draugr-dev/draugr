@@ -506,7 +506,7 @@ const (
 	noteNothingPublished = "nothing published to check this version against"
 	noteChecksumsFetch   = "could not fetch the upstream checksums"
 	noteNoPinsForVersion = "no digests recorded in this build for this version"
-	notePythonFallback   = "pip could not install the hash-pinned set, so it resolved the package unchecked"
+	notePythonFallback   = "the hash-pinned set did not install cleanly on this Python or platform, so pip resolved the package without hashes"
 	noteNodeFallback     = "npm could not install from the pinned lockfile, so it resolved the package unchecked"
 	noteGoFallback       = "the Go checksum database could not be enforced, so the ambient Go settings were used"
 )

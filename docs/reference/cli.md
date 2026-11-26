@@ -2326,10 +2326,12 @@ present and verification fails, that tool's install fails.
 
 Semgrep publishes no release binary, so it is installed from PyPI into a virtual environment Draugr
 owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matched against a digest
-recorded in this build, dependencies included. Those digests describe the pinned version only, so
-`--version` installs another version by name, and its line reads `unverified; no digests recorded in
-this build for this version`. `retire` works the same way with its pinned lockfile. When `semgrep`
-is missing, `doctor` suggests `draugr tools install semgrep`.
+recorded in this build, dependencies included. The digests cover Python 3.10 to 3.14 on x86-64 Linux
+and Apple-silicon macOS. Anywhere else, or when `pip check` finds the pinned tree incomplete, the
+install falls back to an unpinned resolve and its line reads `unverified` with the reason. The
+digests describe the pinned version only, so `--version` installs another version by name, and its
+line reads `unverified; no digests recorded in this build for this version`. `retire` works the same way with its pinned lockfile. When `semgrep` is missing, `doctor`
+suggests `draugr tools install semgrep`.
 
 Naming a tool Draugr runs but does not provision, such as `kubectl` or `git`, is refused, and
 `draugr doctor` names where it comes from.
