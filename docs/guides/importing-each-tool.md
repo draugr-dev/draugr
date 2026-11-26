@@ -28,6 +28,7 @@ release.
 | [JFrog Xray](importing-sarif.md#import-jfrog-xray) | `sca` | `jfrog-simple-json` |
 | [Mend](importing-sarif.md#import-mend) | `sca` | `mend-json` |
 | [Prisma Cloud](importing-sarif.md#import-prisma-cloud) | `images` | `twistcli-json` |
+| [Aqua](importing-sarif.md#import-aqua) | `images` | `aqua-json` |
 | [Checkov](#checkov) | `iac` | SARIF |
 | [KICS](#kics) | `iac` | SARIF |
 | Black Duck, Coverity, SonarQube, Wiz | | [No file to import yet](#no-file-to-import-yet) |

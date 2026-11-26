@@ -672,6 +672,7 @@ var importFormatControlDocs = map[string]string{
 	saga.ImportFormatCheckmarxOneJSON + " iac":         "The file's KICS results, Checkmarx's scan of infrastructure as code.",
 	saga.ImportFormatMendJSON + " sca":                 "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
 	saga.ImportFormatTwistcliJSON + " images":          "The vulnerable packages twistcli's image scan found in the image.",
+	saga.ImportFormatAquaJSON + " images":              "The vulnerable packages Aqua's image scan found in the image.",
 	saga.ImportFormatTrivyJSON + " sca":                "A filesystem scan's vulnerable dependencies, from trivy fs --format json.",
 	saga.ImportFormatTrivyJSON + " images":             "An image scan's vulnerable packages, from trivy image --format json.",
 	saga.ImportFormatGovulncheckJSON + " sca":          "The file's vulnerable Go modules, the only results govulncheck writes.",
@@ -744,6 +745,11 @@ func importRules(converter bool) []any {
 		// twistcli's JSON records no suppression.
 		map[string]any{
 			"if":   format(map[string]any{"const": saga.ImportFormatTwistcliJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// Aqua's scanner JSON records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatAquaJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
 	}

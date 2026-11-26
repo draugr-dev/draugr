@@ -23,6 +23,18 @@ twistcli-many-vulns.json
   parser tests read. They are used under the same BSD 3-Clause license as
   dependency-check-6.1.2.sarif, reproduced below from its LICENSE.md.
 
+aqua-many-vulns.json
+aqua-debian-severity.json
+
+  The JSON of two image scans as Aqua's scannercli scan --jsonfile writes it,
+  copied unchanged from DefectDojo's repository at commit
+  cd0a4483a224707f72a0fc3112359089c1446b55: files
+  unittests/scans/aqua/many_vulns.json (git blob
+  4385649e9a95a47b7cfadcd8def52c55fe72082b) and vulns_with_aqua_severity.json
+  (git blob d91a098b40c0c438235df669e7b82d470c6e429a), which DefectDojo's Aqua
+  parser tests read. They are used under the same BSD 3-Clause license as
+  dependency-check-6.1.2.sarif, reproduced below from its LICENSE.md.
+
   Copyright (c) 2015-2023 DefectDojo, Inc. All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -220,3 +232,21 @@ mend-dep.json
   It is used under the Apache License, Version 2.0, that repository's license
   (its LICENSE.md file), which is also this repository's and is in LICENSE at
   its root. That repository has no NOTICE file.
+
+aqua-photon.json
+
+  The JSON of an image scan as Aqua's scannercli scan --jsonfile writes it,
+  copied unchanged from https://github.com/aquasecurity/harbor-scanner-aqua at
+  commit 085b02593caf650e701576c74da5d417d33f5695: file
+  pkg/aqua/test_fixtures/aqua_report_photon_3.0.json (git blob
+  4cba09e001c9db88e5522ca38eb60daf7ab28562), which that repository's tests of
+  its scannercli adapter read.
+
+  It is used under the Apache License, Version 2.0, that repository's license
+  (its LICENSE file), which is also this repository's and is in LICENSE at its
+  root. That repository's NOTICE file reads:
+
+    harbor-scanner-aqua
+    Copyright 2019-2021 Aqua Security Software Ltd.
+
+    This product includes software developed by Aqua Security (https://aquasec.com).

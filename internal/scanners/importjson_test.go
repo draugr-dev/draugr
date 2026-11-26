@@ -448,6 +448,7 @@ func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
 		{"Trivy JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, `{"SchemaVersion":2,"Results":[]}`, "not govulncheck JSON"},
 		{"SARIF as Grype JSON", saga.ImportFormatGrypeJSON, sarifLog, "not Grype JSON. Write it with grype dir:. -o json"},
 		{"SARIF as OSV-Scanner JSON", saga.ImportFormatOSVScannerJSON, sarifLog, "not OSV-Scanner JSON. Write it with osv-scanner scan --format json"},
+		{"SARIF as Aqua's scanner JSON", saga.ImportFormatAquaJSON, sarifLog, "not Aqua's scanner JSON. Write it with scannercli scan --jsonfile"},
 		{"an unknown format", "sarif-2.0", sarifLog, "format sarif-2.0 is not one Draugr reads. draugr validate lists them"},
 		{"no converter declared", saga.ImportFormatConverter, sarifLog, "declares no converter. Add converter to the import"},
 	} {

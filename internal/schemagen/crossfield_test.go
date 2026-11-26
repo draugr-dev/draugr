@@ -114,6 +114,12 @@ func TestTheEditorAndDraugrHoldImportKeysToFormatAndKind(t *testing.T) {
 		{"severity on twistcli-json", file(map[string]any{"format": saga.ImportFormatTwistcliJSON, "control": "images", "severity": severity}), false, false},
 		{"suppressions on twistcli-json", file(map[string]any{"format": saga.ImportFormatTwistcliJSON, "control": "images", "suppressions": "count"}), false, false},
 
+		{"aqua-json into images", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "images"}), false, true},
+		{"aqua-json into sca", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "sca"}), false, false},
+		{"aqua-json into sca in a fragment", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "sca"}), true, false},
+		{"severity on aqua-json", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "images", "severity": severity}), false, false},
+		{"suppressions on aqua-json", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "images", "suppressions": "count"}), false, false},
+
 		{"draugr-converter with its converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv}), false, true},
 		{"draugr-converter with no converter", file(map[string]any{"format": saga.ImportFormatConverter}), false, false},
 		{"suppressions on draugr-converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv, "suppressions": "count"}), false, false},
