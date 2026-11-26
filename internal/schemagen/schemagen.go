@@ -667,10 +667,17 @@ func addFragmentImport(defs, fragProps map[string]any) error {
 // importFormatControlDocs say which of a file's results each control an import of it may name reads,
 // by format and control.
 var importFormatControlDocs = map[string]string{
-	saga.ImportFormatCheckmarxOneJSON + " sast": "The file's SAST results, Checkmarx's static analysis of the code.",
-	saga.ImportFormatCheckmarxOneJSON + " sca":  "The file's SCA results, Checkmarx's scan of the dependencies.",
-	saga.ImportFormatCheckmarxOneJSON + " iac":  "The file's KICS results, Checkmarx's scan of infrastructure as code.",
-	saga.ImportFormatMendJSON + " sca":          "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
+	saga.ImportFormatCheckmarxOneJSON + " sast":        "The file's SAST results, Checkmarx's static analysis of the code.",
+	saga.ImportFormatCheckmarxOneJSON + " sca":         "The file's SCA results, Checkmarx's scan of the dependencies.",
+	saga.ImportFormatCheckmarxOneJSON + " iac":         "The file's KICS results, Checkmarx's scan of infrastructure as code.",
+	saga.ImportFormatMendJSON + " sca":                 "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
+	saga.ImportFormatGovulncheckJSON + " sca":          "The file's vulnerable Go modules, the only results govulncheck writes.",
+	saga.ImportFormatGrypeJSON + " sca":                "The file's matches, the dependencies a Grype directory scan found vulnerable.",
+	saga.ImportFormatOSVScannerJSON + " sca":           "The file's vulnerable packages, from the lockfiles and SBOMs OSV-Scanner read.",
+	saga.ImportFormatVeracodePipelineJSON + " sast":    "The file's flaws, Veracode's static analysis of the built application.",
+	saga.ImportFormatGitLabSAST + " sast":              "The file's vulnerabilities, the only results a GitLab SAST report holds.",
+	saga.ImportFormatGitLabDependencyScanning + " sca": "The file's vulnerable packages, the only results a GitLab dependency scanning report holds.",
+	saga.ImportFormatJFrogSimpleJSON + " sca":          "The file's dependency vulnerabilities, the only results Draugr reads from it.",
 }
 
 // importRules are the rules across an import's keys that pkg/saga's validateImports enforces, so an

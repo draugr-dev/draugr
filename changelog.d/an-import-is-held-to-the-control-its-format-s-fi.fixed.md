@@ -1,0 +1,1 @@
+- **An import is held to the control its format's findings belong to.** A JFrog, GitLab, Veracode, govulncheck, Grype or OSV-Scanner file imported into another control, such as JFrog's dependency findings into `sast`, is refused by `draugr validate` and the editor instead of being reported as that control's findings.

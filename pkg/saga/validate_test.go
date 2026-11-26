@@ -1093,11 +1093,11 @@ func TestValidateImportFormat(t *testing.T) {
 		{Import{Format: "osv-scanner-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to apply to"},
 		{Import{Format: "veracode-pipeline-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a " +
 			"veracode-pipeline-json file is rated by the severity Veracode states. Remove severity"},
-		{Import{Format: "veracode-pipeline-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to " +
+		{Import{Format: "veracode-pipeline-json", Control: "sast", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to " +
 			"apply to, since a Pipeline Scan file records no suppression. Remove it"},
-		{Import{Format: "gitlab-sast", Severity: mapping}, "imports[0].severity maps a SARIF property, and a " +
+		{Import{Format: "gitlab-sast", Control: "sast", Severity: mapping}, "imports[0].severity maps a SARIF property, and a " +
 			"gitlab-sast file is rated by the severity it states. Remove severity"},
-		{Import{Format: "gitlab-sast", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has nothing to " +
+		{Import{Format: "gitlab-sast", Control: "sast", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has nothing to " +
 			"apply to, since a GitLab report records no suppression. Remove it"},
 		{Import{Format: "gitlab-dependency-scanning", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
 			"and a gitlab-dependency-scanning file is rated by the severity it states. Remove severity"},
@@ -1116,6 +1116,13 @@ func TestValidateImportFormat(t *testing.T) {
 		{Import{Format: "mend-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
 			"nothing to apply to, since Mend's dependency JSON records no suppression. Remove it"},
 		{Import{Format: "mend-json", Control: "sast"}, "imports[0]: a mend-json file holds no sast results; import it into sca"},
+		{Import{Format: "govulncheck-json", Control: "sast"}, "imports[0]: a govulncheck-json file holds no sast results; import it into sca"},
+		{Import{Format: "grype-json", Control: "images"}, "imports[0]: a grype-json file holds no images results; import it into sca"},
+		{Import{Format: "osv-scanner-json", Control: "licenses"}, "imports[0]: an osv-scanner-json file holds no licenses results; import it into sca"},
+		{Import{Format: "veracode-pipeline-json"}, "imports[0]: a veracode-pipeline-json file holds no sca results; import it into sast"},
+		{Import{Format: "gitlab-sast"}, "imports[0]: a gitlab-sast file holds no sca results; import it into sast"},
+		{Import{Format: "gitlab-dependency-scanning", Control: "sast"}, "imports[0]: a gitlab-dependency-scanning file holds no sast results; import it into sca"},
+		{Import{Format: "jfrog-simple-json", Control: "sast"}, "imports[0]: a jfrog-simple-json file holds no sast results; import it into sca"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

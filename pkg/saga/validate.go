@@ -729,6 +729,15 @@ func orList[T ~string](values []T) string {
 	return strings.Join(words[:len(words)-1], ", ") + " or " + words[len(words)-1]
 }
 
+// article is the indefinite article read before a format's name, by its first letter as written:
+// "an osv-scanner-json file", "a mend-json file".
+func article(name string) string {
+	if name != "" && strings.ContainsRune("aeiou", rune(name[0])) {
+		return "an"
+	}
+	return "a"
+}
+
 // OrList is orList for callers outside this package, so one phrasing serves every place a closed
 // vocabulary is offered back to somebody who missed it.
 func OrList[T ~string](values []T) string { return orList(values) }
@@ -906,8 +915,8 @@ func validateImportFormat(imp Import, at string) []error {
 	if controls, ok := ImportFormatControls[imp.ReadFormat()]; ok && imp.Control != "" && !slices.Contains(controls, imp.Control) {
 		// The reader takes the results of the import's control from the file, and the file holds
 		// none for another, so the import would read as a clean scan.
-		return []error{fmt.Errorf("%s: a %s file holds no %s results; import it into %s", at, imp.Format,
-			imp.Control, orList(controls))}
+		return []error{fmt.Errorf("%s: %s %s file holds no %s results; import it into %s", at, article(imp.Format),
+			imp.Format, imp.Control, orList(controls))}
 	}
 	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
 		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON ||

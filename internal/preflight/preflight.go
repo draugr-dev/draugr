@@ -178,7 +178,7 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 				key += ":" + t.Converter.Name + ":" + strings.Join(t.Converter.Sets, ",")
 			}
 			// A format that reads one control's results from the file reads each import differently.
-			if _, perControl := saga.ImportFormatControls[t.Format]; perControl {
+			if saga.ImportFormatSplitsByControl(t.Format) {
 				key += ":" + t.Control
 			}
 			if seen[key] {
@@ -604,7 +604,7 @@ func fileCheck(ctx context.Context, p Probes, t plugin.FileTarget, offline bool)
 		// One file imported by two components is checked for each, against its own repositories.
 		c.Target += " · " + t.Component
 	}
-	if _, perControl := saga.ImportFormatControls[t.Format]; perControl {
+	if saga.ImportFormatSplitsByControl(t.Format) {
 		// Imported once into each control, each import reading that control's results.
 		c.Target += " · " + t.Control
 	}
