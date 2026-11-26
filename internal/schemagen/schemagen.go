@@ -711,6 +711,11 @@ func importRules(converter bool) []any {
 			"if":   format(map[string]any{"const": saga.ImportFormatGitLabDependencyScanning}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
+		// JFrog's simple-json records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatJFrogSimpleJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
 	}
 	if converter {
 		// A converter's file needs the converter that wrote it and records no suppressions, and no

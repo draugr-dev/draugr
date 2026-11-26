@@ -534,12 +534,14 @@ func sagaFields() map[string]map[string]any {
 				valueDoc{"gitlab-dependency-scanning", "A dependency scanning report in GitLab's security report format, " +
 					"schema version 15, as GitLab's Gemnasium analyzer writes it, with each vulnerability's package, installed " +
 					"version, fixed version, CVE and severity."},
+				valueDoc{"jfrog-simple-json", "The JSON jf audit --format simple-json writes, read for its dependency " +
+					"vulnerabilities, with each one's package, installed version, fixed version, CVE and Xray's severity."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, " +
-				"or for OSV-Scanner, Veracode and GitLab's formats by the rating the file states.",
+				"or for OSV-Scanner, Veracode, GitLab's formats and JFrog's by the rating the file states.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
@@ -556,7 +558,8 @@ func sagaFields() map[string]map[string]any {
 				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
 				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, " +
-				"and veracode-pipeline-json, gitlab-sast and gitlab-dependency-scanning, whose files record no suppression.",
+				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning and jfrog-simple-json, whose files record " +
+				"no suppression.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

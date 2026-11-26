@@ -45,6 +45,9 @@ var notOurs = map[string]string{
 	"--sarif": "Semgrep's",
 	// Semgrep's, in the GitLab import guide, which writes GitLab's SAST report with it.
 	"--gitlab-sast": "Semgrep's",
+	// JFrog's jf audit, in the JFrog import guide, which writes the vulnerabilities and keeps the exit
+	// code at 0 where Xray's policies apply.
+	"--fail": "JFrog's", "--repo-path": "JFrog's", "--vuln": "JFrog's", "--watches": "JFrog's",
 	// Trivy's, quoted where a scanner's own behavior, caching or air-gapped setup is explained.
 	"--exit-code":         "Trivy's",
 	"--severity":          "Trivy's",
