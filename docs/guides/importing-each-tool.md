@@ -20,7 +20,7 @@ release.
 | [Checkmarx One](#checkmarx-one) | `sast`, `sca`, `iac` | `checkmarx-one-json` |
 | [Fortify](#fortify) | `sast` | SARIF |
 | [Veracode Pipeline Scan](importing-sarif.md#import-veracode-pipeline-scan) | `sast` | `veracode-pipeline-json` |
-| [Semgrep](#semgrep) | `sast` | SARIF |
+| [Semgrep](#semgrep) | `sast`, `sca` | SARIF, or [`semgrep-json`](importing-sarif.md#import-semgrep) for Supply Chain |
 | [gosec](#gosec) | `sast` | SARIF |
 | [Trivy](#trivy) | `sca`, `images` | `trivy-json` |
 | [Grype](#grype) | `sca` | `grype-json` |
@@ -120,6 +120,9 @@ semgrep scan --config <rules> --sarif-output=reports/semgrep.sarif
 - **Rating:** the result's `level`.
 - **`--sarif-output` writes a copy of the results**, beside what Semgrep prints.
 - **Run it from the repository's root**, since its paths are relative to where it runs.
+- **Supply Chain findings need the JSON**, since the SARIF names their package and CVE only in the
+  message. The JSON also rates code results from the rule's impact and likelihood, as Draugr's own
+  run does: [Import Semgrep](importing-sarif.md#import-semgrep).
 
 ## gosec
 

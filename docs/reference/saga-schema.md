@@ -418,7 +418,7 @@ components:
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, alerts a person dismissed in GitHub, or results triaged Not Exploitable or Ignored in Checkmarx One; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json`, `mend-json`, `twistcli-json`, `aqua-json` or `draugr-converter` import (none of those files records one) |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, alerts a person dismissed in GitHub, or results triaged Not Exploitable or Ignored in Checkmarx One; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json`, `mend-json`, `twistcli-json`, `aqua-json` or `draugr-converter` import (none of those files records one). Also refused on a `semgrep-json` import, whose file leaves out what a `nosemgrep` comment suppressed. |
 
 #### Import formats
 
@@ -458,6 +458,11 @@ components:
 - **`aqua-json`**: what Aqua's `scannercli scan --jsonfile <file>` writes, for `images` only. Each
   vulnerable package is read with its name, installed version, fixed version, CVE, and CVSS score or
   Aqua's severity ([Import Aqua](../guides/importing-sarif.md#import-aqua)).
+- **`semgrep-json`**: what `semgrep ci --json-output=<file>` or `semgrep scan --json-output=<file>`
+  writes, for `sast` and `sca`, imported once into each. `sast` reads the code results with their file,
+  line, rule and CWE, rated as Draugr's Semgrep run rates them, and `sca` the Supply Chain results with
+  their package, installed version, fixed version, CVE and the advisory's severity
+  ([Import Semgrep](../guides/importing-sarif.md#import-semgrep)).
 - **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
   with `converter` declaring the converter.
 

@@ -137,7 +137,9 @@ findings shaped the same way. A Checkmarx One JSON file holds SAST, SCA and KICS
 import of it reads those of the control it names, the SCA results into dependency findings. Mend's
 dependency scan writes no SARIF, so its JSON is read into dependency findings too. Prisma Cloud's
 `twistcli` writes no SARIF either, so its image-scan JSON is read into image findings. Aqua's
-`scannercli` writes JSON of an image scan, read into image findings too.
+`scannercli` writes JSON of an image scan, read into image findings too. Semgrep's JSON holds its
+code and Supply Chain results, and each import of it reads those of the control it names, the
+Supply Chain results into dependency findings.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
@@ -154,6 +156,7 @@ dependency scan writes no SARIF, so its JSON is read into dependency findings to
 | `mend-json` | `mend dep --format json --export-results <file>` | this page describes | the advisory under its CVE, else Mend's own WS- id, the package and installed version its file name gives, named `group:artifact` with its Maven package URL where Mend's fixes name one group for it, the versions Mend's fix names for it above the installed one as the fix, Mend's severity as the rating, and the direct dependency that brings in a transitive one, once per library and manifest however often the tree lists it ([Import Mend](../../docs/guides/importing-sarif.md#import-mend)) |
 | `twistcli-json` | `twistcli images scan --output-file <file>` | this page describes | the advisory under its CVE, the image the file names (else its ID) as its image and location, the package (an operating-system package by its source package, with the image's operating system), its installed and fixed versions, and the CVSS score or `twistcli`'s severity as the rating, whichever is more severe. Compliance results are not read ([Import Prisma Cloud](../../docs/guides/importing-sarif.md#import-prisma-cloud)) |
 | `aqua-json` | `scannercli scan --jsonfile <file>` | this page describes | the advisory under its CVE, the image the file names (else the reference it was pulled by, else its digest) as its image and location, the package (an operating-system package with the image's operating system and the distribution's ecosystem), its installed and fixed versions, and Aqua's CVSS score or severity as the rating, whichever is more severe. Sensitive data, malware and assurance results are not read ([Import Aqua](../../docs/guides/importing-sarif.md#import-aqua)) |
+| `semgrep-json` | `semgrep ci --json-output=<file>`, or `semgrep scan --json-output=<file>` | this page describes | the results of the import's control: for `sast` the rule's match at its file and line, its CWE, and the rating Draugr's [`semgrep`](semgrep.md) run gives it from the rule's impact and likelihood, else the rule's severity; for `sca` the advisory under its CVE, else its GHSA id, else Semgrep's rule id, its other ids as aliases, the package, its installed version, the versions the rule's `sca-fix-versions` names for it above the installed one as the fix, its package URL and ecosystem, the lockfile and line, the advisory's `sca-severity` as the rating, and each place a reachability rule found the vulnerable code used. Secrets results are not read ([Import Semgrep](../../docs/guides/importing-sarif.md#import-semgrep)) |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -694,6 +697,14 @@ that found nothing:
   negligible. Import the file scannercli wrote, unedited`, for a severity outside Aqua's list, and
   `aqua_score "high" of CVE-1 in zlib; Aqua writes a number from 0 to 10. Import the file scannercli
   wrote, unedited`, for a score that is not one;
+- `not Semgrep's JSON. Write it with semgrep ci --json-output=<file>`, for a file that is not an
+  object with `results`, `errors` and `paths`;
+- `result 1 (r) has no path, which Semgrep writes for every one. Import the file Semgrep wrote,
+  unedited`, and the same for a result with no `check_id` and a Supply Chain result naming no package;
+- `result 1 (r): severity "SEVERE"; a Semgrep rule's severity is CRITICAL, HIGH, MEDIUM, LOW, INFO,
+  ERROR or WARNING. Import the file Semgrep wrote, unedited`, for a severity outside Semgrep's list,
+  and `result 1 (ssc): sca-severity "URGENT"; Semgrep rates an advisory CRITICAL, HIGH, MODERATE or
+  LOW. Import the file Semgrep wrote, unedited`, for an advisory severity outside it;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key

@@ -96,6 +96,9 @@ var notOurs = map[string]string{
 	// Each tool's export flags, in the guide to importing each tool's file.
 	"--sarif-output":      "Semgrep's",
 	"--error":             "Semgrep's",
+	"--json-output":       "Semgrep's",
+	"--verbose":           "Semgrep's",
+	"--disable-nosem":     "Semgrep's",
 	"--sarif-file-output": "Snyk's",
 	"--report-format":     "Checkmarx One's cx",
 	"--output-path":       "Checkmarx One's cx",

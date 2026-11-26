@@ -546,6 +546,10 @@ func sagaFields() map[string]map[string]any {
 					"package's name, installed and fixed versions, CVE, and CVSS score or Prisma Cloud's severity."},
 				valueDoc{"aqua-json", "The JSON Aqua's scannercli scan --jsonfile writes, for images, with each vulnerable " +
 					"package's name, installed and fixed versions, CVE, and CVSS score or Aqua's severity."},
+				valueDoc{"semgrep-json", "The JSON semgrep ci --json-output or semgrep scan --json-output writes, holding a " +
+					"scan's code and Supply Chain results. Import it once into each of sast and sca; sast reads the code " +
+					"results with the CWE, rated as Draugr's Semgrep run rates them, and sca the vulnerable dependencies with " +
+					"the package, installed and fixed versions, CVE and the advisory's severity."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
@@ -569,7 +573,8 @@ func sagaFields() map[string]map[string]any {
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
 				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, " +
 				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json, twistcli-json and aqua-json, " +
-				"whose files record no suppression.",
+				"whose files record no suppression. Also refused beside format semgrep-json, whose file leaves out what a " +
+				"nosemgrep comment suppressed.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

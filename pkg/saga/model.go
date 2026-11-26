@@ -1151,6 +1151,11 @@ const (
 	// ImportFormatAquaJSON is the JSON Aqua's scanner writes of an image scan with scannercli scan
 	// --jsonfile <file>, the image's packages and their vulnerabilities.
 	ImportFormatAquaJSON = "aqua-json"
+	// ImportFormatSemgrepJSON is the JSON Semgrep writes with semgrep ci --json-output=<file> or semgrep
+	// scan --json-output=<file>, which holds a scan's code and Supply Chain results together. Each import
+	// of it reads the results of its own control, so the file is imported once into each of sast and sca
+	// (ImportFormatControls).
+	ImportFormatSemgrepJSON = "semgrep-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1160,13 +1165,16 @@ const (
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
 	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
 	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatCheckmarxOneJSON, ImportFormatMendJSON,
-	ImportFormatTwistcliJSON, ImportFormatAquaJSON, ImportFormatConverter}
+	ImportFormatTwistcliJSON, ImportFormatAquaJSON, ImportFormatSemgrepJSON, ImportFormatConverter}
 
 // ImportFormatControls are the controls an import of a format may name, by format, for a format that
 // holds several tools' results or only one control's. A format absent here is read whole into
 // whichever control the import names.
 var ImportFormatControls = map[string][]string{
 	ImportFormatCheckmarxOneJSON: {"sast", "sca", "iac"},
+	// Semgrep's JSON holds its code results and its Supply Chain results; its Secrets results, which it
+	// may hold too, are not read.
+	ImportFormatSemgrepJSON: {"sast", "sca"},
 	// Mend's dependency scan holds vulnerable libraries only, so an import into any other control
 	// would read packages as that control's findings.
 	ImportFormatMendJSON: {"sca"},

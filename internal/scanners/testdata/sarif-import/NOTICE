@@ -23,6 +23,21 @@ twistcli-many-vulns.json
   parser tests read. They are used under the same BSD 3-Clause license as
   dependency-check-6.1.2.sarif, reproduced below from its LICENSE.md.
 
+semgrep-scan.json
+
+  The JSON Semgrep 1.182.1 wrote with semgrep scan --json-output, unchanged,
+  of a project made for this test: a Python file, a JavaScript file, a
+  requirements.txt, a Gemfile.lock and a gradle.lockfile. Its code results come
+  from two rules written for this test. Its Supply Chain results come from the
+  rule ssc-82207871-bbda-49be-b1af-49fd927a2f93, taken from the ruleText of a
+  Semgrep Supply Chain advisory in DefectDojo's repository at commit
+  cd0a4483a224707f72a0fc3112359089c1446b55: file
+  unittests/scans/semgrep/sca-deployments-vulns.json (git blob
+  74329a6c3a60212a099c71cb9bf8abf4345a4cf1), which DefectDojo's Semgrep parser
+  tests read. The rule's message and metadata, which the results repeat, are
+  used under the same BSD 3-Clause license as dependency-check-6.1.2.sarif,
+  reproduced below from its LICENSE.md.
+
 aqua-many-vulns.json
 aqua-debian-severity.json
 

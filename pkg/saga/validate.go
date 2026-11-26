@@ -970,6 +970,11 @@ func validateImportFormat(imp Import, at string) []error {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Aqua's scanner JSON records "+
 			"no suppression. Remove it", at)}
 	}
+	// Semgrep leaves a result a nosemgrep comment suppressed out of its JSON.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatSemgrepJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Semgrep leaves what a nosemgrep "+
+			"comment suppressed out of its JSON. Remove it", at)}
+	}
 	return nil
 }
 

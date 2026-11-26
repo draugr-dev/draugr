@@ -673,6 +673,8 @@ var importFormatControlDocs = map[string]string{
 	saga.ImportFormatMendJSON + " sca":                 "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
 	saga.ImportFormatTwistcliJSON + " images":          "The vulnerable packages twistcli's image scan found in the image.",
 	saga.ImportFormatAquaJSON + " images":              "The vulnerable packages Aqua's image scan found in the image.",
+	saga.ImportFormatSemgrepJSON + " sast":             "The file's code results, Semgrep Code's matches in the source.",
+	saga.ImportFormatSemgrepJSON + " sca":              "The file's Supply Chain results, the vulnerable dependencies Semgrep found in lockfiles.",
 	saga.ImportFormatTrivyJSON + " sca":                "A filesystem scan's vulnerable dependencies, from trivy fs --format json.",
 	saga.ImportFormatTrivyJSON + " images":             "An image scan's vulnerable packages, from trivy image --format json.",
 	saga.ImportFormatGovulncheckJSON + " sca":          "The file's vulnerable Go modules, the only results govulncheck writes.",
@@ -750,6 +752,11 @@ func importRules(converter bool) []any {
 		// Aqua's scanner JSON records no suppression.
 		map[string]any{
 			"if":   format(map[string]any{"const": saga.ImportFormatAquaJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// Semgrep leaves what a nosemgrep comment suppressed out of its JSON.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatSemgrepJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
 	}
