@@ -409,7 +409,7 @@ components:
 
 | field | meaning |
 |---|---|
-| `control` | the control the file's findings belong to, such as `sast` or `sca`. A `checkmarx-one-json` import takes `sast`, `sca` or `iac` and reads that control's results from the file, and a `mend-json` import takes `sca` only |
+| `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, and each import reads that control's results from the file. `sarif`, `trivy-json` and `draugr-converter` take any control |
 | `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
 | `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
 | `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
@@ -424,10 +424,10 @@ components:
 
 - **`sarif`**, the default: a SARIF 2.1.0 log, from any tool.
 - **`trivy-json`**: what `trivy fs --format json` writes.
-- **`govulncheck-json`**: what `govulncheck -format json` writes.
-- **`grype-json`**: what `grype dir:<path> -o json` writes, for a directory scan only.
-- **`osv-scanner-json`**: what `osv-scanner scan --format json` writes, for lockfiles and SBOMs
-  only. Draugr does not run OSV-Scanner, so the file is read by the score and fix it states.
+- **`govulncheck-json`**: what `govulncheck -format json` writes, for `sca`.
+- **`grype-json`**: what `grype dir:<path> -o json` writes, for `sca`. Only a directory scan is read.
+- **`osv-scanner-json`**: what `osv-scanner scan --format json` writes, for `sca`. Only lockfile and
+  SBOM results are read. Draugr does not run OSV-Scanner, so the file is read by the score and fix it states.
 - **`veracode-pipeline-json`**: the `results.json` Veracode Pipeline Scan writes with `-jo true`,
   for `sast`. Each flaw is read with its file, line, CWE and Veracode's severity
   ([Import Veracode Pipeline Scan](../guides/importing-sarif.md#import-veracode-pipeline-scan)).

@@ -1164,6 +1164,31 @@ var ImportFormatControls = map[string][]string{
 	// Mend's dependency scan holds vulnerable libraries only, so an import into any other control
 	// would read packages as that control's findings.
 	ImportFormatMendJSON: {"sca"},
+	// govulncheck reports vulnerable Go modules, each read at the go.mod of the module it analyzed.
+	ImportFormatGovulncheckJSON: {"sca"},
+	// The reader takes a Grype directory scan only, whose matches are the repository's dependencies.
+	ImportFormatGrypeJSON: {"sca"},
+	// The reader takes lockfile and SBOM results only, and refuses an image or a git source.
+	ImportFormatOSVScannerJSON: {"sca"},
+	// Veracode Pipeline Scan is a static analysis of the built application; its flaws are code
+	// findings with a file, a line and a CWE.
+	ImportFormatVeracodePipelineJSON: {"sast"},
+	// A GitLab SAST report holds code findings; GitLab writes dependency findings to a report of
+	// their own, read as gitlab-dependency-scanning.
+	ImportFormatGitLabSAST: {"sast"},
+	// A GitLab dependency scanning report holds vulnerable packages only.
+	ImportFormatGitLabDependencyScanning: {"sca"},
+	// The reader takes the file's dependency vulnerabilities and leaves its SAST, secrets and IaC
+	// results unread, so only sca is read from it.
+	ImportFormatJFrogSimpleJSON: {"sca"},
+}
+
+// ImportFormatSplitsByControl reports whether a file of format holds results for more than one
+// control, so that each import of it reads only its own control's results: one file imported into two
+// controls is then two reads. A format bound to one control is read whole, as a format absent from
+// ImportFormatControls is.
+func ImportFormatSplitsByControl(format string) bool {
+	return len(ImportFormatControls[format]) > 1
 }
 
 // The services an import's Source names.
