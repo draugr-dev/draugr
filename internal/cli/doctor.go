@@ -907,6 +907,16 @@ type toolReport struct {
 	// CannotWrite is the first place the tool writes as it runs that this user cannot write to,
 	// which fails the scan. Hint then names every such place and what moves each.
 	CannotWrite string `json:"cannotWrite,omitempty"`
+	// Unwritable is every such place, in the order Hint names them, each with the variable to set,
+	// so a script moves them all in one run without parsing Hint. CannotWrite stays a string for
+	// readers that already take it as one.
+	Unwritable []unwritableReport `json:"unwritable,omitempty"`
+}
+
+// unwritableReport is one place a tool cannot write, and the variable that moves it.
+type unwritableReport struct {
+	Path     string `json:"path"`
+	Variable string `json:"variable"`
 }
 
 // writeDoctorJSON writes the report. missing is the count the exit code is decided on, passed in
@@ -967,6 +977,9 @@ func writeDoctorJSON(
 		case len(st.Unwritable) > 0:
 			tr.CannotWrite = st.Unwritable[0].Path
 			tr.Hint = unwritableNotes(st.Unwritable)
+			for _, u := range st.Unwritable {
+				tr.Unwritable = append(tr.Unwritable, unwritableReport{Path: u.Path, Variable: unwritableVar(u)})
+			}
 		}
 		report.Tools = append(report.Tools, tr)
 	}
@@ -1240,13 +1253,19 @@ func failsOnNotChecked(model *saga.Model) bool {
 // every tool's place at once, so it is the advice unless the tool's own variable was set to the
 // place by somebody other than Draugr, in which case that variable is what to change.
 func unwritableNote(u tools.Unwritable) string {
-	if u.Stays && !u.Named {
-		return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, u.Var)
-	}
 	if u.Named {
 		return fmt.Sprintf("can't write %s, which %s names", u.Path, u.Var)
 	}
-	return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, draugrhome.EnvVar)
+	return fmt.Sprintf("can't write %s · set %s to a writable directory", u.Path, unwritableVar(u))
+}
+
+// unwritableVar is the variable to set so the tool writes somewhere else: its own where somebody
+// set it or DRAUGR_HOME does not move the place, and DRAUGR_HOME otherwise.
+func unwritableVar(u tools.Unwritable) string {
+	if u.Named || u.Stays {
+		return u.Var
+	}
+	return draugrhome.EnvVar
 }
 
 // unwritableNotes is a can't-write row's note for every place the tool cannot write, each with

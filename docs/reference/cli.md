@@ -1992,8 +1992,9 @@ The JSON's top-level fields are `draugr`, `descriptor`, `toolsDir`, `tools`, `mi
 one the `TOOLS` heading names, which is `~/.draugr/bin` or `bin/` under [`DRAUGR_HOME`](#environment).
 `missing` counts each required tool that is absent or has no data. An optional tool that is absent
 is listed and not counted. A tool with no data carries the hint for getting it. A tool that cannot
-write where it keeps its data carries `cannotWrite`, the first such place, and a hint naming each
-place and what moves it, and fails the check as a missing one does.
+write where it keeps its data fails the check as a missing one does. It carries `unwritable`, a list
+with one entry for each such place: its `path`, and the `variable` to set to a writable directory
+to move it. `cannotWrite` is the first entry's path, and the hint names every place in words.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
