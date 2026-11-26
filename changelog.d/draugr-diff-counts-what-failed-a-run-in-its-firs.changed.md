@@ -1,1 +1,0 @@
-- **`draugr diff` counts what failed a run in its first line.** A control the change stops or narrows, or an ignore file or VEX document it edits, now appears as `1 control stopped` or `2 files need trust` ahead of the findings, and the note says the gate fails until the pipeline trusts the change.

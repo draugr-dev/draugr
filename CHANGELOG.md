@@ -12,6 +12,32 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.193.0] - 2026-11-26
+
+### Added
+
+- **A scan that publishes to a Draugr server says where the run went.** The console ends with a Published block, and the HTML report repeats it in its footer. Each names the project, and gives the address of the run's page, or the run's id and the server where the server returns no address.
+
+- **`draugr doctor` and `draugr scan --evidence` say how current the Sigstore trust root is.** They name the version of the trust root cosign holds and when cosign last refreshed it, as they do for the Trivy and Grype databases and the Nuclei template set.
+
+### Changed
+
+- **`draugr diff` counts what failed a run in its first line.** A control the change stops or narrows, or an ignore file or VEX document it edits, now appears as `1 control stopped` or `2 files need trust` ahead of the findings, and the note says the gate fails until the pipeline trusts the change.
+
+- **`draugr diff` says why a reranked finding moved.** A component that declared a new exposure or criticality gets one line under `RERANKED`, and a row names what moved that finding alone, such as `↑ KEV`, `↓ unreachable` or a new severity. The pull-request comment and `--format json` carry the same.
+
+- **`draugr tools install` fetches newer versions:** cosign 3.1.6 (was 3.1.4), grype 0.122.1 (was 0.121.0), retire 6.1.2 (was 6.1.0), semgrep 1.187.0 (was 1.182.1), syft 1.57.2 (was 1.55.0) and trivy 0.76.2 (was 0.76.1), and it builds govulncheck 1.10.0 with go1.27.4 (was 1.9.0 with go1.27.3).
+
+- **`draugr tools install semgrep` installs the pinned, hash-checked set on Python 3.10 to 3.14, on x86-64 Linux and Apple-silicon macOS.** Before, only the Python the set was resolved with got it, and the others installed unverified. `pip check` now confirms the pinned tree is complete. Linux on arm64 or musl still installs unverified.
+
+### Fixed
+
+- **`draugr diff` no longer cuts a word from its note about a base report that records no declarations.** The note now reads "so this change's own declarations decide".
+
+- **A saved report keeps each suppression's VEX details.** `results.sarif` now records a suppression's VEX status and justification, the VEX statement and document it came from, and the service an imported alert was dismissed in, so the MCP `summarize_report` and `draugr diff` read them back.
+
+- **The provenance control passes again on an image whose provenance is a GitHub artifact attestation.** cosign 3.1.6 refuses such an attestation where earlier versions printed it, which stopped the control. An attestation from a declared signer passes, and discovery names who signed it.
+
 ## [0.192.0] - 2026-11-26
 
 ### Added
@@ -7653,7 +7679,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.192.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.193.0...HEAD
+[0.193.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.193.0
 [0.192.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.192.0
 [0.191.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.191.0
 [0.190.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.1
