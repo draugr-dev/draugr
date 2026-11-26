@@ -943,7 +943,8 @@ repository's address on any host.
 
 **What is read.** An issue with a security impact is a finding at its file and first line, under its
 rule, such as `javasecurity:S2083`, with the rule's name and, on SonarQube Cloud, the CWEs its
-security standards list. SonarQube Server's rule answers state no CWE, so its findings carry none.
+security standards list. SonarQube Server's and Community Build's rule answers state no CWE, so their
+findings carry none.
 A fixed issue is not read. An issue the server returns without a security impact, or, on a server
 that gives no impacts, of a type other than `VULNERABILITY`, is left out and counted under
 `left out`: a server that does not know the search's filter answers with every issue, and SonarQube

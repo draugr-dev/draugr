@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -460,5 +462,85 @@ func TestSonarQubeIsNotReadOffline(t *testing.T) {
 	_, err := sonarImportOf(srv, sonarCommit, nil).Scan(context.Background(), sonarTarget(), nil)
 	if err == nil || !strings.Contains(err.Error(), "offline") || len(f.requests) != 0 {
 		t.Errorf("err = %v, %d requests", err, len(f.requests))
+	}
+}
+
+// recordedSonar serves the answers SonarQube Community Build gave for a project it analyzed, from
+// testdata/sonarqube (its NOTICE says how they were recorded), and records what was asked.
+type recordedSonar struct {
+	t        *testing.T
+	requests []*http.Request
+}
+
+func (f *recordedSonar) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.requests = append(f.requests, r)
+	q := r.URL.Query()
+	var file string
+	switch r.URL.Path {
+	case "/api/project_analyses/search":
+		file = "project_analyses.json"
+	case "/api/issues/search":
+		if q.Get("componentKeys") != "draugr-fixture" || q.Get("p") != "1" {
+			f.t.Errorf("issues asked with %s", r.URL.RawQuery)
+		}
+		file = "issues.json"
+	case "/api/rules/show":
+		file = "rules-" + strings.ReplaceAll(q.Get("key"), ":", "-") + ".json"
+	}
+	body, err := os.ReadFile(filepath.Join("testdata", "sonarqube", file)) // #nosec G304 G703 -- a fixture this package holds, named by the test
+	if file == "" || err != nil {
+		f.t.Errorf("unexpected request %s", r.URL)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	_, _ = w.Write(body) // #nosec G705 -- a recorded JSON answer served to the test's own client
+}
+
+// What a real SonarQube Community Build answers is read as it is meant: each security issue a finding
+// at its file and line, rated by its security impact, the accepted one set aside with its comment as
+// the reason, and the import bound to the commit the analysis read. Community Build's rules state no
+// security standards, so these findings carry no CWE.
+func TestSonarQubeReadsWhatCommunityBuildAnswers(t *testing.T) {
+	t.Setenv("SONAR_TOKEN", sonarTestToken)
+	const analyzed = "61486d359fa0ec8222c3c922e2b8ca497fe6e0cb"
+	f := &recordedSonar{t: t}
+	srv := httptest.NewTLSServer(f)
+	t.Cleanup(srv.Close)
+	ft := sonarTarget()
+	ft.Project = "draugr-fixture"
+
+	rep, err := sonarImportOf(srv, analyzed, nil).Scan(context.Background(), ft, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type row struct {
+		rule string
+		line int
+	}
+	var got []row
+	for _, r := range rep.Results {
+		got = append(got, row{r.RuleID, r.Location.StartLine})
+		if r.Location.URI != "app/client.py" || r.Severity("") != sarif.SeverityHigh || len(r.CWE) != 0 {
+			t.Errorf("%s: uri %q, severity %s, CWE %v", r.RuleID, r.Location.URI, r.Severity(""), r.CWE)
+		}
+		if r.RuleID == "python:S4423" {
+			s := r.Suppression
+			if s == nil || s.Author != "admin" || s.Service != "SonarQube" ||
+				s.Justification != "accepted in SonarQube: Only reached by the legacy device bridge, retired next quarter." {
+				t.Errorf("accepted issue's suppression = %+v", s)
+			}
+		} else if r.Suppression != nil {
+			t.Errorf("%s set aside: %+v", r.RuleID, r.Suppression)
+		}
+	}
+	want := []row{{"python:S4830", 10}, {"python:S5659", 15}, {"python:S5527", 20}, {"python:S4423", 20}}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("findings = %v, want %v", got, want)
+	}
+	if r := rep.Rules["python:S5659"]; r.ShortDescription != "JWT should be signed and verified" {
+		t.Errorf("rule = %+v, want its name", r)
+	}
+	if got := fieldOf(rep, "commit"); got != short(analyzed) {
+		t.Errorf("commit = %q, want the analysis's", got)
 	}
 }

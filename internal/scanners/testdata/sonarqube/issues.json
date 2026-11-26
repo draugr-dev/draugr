@@ -1,0 +1,231 @@
+{
+  "total": 4,
+  "p": 1,
+  "ps": 500,
+  "paging": {
+    "pageIndex": 1,
+    "pageSize": 500,
+    "total": 4
+  },
+  "effortTotal": 42,
+  "issues": [
+    {
+      "key": "issue-S4830",
+      "rule": "python:S4830",
+      "severity": "CRITICAL",
+      "component": "draugr-fixture:app/client.py",
+      "project": "draugr-fixture",
+      "line": 10,
+      "hash": "27749fffdd7748b3ee195a5a73a64545",
+      "textRange": {
+        "startLine": 10,
+        "endLine": 10,
+        "startOffset": 36,
+        "endOffset": 41
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Enable server certificate validation on this SSL/TLS connection.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "wilson@draugr.dev",
+      "tags": [
+        "cwe",
+        "cryptography",
+        "privacy",
+        "ssl"
+      ],
+      "comments": [],
+      "creationDate": "2026-11-26T17:04:20+0000",
+      "updateDate": "2026-11-26T17:04:36+0000",
+      "type": "VULNERABILITY",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "TRUSTWORTHY",
+      "cleanCodeAttributeCategory": "RESPONSIBLE",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "issue-S5659",
+      "rule": "python:S5659",
+      "severity": "CRITICAL",
+      "component": "draugr-fixture:app/client.py",
+      "project": "draugr-fixture",
+      "line": 15,
+      "hash": "0920b4312cf5140fb17e73b656d64fdb",
+      "textRange": {
+        "startLine": 15,
+        "endLine": 15,
+        "startOffset": 37,
+        "endOffset": 64
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Don't use a JWT token without verifying its signature.",
+      "effort": "30min",
+      "debt": "30min",
+      "author": "wilson@draugr.dev",
+      "tags": [
+        "cwe",
+        "cryptography",
+        "privacy"
+      ],
+      "comments": [],
+      "creationDate": "2026-11-26T17:04:20+0000",
+      "updateDate": "2026-11-26T17:04:36+0000",
+      "type": "VULNERABILITY",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "TRUSTWORTHY",
+      "cleanCodeAttributeCategory": "RESPONSIBLE",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "issue-S5527",
+      "rule": "python:S5527",
+      "severity": "CRITICAL",
+      "component": "draugr-fixture:app/client.py",
+      "project": "draugr-fixture",
+      "line": 20,
+      "hash": "8236b4068d01a49402bb67fda252da9d",
+      "textRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 11,
+        "endOffset": 45
+      },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Enable server hostname verification on this SSL/TLS connection.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "wilson@draugr.dev",
+      "tags": [
+        "cwe",
+        "cryptography",
+        "privacy",
+        "ssl"
+      ],
+      "comments": [],
+      "creationDate": "2026-11-26T17:04:20+0000",
+      "updateDate": "2026-11-26T17:04:36+0000",
+      "type": "VULNERABILITY",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "COMPLETE",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "OPEN",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "issue-S4423",
+      "rule": "python:S4423",
+      "severity": "CRITICAL",
+      "component": "draugr-fixture:app/client.py",
+      "project": "draugr-fixture",
+      "line": 20,
+      "hash": "8236b4068d01a49402bb67fda252da9d",
+      "textRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 30,
+        "endOffset": 44
+      },
+      "flows": [],
+      "resolution": "WONTFIX",
+      "status": "RESOLVED",
+      "message": "Change this code to use a stronger protocol.",
+      "effort": "2min",
+      "debt": "2min",
+      "author": "wilson@draugr.dev",
+      "tags": [
+        "cwe",
+        "cryptography",
+        "privacy"
+      ],
+      "comments": [
+        {
+          "key": "comment-1",
+          "login": "admin",
+          "htmlText": "Only reached by the legacy device bridge, retired next quarter.",
+          "markdown": "Only reached by the legacy device bridge, retired next quarter.",
+          "updatable": true,
+          "createdAt": "2026-11-26T17:04:48+0000"
+        }
+      ],
+      "creationDate": "2026-11-26T17:04:20+0000",
+      "updateDate": "2026-11-26T17:04:48+0000",
+      "type": "VULNERABILITY",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "TRUSTWORTHY",
+      "cleanCodeAttributeCategory": "RESPONSIBLE",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "ACCEPTED",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    }
+  ],
+  "components": [
+    {
+      "key": "draugr-fixture",
+      "enabled": true,
+      "qualifier": "TRK",
+      "name": "draugr-fixture",
+      "longName": "draugr-fixture"
+    },
+    {
+      "key": "draugr-fixture:app/client.py",
+      "enabled": true,
+      "qualifier": "FIL",
+      "name": "client.py",
+      "longName": "app/client.py",
+      "path": "app/client.py"
+    }
+  ],
+  "facets": []
+}
