@@ -361,7 +361,12 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-${{ matrix.tool }}
-          path: /tmp/proof/${{ matrix.tool }}
+          # The tool's folder travels inside the artifact: upload-artifact keeps the path after
+          # the first wildcard, so this stores <tool>/meta.json. download-artifact unpacks a lone
+          # matching artifact straight into its path and several into a folder each, so a
+          # proof that carried only its files would land in a different place when one tool is
+          # behind than when several are.
+          path: /tmp/proof/*
           retention-days: 7
 
   # A branch per proven tool, holding that tool's pin and nothing else, for the integration suite
@@ -385,6 +390,9 @@ jobs:
         with:
           pattern: proof-*
           path: /tmp/proof
+          # Each proof holds its tool's folder, so merged they are /tmp/proof/<tool>/ however
+          # many there are.
+          merge-multiple: true
         continue-on-error: true
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Push one branch per proof
@@ -394,6 +402,12 @@ jobs:
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
           base=$(git rev-parse HEAD)
+          # A proof outside a folder of its own would be passed over below, and the run would
+          # end green with a proven tool proposed nowhere.
+          if compgen -G "/tmp/proof/*.json" > /dev/null; then
+            echo "::error::a proof landed in /tmp/proof rather than in a folder named for its tool: $(ls /tmp/proof)"
+            exit 1
+          fi
           staged=()
           for meta in /tmp/proof/*/meta.json; do
             [ -f "$meta" ] || continue
@@ -456,6 +470,8 @@ jobs:
         with:
           pattern: proof-*
           path: /tmp/proof
+          # /tmp/proof/<tool>/ however many there are, as in `stage`.
+          merge-multiple: true
         continue-on-error: true
 
       # A tool counts only when both of its integration jobs passed. Read from the run's jobs,
