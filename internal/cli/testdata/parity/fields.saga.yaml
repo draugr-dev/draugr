@@ -84,6 +84,11 @@ components:
         source: github-code-scanning
         tokenEnv: CI_GITHUB_TOKEN
         repository: acme/web
+      - control: sast
+        source: sonarqube
+        project: acme_web
+        tokenEnv: CI_SONAR_TOKEN
+        repository: acme/web
 config:
   controls:
     provenance:

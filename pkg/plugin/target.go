@@ -465,6 +465,8 @@ type FileTarget struct {
 	// Repository is the repository the descriptor names for the source as owner/name, empty where the
 	// component's one repository names it.
 	Repository string
+	// Project is the SonarQube project key a sonarqube source reads, empty for every other.
+	Project string
 	// Converter is the converter the descriptor declares for a draugr-converter file: the name the
 	// file has to state, and the properties it may set. Nil for every other format.
 	Converter *saga.ImportConverter
@@ -474,11 +476,11 @@ type FileTarget struct {
 func (FileTarget) Kind() TargetKind { return TargetFile }
 
 // Identity returns the path, e.g. "reports/checkmarx.sarif", or for a source the source and the
-// repository it names, "github-code-scanning acme/api". The kind is beside it wherever the two are
-// shown or keyed together, as for every other target.
+// project and repository it names, "github-code-scanning acme/api" or "sonarqube acme_api". The kind
+// is beside it wherever the two are shown or keyed together, as for every other target.
 func (t FileTarget) Identity() string {
 	if t.Source != "" {
-		return strings.TrimSpace(t.Source + " " + t.Repository)
+		return strings.Join(strings.Fields(t.Source+" "+t.Project+" "+t.Repository), " ")
 	}
 	return t.Path
 }

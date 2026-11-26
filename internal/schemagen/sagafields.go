@@ -499,14 +499,22 @@ func sagaFields() map[string]map[string]any {
 				valueDoc{"github-dependabot", "The repository's Dependabot alerts, read from GitHub's REST API, which GitHub " +
 					"marks public preview and subject to change. Each carries the advisory, its CVE, a CVSS score, the " +
 					"package and the first patched version."},
+				valueDoc{"sonarqube", "A SonarQube project's security issues, read from SonarQube Cloud's Web API or the " +
+					"server $SONAR_HOST_URL names, into sast. Each carries a rule, a location, a severity and, on SonarQube " +
+					"Cloud, the rule's CWEs. Needs project."},
 			),
 			"description": "A service whose alerts for the component's repository are read in place of a file. " +
 				"Exactly one of file and source.",
 		},
 		"import.tokenEnv": {
-			"description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset. " +
-				"Any other name must be listed in $DRAUGR_TOKEN_ENVS. A classic token needs security_events, or " +
-				"public_repo for a public repository. Source only.",
+			"description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset, or " +
+				"SONAR_TOKEN for sonarqube. Any other name must be listed in $DRAUGR_TOKEN_ENVS. For GitHub, a classic " +
+				"token needs security_events, or public_repo for a public repository. Source only.",
+			"minLength": 1,
+		},
+		"import.project": {
+			"description": "The key of the SonarQube project whose security issues a sonarqube source reads. " +
+				"Required by sonarqube, and refused by every other source and by a file.",
 			"minLength": 1,
 		},
 		"import.repository": {

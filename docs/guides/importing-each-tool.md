@@ -31,7 +31,8 @@ release.
 | [Aqua](importing-sarif.md#import-aqua) | `images` | `aqua-json` |
 | [Checkov](#checkov) | `iac` | SARIF |
 | [KICS](#kics) | `iac` | SARIF |
-| Black Duck, Coverity, SonarQube, Wiz | | [No file to import yet](#no-file-to-import-yet) |
+| [SonarQube](importing-sarif.md#import-sonarqube) | `sast` | `source: sonarqube`, no file |
+| Black Duck, Coverity, Wiz | | [No file to import yet](#no-file-to-import-yet) |
 
 For every tool:
 
@@ -227,8 +228,6 @@ docker run --rm -v "$PWD":/src -w /src checkmarx/kics:v2.2.1 \
   covers Coverity (`polaris.reports.sarif.create=true`), though not for a pull-request scan. What
   those files carry has not been checked against a real one. Reading Black Duck's and Coverity's own
   results is https://github.com/draugr-dev/draugr/issues/2317.
-- **SonarQube.** Checked on SonarQube Server 2026.5, which reads SARIF and exports none. Reading its
-  issues from its Web API is https://github.com/draugr-dev/draugr/issues/2319.
 - **Wiz.** No command is given. Reading Wiz CLI results is
   https://github.com/draugr-dev/draugr/issues/2316.
 

@@ -40,11 +40,13 @@ type sarifImport struct {
 	// github reads the alerts an import names a GitHub source for. Injectable for tests, which
 	// answer from recorded responses.
 	github githubClient
+	// sonar reads the security issues an import names a SonarQube source for. Injectable for tests.
+	sonar sonarClient
 }
 
 // NewSARIFImport returns the scanner every import is planned for.
 func NewSARIFImport() plugin.Scanner {
-	return sarifImport{resolve: git.ResolveRevision, github: newGitHubClient()}
+	return sarifImport{resolve: git.ResolveRevision, github: newGitHubClient(), sonar: newSonarClient()}
 }
 
 // Info describes the import scanner.
@@ -63,6 +65,8 @@ func (sarifImport) Info() plugin.ScannerInfo {
 				Detail: "asks GitHub's REST API for the repository's code-scanning alerts, with the import's token"},
 			{Kind: plugin.EffectNetwork, Source: saga.ImportSourceGitHubDependabot, Online: true,
 				Detail: "asks GitHub's REST API for the repository's Dependabot alerts, with the import's token"},
+			{Kind: plugin.EffectNetwork, Source: saga.ImportSourceSonarQube, Online: true,
+				Detail: "asks SonarQube's Web API for the project's security issues, with the import's token"},
 		},
 	}
 }
@@ -181,6 +185,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	ft, ok := target.(plugin.FileTarget)
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want file)", plugin.ImportScanner, target)
+	}
+	if isSonarSource(ft) {
+		return s.scanSonarQube(ctx, ft)
 	}
 	if ft.Source != "" {
 		return s.scanGitHub(ctx, ft)

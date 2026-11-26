@@ -1,0 +1,30 @@
+{
+  "rule": {
+    "key": "python:S5659",
+    "repo": "python",
+    "name": "JWT should be signed and verified",
+    "severity": "CRITICAL",
+    "status": "READY",
+    "isTemplate": false,
+    "tags": [],
+    "sysTags": [
+      "cwe",
+      "cryptography",
+      "privacy"
+    ],
+    "lang": "py",
+    "langName": "Python",
+    "scope": "MAIN",
+    "isExternal": false,
+    "type": "VULNERABILITY",
+    "cleanCodeAttribute": "TRUSTWORTHY",
+    "cleanCodeAttributeCategory": "RESPONSIBLE",
+    "impacts": [
+      {
+        "softwareQuality": "SECURITY",
+        "severity": "HIGH"
+      }
+    ]
+  },
+  "actives": []
+}

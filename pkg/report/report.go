@@ -1713,8 +1713,9 @@ type toolAside struct {
 	reporter string
 	n        int
 	reasons  []toolReason
-	// alerts marks a row of alerts dismissed in GitHub, which no tool suppressed.
-	alerts bool
+	// service is where a person set the findings aside, for a row no tool suppressed: GitHub's
+	// alerts, or another service an import reads, such as SonarQube. Empty for a tool's row.
+	service string
 }
 
 // asideLabel names the ACCEPTED row a set-aside imported finding is counted on: the tool as the
@@ -1780,10 +1781,13 @@ func (r toolReason) reason() string {
 
 // said is the row's statement: what the tool did, and what Draugr did with it.
 func (t toolAside) said() string {
-	if t.alerts {
+	switch {
+	case t.service == "":
+		return english.Count(t.n, "finding") + " the tool suppressed, not counted"
+	case sarif.GitHubService(t.service):
 		return english.Count(t.n, "alert") + " dismissed in GitHub, not counted"
 	}
-	return english.Count(t.n, "finding") + " the tool suppressed, not counted"
+	return english.Count(t.n, "finding") + " set aside in " + t.service + ", not counted"
 }
 
 // evidenceHint ends the console's row where the reasons are not under it, saying where they are.
@@ -1838,7 +1842,7 @@ func toolAsides(d Data) []toolAside {
 			who := asideLabel(res)
 			row := byTool[who]
 			if row == nil {
-				row = &toolAside{reporter: who, alerts: res.Suppression.Service != ""}
+				row = &toolAside{reporter: who, service: res.Suppression.Service}
 				byTool[who], reasons[who] = row, map[at]*toolReason{}
 				order = append(order, row)
 			}
@@ -2426,7 +2430,7 @@ func acceptedVia(res sarif.Result) string {
 		// The tool that wrote the file and where it recorded the suppression, which is where a
 		// reader goes to see or undo it.
 		if res.Suppression.Service != "" {
-			// The row's own name, which already says it was dismissed in GitHub.
+			// The row's own name, which already names the service it was set aside in.
 			return asideLabel(res)
 		}
 		return res.Reporter() + ", " + res.Suppression.Where()

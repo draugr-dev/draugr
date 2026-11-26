@@ -582,7 +582,12 @@ func reason(err error, rawURL string) string {
 // one it may read, and is set. The scan stops on either, so the preflight says so first.
 func sourceCheck(t plugin.FileTarget) Check {
 	// "alerts" rather than the target's kind, file: what is read is a service's alerts, not a file.
-	c := Check{Kind: "alerts", Target: t.Identity()}
+	// SonarQube calls what it holds issues.
+	kind := "alerts"
+	if t.Source == saga.ImportSourceSonarQube {
+		kind = "issues"
+	}
+	c := Check{Kind: kind, Target: t.Identity()}
 	detail, ok := scanners.SourceCheck(t)
 	c.Status, c.Detail = Failed, detail
 	if ok {

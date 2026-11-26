@@ -1,0 +1,30 @@
+{
+  "rule": {
+    "key": "python:S4423",
+    "repo": "python",
+    "name": "Weak SSL/TLS protocols should not be used",
+    "severity": "CRITICAL",
+    "status": "READY",
+    "isTemplate": false,
+    "tags": [],
+    "sysTags": [
+      "cwe",
+      "cryptography",
+      "privacy"
+    ],
+    "lang": "py",
+    "langName": "Python",
+    "scope": "MAIN",
+    "isExternal": false,
+    "type": "VULNERABILITY",
+    "cleanCodeAttribute": "TRUSTWORTHY",
+    "cleanCodeAttributeCategory": "RESPONSIBLE",
+    "impacts": [
+      {
+        "softwareQuality": "SECURITY",
+        "severity": "HIGH"
+      }
+    ]
+  },
+  "actives": []
+}

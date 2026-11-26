@@ -999,13 +999,24 @@ type Suppression struct {
 	Service string `json:"service,omitempty"`
 }
 
-// Where says where a tool recorded that it suppressed a finding: dismissed in the service for one
-// dismissed there, and otherwise as SuppressedIn reads the kind.
+// Where says where a tool recorded that it suppressed a finding: dismissed in GitHub's service for an
+// alert dismissed there, set aside in another service for a decision made there, and otherwise as
+// SuppressedIn reads the kind.
 func (s Suppression) Where() string {
-	if s.Service != "" {
+	switch {
+	case GitHubService(s.Service):
 		return "dismissed in " + s.Service
+	case s.Service != "":
+		return "set aside in " + s.Service
 	}
 	return "suppressed " + SuppressedIn(s.Kind)
+}
+
+// GitHubService says whether a suppression's service is one of GitHub's, code scanning or
+// Dependabot, whose alerts a person dismisses on GitHub. Another service an import reads, such as
+// SonarQube, has its own words for the decision, and a statement about it says set aside.
+func GitHubService(service string) bool {
+	return strings.HasPrefix(service, "GitHub") || service == "Dependabot"
 }
 
 // Where a suppression's decision came from, for Suppression.Origin.

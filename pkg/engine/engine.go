@@ -4596,7 +4596,7 @@ func (e *Engine) planImports(model saga.Model) ([]PlannedJob, []error) {
 			}
 			target := plugin.FileTarget{Path: imp.File, Component: comp.Name, Severity: imp.Severity,
 				Commit: imp.Commit, Format: imp.Format, Control: imp.Control, CountSuppressed: !imp.Suppressions.Honored(),
-				Source: imp.Source, TokenEnv: imp.TokenEnv, Repository: imp.Repository, Converter: imp.Converter}
+				Source: imp.Source, TokenEnv: imp.TokenEnv, Repository: imp.Repository, Project: imp.Project, Converter: imp.Converter}
 			if imp.File != "" {
 				target.Digest = fileDigest(imp.File)
 			}
