@@ -540,6 +540,7 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatMendJSON:                 "Mend dependency JSON",
 	saga.ImportFormatTwistcliJSON:             "twistcli JSON",
 	saga.ImportFormatAquaJSON:                 "Aqua scanner JSON",
+	saga.ImportFormatSemgrepJSON:              "Semgrep JSON",
 	saga.ImportFormatConverter:                "converter file",
 }
 

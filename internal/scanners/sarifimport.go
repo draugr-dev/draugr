@@ -141,6 +141,7 @@ var importReaders = map[string]importReader{
 	saga.ImportFormatMendJSON:                 readMendDependencyImport,
 	saga.ImportFormatTwistcliJSON:             readTwistcliImport,
 	saga.ImportFormatAquaJSON:                 readAquaImport,
+	saga.ImportFormatSemgrepJSON:              readSemgrepImport,
 	saga.ImportFormatConverter:                readConverterImport,
 }
 

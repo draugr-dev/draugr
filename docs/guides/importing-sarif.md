@@ -634,6 +634,62 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
+## Import Semgrep
+
+Semgrep's SARIF names a Supply Chain finding's package and CVE only in its message. Its JSON keeps
+both, with the code results beside them, so import it once into each of `sast` and `sca`:
+
+```bash
+semgrep ci --json-output=reports/semgrep.json
+```
+
+```yaml
+imports:
+  - control: sast
+    file: reports/semgrep.json
+    format: semgrep-json
+    commit: ${{ GITHUB_SHA }}
+  - control: sca
+    file: reports/semgrep.json
+    format: semgrep-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+`semgrep scan --config <rules> --json-output=<file>` writes the same format, for a scan with rules
+of your own.
+
+- **Each code result is a finding in `sast`** at its file and line, under its rule's id, with the
+  CWE the rule's metadata names. It is rated from the rule's impact and likelihood, as Draugr's own
+  Semgrep run rates it, else by the rule's severity: `CRITICAL` critical, `ERROR` and `HIGH` high,
+  `WARNING` and `MEDIUM` medium, `LOW` and `INFO` low.
+- **The tool is named as Semgrep's SARIF names it**, `Semgrep OSS`, or `Semgrep PRO` for a scan with
+  the Pro engine, so a finding Draugr's own Semgrep run also reports is counted once.
+- **Each Supply Chain result is a finding in `sca`**: an advisory in a dependency at the version
+  installed, in the lockfile that lists it. Its rule is its CVE, so KEV and EPSS reach it, else its
+  GHSA id, else Semgrep's rule id. An npm, PyPI, RubyGems, Go, Cargo, Maven, Composer, NuGet, Pub or
+  Hex package carries its package URL.
+- **The fixed version is read from the rule's `sca-fix-versions`**, the versions it names for this
+  package. Where the ecosystem's versions can be ordered, only those above the installed one count;
+  versions it names only for older release lines stay in the detail.
+- **Rated by the advisory's `sca-severity`**: `CRITICAL`, `HIGH`, `MODERATE` as medium, and `LOW`,
+  else by the rule's severity.
+- **A rule that looks for the vulnerable code** reports a result at each place it finds it. Those
+  results are one finding, whose detail names each place, or says Semgrep found no use. The rating
+  stays the advisory's either way.
+- **Semgrep Secrets results are not read**, in either control.
+- **A file a rule timed out on is listed under `unread-files`** in `sast`, as for Draugr's own run,
+  and so is a file Semgrep skipped for its size where it ran with `--verbose`.
+- **What a `nosemgrep` comment suppressed is not in the file**, and nor is a finding triaged as
+  ignored in Semgrep AppSec Platform, so Draugr never sees or counts either. To keep such a decision
+  in the report, with its reason, set the finding aside in the descriptor's `config.exclude`.
+- **Only `commit` binds the file**, since it names no commit.
+- **A file is refused** when it is not an object with `results`, `errors` and `paths`, when a result
+  has no `check_id` or `path`, when a Supply Chain result names no package, or when a severity is not
+  one of Semgrep's, and an import into any control but `sast` or `sca` is refused. Each error says
+  which.
+- **The import takes no `severity` mapping and no `suppressions`**: it is rated as described above,
+  and the file records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

@@ -120,6 +120,13 @@ func TestTheEditorAndDraugrHoldImportKeysToFormatAndKind(t *testing.T) {
 		{"severity on aqua-json", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "images", "severity": severity}), false, false},
 		{"suppressions on aqua-json", file(map[string]any{"format": saga.ImportFormatAquaJSON, "control": "images", "suppressions": "count"}), false, false},
 
+		{"semgrep-json into sast", file(map[string]any{"format": saga.ImportFormatSemgrepJSON, "control": "sast"}), false, true},
+		{"semgrep-json into sca", file(map[string]any{"format": saga.ImportFormatSemgrepJSON, "control": "sca"}), false, true},
+		{"semgrep-json into secrets", file(map[string]any{"format": saga.ImportFormatSemgrepJSON, "control": "secrets"}), false, false},
+		{"semgrep-json into secrets in a fragment", file(map[string]any{"format": saga.ImportFormatSemgrepJSON, "control": "secrets"}), true, false},
+		{"severity on semgrep-json", file(map[string]any{"format": saga.ImportFormatSemgrepJSON, "control": "sast", "severity": severity}), false, false},
+		{"suppressions on semgrep-json", file(map[string]any{"format": saga.ImportFormatSemgrepJSON, "control": "sca", "suppressions": "count"}), false, false},
+
 		{"draugr-converter with its converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv}), false, true},
 		{"draugr-converter with no converter", file(map[string]any{"format": saga.ImportFormatConverter}), false, false},
 		{"suppressions on draugr-converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv, "suppressions": "count"}), false, false},

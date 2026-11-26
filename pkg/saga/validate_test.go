@@ -1074,7 +1074,8 @@ func TestValidateImportFormat(t *testing.T) {
 	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "trivy-json", Control: "images"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
 		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping},
 		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}, {Format: "mend-json"},
-		{Format: "twistcli-json", Control: "images"}, {Format: "aqua-json", Control: "images"}} {
+		{Format: "twistcli-json", Control: "images"}, {Format: "aqua-json", Control: "images"},
+		{Format: "semgrep-json", Control: "sast"}, {Format: "semgrep-json", Control: "sca"}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -1084,7 +1085,7 @@ func TestValidateImportFormat(t *testing.T) {
 		want string
 	}{
 		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, veracode-pipeline-json, ` +
-			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, mend-json, twistcli-json, aqua-json, draugr-converter`},
+			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, mend-json, twistcli-json, aqua-json, semgrep-json, draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
@@ -1129,6 +1130,12 @@ func TestValidateImportFormat(t *testing.T) {
 			"nothing to apply to, since Aqua's scanner JSON records no suppression. Remove it"},
 		{Import{Format: "aqua-json", Control: "sca"}, "imports[0]: an aqua-json file holds no sca results; " +
 			"import it into images"},
+		{Import{Format: "semgrep-json", Control: "sast", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a semgrep-json file is rated as Draugr's own run of its tool rates it. Remove severity"},
+		{Import{Format: "semgrep-json", Control: "sca", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since Semgrep leaves what a nosemgrep comment suppressed out of its JSON. Remove it"},
+		{Import{Format: "semgrep-json", Control: "secrets"}, "imports[0]: a semgrep-json file holds no secrets results; " +
+			"import it into sast or sca"},
 		{Import{Format: "trivy-json", Control: "secrets"}, "imports[0]: a trivy-json file holds no secrets results; import it into sca or images"},
 		{Import{Format: "govulncheck-json", Control: "sast"}, "imports[0]: a govulncheck-json file holds no sast results; import it into sca"},
 		{Import{Format: "grype-json", Control: "images"}, "imports[0]: a grype-json file holds no images results; import it into sca"},

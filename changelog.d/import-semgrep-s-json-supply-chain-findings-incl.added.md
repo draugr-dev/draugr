@@ -1,0 +1,1 @@
+- **Import Semgrep's JSON, Supply Chain findings included.** `format: semgrep-json` reads what `semgrep ci --json-output` writes: code results into `sast`, rated as Draugr's Semgrep run rates them, and Supply Chain results into `sca` with the package, installed and fixed versions and CVE, so KEV and EPSS reach them.
