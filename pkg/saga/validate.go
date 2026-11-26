@@ -903,6 +903,13 @@ func validateImportFormat(imp Import, at string) []error {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"Veracode states. Remove severity", at, imp.Format)}
 	}
+	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
+		imp.ReadFormat() == ImportFormatGitLabDependencyScanning) {
+		// The tools that write GitLab's format are many, and Draugr runs few of them, so the file is
+		// rated by the severity it states for each vulnerability.
+		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
+			"it states. Remove severity", at, imp.Format)}
+	}
 	if imp.Severity != nil && imp.ReadFormat() != ImportFormatSARIF {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated as Draugr's own run "+
 			"of its tool rates it. Remove severity", at, imp.Format)}
@@ -916,6 +923,13 @@ func validateImportFormat(imp Import, at string) []error {
 	// Pipeline Scan's results.json records no mitigation or suppression on a flaw.
 	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatVeracodePipelineJSON {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since a Pipeline Scan file records no "+
+			"suppression. Remove it", at)}
+	}
+	// A GitLab report leaves out what the tool's own settings suppressed, and records no suppression
+	// on the vulnerabilities it holds.
+	if imp.Suppressions != "" && (imp.ReadFormat() == ImportFormatGitLabSAST ||
+		imp.ReadFormat() == ImportFormatGitLabDependencyScanning) {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since a GitLab report records no "+
 			"suppression. Remove it", at)}
 	}
 	return nil

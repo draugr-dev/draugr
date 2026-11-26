@@ -495,13 +495,15 @@ func fileDay(path string) string {
 
 // importFormatNames are what doctor calls each format.
 var importFormatNames = map[string]string{
-	saga.ImportFormatSARIF:                "SARIF 2.1.0",
-	saga.ImportFormatTrivyJSON:            "Trivy JSON",
-	saga.ImportFormatGovulncheckJSON:      "govulncheck JSON",
-	saga.ImportFormatGrypeJSON:            "Grype JSON",
-	saga.ImportFormatOSVScannerJSON:       "OSV-Scanner JSON",
-	saga.ImportFormatVeracodePipelineJSON: "Veracode Pipeline Scan JSON",
-	saga.ImportFormatConverter:            "converter file",
+	saga.ImportFormatSARIF:                    "SARIF 2.1.0",
+	saga.ImportFormatTrivyJSON:                "Trivy JSON",
+	saga.ImportFormatGovulncheckJSON:          "govulncheck JSON",
+	saga.ImportFormatGrypeJSON:                "Grype JSON",
+	saga.ImportFormatOSVScannerJSON:           "OSV-Scanner JSON",
+	saga.ImportFormatVeracodePipelineJSON:     "Veracode Pipeline Scan JSON",
+	saga.ImportFormatGitLabSAST:               "GitLab SAST report",
+	saga.ImportFormatGitLabDependencyScanning: "GitLab dependency scanning report",
+	saga.ImportFormatConverter:                "converter file",
 }
 
 // DescribeImport reads data as an import of format would, empty being SARIF, and says what it is and

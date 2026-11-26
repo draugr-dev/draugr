@@ -702,6 +702,15 @@ func importRules(converter bool) []any {
 			"if":   format(map[string]any{"const": saga.ImportFormatVeracodePipelineJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
+		// Neither of GitLab's reports records a suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatGitLabSAST}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatGitLabDependencyScanning}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
 	}
 	if converter {
 		// A converter's file needs the converter that wrote it and records no suppressions, and no

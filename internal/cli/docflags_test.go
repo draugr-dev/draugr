@@ -43,6 +43,8 @@ var docFlag = regexp.MustCompile("(?:^|[\\s`(\\[])(--[a-z][a-z0-9]*(?:-[a-z0-9]+
 var notOurs = map[string]string{
 	// Semgrep's, named where init explains which CI steps write SARIF.
 	"--sarif": "Semgrep's",
+	// Semgrep's, in the GitLab import guide, which writes GitLab's SAST report with it.
+	"--gitlab-sast": "Semgrep's",
 	// Trivy's, quoted where a scanner's own behavior, caching or air-gapped setup is explained.
 	"--exit-code":         "Trivy's",
 	"--severity":          "Trivy's",

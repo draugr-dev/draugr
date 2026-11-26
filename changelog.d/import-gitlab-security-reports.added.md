@@ -1,0 +1,1 @@
+- **Import GitLab security reports.** An import with `format: gitlab-sast` reads a GitLab SAST report, such as Semgrep writes with `--gitlab-sast`, and `format: gitlab-dependency-scanning` reads a Gemnasium dependency scanning report, each finding with its rule or package, CVE, fixed version and the severity the report states.

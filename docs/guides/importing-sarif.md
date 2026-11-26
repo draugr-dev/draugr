@@ -364,6 +364,56 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
+## Import GitLab's security reports
+
+GitLab's analyzers write their findings in GitLab's security report format rather than SARIF, and
+other tools write it for GitLab too, such as Semgrep with `--gitlab-sast`. Draugr reads two of its
+schemas, at version 15.x:
+
+- **`gitlab-sast`**, the `gl-sast-report.json` of a SAST scan, for `sast`;
+- **`gitlab-dependency-scanning`**, the `gl-dependency-scanning-report.json` of a dependency scan, for
+  `sca`.
+
+```bash
+semgrep scan --config p/default --gitlab-sast -o gl-sast-report.json
+```
+
+```yaml
+imports:
+  - control: sast
+    file: gl-sast-report.json
+    format: gitlab-sast
+    commit: ${{ CI_COMMIT_SHA }}
+  - control: sca
+    file: gl-dependency-scanning-report.json
+    format: gitlab-dependency-scanning
+    commit: ${{ CI_COMMIT_SHA }}
+```
+
+- **A SAST vulnerability is a finding** at its file and line, under its first identifier, whatever
+  its type, such as `python_flask_rule-flask-tainted-sql-string`. Its `cwe` identifiers give its
+  CWE, and its description is the detail.
+- **A SAST finding names the scanner the vulnerability states**, such as `Find Security Bugs` in a
+  SpotBugs report.
+- **A dependency vulnerability is a finding** in the package at the version installed, in the file
+  the report names. Its rule is its first CVE, so KEV and EPSS reach it, else its first GHSA id,
+  else its first identifier. Its other CVE and GHSA ids are its aliases.
+- **The fixed version is read from `solution`** in the two forms Gemnasium writes,
+  `Upgrade to version 0.3.3 or above.` and `Upgrade to v1.9.0 or greater.` A solution in any other
+  form leaves the finding with no fixed version, and its text is kept in the finding's detail.
+- **Go and npm packages get a package URL and ecosystem**: those in `go.mod`, `go.sum`,
+  `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock` and `pnpm-lock.yaml`. A
+  package in any other file has neither.
+- **Rated by the severity the report states:** `Critical`, `High`, `Medium` and `Low` as their
+  bands, and `Info` as low. `Unknown`, or no severity, ranks high, and the finding says so:
+  `not scored yet` on a dependency, `not rated, so ranked high` on code.
+- **Only `commit` binds the file**, since a GitLab report names no commit.
+- **A report is refused** when its schema version or scan type is another, when its `status` is
+  `failure`, when a severity is not one of GitLab's, or when a vulnerability names no file,
+  identifier or package. Each error says which.
+- **The import takes no `severity` mapping and no `suppressions`**: the report states its own rating
+  and records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts

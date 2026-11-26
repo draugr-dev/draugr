@@ -418,7 +418,7 @@ components:
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json` or `draugr-converter` import (neither file records one) |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning` or `draugr-converter` import (none of those files records one) |
 
 #### Import formats
 
@@ -431,6 +431,13 @@ components:
 - **`veracode-pipeline-json`**: the `results.json` Veracode Pipeline Scan writes with `-jo true`,
   for `sast`. Each flaw is read with its file, line, CWE and Veracode's severity
   ([Import Veracode Pipeline Scan](../guides/importing-sarif.md#import-veracode-pipeline-scan)).
+- **`gitlab-sast`**: a SAST report in GitLab's security report format, schema version 15.x, as
+  GitLab's analyzers and `semgrep scan --gitlab-sast` write it, for `sast`. Each vulnerability is read
+  with its file, line, rule, CWE and the severity the report states.
+- **`gitlab-dependency-scanning`**: a dependency scanning report in GitLab's format, schema version
+  15.x, as GitLab's Gemnasium analyzer writes it, for `sca`. Each vulnerability is read with its package,
+  installed version, fixed version, CVE and severity
+  ([Import GitLab's security reports](../guides/importing-sarif.md#import-gitlabs-security-reports)).
 - **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
   with `converter` declaring the converter.
 
