@@ -1,5 +1,5 @@
 Tool         Category  Controls                 Pinned   Install with                         Status
-cosign       utility   provenance               3.1.4    draugr tools install                 ✗ not found
+cosign       utility   provenance               3.1.6    draugr tools install                 ✗ not found
 docker       utility   -                        -        -                                    ✗ not found
 git          utility   -                        -        -                                    ✓ 2.55.0 (/somewhere/git)
 gitleaks     scanner   secrets                  8.30.1   draugr tools install                 ✗ not found
