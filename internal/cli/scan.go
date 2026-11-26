@@ -690,8 +690,11 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// token when what actually happened is that the build should not ship.
 	var publishErr error
 	if !opts.noPublish {
-		var judged *skald.PolicyCheck
-		judged, publishErr = publish.Judge(ctx, model.Config.Publishers, data, opts.policyWait)
+		var got publish.Judged
+		got, publishErr = publish.Judge(ctx, model.Config.Publishers, data, opts.policyWait)
+		// Before anything renders, so the console and the reports written below name where it went.
+		data.Published = got.Runs
+		judged := got.Check
 		// The pre-flight asked the same servers, so it is never nil where a server judged the run.
 		if judged != nil && orgPolicy != nil {
 			orgPolicy.Run = judged

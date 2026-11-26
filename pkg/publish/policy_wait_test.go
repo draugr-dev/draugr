@@ -84,13 +84,16 @@ func (p *server) pollCount() int {
 	return len(p.polled)
 }
 
+// checkOf is the verdict Judge returned.
+func checkOf(j Judged, err error) (*skald.PolicyCheck, error) { return j.Check, err }
+
 // judgeOne publishes to one server and returns what Judge made of it.
 func judgeOne(t *testing.T, p *server, wait time.Duration) (*skald.PolicyCheck, error) {
 	t.Helper()
 	srv := p.server(t)
 	t.Setenv(apiURLEnv, srv.URL)
 	t.Setenv(apiTokenEnv, "drgr_ci_test")
-	return Judge(context.Background(), []saga.PublisherConfig{{Kind: "draugr-api"}}, sampleData(), wait)
+	return checkOf(Judge(context.Background(), []saga.PublisherConfig{{Kind: "draugr-api"}}, sampleData(), wait))
 }
 
 func TestAVerdictThatPassesIsAPass(t *testing.T) {
@@ -258,11 +261,11 @@ func TestTwoServersCombine(t *testing.T) {
 		t.Setenv(apiURLEnv, one.URL)
 		t.Setenv(apiTokenEnv, "drgr_ci_test")
 		t.Setenv(apiOriginsEnv, other.URL)
-		got, err := Judge(context.Background(), []saga.PublisherConfig{
+		got, err := checkOf(Judge(context.Background(), []saga.PublisherConfig{
 			{Kind: "draugr-api", URL: one.URL},
 			{Kind: "draugr-api", URL: other.URL},
 			{Kind: "file", Dir: t.TempDir(), Reports: []saga.ReportConfig{{Format: "json"}}},
-		}, sampleData(), time.Minute)
+		}, sampleData(), time.Minute))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -295,9 +298,9 @@ func TestTwoServersCombine(t *testing.T) {
 		t.Setenv(apiURLEnv, one.URL)
 		t.Setenv(apiTokenEnv, "drgr_ci_test")
 		t.Setenv(apiOriginsEnv, other.URL)
-		got, err := Judge(context.Background(), []saga.PublisherConfig{
+		got, err := checkOf(Judge(context.Background(), []saga.PublisherConfig{
 			{Kind: "draugr-api", URL: one.URL}, {Kind: "draugr-api", URL: other.URL},
-		}, sampleData(), 20*time.Millisecond)
+		}, sampleData(), 20*time.Millisecond))
 		if err != nil || !got.Checked || !got.Pending {
 			t.Errorf("one pending makes the whole pending: %+v, %v", got, err)
 		}
@@ -314,9 +317,9 @@ func TestTheWaitIsOneLimitAcrossServers(t *testing.T) {
 	t.Setenv(apiURLEnv, one.URL)
 	t.Setenv(apiTokenEnv, "drgr_ci_test")
 	t.Setenv(apiOriginsEnv, other.URL)
-	got, err := Judge(context.Background(), []saga.PublisherConfig{
+	got, err := checkOf(Judge(context.Background(), []saga.PublisherConfig{
 		{Kind: "draugr-api", URL: one.URL}, {Kind: "draugr-api", URL: other.URL},
-	}, sampleData(), 20*time.Millisecond)
+	}, sampleData(), 20*time.Millisecond))
 	if err != nil || !got.Checked || !got.Pending {
 		t.Fatalf("both pending: %+v, %v", got, err)
 	}
@@ -333,7 +336,7 @@ func TestJudgeAsksNothingOfAServerThatJudgesNoPolicy(t *testing.T) {
 	}
 	t.Setenv(apiURLEnv, "")
 	t.Setenv(apiTokenEnv, "")
-	got, err = Judge(context.Background(), []saga.PublisherConfig{{Kind: "draugr-api"}}, sampleData(), time.Minute)
+	got, err = checkOf(Judge(context.Background(), []saga.PublisherConfig{{Kind: "draugr-api"}}, sampleData(), time.Minute))
 	if err != nil || got != nil {
 		t.Errorf("a skipped publisher judges nothing: %+v, %v", got, err)
 	}

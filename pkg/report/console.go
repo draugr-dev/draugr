@@ -2124,6 +2124,7 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		writeEvidence(w, col, d, "  ")
 	}
 	writeReports(w, col, d)
+	writePublished(w, col, d)
 	if dense(d) {
 		// The dense view leaves out what describes the run and keeps the one row that says where the
 		// rest of it is: a compact list of the first few findings is the view most likely to have

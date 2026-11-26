@@ -11,9 +11,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/draugr-dev/draugr/internal/credential"
 	"github.com/draugr-dev/draugr/internal/login"
@@ -362,6 +364,9 @@ type acceptedRun struct {
 	Project   string `json:"project"`
 	Verdict   string `json:"verdict"`
 	Duplicate bool   `json:"duplicate"`
+	// URL is the run's page on the server's console, absent from a server that does not say, or
+	// whose install has no console address.
+	URL string `json:"url,omitempty"`
 	// Policy is the organization's verdict on the run, absent from a server that judges none.
 	Policy   *skald.PolicyOutcome `json:"policy,omitempty"`
 	Evidence struct {
@@ -369,6 +374,39 @@ type acceptedRun struct {
 		Upload string `json:"upload"`
 		Error  string `json:"error"`
 	} `json:"evidence"`
+}
+
+// published is the run as a report names it. Every field comes from the server and is printed to a
+// terminal, so one holding a control character is dropped, and an address that is not a plain http
+// or https URL is too: a reader opens it, and it has to be what it looks like.
+func (p draugrAPIPublisher) published(a acceptedRun) report.PublishedRun {
+	return report.PublishedRun{
+		Server:    p.endpoint,
+		Project:   printable(a.Project),
+		Run:       printable(a.Run),
+		URL:       webAddress(a.URL),
+		Duplicate: a.Duplicate,
+	}
+}
+
+// printable is s, or empty where it holds a control character.
+func printable(s string) string {
+	if strings.IndexFunc(s, unicode.IsControl) >= 0 {
+		return ""
+	}
+	return s
+}
+
+// webAddress is s where it is an absolute http or https URL with a host, and empty otherwise.
+func webAddress(s string) string {
+	if printable(s) == "" || strings.ContainsAny(s, " \u00a0") {
+		return ""
+	}
+	u, err := url.Parse(s)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+	return s
 }
 
 // postRun sends the report and asks where the evidence should go.
