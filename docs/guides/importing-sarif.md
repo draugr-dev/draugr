@@ -14,7 +14,8 @@ scanners. Draugr does not run the tool. It reads the file an earlier pipeline st
 Trivy's, govulncheck's, Grype's and OSV-Scanner's own JSON can be imported the same way, and keeps
 more than their SARIF does ([Import a tool's own JSON](#import-a-tools-own-json)).
 A repository's GitHub code-scanning and Dependabot alerts can be read from GitHub with no
-file at all ([Import GitHub's alerts](#import-githubs-alerts)).
+file at all ([Import GitHub's alerts](#import-githubs-alerts)), and so can a SonarQube project's
+security issues ([Import SonarQube](#import-sonarqube)).
 
 The steps below use Bandit, which writes no commit into its SARIF, so they include binding the file
 to the commit it scanned. Another tool's file follows the same steps, with its own export command and
@@ -749,6 +750,47 @@ the binding to a commit, and every error.
 
 A tool that writes neither SARIF nor a JSON Draugr reads, such as `npm audit`, reaches a scan
 through a converter your pipeline runs on its output: [Write a converter](writing-a-converter.md).
+
+## Import SonarQube
+
+SonarQube writes no report file: its findings stay on the server. Draugr reads a project's security
+issues from SonarQube's Web API, as it reads GitHub's alerts. Name the project by its key:
+
+```yaml
+components:
+  - name: api
+    repositories:
+      - url: https://github.com/acme/api
+    imports:
+      - control: sast
+        source: sonarqube
+        project: acme_api
+```
+
+Then scan with a token that can browse the project in `SONAR_TOKEN`, and, for SonarQube Server, its
+address in `SONAR_HOST_URL`, the two variables SonarSource's own scanners read. Where
+`SONAR_HOST_URL` is unset, Draugr reads SonarQube Cloud. A token in another variable is named with
+`tokenEnv` and listed in `$DRAUGR_TOKEN_ENVS`, as for GitHub's alerts.
+
+What to expect:
+
+- **Only security issues are read**: each at its file and line, under its rule, rated by its
+  security impact, with the rule's CWEs on SonarQube Cloud. Code smells and bugs are not read, nor
+  are security hotspots, which SonarQube now raises as security issues.
+- **An issue a person accepted or marked as a false positive is set aside**, with the latest comment
+  on it as the reason. `suppressions: count` counts it instead.
+- **The commit is the one SonarQube's latest analysis read.** Run the scan after the analysis of the
+  same commit, or the import is listed under **Caveats** as `unbound-imports`.
+- **SonarQube's refusals stop the run**: a token it refuses, a project it does not know, a project
+  with no analysis yet, or more than the 10,000 issues its search returns. None reads as a project
+  with no findings.
+- **SonarSource's terms govern the token's use.** Its
+  [Acceptable Use Policy](https://www.sonarsource.com/legal/aup/) applies to SonarQube Cloud and
+  Server; Community Build is outside it. [License & terms](../../internal/scanners/sarif-import.md#license--terms)
+  quotes the clauses that bear on reading results into another tool.
+
+[SonarQube's security issues](../../internal/scanners/sarif-import.md#sonarqubes-security-issues)
+has how each issue is read and every error.
 
 ## See also
 

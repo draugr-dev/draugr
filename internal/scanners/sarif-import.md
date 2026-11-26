@@ -919,11 +919,85 @@ unlisted token variable, and an `--offline` run, stop the run before anything is
 
 `draugr doctor` checks that the token's variable may be read and is set, sending nothing.
 
+## SonarQube's security issues
+
+`source: sonarqube` reads a SonarQube project's security issues from its Web API in place of a file,
+into `sast` only. SonarQube writes no report file; what its analysis found is held by the server.
+
+| Request | Asked for |
+|---|---|
+| `GET /api/project_analyses/search` | the latest analysis, for the commit it read |
+| `GET /api/issues/search` | `impactSoftwareQualities=SECURITY`, `issueStatuses=OPEN,CONFIRMED,ACCEPTED,FALSE_POSITIVE`, with comments, 500 a page |
+| `GET /api/rules/show` | each rule the issues name, once, for its name and CWEs |
+
+**The project** is named by `project`, its key. **The server** is `$SONAR_HOST_URL`, the variable
+SonarSource's own scanners read, or SonarQube Cloud, `https://sonarcloud.io`, where it is unset. It is
+never read from the descriptor: the token goes to that server, and a descriptor changes by pull
+request. **The token** is read from the variable `tokenEnv` names, `SONAR_TOKEN` when unset, under
+the same `$DRAUGR_TOKEN_ENVS` rule as GitHub's, and sent as `Authorization: Bearer` to that server
+only. It needs permission to browse the project.
+
+**The repository** the findings are placed in is the component's one repository, or, for a
+component of several, the one `repository: owner/name` names, matched against the end of each
+repository's address on any host.
+
+**What is read.** An issue with a security impact is a finding at its file and first line, under its
+rule, such as `javasecurity:S2083`, with the rule's name and, on SonarQube Cloud, the CWEs its
+security standards list. SonarQube Server's rule answers state no CWE, so its findings carry none.
+A fixed issue is not read. An issue the server returns without a security impact, or, on a server
+that gives no impacts, of a type other than `VULNERABILITY`, is left out and counted under
+`left out`: a server that does not know the search's filter answers with every issue, and SonarQube
+ignores a parameter it does not know. Security hotspots are not read: SonarQube deprecated their API
+in favor of security issues, and a former hotspot's rule now raises an issue.
+
+**Severity** is the issue's security impact:
+
+| SonarQube | Draugr |
+|---|---|
+| `BLOCKER` | critical |
+| `HIGH` | high |
+| `MEDIUM` | medium |
+| `LOW`, `INFO` | low |
+
+On a server that gives no impacts, the issue's own severity is read instead: `BLOCKER` critical,
+`CRITICAL` high, `MAJOR` medium, `MINOR` and `INFO` low. A severity outside these stops the run,
+naming the issue. SonarQube gives no score.
+
+**A person's decision.** An issue a person accepted, or marked as a false positive, is set aside on
+an `ACCEPTED` row named for SonarQube, with the latest comment on the issue as the reason and its
+writer as who gave it. `suppressions: count` counts it instead, with the same in its detail.
+
+**The commit** is the one SonarQube's latest analysis of the project read. Where it is the commit this
+run reads, it binds the import. Another commit, or an analysis that names none, leaves every finding
+counted and lists the import under **Caveats** as `unbound-imports`, saying which commit SonarQube
+analyzed.
+
+**Refusals stop the run**, none reading as a project with no findings:
+
+| SonarQube answers | The error |
+|---|---|
+| 401 | `SonarQube refused $SONAR_TOKEN as invalid or expired. Create a new one` |
+| 403 | `$SONAR_TOKEN cannot browse project acme_api (HTTP 403)` |
+| 404 | `https://sonarcloud.io has no project acme_api, or the token cannot see it (HTTP 404)` |
+| 404 to a rule | `SonarQube has no rule java:S4507, which an issue names (HTTP 404)` |
+| no analysis | `SonarQube has no analysis of project acme_api yet` |
+| more than 10,000 issues | `SonarQube counts 10437 security issues, more than the 10000 its search returns` |
+| 429 | waited out for its `Retry-After`, or a minute, three tries in all, as GitHub's is |
+
+SonarQube's search returns no more than 10,000 results however it is paged, so a larger total is
+refused rather than read in part. An empty or unlisted token variable, and an `--offline` run, stop
+the run before anything is sent. `draugr doctor` checks the token's variable and that
+`$SONAR_HOST_URL` is an http or https address, and names the server, sending nothing.
+
 ## What is sent
 
 For an import of a file, nothing. For an import with `source`, to GitHub's REST API at
 `api.github.com`, or `$GITHUB_API_URL`: the repository's owner and name, the alert states asked for,
 and the token. Nothing about the code, the findings or the descriptor is sent.
+
+For `source: sonarqube`, to SonarQube Cloud at `sonarcloud.io`, or the server `$SONAR_HOST_URL` names:
+the project key, the rule keys its issues name, the project's organization, the filters above, and
+the token. Nothing about the code, the findings or the descriptor is sent.
 
 ## License & terms
 
@@ -940,11 +1014,32 @@ API tokens to exceed GitHub's rate limitations". Draugr asks for one repository'
 per run and honors `retry-after`. The terms say nothing specific about a tool keeping alert data; the
 alerts go into the report on the machine that ran the scan.
 
+An import with `source: sonarqube` uses SonarQube's Web API with the reader's own token. SonarQube
+Community Build is distributed under the LGPL-3.0, and SonarSource's
+[Primary Customer Agreement](https://www.sonarsource.com/legal/primary-agreement/) (updated
+2026-08-27) says "SonarSource's no-cost software downloads (such as SonarQube Community Build and
+SonarQube for IDE) are not Products covered by this Agreement". SonarQube Cloud and SonarQube Server
+are Products, used under that agreement and its
+[Acceptable Use Policy](https://www.sonarsource.com/legal/aup/) (updated 2025-11-07), both read on
+2026-11-26. The policy forbids using "Results Data to develop, build, or enhance products or services
+that compete with the Products, including but not limited to static code analysis tools, code
+quality platforms, security scanning tools, or code review systems", and says that nothing in that
+section prohibits "using Results Data in conjunction with general-purpose AI coding assistants,
+development tools, or similar productivity software for Customer's internal software development
+purposes". It also forbids access "in a manner that results in excessive API calls"; Draugr asks for
+one project's issues per import per run, each rule once, and honors `Retry-After`. Whether a use is
+within the policy is between the reader and SonarSource. SonarSource's
+[Privacy Notice](https://www.sonarsource.com/company/privacy/) (updated 2025-11-03) covers what
+SonarQube Cloud records of the requests.
+
 ## Data
 
 For a file, no data source: the scan reads the file the descriptor names, on the machine running
 Draugr, and resolves the component's repository revision with `git`, locally for a path and with
 `git ls-remote` for a remote.
 
-For an import with `source`, `api.github.com` (or `$GITHUB_API_URL`), on every run: the alerts are
+For an import of GitHub's alerts, `api.github.com` (or `$GITHUB_API_URL`), on every run: the alerts are
 GitHub's current account of the repository and are not cached.
+
+For `source: sonarqube`, `sonarcloud.io` (or `$SONAR_HOST_URL`), on every run: the issues are
+SonarQube's current account of the project and are not cached.

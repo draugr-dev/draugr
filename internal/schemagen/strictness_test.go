@@ -95,6 +95,8 @@ var openStrings = map[string]string{
 	"$defs.vexSource.properties.path":                              "a path to a VEX document",
 	"$defs.import.properties.file":                                 "a path to the SARIF file another tool wrote",
 	"$defs.fragmentImport.properties.file":                         "a path to the SARIF file another tool wrote",
+	"$defs.import.properties.project":                              "a SonarQube project key, which the server names",
+	"$defs.fragmentImport.properties.project":                      "a SonarQube project key, which the server names",
 	"$defs.importSeverity.properties.property":                     "a property name another tool chose",
 	"$defs.vexSource.properties.url":                               "a URL to a VEX document",
 	"$defs.vexRepository.properties.url":                           "a repository holding VEX documents",

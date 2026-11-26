@@ -1,0 +1,1 @@
+- **Read a SonarQube project's security issues into `sast`.** An import with `source: sonarqube` and `project:` reads them from SonarQube Cloud, or the server `$SONAR_HOST_URL` names, with `$SONAR_TOKEN`. Each finding keeps its file, line, rule and severity, accepted issues are set aside with their latest comment, and the analysis's commit binds the import.

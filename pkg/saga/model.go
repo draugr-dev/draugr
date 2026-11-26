@@ -1050,8 +1050,8 @@ type Import struct {
 	// Exactly one of File and Source.
 	File string `yaml:"file,omitempty"`
 	// Source names a service whose alerts for the component's repository are read in place of a
-	// file: ImportSourceGitHubCodeScanning or ImportSourceGitHubDependabot. Exactly one of File and
-	// Source.
+	// file: ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot or ImportSourceSonarQube.
+	// Exactly one of File and Source.
 	//
 	// One source per import, as one file is, so each has its own control, suppressions setting and
 	// line in the report: code-scanning alerts belong in sast and Dependabot's in sca.
@@ -1066,6 +1066,10 @@ type Import struct {
 	// one import per repository, because the alerts of one would otherwise be read as another's.
 	// Source only.
 	Repository string `yaml:"repository,omitempty"`
+	// Project is the SonarQube project whose issues and hotspots a sonarqube source reads, its project
+	// key. Required by that source and refused by every other: SonarQube names a project by its own key,
+	// which no repository address gives.
+	Project string `yaml:"project,omitempty"`
 	// Format is what the file is: ImportFormatSARIF, the default, or a tool's own JSON, which
 	// Draugr reads with the reader its own run of that tool uses. A dependency scanner's SARIF
 	// states the package and its fixed version only in prose, and govulncheck's carries no call
@@ -1221,18 +1225,26 @@ const (
 	ImportSourceGitHubCodeScanning = "github-code-scanning"
 	// ImportSourceGitHubDependabot is a repository's Dependabot alerts, read from GitHub's REST API.
 	ImportSourceGitHubDependabot = "github-dependabot"
+	// ImportSourceSonarQube is a SonarQube project's security issues and hotspots, read from the Web
+	// API of SonarQube Cloud or of the server $SONAR_HOST_URL names.
+	ImportSourceSonarQube = "sonarqube"
 )
 
 // ImportSources are the values an import's source accepts.
-var ImportSources = []string{ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot}
+var ImportSources = []string{ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot, ImportSourceSonarQube}
 
-// Name is what the import reads as a reader is told it: the file, or the source and the repository
-// it names, `github-code-scanning acme/api`.
+// ImportSourceControls are the controls an import of a source may name, for a source whose findings
+// belong to one control. SonarQube's security issues and hotspots are code findings, at a file and
+// line under a rule.
+var ImportSourceControls = map[string][]string{ImportSourceSonarQube: {"sast"}}
+
+// Name is what the import reads as a reader is told it: the file, or the source and the project and
+// repository it names, `github-code-scanning acme/api` or `sonarqube acme_api`.
 func (i Import) Name() string {
 	if i.Source == "" {
 		return i.File
 	}
-	return strings.TrimSpace(i.Source + " " + i.Repository)
+	return strings.Join(strings.Fields(i.Source+" "+i.Project+" "+i.Repository), " ")
 }
 
 // ReadFormat is the format the import's file is read as: Format, or SARIF where it names none.

@@ -546,17 +546,22 @@ func TestDoctorChecksAnImportedFile(t *testing.T) {
 	}
 }
 
-// An import of GitHub's alerts is checked for the token it will send, once per source, repository
-// and variable, without reaching GitHub: the variable has to be one it may read, and set.
+// An import of GitHub's alerts or SonarQube's issues is checked for the token it will send, once per
+// source, project, repository and variable, without reaching the service: the variable has to be one
+// it may read, and set. SonarQube's row names the server the token goes to.
 func TestDoctorChecksASourcesToken(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghp_"+strings.Repeat("b", 36))
+	t.Setenv("SONAR_TOKEN", "sqp_"+strings.Repeat("b", 40))
+	t.Setenv("SONAR_HOST_URL", "")
 	t.Setenv("DRAUGR_TOKEN_ENVS", "")
 	code := plugin.FileTarget{Source: "github-code-scanning", Repository: "acme/api"}
 	got := Run(context.Background(), []plugin.Target{
 		code, code,
 		plugin.FileTarget{Source: "github-dependabot", Repository: "acme/api", TokenEnv: "OTHER_TOKEN"},
+		plugin.FileTarget{Source: "sonarqube", Project: "acme_api"},
+		plugin.FileTarget{Source: "sonarqube", Project: "acme_api"},
 	}, Options{Offline: true})
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("%d checks, want one per source and variable: %+v", len(got), got)
 	}
 	for _, c := range got {
@@ -569,10 +574,15 @@ func TestDoctorChecksASourcesToken(t *testing.T) {
 			if c.Status != Failed || !strings.Contains(c.Detail, "$OTHER_TOKEN is not listed in $DRAUGR_TOKEN_ENVS") {
 				t.Errorf("dependabot check %+v", c)
 			}
+		case "sonarqube acme_api":
+			if c.Kind != "issues" || c.Status != Passed ||
+				c.Detail != "token in $SONAR_TOKEN, findings read from https://sonarcloud.io by the scan" {
+				t.Errorf("sonarqube check %+v", c)
+			}
 		default:
 			t.Errorf("unexpected check %+v", c)
 		}
-		if strings.Contains(c.Detail, "ghp_") {
+		if strings.Contains(c.Detail, "ghp_") || strings.Contains(c.Detail, "sqp_") {
 			t.Errorf("the token is in %+v", c)
 		}
 	}

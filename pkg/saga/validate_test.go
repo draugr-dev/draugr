@@ -1013,6 +1013,9 @@ func TestValidateImportSources(t *testing.T) {
 			{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/web"}}},
 		{two, []Import{{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/api"},
 			{Control: "sast", File: "api.sarif"}}},
+		{one, []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api", TokenEnv: "SQ_TOKEN"}}},
+		{two, []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api", Repository: "acme/api"},
+			{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_web", Repository: "acme/web"}}},
 	} {
 		if err := with(c.repos, c.imps...); err != nil {
 			t.Errorf("%+v refused: %v", c.imps, err)
@@ -1024,7 +1027,7 @@ func TestValidateImportSources(t *testing.T) {
 		want  string
 	}{
 		{one, Import{Control: "sast", File: "a.sarif", Source: ImportSourceGitHubCodeScanning}, "imports[0]: names both file and source"},
-		{one, Import{Control: "sast", Source: "gitlab-sast"}, `imports[0].source "gitlab-sast" is not one of github-code-scanning, github-dependabot`},
+		{one, Import{Control: "sast", Source: "gitlab-sast"}, `imports[0].source "gitlab-sast" is not one of github-code-scanning, github-dependabot, sonarqube`},
 		{one, Import{Control: "sast", Source: "GitHub-Code-Scanning"}, "imports[0].source"},
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Format: "sarif"}, "imports[0].format is read only with file"},
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Commit: "abc1234"}, "imports[0].commit is read only with file"},
@@ -1035,6 +1038,13 @@ func TestValidateImportSources(t *testing.T) {
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme"}, `imports[0].repository "acme" is not owner/name`},
 		{one, Import{Control: "sast", File: "a.sarif", TokenEnv: "GH_TOKEN"}, "imports[0].tokenEnv is read only with source"},
 		{one, Import{Control: "sast", File: "a.sarif", Repository: "acme/api"}, "imports[0].repository is read only with source"},
+		{one, Import{Control: "sast", File: "a.sarif", Project: "acme_api"}, "imports[0].project is read only with source"},
+		{one, Import{Control: "sast", Source: ImportSourceSonarQube}, "imports[0].project is required with source sonarqube"},
+		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Project: "acme_api"},
+			"imports[0].project is read only with source sonarqube, and this import reads github-code-scanning"},
+		{one, Import{Control: "sca", Source: ImportSourceSonarQube, Project: "acme_api"},
+			"imports[0]: source sonarqube reads sast findings, not sca. Import it into sast"},
+		{two, Import{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"}, "imports[0]: the component declares 2 repositories"},
 		{two, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning}, "imports[0]: the component declares 2 repositories. " +
 			"Name the one whose alerts to read with repository: owner/name, one import per repository"},
 	} {
@@ -1046,6 +1056,16 @@ func TestValidateImportSources(t *testing.T) {
 		{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "Acme/API"}}
 	if err := with(two, twice...); err == nil || !strings.Contains(err.Error(), "github-code-scanning Acme/API is imported into sast twice") {
 		t.Errorf("err = %v, want one source read twice into one control refused", err)
+	}
+	sonarTwice := []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"},
+		{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"}}
+	if err := with(one, sonarTwice...); err == nil || !strings.Contains(err.Error(), "sonarqube acme_api is imported into sast twice") {
+		t.Errorf("err = %v, want one project read twice into one control refused", err)
+	}
+	sonarTwo := []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"},
+		{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api_legacy"}}
+	if err := with(one, sonarTwo...); err != nil {
+		t.Errorf("two projects of one repository refused: %v", err)
 	}
 }
 

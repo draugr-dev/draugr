@@ -411,9 +411,10 @@ components:
 |---|---|
 | `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, and each import reads that control's results from the file. `sarif` and `draugr-converter` take any control |
 | `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
-| `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
-| `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
-| `repository` | `source` only: the repository whose alerts to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
+| `source` | a service's findings for the component's repository, read from its API in place of a file: `github-code-scanning` or `github-dependabot` ([GitHub's alerts](#githubs-alerts)), or `sonarqube`, a SonarQube project's security issues, into `sast` only ([SonarQube](#sonarqube)). Exactly one of `file` and `source` |
+| `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset, or `SONAR_TOKEN` for `sonarqube`. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
+| `project` | required by `source: sonarqube` and refused otherwise: the key of the SonarQube project whose security issues to read |
+| `repository` | `source` only: the repository whose findings to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
 | `format` | optional, `file` only: what the file is, one of the [formats](#import-formats) below. `sarif` when left out |
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
@@ -603,6 +604,34 @@ CVSS score, the package and the first patched version. GitHub marks Dependabot's
 preview and subject to change". The
 [`sarif-import`](../../internal/scanners/sarif-import.md#githubs-alerts) page has how each is read,
 bound to a commit, and the errors.
+
+#### SonarQube
+
+**`source: sonarqube`** reads a SonarQube project's security issues from its Web API, into `sast`:
+
+```yaml
+imports:
+  - control: sast
+    source: sonarqube
+    project: acme_api              # the project key
+```
+
+- **The server** is `$SONAR_HOST_URL`, which SonarSource's scanners read too, or SonarQube Cloud
+  where it is unset. It never comes from the descriptor, so a pull request cannot send the token
+  elsewhere.
+- **The token** is read from `tokenEnv`, `SONAR_TOKEN` when unset, and needs permission to browse
+  the project.
+- **Issues with a security impact are read**, open, confirmed, accepted and false positive ones, each
+  at its file and line under its rule, rated by its security impact. A fixed issue is not, and
+  neither are security hotspots, whose API SonarQube deprecated in favor of security issues.
+- **An accepted or false-positive issue is set aside** under `suppressions: honor`, with the latest
+  comment on it as the reason. `count` counts it.
+- **The commit** of SonarQube's latest analysis binds the import where it is this run's; otherwise the
+  import is unbound and listed under **Caveats**.
+- **Reading the issues is a `network` effect**, recorded in the report.
+
+The [`sarif-import`](../../internal/scanners/sarif-import.md#sonarqubes-security-issues) page has how
+each issue is read, its severity, and the errors.
 
 ## `config.controls`
 
@@ -1928,7 +1957,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, a `go.mod` gosec found no Go package in, or an image whose operating system the scanner does not support |
 | `unread-checks` | a check the scan could not evaluate, or could evaluate only in part: a cloud check whose read was denied, a CIS Kubernetes check whose audit read nothing on the node `kube-bench-job` ran it on, or an HTTP header check on an endpoint that answered with a non-2xx status |
-| `unbound-imports` | an imported SARIF file, or GitHub's alerts, that names no commit, so nothing ties its findings to the code being scanned |
+| `unbound-imports` | an imported SARIF file, GitHub's alerts or SonarQube's issues, naming no commit or another one, so nothing ties its findings to the code being scanned |
 | `uncommitted-files` | a local repository with uncommitted changes the scan did not read, because it read the committed revision; [`--working-tree`](cli.md#--working-tree-for-the-loop-of-fixing-something) reads them. Draugr's own reports folder, `.draugr/out` or the run's `-o`, is not counted |
 
 ```yaml

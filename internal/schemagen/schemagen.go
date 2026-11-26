@@ -704,11 +704,22 @@ func importRules(converter bool) []any {
 		}
 	}
 	rules := []any{
-		// A source reads alerts rather than a file, and a file reads no service's token or repository.
+		// A source reads alerts rather than a file, and a file reads no service's token, repository or
+		// project.
 		map[string]any{
 			"if":   map[string]any{"required": []any{"source"}},
 			"then": map[string]any{"properties": fileOnly},
-			"else": map[string]any{"properties": map[string]any{"tokenEnv": false, "repository": false}},
+			"else": map[string]any{"properties": map[string]any{"tokenEnv": false, "repository": false, "project": false}},
+		},
+		// SonarQube names a project by its own key, which only that source reads, and its security issues
+		// are code findings.
+		map[string]any{
+			"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": saga.ImportSourceSonarQube}},
+				"required": []any{"source"}},
+			"then": map[string]any{"required": []any{"project"},
+				"properties": map[string]any{"control": map[string]any{"anyOf": []any{map[string]any{"const": "sast",
+					"description": "SonarQube's security issues are code findings, at a file and line under a rule."}}}}},
+			"else": map[string]any{"properties": map[string]any{"project": false}},
 		},
 		// severity maps a SARIF result property.
 		map[string]any{
