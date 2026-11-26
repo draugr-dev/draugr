@@ -51,16 +51,23 @@ def slug(heading: str) -> str:
     return SPACE.sub("-", PUNCT.sub("", heading.strip().lower()))
 
 
-def tracked_markdown() -> list[Path]:
+# `--others` takes in files not tracked yet, because a new page or changelog entry is the one most
+# likely to hold a link nobody has followed. Checking only what is committed means its first gate
+# never reads it, and the first thing that does is CI, after the push. `--exclude-standard` keeps
+# .gitignore honored.
+def markdown_files() -> list[Path]:
     out = subprocess.run(
-        ["git", "ls-files", "-z", "*.md"], capture_output=True, text=True, check=True
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.md"],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
     return [Path(p) for p in out.split("\0") if p]
 
 
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
-    files = tracked_markdown()
+    files = markdown_files()
     # Every file's body and headings, read once: a reference page is linked to from a dozen others.
     bodies = {p: FENCE.sub("", (root / p).read_text(errors="replace")) for p in files}
     anchors = {p: {slug(m.group(2)) for m in HEADING.finditer(b)} for p, b in bodies.items()}
