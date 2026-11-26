@@ -1,1 +1,0 @@
-- **Import Mend's dependency scan.** An import with `format: mend-json` reads the JSON `mend dep --format json --export-results` writes into `sca`: each vulnerable library with its package, installed version, the fixed version Mend names for it, its CVE and Mend's severity, so KEV and EPSS reach it. Transitive libraries name the direct dependency that brings them in.

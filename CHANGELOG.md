@@ -12,6 +12,30 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.192.0] - 2026-11-26
+
+### Added
+
+- **Import Aqua image scans.** An import with `format: aqua-json` reads what Aqua's `scannercli scan --jsonfile` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by Aqua's CVSS score or severity, whichever is more severe.
+
+- **Import Mend's dependency scan.** An import with `format: mend-json` reads the JSON `mend dep --format json --export-results` writes into `sca`: each vulnerable library with its package, installed version, the fixed version Mend names for it, its CVE and Mend's severity, so KEV and EPSS reach it. Transitive libraries name the direct dependency that brings them in.
+
+- **Import Prisma Cloud image scans.** An import with `format: twistcli-json` reads what `twistcli images scan --output-file` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by its CVSS score or Prisma Cloud's severity.
+
+- **Import Semgrep's JSON, Supply Chain findings included.** `format: semgrep-json` reads what `semgrep ci --json-output` writes: code results into `sast`, rated as Draugr's Semgrep run rates them, and Supply Chain results into `sca` with the package, installed and fixed versions and CVE, so KEV and EPSS reach them.
+
+- **Read a SonarQube project's security issues into `sast`.** An import with `source: sonarqube` and `project:` reads them from SonarQube Cloud, or the server `$SONAR_HOST_URL` names, with `$SONAR_TOKEN`. Each finding keeps its file, line, rule and severity, accepted issues are set aside with their latest comment, and the analysis's commit binds the import.
+
+- **Run Draugr in a container you build.** `contrib/docker/Dockerfile` builds an image holding Draugr and the scanners a first scan runs, each downloaded from its maker, and fetches the KEV, EPSS and Go vulnerability feeds before each scan. [Run Draugr in a container](https://draugr.dev/docs/latest/guides/docker/) shows how to build it and keep the feeds and databases in volumes.
+
+### Fixed
+
+- **A Trivy import is held to the control its scan belongs to.** A `trivy-json` file imported into `secrets`, `iac` or another control is refused instead of reported as that control's findings. An image scan from `trivy image --format json` imports into `images`, each finding at the image Trivy scanned, and a filesystem scan into `sca`.
+
+- **An import is held to the control its format's findings belong to.** A JFrog, GitLab, Veracode, govulncheck, Grype or OSV-Scanner file imported into another control, such as JFrog's dependency findings into `sast`, is refused by `draugr validate` and the editor instead of being reported as that control's findings.
+
+- **`draugr tools outdated` reads a public release listing when GitHub refuses your `GITHUB_TOKEN`.** It asks again without the token, so setting the token no longer makes a tool fail to compare. A refusal that still stands now prints the reason GitHub gave beside its status.
+
 ## [0.191.0] - 2026-11-26
 
 ### Added
@@ -7629,7 +7653,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.191.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.192.0...HEAD
+[0.192.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.192.0
 [0.191.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.191.0
 [0.190.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.1
 [0.190.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.0
