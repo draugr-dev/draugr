@@ -409,7 +409,7 @@ components:
 
 | field | meaning |
 |---|---|
-| `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, and each import reads that control's results from the file. `sarif` and `draugr-converter` take any control |
+| `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, `jfrog-simple-json` takes `sca`, `sast`, `secrets` or `iac`, and each import reads that control's results from the file. `sarif` and `draugr-converter` take any control |
 | `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
 | `source` | a service's findings for the component's repository, read from its API in place of a file: `github-code-scanning` or `github-dependabot` ([GitHub's alerts](#githubs-alerts)), or `sonarqube`, a SonarQube project's security issues, into `sast` only ([SonarQube](#sonarqube)). Exactly one of `file` and `source` |
 | `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset, or `SONAR_TOKEN` for `sonarqube`. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
@@ -440,8 +440,10 @@ components:
   15.x, as GitLab's Gemnasium analyzer writes it, for `sca`. Each vulnerability is read with its package,
   installed version, fixed version, CVE and severity
   ([Import GitLab's security reports](../guides/importing-sarif.md#import-gitlabs-security-reports)).
-- **`jfrog-simple-json`**: what `jf audit --format simple-json` writes, for `sca`. Each dependency
-  vulnerability is read with its package, installed version, fixed version, CVE and Xray's severity
+- **`jfrog-simple-json`**: what `jf audit --format simple-json` writes, for `sca`, `sast`, `secrets`
+  and `iac`, imported once into each. Each import reads its control's findings: each dependency
+  vulnerability with its package, installed version, fixed version, CVE and Xray's severity, and each
+  SAST, secrets and IaC finding with its file, line, JFrog's rule and severity and, for SAST, its CWE
   ([Import JFrog Xray](../guides/importing-sarif.md#import-jfrog-xray)).
 - **`checkmarx-one-json`**: what `cx results show --report-format json` writes, for `sast`, `sca` and
   `iac`, imported once into each. Each import reads its control's results: SAST with its file, line,

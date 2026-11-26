@@ -2411,7 +2411,19 @@
                 "anyOf": [
                   {
                     "const": "sca",
-                    "description": "The file's dependency vulnerabilities, the only results Draugr reads from it."
+                    "description": "The file's dependency vulnerabilities, Xray's scan of the dependencies."
+                  },
+                  {
+                    "const": "sast",
+                    "description": "The file's SAST findings, JFrog's static analysis of the code."
+                  },
+                  {
+                    "const": "secrets",
+                    "description": "The file's secrets findings, JFrog's scan for credentials in the code."
+                  },
+                  {
+                    "const": "iac",
+                    "description": "The file's IaC findings, JFrog's scan of infrastructure as code."
                   }
                 ]
               }
@@ -2635,7 +2647,7 @@
             },
             {
               "const": "jfrog-simple-json",
-              "description": "The JSON jf audit --format simple-json writes, read for its dependency vulnerabilities, with each one's package, installed version, fixed version, CVE and Xray's severity."
+              "description": "The JSON jf audit --format simple-json writes, holding its dependency, SAST, secrets and IaC scans. Each import reads its control's: dependency vulnerabilities with each one's package, installed version, fixed version, CVE and Xray's severity, and code findings with JFrog's rule, file, line, severity and, for SAST, the CWE."
             },
             {
               "const": "checkmarx-one-json",
@@ -3521,7 +3533,19 @@
                 "anyOf": [
                   {
                     "const": "sca",
-                    "description": "The file's dependency vulnerabilities, the only results Draugr reads from it."
+                    "description": "The file's dependency vulnerabilities, Xray's scan of the dependencies."
+                  },
+                  {
+                    "const": "sast",
+                    "description": "The file's SAST findings, JFrog's static analysis of the code."
+                  },
+                  {
+                    "const": "secrets",
+                    "description": "The file's secrets findings, JFrog's scan for credentials in the code."
+                  },
+                  {
+                    "const": "iac",
+                    "description": "The file's IaC findings, JFrog's scan of infrastructure as code."
                   }
                 ]
               }
@@ -3774,7 +3798,7 @@
             },
             {
               "const": "jfrog-simple-json",
-              "description": "The JSON jf audit --format simple-json writes, read for its dependency vulnerabilities, with each one's package, installed version, fixed version, CVE and Xray's severity."
+              "description": "The JSON jf audit --format simple-json writes, holding its dependency, SAST, secrets and IaC scans. Each import reads its control's: dependency vulnerabilities with each one's package, installed version, fixed version, CVE and Xray's severity, and code findings with JFrog's rule, file, line, severity and, for SAST, the CWE."
             },
             {
               "const": "checkmarx-one-json",

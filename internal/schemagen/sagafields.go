@@ -542,8 +542,10 @@ func sagaFields() map[string]map[string]any {
 				valueDoc{"gitlab-dependency-scanning", "A dependency scanning report in GitLab's security report format, " +
 					"schema version 15, as GitLab's Gemnasium analyzer writes it, with each vulnerability's package, installed " +
 					"version, fixed version, CVE and severity."},
-				valueDoc{"jfrog-simple-json", "The JSON jf audit --format simple-json writes, read for its dependency " +
-					"vulnerabilities, with each one's package, installed version, fixed version, CVE and Xray's severity."},
+				valueDoc{"jfrog-simple-json", "The JSON jf audit --format simple-json writes, holding its dependency, SAST, " +
+					"secrets and IaC scans. Each import reads its control's: dependency vulnerabilities with each one's package, " +
+					"installed version, fixed version, CVE and Xray's severity, and code findings with JFrog's rule, file, line, " +
+					"severity and, for SAST, the CWE."},
 				valueDoc{"checkmarx-one-json", "The JSON cx results show --report-format json writes, holding a Checkmarx One " +
 					"scan's SAST, SCA and KICS results. Import it once into each of sast, sca and iac; each import reads its " +
 					"control's results, with Checkmarx's severity and the CWE, and for SCA the package, installed version, " +

@@ -14,10 +14,21 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
-// importJFrog reads body, a simple-json file, as an import would.
+// importJFrog reads body, a simple-json file, as an import into sca would.
 func importJFrog(t *testing.T, body string) sarif.Report {
 	t.Helper()
-	return importVeracode(t, writeFile(t, body), saga.ImportFormatJFrogSimpleJSON)
+	return importJFrogInto(t, writeFile(t, body), "sca")
+}
+
+// importJFrogInto reads the simple-json file at path as an import into control would.
+func importJFrogInto(t *testing.T, path, control string) sarif.Report {
+	t.Helper()
+	rep, err := NewSARIFImport().Scan(context.Background(),
+		plugin.FileTarget{Path: path, Format: saga.ImportFormatJFrogSimpleJSON, Control: control}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rep
 }
 
 // jfrogFile is a simple-json file whose dependency scan succeeded, holding vulns and violations.
@@ -43,7 +54,7 @@ func jfrogVuln(typ, name, version, file, severity, cve, fixed string) string {
 // the manifest, with the package and versions as fields rather than folded into the rule id. A
 // vulnerability listed on several targets, and a violation of one listed too, is one finding.
 func TestJFrogSimpleJSONReadsAsJFrogsOwnSARIFDoes(t *testing.T) {
-	rep := importVeracode(t, veracodeFixture("jfrog-audit-simple-json.json"), saga.ImportFormatJFrogSimpleJSON)
+	rep := importJFrogInto(t, veracodeFixture("jfrog-audit-simple-json.json"), "sca")
 	var fromJSON []string
 	for _, r := range rep.Results {
 		if r.Tool != jfrogTool || r.Package == nil || r.Package.Ecosystem != "npm" ||
@@ -200,7 +211,115 @@ func TestAJFrogFileThatIsNotAFinishedScanIsRefused(t *testing.T) {
 			`severity "Severe"; Xray rates`},
 	} {
 		_, err := NewSARIFImport().Scan(context.Background(),
-			plugin.FileTarget{Path: writeFile(t, c.body), Format: saga.ImportFormatJFrogSimpleJSON}, nil)
+			plugin.FileTarget{Path: writeFile(t, c.body), Format: saga.ImportFormatJFrogSimpleJSON, Control: "sca"}, nil)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v, want %q", name, err, c.want)
+		}
+	}
+}
+
+// JFrog's own test of jf audit writes its secrets, IaC and SAST findings beside the dependency scan,
+// and each import reads its own control's: a finding at its file and line under JFrog's rule, rated by
+// the severity JFrog states, with the CWE a SAST rule names. A finding a watch also raised as a
+// violation is one finding, and the dependency vulnerabilities stay in sca.
+func TestJFrogCodeFindingsAreReadIntoTheirOwnControls(t *testing.T) {
+	file := veracodeFixture("jfrog-audit-simple-json.json")
+	type row struct {
+		tool, rule, at, severity string
+		cwe                      []string
+	}
+	read := func(control string) []row {
+		var out []row
+		for _, r := range importJFrogInto(t, file, control).Results {
+			if r.Package != nil {
+				t.Errorf("%s: %s carries a package; a code finding names none", control, r.RuleID)
+			}
+			out = append(out, row{r.Tool, r.RuleID, fmt.Sprintf("%s:%d", r.Location.URI, r.Location.StartLine),
+				string(r.Rating.Severity), r.CWE})
+		}
+		return out
+	}
+
+	// The file's SAST findings are in sastViolations only, each CWE listed as a bare number.
+	want := []row{
+		{"JFrog SAST", "js-template-injection", "server.js:26", "high", []string{"CWE-73"}},
+		{"JFrog SAST", "js-insecure-random", "public/js/bootstrap.bundle.js:136", "low", []string{"CWE-338"}},
+	}
+	if got := read("sast"); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("sast = %+v, want %+v", got, want)
+	}
+	// Two secrets, and the violations raised for each; the violation states High where the finding
+	// states Medium, and the first listed is kept.
+	secrets := read("secrets")
+	if len(secrets) != 2 {
+		t.Fatalf("secrets = %+v, want the two secrets once each", secrets)
+	}
+	for _, r := range secrets {
+		if r.tool != "JFrog Secrets" || r.rule != "REQ.SECRET.KEYS" || r.severity != "medium" {
+			t.Errorf("secret = %+v", r)
+		}
+	}
+	if got := read("iac"); len(got) != 1 || got[0].tool != "JFrog IaC" || got[0].rule != "aws_cloudfront_tls_only" ||
+		got[0].at != "req_sw_terraform_aws_cloudfront_tls_only.tf:2" || got[0].severity != "high" {
+		t.Errorf("iac = %+v", got)
+	}
+	// A secret's token validation is kept in the detail and changes no rating: one JFrog judged not a
+	// token still ranks as the other does, since that judgment is no evidence the value is harmless.
+	details := map[string]string{ // #nosec G101 -- the detail text the import writes, not a credential
+		"fake-creds.txt": "JFrog's token validation: Active (active token).",
+		"dir/server.js":  "JFrog's token validation: Not a token.",
+	}
+	for _, r := range importJFrogInto(t, file, "secrets").Results {
+		if r.Detail != details[r.Location.URI] || r.Location.EndLine != 0 {
+			t.Errorf("%s at %s:%d: detail %q, end %d", r.RuleID, r.Location.URI, r.Location.StartLine, r.Detail,
+				r.Location.EndLine)
+		}
+	}
+	for _, r := range importJFrogInto(t, file, "iac").Results {
+		if r.Location.EndLine != 21 {
+			t.Errorf("iac: end line %d, want the 21 the file states", r.Location.EndLine)
+		}
+	}
+}
+
+// A code finding is rated by the severity JFrog states, Information low as the mildest. Unknown, and
+// a finding that states none, rank high and say why, since an unrated rule is no evidence the flaw is
+// mild. A severity JFrog does not use, a finding with no rule or file, a control the file does not
+// hold and a code scan that did not run are refused.
+func TestJFrogCodeSeverityAndRefusals(t *testing.T) {
+	codeFile := func(status, rows string) string {
+		return `{"vulnerabilities":null,"sast":[` + rows + `],"scansStatus":{` + status + `}}`
+	}
+	sastRow := func(severity string) string {
+		return fmt.Sprintf(`{"severity":%q,"ruleId":"r","cwe":["CWE-79","79","x"],"file":"a\\b.js","startLine":3,`+
+			`"finding":" XSS "}`, severity)
+	}
+	ok := `"sastScanStatusCode":0`
+	for severity, want := range map[string]string{"Critical": "critical", "Information": "low", "Unknown": "high", "": "high"} {
+		rep := importJFrogInto(t, writeFile(t, codeFile(ok, sastRow(severity))), "sast")
+		r := rep.Results[0]
+		if string(r.Rating.Severity) != want || r.Location.URI != "a/b.js" || r.Message != "XSS" ||
+			!slices.Equal(r.CWE, []string{"CWE-79"}) {
+			t.Errorf("%q: rating %s, at %s, message %q, cwe %v", severity, r.Rating.Severity, r.Location.URI,
+				r.Message, r.CWE)
+		}
+		if want == "high" && severity != "Critical" && !strings.Contains(r.Rating.Detail, "not rated, so ranked high") {
+			t.Errorf("%q: label %q should say it was not rated", severity, r.Rating.Detail)
+		}
+	}
+
+	for name, c := range map[string]struct{ body, control, want string }{
+		"bad severity": {codeFile(ok, sastRow("Severe")), "sast", `severity "Severe"; JFrog rates`},
+		"no rule":      {codeFile(ok, `{"severity":"High","file":"a.js"}`), "sast", "names no rule or file"},
+		"no file":      {codeFile(ok, `{"severity":"High","ruleId":"r"}`), "sast", "names no rule or file"},
+		"no SAST":      {codeFile(`"scaScanStatusCode":0`, ""), "sast", "no SAST scan"},
+		"no secrets":   {codeFile(ok, ""), "secrets", "no secrets scan: the file records none. Run jf audit without selecting scanners, or with --secrets"},
+		"IaC failed":   {codeFile(`"iacScanStatusCode":2`, ""), "iac", "the IaC scan did not succeed (status 2)"},
+		"no control":   {codeFile(ok, ""), "", `the import names control ""; import this file into sca, sast, secrets or iac`},
+		"images":       {codeFile(ok, ""), "images", "into sca, sast, secrets or iac"},
+	} {
+		_, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: writeFile(t, c.body),
+			Format: saga.ImportFormatJFrogSimpleJSON, Control: c.control}, nil)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err = %v, want %q", name, err, c.want)
 		}

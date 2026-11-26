@@ -683,7 +683,10 @@ var importFormatControlDocs = map[string]string{
 	saga.ImportFormatVeracodePipelineJSON + " sast":    "The file's flaws, Veracode's static analysis of the built application.",
 	saga.ImportFormatGitLabSAST + " sast":              "The file's vulnerabilities, the only results a GitLab SAST report holds.",
 	saga.ImportFormatGitLabDependencyScanning + " sca": "The file's vulnerable packages, the only results a GitLab dependency scanning report holds.",
-	saga.ImportFormatJFrogSimpleJSON + " sca":          "The file's dependency vulnerabilities, the only results Draugr reads from it.",
+	saga.ImportFormatJFrogSimpleJSON + " sca":          "The file's dependency vulnerabilities, Xray's scan of the dependencies.",
+	saga.ImportFormatJFrogSimpleJSON + " sast":         "The file's SAST findings, JFrog's static analysis of the code.",
+	saga.ImportFormatJFrogSimpleJSON + " secrets":      "The file's secrets findings, JFrog's scan for credentials in the code.",
+	saga.ImportFormatJFrogSimpleJSON + " iac":          "The file's IaC findings, JFrog's scan of infrastructure as code.",
 }
 
 // importRules are the rules across an import's keys that pkg/saga's validateImports enforces, so an
