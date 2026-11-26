@@ -59,7 +59,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          go run ./cmd/draugr tools outdated --json > /tmp/outdated.json
+          # `tools outdated` exits non-zero when it could not ask about a tool, and the JSON still
+          # names each one with its error. Kept, so the errors print below before the step fails.
+          status=0
+          go run ./cmd/draugr tools outdated --json > /tmp/outdated.json || status=$?
+          jq -r '.[] | select(.error) | "::error::could not ask \(.tool): \(.error)"' /tmp/outdated.json
+          [ "$status" -eq 0 ] || exit "$status"
           if [ -n "$ONLY" ]; then
             list=$(jq -c --arg t "$ONLY" '[.[] | select(.tool == $t) | .tool]' /tmp/outdated.json)
           else
@@ -67,7 +72,6 @@ jobs:
           fi
           echo "tools=$list" >> "$GITHUB_OUTPUT"
           echo "any=$(jq -r 'length > 0' <<<"$list")" >> "$GITHUB_OUTPUT"
-          jq -r '.[] | select(.error) | "could not ask \(.tool): \(.error)"' /tmp/outdated.json
 
   # One tool, bumped and then made to prove itself. `fail-fast: false` because these are
   # independent proposals and one bad release should not withdraw the others.
