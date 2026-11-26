@@ -2135,7 +2135,10 @@ trivy        0.74.0   0.76.0    draugr tools install trivy --version 0.76.0
 ```
 
 A tool whose upstream could not be asked shows `?` and `could not ask:` with the reason, and the
-last line adds how many could not be asked. The command beside a tool that is behind installs the
+last line adds how many could not be asked. Where GitHub gave a reason with its refusal, the reason
+follows the status. With `GITHUB_TOKEN` set, GitHub is asked with the token, which raises its rate
+limit. The release listings are public, so where GitHub refuses the token, the listing is asked for
+again without it. The command beside a tool that is behind installs the
 upstream's version. Without `--version`, `draugr tools install <tool>` installs the pinned one.
 
 `govulncheck` is also compared on the Go it is built with, against the newest stable release
