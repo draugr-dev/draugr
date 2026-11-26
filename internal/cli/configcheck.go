@@ -10,6 +10,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/builtins"
 	"github.com/draugr-dev/draugr/internal/feeds"
 	"github.com/draugr-dev/draugr/internal/observability"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -177,6 +178,11 @@ func valueProblems(f config.File) []string {
 	}
 	if j := f.Scan.Jobs; j != nil && *j < 0 {
 		out = append(out, fmt.Sprintf("scan.jobs: expected %s, got %d", acceptsCount, *j))
+	}
+	if m := f.Scan.ToolMemory; m != nil {
+		if _, err := toolexec.ParseMemoryBound(*m); err != nil {
+			out = append(out, "scan.toolMemory: "+err.Error())
+		}
 	}
 	// Exact spellings, as output.view takes, so the file reads as the schema completes it. The flags
 	// stay lenient about case, which a command line is typed by hand to want.

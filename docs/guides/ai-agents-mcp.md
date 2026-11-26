@@ -310,9 +310,9 @@ Every other tool reads, and is safe to call freely.
 
 A scan through MCP reads the `draugr.config.yaml` that `draugr scan` reads in the server's working
 directory, or the file `--config` or `DRAUGR_CONFIG` names, and refuses a malformed one with the same
-error. The `scan` tool takes no flags, so its `scan.jobs`, `scan.limitToolThreads` and
-`scan.shareWorkers` are how to set what `--jobs`, `--limit-tool-threads` and `--share-workers` set
-for `draugr scan`. It runs the descriptor's `config.publishers` exactly as `draugr scan` does, and
+error. The `scan` tool takes no flags, so its `scan.jobs`, `scan.limitToolThreads`,
+`scan.shareWorkers` and `scan.toolMemory` are how to set what `--jobs`, `--limit-tool-threads`,
+`--share-workers` and `--tool-memory` set for `draugr scan`. It runs the descriptor's `config.publishers` exactly as `draugr scan` does, and
 the result names where each one landed:
 
 ```json

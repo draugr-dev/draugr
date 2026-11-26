@@ -121,7 +121,7 @@ var scanFlagGroups = []flagGroup{
 		"min-priority", "artifact-min-priority", "template", "template-file", "no-tips",
 	}},
 	{"Caching", []string{"cache-dir", "cache-ttl", "cache-read-only", "cache-require-digest"}},
-	{"Running the scan", []string{"jobs", "limit-tool-threads", "share-workers", "allow-effects", "no-publish", "policy", "policy-wait"}},
+	{"Running the scan", []string{"jobs", "limit-tool-threads", "share-workers", "tool-memory", "allow-effects", "no-publish", "policy", "policy-wait"}},
 }
 
 func newScanCommand() *cobra.Command {
@@ -213,6 +213,10 @@ func newScanCommand() *cobra.Command {
 		"hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound, "+
 			"for less memory and CPU and a slower run where a long Semgrep job starts beside many short ones; "+
 			"implies --limit-tool-threads (also scan.shareWorkers in draugr.config.yaml)")
+	cmd.Flags().StringVar(&opts.limits.ToolMemory, scanpolicy.ToolMemoryFlag, "",
+		"stop a tool once it and the processes it starts use more than this much resident memory, such as 8GiB, "+
+			"failing its control and keeping the rest of the scan; Linux only, no bound by default "+
+			"(also scan.toolMemory in draugr.config.yaml)")
 	cmd.Flags().StringVar(&opts.format, "format", "console",
 		"what to print: "+strings.Join(report.StreamFormats, ", "))
 	// Built from the registry, not restated. --format already does this; --report listed its
@@ -437,6 +441,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 
 	if opts.limits.Jobs < 0 {
 		return fmt.Errorf("--jobs must be >= 0 (0 = auto)")
+	}
+	if err := opts.limits.Check(opts.setFlags); err != nil {
+		return err
 	}
 	if opts.top < 0 {
 		return fmt.Errorf("--top must be >= 0 (0 = show all)")

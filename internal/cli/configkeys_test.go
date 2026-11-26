@@ -180,6 +180,11 @@ func TestEveryConfigKeyDefaultIsTheOneTheCodeApplies(t *testing.T) {
 		"scan.shareWorkers": func(d string) bool {
 			return d == flagDefault(t, scan, "share-workers") && d == strconv.FormatBool(toolexec.SharesWorkers(context.Background()))
 		},
+		// No bound: the flag is empty and a run with nothing set carries none.
+		"scan.toolMemory": func(d string) bool {
+			return d == "none" && flagDefault(t, scan, "tool-memory") == "" &&
+				toolexec.MemoryBoundOf(context.Background()).Bytes == 0
+		},
 		// Each tool's own pin, which the rows named per tool below hold.
 		"tools.<tool>.version": func(d string) bool { return d == "Draugr's pin" },
 	}

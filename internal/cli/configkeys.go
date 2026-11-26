@@ -15,6 +15,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/controllers"
 	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/internal/suggest"
+	"github.com/draugr-dev/draugr/internal/toolexec"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -67,6 +68,7 @@ var machineKeys = map[string]struct{ accepts, def string }{
 	"scan.jobs":             {acceptsCount + "; 0, sized to the machine", "0"},
 	"scan.limitToolThreads": {acceptsBool, "false"},
 	"scan.shareWorkers":     {acceptsBool, "false"},
+	"scan.toolMemory":       {toolexec.MemoryBoundAccepts, "none"},
 	"tools.<tool>.version":  {"a release, such as 0.69.3", "Draugr's pin"},
 }
 

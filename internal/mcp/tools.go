@@ -823,6 +823,9 @@ func scanTool(reg *engine.Registry, mode ScanMode, cfg ConfigLoader) mcp.ToolHan
 		// no flags, so scan.* decides each one it sets.
 		var limits scanpolicy.Limits
 		limits.Configure(settings, nil)
+		if err := limits.Check(nil); err != nil {
+			return nil, ScanOutput{}, err
+		}
 		plan, err := planScan(reg, model)
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("plan %s: %w", in.Path, err)
