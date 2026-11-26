@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -121,6 +123,10 @@ func TestRunDoctorJSONNamesWhereAToolCannotWrite(t *testing.T) {
 			if tr.CannotWrite != filepath.Join(cache, "trivy") || !strings.Contains(tr.Hint, "DRAUGR_HOME") {
 				t.Errorf("trivy = %+v", tr)
 			}
+			want := []unwritableReport{{Path: filepath.Join(cache, "trivy"), Variable: "DRAUGR_HOME"}}
+			if !slices.Equal(tr.Unwritable, want) {
+				t.Errorf("unwritable = %+v, want %+v", tr.Unwritable, want)
+			}
 			return
 		}
 	}
@@ -193,5 +199,49 @@ func TestUnwritableAdviceFollowsWhatMovesEachPlace(t *testing.T) {
 	if got, want := unwritableNotes(bothCaches.Unwritable), "can't write /h/go/pkg/mod · set GOMODCACHE to a writable directory; "+
 		"can't write /h/.cache/go-build · set GOCACHE to a writable directory"; got != want {
 		t.Errorf("unwritableNotes = %q, want %q", got, want)
+	}
+}
+
+// A tool that cannot write two places lists both in the JSON, each with the variable to set, so a
+// script moves every one in one run. cannotWrite keeps naming the first, as a string.
+func TestDoctorJSONListsEveryPlaceAToolCannotWrite(t *testing.T) {
+	gosec := tools.Status{Tool: tools.Tool{Binary: "gosec"}, Found: true, Unwritable: []tools.Unwritable{
+		{Path: "/h/go/pkg/mod", Var: "GOMODCACHE", Stays: true},
+		{Path: "/ro/go-build", Var: "GOCACHE", Stays: true, Named: true},
+	}}
+	trivy := tools.Status{Tool: tools.Tool{Binary: "trivy"}, Found: true, Unwritable: []tools.Unwritable{
+		{Path: "/h/.cache/trivy", Var: "TRIVY_CACHE_DIR"},
+	}}
+	var out bytes.Buffer
+	if err := writeDoctorJSON(&out, draugrReport{}, nil, []tools.Status{gosec, trivy}, nil, 2, nil, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Tools []map[string]any `json:"tools"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	want := map[string]struct {
+		first string
+		list  []any
+	}{
+		"gosec": {"/h/go/pkg/mod", []any{
+			map[string]any{"path": "/h/go/pkg/mod", "variable": "GOMODCACHE"},
+			map[string]any{"path": "/ro/go-build", "variable": "GOCACHE"},
+		}},
+		"trivy": {"/h/.cache/trivy", []any{map[string]any{"path": "/h/.cache/trivy", "variable": "DRAUGR_HOME"}}},
+	}
+	for _, tr := range got.Tools {
+		w := want[tr["binary"].(string)]
+		if tr["cannotWrite"] != w.first {
+			t.Errorf("%s cannotWrite = %v, want %q", tr["binary"], tr["cannotWrite"], w.first)
+		}
+		if list, _ := tr["unwritable"].([]any); !reflect.DeepEqual(list, w.list) {
+			t.Errorf("%s unwritable = %v, want %v", tr["binary"], tr["unwritable"], w.list)
+		}
+	}
+	if len(got.Tools) != 2 {
+		t.Errorf("tools = %v", got.Tools)
 	}
 }
