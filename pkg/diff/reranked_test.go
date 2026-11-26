@@ -244,7 +244,9 @@ func TestAScansChangeCarriesRerankedFindings(t *testing.T) {
 
 // Two scans of draugr-demo, the first with no exposure or criticality declared and the second with
 // them declared, trimmed to a few of the worker's and the platform's findings and one in api whose
-// band stayed. Every finding is in both scans, and declaring the context lowered five of them.
+// band stayed. Every finding is in both scans, and declaring the context lowered five of them. Both
+// record their declarations, as a scan has since 0.189.0, so the diff can say what each component
+// declared.
 func TestDeclaringContextReportsTheFindingsItReranked(t *testing.T) {
 	load := func(name string) sarif.Report {
 		t.Helper()
@@ -287,5 +289,15 @@ func TestDeclaringContextReportsTheFindingsItReranked(t *testing.T) {
 	if strings.Contains(got, "Nothing changed") || !strings.Contains(got, "5 reranked (5 lowered)  2 unchanged") ||
 		!strings.Contains(got, "RERANKED  5 · 5 lowered") || !strings.Contains(got, "Nothing is new or fixed. Only priorities changed.") {
 		t.Errorf("the diff should report the five reranked findings:\n%s", got)
+	}
+	for _, comp := range []string{"worker", "platform"} {
+		line := "  " + comp + ": exposure public (assumed) → internal, criticality critical (assumed) → supporting\n"
+		if !strings.Contains(got, line) {
+			t.Errorf("want %q under the heading:\n%s", line, got)
+		}
+	}
+	// api declared a criticality its finding's band did not feel, so it has no line.
+	if strings.Contains(got, "api:") {
+		t.Errorf("named a component whose findings kept their band:\n%s", got)
 	}
 }

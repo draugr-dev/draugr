@@ -1,0 +1,1 @@
+- **`draugr diff` says why a reranked finding moved.** A component that declared a new exposure or criticality gets one line under `RERANKED`, and a row names what moved that finding alone, such as `↑ KEV`, `↓ unreachable` or a new severity. The pull-request comment and `--format json` carry the same.

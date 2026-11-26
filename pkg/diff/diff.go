@@ -84,6 +84,10 @@ type Result struct {
 	NoBase bool
 	// Held is what the base's declaration decided beyond the head's: see HoldToBase.
 	Held Held
+
+	// baseClassUnknown is set where the base report cannot say what its components declared, so a
+	// reranked finding's causes leave the classification out: see recordsClassification.
+	baseClassUnknown bool
 	// arrived are the accepted findings the base had no finding of: excused on arrival, by a rule
 	// that was already there or by one the change adds.
 	arrived []sarif.Result
@@ -112,6 +116,12 @@ type Rerank struct {
 	sarif.Result
 	// From is the band the finding had in the base, "" where the base did not prioritize it.
 	From string
+	// Was is the base's copy, which records the inputs the base ranked it by. Zero where the base
+	// copy is not known, and Causes is then nil.
+	Was sarif.Result
+	// classUnknown is set where the base report cannot say what the component declared, so Causes
+	// names no change to the classification.
+	classUnknown bool
 }
 
 // Raised reports whether the head ranks the finding more urgent than the base did.
@@ -134,7 +144,7 @@ func Compare(base, head sarif.Report) Result {
 	baseRes, headRes := distinct(base.Results), distinct(head.Results)
 	pair := match(baseRes, headRes)
 
-	var r Result
+	r := Result{baseClassUnknown: !recordsClassification(base)}
 	matched := make([]bool, len(baseRes))
 	var held []int
 	for h, res := range headRes {
@@ -226,7 +236,7 @@ func (r *Result) place(res, was sarif.Result, inBase bool) {
 	case inBase && res.Priority != was.Priority:
 		// Counting in both, and ranked differently. Only a counting finding: one excused in both
 		// scans is still accepted whatever its band, because nobody is working from it.
-		r.Reranked = append(r.Reranked, Rerank{Result: res, From: was.Priority})
+		r.Reranked = append(r.Reranked, Rerank{Result: res, From: was.Priority, Was: was, classUnknown: r.baseClassUnknown})
 	case inBase:
 		r.Unchanged = append(r.Unchanged, res)
 	default:
