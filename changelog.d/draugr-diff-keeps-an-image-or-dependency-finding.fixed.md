@@ -1,1 +1,0 @@
-- **`draugr diff` keeps an image or dependency finding unchanged when the vulnerability feed rewords its advisory.** The same package at the same version was reported fixed and new, which failed a gate on new findings for a pull request that changed nothing. A band change on such a finding now shows as reranked.

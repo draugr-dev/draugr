@@ -12,6 +12,24 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.191.0] - 2026-11-26
+
+### Added
+
+- **`draugr doctor --json` lists every place a tool cannot write.** A tool's new `unwritable` field has one entry for each such place, with its `path` and the `variable` to set to move it. A script can now fix them all in one run. `cannotWrite` still names the first.
+
+- **Import Checkmarx One's own JSON.** An import with `format: checkmarx-one-json` reads what `cx results show --report-format json` writes, once into each of `sast`, `sca` and `iac`: code findings with their CWE, dependency findings with their package, versions and CVE, and KICS findings. A result triaged Not Exploitable or Ignored is set aside as the tool's suppression.
+
+- **Import GitLab security reports.** An import with `format: gitlab-sast` reads a GitLab SAST report, such as Semgrep writes with `--gitlab-sast`, and `format: gitlab-dependency-scanning` reads a Gemnasium dependency scanning report, each finding with its rule or package, CVE, fixed version and the severity the report states.
+
+- **Import JFrog Xray's dependency findings.** An import with `format: jfrog-simple-json` reads what `jf audit --format simple-json` writes, each vulnerable package with its installed and fixed version, CVE and Xray's severity, in each manifest that brings it in.
+
+- **Keep a scan's results when one tool runs out of memory, with `--tool-memory 8GiB` or `scan.toolMemory`.** On Linux, Draugr stops a tool once it and the processes it starts pass the bound, and fails only that control, before a memory limit that ends everything inside it is reached. The kernel now kills a tool before Draugr.
+
+### Fixed
+
+- **`draugr diff` keeps an image or dependency finding unchanged when the vulnerability feed rewords its advisory.** The same package at the same version was reported fixed and new, which failed a gate on new findings for a pull request that changed nothing. A band change on such a finding now shows as reranked.
+
 ## [0.190.1] - 2026-11-25
 
 ### Fixed
@@ -7611,7 +7629,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.190.1...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.191.0...HEAD
+[0.191.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.191.0
 [0.190.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.1
 [0.190.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.0
 [0.189.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.5

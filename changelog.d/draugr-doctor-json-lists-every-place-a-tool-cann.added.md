@@ -1,1 +1,0 @@
-- **`draugr doctor --json` lists every place a tool cannot write.** A tool's new `unwritable` field has one entry for each such place, with its `path` and the `variable` to set to move it. A script can now fix them all in one run. `cannotWrite` still names the first.
