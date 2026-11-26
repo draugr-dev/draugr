@@ -368,10 +368,11 @@ func distinct(results []sarif.Result) []sarif.Result {
 
 // match pairs each head finding with the base finding it is, by index, one to one.
 //
-// Six passes, most specific first. The content fingerprint pairs a finding that moved within its
+// Eight passes, most specific first. The content fingerprint pairs a finding that moved within its
 // file; identity then pairs one whose surrounding lines were edited, which changes the fingerprint
-// and nothing else; the object set pairs a finding listing the objects failing a check whose list
-// changed. The last three repeat all of them without the component, pairing a finding whose
+// and nothing else; the package pairs an advisory about an installed package whose wording the
+// feed changed; the object set pairs a finding listing the objects failing a check whose list
+// changed. The last four repeat all of them without the component, pairing a finding whose
 // component changed and nothing about it did. The passes are separate so that a finding matched
 // loosely never takes the base finding another one matched exactly, and a finding still in its own
 // component is never paired with a copy in another one.
@@ -383,8 +384,8 @@ func match(base, head []sarif.Result) map[int]int {
 	pair := make(map[int]int, len(head))
 	used := make([]bool, len(base))
 	for _, key := range []func(sarif.Result) string{
-		contentKey, identity, objectSetKey,
-		anyComponent(contentKey), anyComponent(identity), anyComponent(objectSetKey),
+		contentKey, identity, packageKey, objectSetKey,
+		anyComponent(contentKey), anyComponent(identity), anyComponent(packageKey), anyComponent(objectSetKey),
 	} {
 		pool := map[string][]int{}
 		for _, b := range byLine(base) {
@@ -443,6 +444,26 @@ func contentKey(r sarif.Result) string {
 	// two scanners finding different things there are two findings.
 	return strings.Join([]string{
 		"content", r.Tool, r.RuleID, r.Location.URI, hash, r.Component,
+		sarif.RepositoryIdentity(r.Repository),
+	}, "\x00")
+}
+
+// packageKey is a finding about an installed package, keyed by the advisory and the package at its
+// version without the message, or empty for a finding that names no package.
+//
+// Such a finding's message is the vulnerability feed's prose: the advisory's description, the
+// version that fixes it, and whether it has an exploit score yet. The feed rewrites all three
+// without the package changing, and an image finding has no line to fingerprint, so keyed on
+// identity alone the same package in the same image would be reported fixed under the old wording
+// and new under the current one, failing a gate on a change that touched nothing. The package at
+// its version is what the finding is about: upgrading it changes the key, and the old finding is
+// fixed.
+func packageKey(r sarif.Result) string {
+	if r.Package == nil || r.Package.Name == "" {
+		return ""
+	}
+	return strings.Join([]string{
+		"package", r.Tool, r.RuleID, r.Location.URI, r.Package.Name, r.Package.Version, r.Component,
 		sarif.RepositoryIdentity(r.Repository),
 	}, "\x00")
 }
