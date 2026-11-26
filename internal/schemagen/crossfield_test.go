@@ -77,6 +77,12 @@ func TestTheEditorAndDraugrHoldImportKeysToFormatAndKind(t *testing.T) {
 		{"severity on checkmarx-one-json", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "severity": severity}), false, false},
 		{"checkmarx-one-json into dast in a fragment", file(map[string]any{"format": saga.ImportFormatCheckmarxOneJSON, "control": "dast"}), true, false},
 
+		{"mend-json into sca", file(map[string]any{"format": saga.ImportFormatMendJSON, "control": "sca"}), false, true},
+		{"mend-json into sast", file(map[string]any{"format": saga.ImportFormatMendJSON, "control": "sast"}), false, false},
+		{"mend-json into sast in a fragment", file(map[string]any{"format": saga.ImportFormatMendJSON, "control": "sast"}), true, false},
+		{"severity on mend-json", file(map[string]any{"format": saga.ImportFormatMendJSON, "control": "sca", "severity": severity}), false, false},
+		{"suppressions on mend-json", file(map[string]any{"format": saga.ImportFormatMendJSON, "control": "sca", "suppressions": "count"}), false, false},
+
 		{"draugr-converter with its converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv}), false, true},
 		{"draugr-converter with no converter", file(map[string]any{"format": saga.ImportFormatConverter}), false, false},
 		{"suppressions on draugr-converter", file(map[string]any{"format": saga.ImportFormatConverter, "converter": conv, "suppressions": "count"}), false, false},

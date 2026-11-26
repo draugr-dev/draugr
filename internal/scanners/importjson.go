@@ -505,6 +505,7 @@ var importFormatNames = map[string]string{
 	saga.ImportFormatGitLabDependencyScanning: "GitLab dependency scanning report",
 	saga.ImportFormatJFrogSimpleJSON:          "JFrog simple-json",
 	saga.ImportFormatCheckmarxOneJSON:         "Checkmarx One JSON",
+	saga.ImportFormatMendJSON:                 "Mend dependency JSON",
 	saga.ImportFormatConverter:                "converter file",
 }
 

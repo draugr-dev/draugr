@@ -102,6 +102,7 @@ var notOurs = map[string]string{
 	"--output-name":       "Checkmarx One's cx and KICS'",
 	"--scan-id":           "Checkmarx One's cx",
 	"--threshold":         "Checkmarx One's cx",
+	"--export-results":    "Mend's mend dep",
 	"--av":                "Fortify fcli's",
 	"--rel":               "Fortify fcli's",
 	"--file":              "Grype's",

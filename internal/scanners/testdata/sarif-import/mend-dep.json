@@ -1,0 +1,3470 @@
+[
+    {
+        "name": "jackson-databind-2.9.5.jar",
+        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+        "sha1": "3490508379d065fe3fcb80042b62f630f7588606",
+        "licenses": [
+            "Apache 2.0"
+        ],
+        "vulnerabilities": [
+            {
+                "name": "CVE-2018-19362",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-19362",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-19362",
+                    "fixResolution": "Upgrade to version 2.9.8",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36189",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36189",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2996",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:29:28Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-12023",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-12023",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-12022",
+                    "fixResolution": "Upgrade to version 2.7.9.4, 2.8.11.2, 2.9.6",
+                    "date": "2019-03-17T17:57:52Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-16335",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-16335",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-85cw-hj65-qqv9",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.8.11.5,2.9.10",
+                    "date": "2019-09-15T21:45:50Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2022-42003",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2022-42003",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/advisories/GHSA-jjjh-jjxp-wpff",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.12.7.1,2.13.4.2",
+                    "date": "2022-10-02T00:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-14060",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-14060",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-14060",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.10.0",
+                    "date": "2020-06-14T20:46:47Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36187",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36187",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2997",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:29:44Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-24750",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-24750",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-24616",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.6",
+                    "date": "2020-09-17T18:39:40Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36183",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36183",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/3003",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:30:15Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-11111",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-11111",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-11113",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4,2.10.0",
+                    "date": "2020-03-31T04:37:49Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-14195",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-14195",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-14195",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.5",
+                    "date": "2020-06-16T15:07:11Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2021-20190",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2021-20190",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2854",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind-2.9.10.7",
+                    "date": "2021-01-19T16:27:58Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-17267",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-17267",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2460",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.8.11.5,2.9.10",
+                    "date": "2019-10-06T23:08:53Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-14720",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-14720",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-x2w5-5m2g-7h5m",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.5,2.8.11.3,2.9.7",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-12814",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 5.9,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-12814",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2341",
+                    "fixResolution": "Upgrade to version 2.7.9.6, 2.8.11.4, 2.9.9.1, 2.10.0",
+                    "date": "2019-06-19T13:24:44Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-9547",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-9547",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-q93h-jc49-78gg",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.7,2.8.11.6,2.9.10.4",
+                    "date": "2020-03-02T03:59:08Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-10673",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-10673",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2660",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4",
+                    "date": "2020-03-18T21:17:26Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-12022",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-12022",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-12022",
+                    "fixResolution": "Upgrade to version 2.7.9.4, 2.8.11.2, 2.9.6",
+                    "date": "2019-03-17T18:14:21Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-20330",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-20330",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2526",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.7,2.8.11.5,2.9.10.2",
+                    "date": "2020-01-03T03:35:52Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-14061",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-14061",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-14061",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.10.0",
+                    "date": "2020-06-14T19:42:39Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-11620",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-11620",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-11620",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4",
+                    "date": "2020-04-07T22:14:18Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36184",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36184",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2998",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:30:07Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-10202",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-10202",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://lists.apache.org/thread/08302h5kp2l9ry2zq8vydomlhn0fg4j4",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.0.0",
+                    "date": "2019-10-01T14:22:30Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36180",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36180",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/3004",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:30:31Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-14721",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 10,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-14721",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/commit/87d29af25e82a249ea15858e2d4ecbf64091db44",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.7.9.5,2.8.11.3,2.9.7",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-19360",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-19360",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-f9hv-mg5h-xcw9",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.5,2.8.11.3,2.9.8",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36518",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36518",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2816",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.12.6.1,2.13.2.1",
+                    "date": "2022-03-11T00:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-10672",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-10672",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-10672",
+                    "fixResolution": "Upgrade to version jackson-databind-2.9.10.4",
+                    "date": "2020-03-18T21:17:43Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36179",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36179",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/3004",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:30:38Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-14893",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-14893",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-14893",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.10.0",
+                    "date": "2020-03-02T20:11:32Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-9546",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-9546",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-9546",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.10.3",
+                    "date": "2020-03-02T03:59:18Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-9548",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-9548",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-9548",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.7,2.8.11.6,2.9.10.4",
+                    "date": "2020-03-02T03:58:55Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-10969",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-10969",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-10969",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.8.11.6;com.fasterxml.jackson.core:jackson-databind:2.7.9.7",
+                    "date": "2020-03-26T12:43:34Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36185",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36185",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2998",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:29:59Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-14062",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-14062",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-14062",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.10.0",
+                    "date": "2020-06-14T19:42:22Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36181",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36181",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/3004",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:29:19Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-11619",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-11619",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-11619",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4",
+                    "date": "2020-04-07T22:14:09Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-35491",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-35491",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2986",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2020-12-17T18:43:41Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-14379",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-14379",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-6fpp-rgj9-8rwc",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.6,2.8.11.4,2.9.9.2",
+                    "date": "2019-07-29T11:42:42Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-16943",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-16943",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-fmmc-742q-jg75",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.8.11.5,2.9.10.1",
+                    "date": "2019-10-01T16:06:23Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-17531",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-17531",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-gjmw-vf9h-g25v",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.8.11.5,2.9.10.1",
+                    "date": "2019-10-12T20:07:34Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-11113",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-11113",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-11113",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4;2.10.0",
+                    "date": "2020-03-31T04:37:27Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-12086",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-12086",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-12086",
+                    "fixResolution": "Upgrade to version 2.9.9",
+                    "date": "2019-05-17T16:57:05Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-19361",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-19361",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-mx9v-gmh4-mgqw",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.5,2.8.11.3,2.9.8",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-24616",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-24616",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-24616",
+                    "fixResolution": "Upgrade to version 2.9.10.6",
+                    "date": "2020-08-25T17:04:08Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-25649",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-25649",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2589",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.4,2.9.10.7,2.10.5.1,2.11.0.rc1",
+                    "date": "2020-12-03T16:16:50Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-14718",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-14718",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-645p-88qh-w398",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.5,2.8.11.3,2.9.7",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-11307",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-11307",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2032",
+                    "fixResolution": "Upgrade to version jackson-databind-2.9.6",
+                    "date": "2019-07-09T15:37:25Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36188",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36188",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2996",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:29:36Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-14892",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-14892",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-cf6r-3wgc-h863",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.8.11.5,2.9.10",
+                    "date": "2020-03-02T16:28:40Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36186",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36186",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2997",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:29:51Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2022-42004",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2022-42004",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/3582",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.13.4",
+                    "date": "2022-10-02T00:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-10968",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-10968",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-10968",
+                    "fixResolution": "Upgrade to version jackson-databind-2.9.10.4",
+                    "date": "2020-03-26T12:43:45Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-8840",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-8840",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2620",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.3",
+                    "date": "2020-02-10T19:41:58Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-12384",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 5.9,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-12384",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-12384",
+                    "fixResolution": "Upgrade to version 2.9.9.1",
+                    "date": "2019-06-24T15:34:08Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-36182",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-36182",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/3004",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2021-01-06T22:30:22Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-10650",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-10650",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/advisories/GHSA-rpr3-cw39-3pxh",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4",
+                    "date": "2022-12-26T00:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-35728",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-35728",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-35728",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2020-12-27T04:32:36Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-35490",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-35490",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/FasterXML/jackson-databind/issues/2986",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.8",
+                    "date": "2020-12-17T18:43:51Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-14540",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-14540",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-h822-r4r5-v8jg",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.8.11.5,2.9.10",
+                    "date": "2019-09-15T21:45:22Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-16942",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-16942",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-mx7p-6679-8g3q",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.6.7.3,2.8.11.5,2.9.10.1",
+                    "date": "2019-10-01T16:04:26Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-11112",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-11112",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2020-11112",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.9.10.4,2.10.0",
+                    "date": "2020-03-31T04:37:41Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-14439",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-14439",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-14439",
+                    "fixResolution": "Upgrade to version 2.9.9.2",
+                    "date": "2019-07-30T10:49:43Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-14719",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-14719",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://osv.dev/vulnerability/GHSA-4gq5-ch57-c2mg",
+                    "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-databind:2.7.9.5,2.8.11.3,2.9.7",
+                    "date": "2019-01-02T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            }
+        ],
+        "children": [
+            {
+                "name": "jackson-annotations-2.9.0.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "07c10d545325e3a6e72e06381afe469fd40eb701",
+                "licenses": [
+                    "Apache 2.0"
+                ]
+            },
+            {
+                "name": "jackson-core-2.9.5.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "a22ac51016944b06fd9ffbc9541c6e7ce5eea117",
+                "licenses": [
+                    "Apache 2.0"
+                ],
+                "vulnerabilities": [
+                    {
+                        "name": "WS-2022-0468",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "WS-2022-0468",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/FasterXML/jackson-core/issues/861",
+                            "fixResolution": "Upgrade to version com.fasterxml.jackson.core:jackson-core:2.15.0",
+                            "date": "2022-12-07T22:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "commons-collections-3.2.1.jar",
+        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+        "sha1": "761ea405b9b37ced573d2df0d1e3a4e0f9edc668",
+        "licenses": [
+            "Apache 2.0"
+        ],
+        "vulnerabilities": [
+            {
+                "name": "CVE-2015-7501",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2015-7501",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1279330",
+                    "fixResolution": "Upgrade to version commons-collections:commons-collections:3.2.2;org.apache.commons:commons-collections4:4.1",
+                    "date": "2017-11-09T00:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2015-4852",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2015-4852",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://www.openwall.com/lists/oss-security/2015/11/17/19",
+                    "fixResolution": "Upgrade to version commons-collections:commons-collections:3.2.2",
+                    "date": "2015-11-18T15:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-13116",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-13116",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2019-13116",
+                    "fixResolution": "Upgrade to version commons-collections:commons-collections:3.2.2",
+                    "date": "2019-10-16T19:06:39Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2015-6420",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2015-6420",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/commons-collections/tree/collections-3.2.2,https://github.com/apache/commons-collections/tree/collections-4.1",
+                    "fixResolution": "Upgrade to version commons-collections:commons-collections3.2.2,org.apache.commons:commons-collections4:4.1",
+                    "date": "2015-12-15T02:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2017-15708",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2017-15708",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-15708",
+                    "fixResolution": "Upgrade to version org.apache.synapse:Apache-Synapse:3.0.1;commons-collections:commons-collections:3.2.2",
+                    "date": "2017-12-11T15:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            }
+        ]
+    },
+    {
+        "name": "commons-email-1.1.jar",
+        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+        "sha1": "a05c4de7bf2e0579ac0f21e16f3737ec6fa0ff98",
+        "licenses": [
+            "Apache 2.0"
+        ],
+        "vulnerabilities": [
+            {
+                "name": "CVE-2017-9801",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2017-9801",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-9801",
+                    "fixResolution": "Upgrade to version 1.5",
+                    "date": "2017-08-07T15:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-1294",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-1294",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/advisories/GHSA-v7cm-w955-pj6g",
+                    "fixResolution": "Upgrade to version org.apache.commons:commons-email:1.5",
+                    "date": "2018-03-20T17:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            }
+        ],
+        "children": [
+            {
+                "name": "commons-logging-1.2.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "4bfc12adfe4842bf07b657f0369c4cb522955686",
+                "licenses": [
+                    "Apache 2.0"
+                ]
+            },
+            {
+                "name": "activation-1.1.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "e6cb541461c2834bdea3eb920f1884d1eb508b50",
+                "licenses": [
+                    "CDDL 1.1"
+                ]
+            },
+            {
+                "name": "mail-1.4.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "1aa1579ae5ecd41920c4f355b0a9ef40b68315dd",
+                "licenses": [
+                    "CDDL 1.1"
+                ],
+                "children": [
+                    {
+                        "name": "activation-1.1.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "e6cb541461c2834bdea3eb920f1884d1eb508b50",
+                        "licenses": [
+                            "CDDL 1.1"
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "struts2-core-2.3.20.jar",
+        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+        "sha1": "91173d906a1587a1e24acc9d94f009c10d6cd9ea",
+        "licenses": [
+            "Apache 2.0"
+        ],
+        "vulnerabilities": [
+            {
+                "name": "CVE-2023-41835",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2023-41835",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://www.cve.org/CVERecord?id=CVE-2023-41835",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.32,6.1.2.2,6.3.0.1",
+                    "date": "2023-12-05T08:37:31Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2024-53677",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2024-53677",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cwiki.apache.org/confluence/display/WW/S2-067",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:6.4.0",
+                    "date": "2024-12-11T15:35:43Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-4003",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 6.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-4003",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_28/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.28",
+                    "date": "2016-04-12T16:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-0230",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-0230",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cwiki.apache.org/confluence/display/ww/s2-059",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.22",
+                    "date": "2020-09-14T16:41:27Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-4436",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-4436",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29,org.apache.struts:struts2-core:2.5.1.3",
+                    "date": "2016-10-03T15:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2021-31805",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2021-31805",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cwiki.apache.org/confluence/display/WW/S2-062",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.30",
+                    "date": "2022-04-12T15:25:11Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-4430",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-4430",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "http://web.nvd.nist.gov/view/vuln/detail?vulnId=CVE-2016-4430",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29",
+                    "date": "2016-07-04T22:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2015-2992",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 6.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2015-2992",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://nvd.nist.gov/view/vuln/detail?vulnId=CVE-2015-2992",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.20.1",
+                    "date": "2020-02-27T17:45:34Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2015-5209",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2015-5209",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://nvd.nist.gov/vuln/detail/CVE-2015-5209",
+                    "fixResolution": "Upgrade to version 2.3.24.1",
+                    "date": "2017-08-29T15:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2015-5169",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 6.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2015-5169",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2015-5169",
+                    "fixResolution": "Upgrade to version 2.3.20",
+                    "date": "2017-09-25T21:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-3093",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 5.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-3093",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://nvd.nist.gov/vuln/detail/CVE-2016-3093",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.28,ognl:ognl:3.0.12",
+                    "date": "2016-06-07T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-3082",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-3082",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_28_1/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.20.3,org.apache.struts:struts2-core:2.3.24.3,org.apache.struts:struts2-core: 2.3.28.1",
+                    "date": "2016-04-26T14:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2023-50164",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2023-50164",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://lists.apache.org/thread/yh09b3fkf6vz5d6jdgrlvmg60lfwtqhj",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.33,6.3.0.2",
+                    "date": "2023-12-07T08:49:19Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-3087",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-3087",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_28_1/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.20.3,org.apache.struts:struts2-core:2.3.24.3,org.apache.struts:struts2-core: 2.3.28.1",
+                    "date": "2016-06-07T18:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2023-34149",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 4.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2023-34149",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/advisories/GHSA-8f6x-v685-g2xc",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.31,6.1.2.1",
+                    "date": "2023-06-14T07:48:54Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-11776",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-11776",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://nvd.nist.gov/vuln/detail/CVE-2018-11776",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core - 2.3.35,2.5.17;org.apache.struts:struts2-rest-plugin - 2.3.34,2.5.17",
+                    "date": "2018-08-22T13:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2017-9787",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2017-9787",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_33/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.33,org.apache.struts:struts2-core:2.5.12",
+                    "date": "2017-07-13T15:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-6795",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-6795",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_31/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.31,org.apache.struts:struts2-core:2.5.5",
+                    "date": "2017-09-20T17:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-4465",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 5.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-4465",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29, \torg.apache.struts.xwork:xwork-core:2.3.29",
+                    "date": "2016-07-04T22:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2019-0233",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2019-0233",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cwiki.apache.org/confluence/display/ww/s2-060",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.22",
+                    "date": "2020-09-14T16:50:11Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2017-12611",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2017-12611",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cwiki.apache.org/confluence/display/WW/S2-053",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.34;org.apache.struts:struts2-core:2.5.12",
+                    "date": "2017-09-20T17:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-4433",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-4433",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29,\torg.apache.struts.xwork:xwork-core:2.3.29",
+                    "date": "2016-07-04T22:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-4431",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-4431",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29",
+                    "date": "2016-07-04T22:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2016-3081",
+                "type": "",
+                "severity": "HIGH",
+                "score": 8.1,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2016-3081",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_28_1/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.20.3,org.apache.struts:struts2-core:2.3.24.3,org.apache.struts:struts2-core: 2.3.28.1",
+                    "date": "2016-04-26T14:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2020-17530",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2020-17530",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cwiki.apache.org/confluence/display/WW/S2-061",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.26",
+                    "date": "2020-12-11T01:11:04Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2017-5638",
+                "type": "",
+                "severity": "CRITICAL",
+                "score": 9.8,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2017-5638",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_32/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.32,org.apache.struts:struts2-core:2.5.10.1",
+                    "date": "2017-03-11T02:11:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2017-9804",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2017-9804",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/apache/struts/tree/STRUTS_2_3_34/",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.34,org.apache.struts:struts2-core:2.5.13",
+                    "date": "2017-09-20T17:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2023-34396",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 4.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2023-34396",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://github.com/advisories/GHSA-4g42-gqrg-4633",
+                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.5.31,6.1.2.1",
+                    "date": "2023-06-14T07:50:59Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            }
+        ],
+        "children": [
+            {
+                "name": "commons-fileupload-1.3.1.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "c621b54583719ac0310404463d6d99db27e1052c",
+                "licenses": [
+                    "Apache 2.0"
+                ],
+                "vulnerabilities": [
+                    {
+                        "name": "CVE-2016-3092",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-3092",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-3092",
+                            "fixResolution": "Upgrade to version org.apache.tomcat.embed:tomcat-embed-core:9.0.0.M8,8.5.3,8.0.36,7.0.70,org.apache.tomcat:tomcat-coyote:9.0.0.M8,8.5.3,8.0.36,7.0.70,commons-fileupload:commons-fileupload:1.3.2",
+                            "date": "2016-07-04T22:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2016-1000031",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-1000031",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-1000031",
+                            "fixResolution": "Upgrade to version 1.3.3",
+                            "date": "2016-10-25T14:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "WS-2014-0034",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "WS-2014-0034",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/commons-fileupload/commit/5b4881d7f75f439326f54fa554a9ca7de6d60814",
+                            "fixResolution": "Upgrade to version commons-fileupload:commons-fileupload:1.4",
+                            "date": "2014-02-17T00:13:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2023-24998",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2023-24998",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://tomcat.apache.org/security-10.html",
+                            "fixResolution": "Upgrade to version commons-fileupload:commons-fileupload:1.5;org.apache.tomcat:tomcat-coyote:8.5.85,9.0.71,10.1.5,11.0.0-M3;org.apache.tomcat.embed:tomcat-embed-core:8.5.85,9.0.71,10.1.5,11.0.0-M3;org.apache.tomcat:tomcat-util:8.5.85,9.0.71,10.1.5,11.0.0-M3;org.apache.tomcat:tomcat-catalina:8.5.85,9.0.71,10.1.5,11.0.0-M3",
+                            "date": "2023-02-20T15:57:07Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    }
+                ],
+                "children": [
+                    {
+                        "name": "commons-io-2.2.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "83b5b8a7ba1c08f9e8c8ff2373724e33d3c1e22a",
+                        "licenses": [
+                            "Apache 2.0"
+                        ],
+                        "vulnerabilities": [
+                            {
+                                "name": "CVE-2024-47554",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 4.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2024-47554",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://lists.apache.org/thread/6ozr91rr9cj5lm0zyhv30bsp317hk5z1",
+                                    "fixResolution": "Upgrade to version commons-io:commons-io:2.14.0",
+                                    "date": "2024-10-03T11:32:48Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            },
+                            {
+                                "name": "CVE-2021-29425",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 4.8,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2021-29425",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-29425",
+                                    "fixResolution": "Upgrade to version commons-io:commons-io:2.7",
+                                    "date": "2021-04-13T06:50:12Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "commons-io-2.2.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "83b5b8a7ba1c08f9e8c8ff2373724e33d3c1e22a",
+                "licenses": [
+                    "Apache 2.0"
+                ],
+                "vulnerabilities": [
+                    {
+                        "name": "CVE-2024-47554",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 4.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2024-47554",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://lists.apache.org/thread/6ozr91rr9cj5lm0zyhv30bsp317hk5z1",
+                            "fixResolution": "Upgrade to version commons-io:commons-io:2.14.0",
+                            "date": "2024-10-03T11:32:48Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2021-29425",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 4.8,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2021-29425",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-29425",
+                            "fixResolution": "Upgrade to version commons-io:commons-io:2.7",
+                            "date": "2021-04-13T06:50:12Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    }
+                ]
+            },
+            {
+                "name": "ognl-3.0.6.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "a3665cf8e3426686ee751790f3d1e1ec5705e9dc",
+                "licenses": [
+                    "Apache 2.0"
+                ],
+                "vulnerabilities": [
+                    {
+                        "name": "CVE-2016-3093",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 5.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-3093",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://nvd.nist.gov/vuln/detail/CVE-2016-3093",
+                            "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.28,ognl:ognl:3.0.12",
+                            "date": "2016-06-07T18:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    }
+                ],
+                "children": [
+                    {
+                        "name": "javassist-3.11.0.GA.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "2c00105734a57e9ee4f27e4b17cd43200e5f0ff8",
+                        "licenses": [
+                            "Mozilla 1.1"
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "xwork-core-2.3.20.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "ab93f711f36ee76dae6a1894e5333b64c24fcc9a",
+                "licenses": [
+                    "Apache 2.0"
+                ],
+                "vulnerabilities": [
+                    {
+                        "name": "CVE-2017-9787",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2017-9787",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_33/",
+                            "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.33,org.apache.struts:struts2-core:2.5.12",
+                            "date": "2017-07-13T15:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2016-4465",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 5.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-4465",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29/",
+                            "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29, \torg.apache.struts.xwork:xwork-core:2.3.29",
+                            "date": "2016-07-04T22:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2016-0785",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 8.8,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-0785",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_28",
+                            "fixResolution": "Upgrade to version org.apache.struts.xwork:xwork-core:2.3.28",
+                            "date": "2016-04-12T16:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2016-4461",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 8.8,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-4461",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29/",
+                            "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29",
+                            "date": "2017-10-16T16:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2016-2162",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 6.1,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-2162",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_25",
+                            "fixResolution": "Upgrade to version org.apache.struts.xwork:xwork-core:2.3.25",
+                            "date": "2016-04-12T16:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2016-4433",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2016-4433",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_29",
+                            "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.29,\torg.apache.struts.xwork:xwork-core:2.3.29",
+                            "date": "2016-07-04T22:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2015-5209",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2015-5209",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://nvd.nist.gov/vuln/detail/CVE-2015-5209",
+                            "fixResolution": "Upgrade to version 2.3.24.1",
+                            "date": "2017-08-29T15:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2017-9804",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2017-9804",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://github.com/apache/struts/tree/STRUTS_2_3_34/",
+                            "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.34,org.apache.struts:struts2-core:2.5.13",
+                            "date": "2017-09-20T17:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2015-1831",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 4.8,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2015-1831",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://nvd.nist.gov/vuln/detail/CVE-2015-1831",
+                            "fixResolution": "Upgrade to version org.apache.struts.xwork:xwork-core - 2.3.20.1",
+                            "date": "2015-07-16T14:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    }
+                ],
+                "children": [
+                    {
+                        "name": "commons-io-2.2.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "83b5b8a7ba1c08f9e8c8ff2373724e33d3c1e22a",
+                        "licenses": [
+                            "Apache 2.0"
+                        ],
+                        "vulnerabilities": [
+                            {
+                                "name": "CVE-2024-47554",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 4.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2024-47554",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://lists.apache.org/thread/6ozr91rr9cj5lm0zyhv30bsp317hk5z1",
+                                    "fixResolution": "Upgrade to version commons-io:commons-io:2.14.0",
+                                    "date": "2024-10-03T11:32:48Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            },
+                            {
+                                "name": "CVE-2021-29425",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 4.8,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2021-29425",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-29425",
+                                    "fixResolution": "Upgrade to version commons-io:commons-io:2.7",
+                                    "date": "2021-04-13T06:50:12Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            }
+                        ]
+                    },
+                    {
+                        "name": "commons-logging-1.2.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "4bfc12adfe4842bf07b657f0369c4cb522955686",
+                        "licenses": [
+                            "Apache 2.0"
+                        ]
+                    },
+                    {
+                        "name": "ognl-3.0.6.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "a3665cf8e3426686ee751790f3d1e1ec5705e9dc",
+                        "licenses": [
+                            "Apache 2.0"
+                        ],
+                        "vulnerabilities": [
+                            {
+                                "name": "CVE-2016-3093",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 5.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2016-3093",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://nvd.nist.gov/vuln/detail/CVE-2016-3093",
+                                    "fixResolution": "Upgrade to version org.apache.struts:struts2-core:2.3.28,ognl:ognl:3.0.12",
+                                    "date": "2016-06-07T18:00:00Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            }
+                        ]
+                    },
+                    {
+                        "name": "commons-lang3-3.2.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "4ff27bd725ae39f616e4ecdd08c27978cef749ec",
+                        "licenses": [
+                            "Apache 2.0"
+                        ],
+                        "children": [
+                            {
+                                "name": "commons-io-2.2.jar",
+                                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                                "sha1": "83b5b8a7ba1c08f9e8c8ff2373724e33d3c1e22a",
+                                "licenses": [
+                                    "Apache 2.0"
+                                ],
+                                "vulnerabilities": [
+                                    {
+                                        "name": "CVE-2024-47554",
+                                        "type": "",
+                                        "severity": "MEDIUM",
+                                        "score": 4.3,
+                                        "cvss3_severity": "",
+                                        "cvss3_score": 0,
+                                        "scoreMetadataVector": "",
+                                        "publishDate": "",
+                                        "url": "",
+                                        "description": "",
+                                        "topFix": {
+                                            "vulnerability": "CVE-2024-47554",
+                                            "type": "UPGRADE_VERSION",
+                                            "origin": "WHITESOURCE_EXPERT",
+                                            "url": "https://lists.apache.org/thread/6ozr91rr9cj5lm0zyhv30bsp317hk5z1",
+                                            "fixResolution": "Upgrade to version commons-io:commons-io:2.14.0",
+                                            "date": "2024-10-03T11:32:48Z",
+                                            "message": "Upgrade to version"
+                                        },
+                                        "allFixes": null,
+                                        "reachability": ""
+                                    },
+                                    {
+                                        "name": "CVE-2021-29425",
+                                        "type": "",
+                                        "severity": "MEDIUM",
+                                        "score": 4.8,
+                                        "cvss3_severity": "",
+                                        "cvss3_score": 0,
+                                        "scoreMetadataVector": "",
+                                        "publishDate": "",
+                                        "url": "",
+                                        "description": "",
+                                        "topFix": {
+                                            "vulnerability": "CVE-2021-29425",
+                                            "type": "UPGRADE_VERSION",
+                                            "origin": "WHITESOURCE_EXPERT",
+                                            "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-29425",
+                                            "fixResolution": "Upgrade to version commons-io:commons-io:2.7",
+                                            "date": "2021-04-13T06:50:12Z",
+                                            "message": "Upgrade to version"
+                                        },
+                                        "allFixes": null,
+                                        "reachability": ""
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "asm-commons-5.0.2.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "33fd77f7d9f985e4b9bee5e4c3a4e480c491c404",
+                        "licenses": [
+                            "BSD"
+                        ],
+                        "children": [
+                            {
+                                "name": "asm-tree-5.0.2.jar",
+                                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                                "sha1": "407b3da4cdb780701be40ccf6e8ef540f3d5a249",
+                                "licenses": [
+                                    "BSD"
+                                ],
+                                "children": [
+                                    {
+                                        "name": "asm-5.0.2.jar",
+                                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                                        "sha1": "baa28ca0269720d94c9f0cafef35a9ac63991de7",
+                                        "licenses": [
+                                            "BSD"
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "name": "asm-5.0.2.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "baa28ca0269720d94c9f0cafef35a9ac63991de7",
+                        "licenses": [
+                            "BSD"
+                        ]
+                    },
+                    {
+                        "name": "spring-core-4.3.13.RELEASE.jar",
+                        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                        "sha1": "eea18d7f4d01f1baa1b6728b678b5a6fe23c61f6",
+                        "licenses": [
+                            "Apache 2.0"
+                        ],
+                        "vulnerabilities": [
+                            {
+                                "name": "CVE-2021-22096",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 4.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2021-22096",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://tanzu.vmware.com/security/cve-2021-22096",
+                                    "fixResolution": "Upgrade to version org.springframework:spring-core:5.2.18.RELEASE,5.3.12;org.springframework:spring-web:5.2.18.RELEASE,5.3.12;org.springframework:spring-webmvc:5.2.18.RELEASE,5.3.12;org.springframework:spring-webflux:5.2.18.RELEASE,5.3.12",
+                                    "date": "2021-10-28T15:22:35Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            },
+                            {
+                                "name": "CVE-2021-22060",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 4.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2021-22060",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://spring.io/security/cve-2021-22060",
+                                    "fixResolution": "Upgrade to version org.springframework:spring-core:5.2.19, 5.3.14;org.springframework:spring-web:5.2.19, 5.3.14",
+                                    "date": "2022-01-07T22:39:55Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            },
+                            {
+                                "name": "CVE-2018-1272",
+                                "type": "",
+                                "severity": "HIGH",
+                                "score": 7.5,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2018-1272",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://tanzu.vmware.com/security/cve-2018-1272",
+                                    "fixResolution": "Upgrade to version org.springframework:spring-core:4.3.15.RELEASE,5.0.5.RELEASE;org.springframework:spring-web:4.3.15.RELEASE,5.0.5.RELEASE",
+                                    "date": "2018-04-06T13:00:00Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            },
+                            {
+                                "name": "CVE-2018-1199",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 5.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2018-1199",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1199",
+                                    "fixResolution": "Upgrade to version org.springframework.security:spring-security-web:4.1.5.RELEASE,4.2.4.RELEASE,5.0.1.RELEASE;org.springframework.security:spring-security-config:4.1.5.RELEASE,4.2.4.RELEASE,5.0.1.RELEASE;org.springframework:spring-core:4.3.14.RELEASE,5.0.3.RELEASE",
+                                    "date": "2018-03-16T20:00:00Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            },
+                            {
+                                "name": "CVE-2022-22970",
+                                "type": "",
+                                "severity": "MEDIUM",
+                                "score": 5.3,
+                                "cvss3_severity": "",
+                                "cvss3_score": 0,
+                                "scoreMetadataVector": "",
+                                "publishDate": "",
+                                "url": "",
+                                "description": "",
+                                "topFix": {
+                                    "vulnerability": "CVE-2022-22970",
+                                    "type": "UPGRADE_VERSION",
+                                    "origin": "WHITESOURCE_EXPERT",
+                                    "url": "https://tanzu.vmware.com/security/cve-2022-22970",
+                                    "fixResolution": "Upgrade to version org.springframework:spring-beans:5.2.22,5.3.20;org.springframework:spring-core:5.2.22,5.3.20",
+                                    "date": "2022-05-12T19:28:47Z",
+                                    "message": "Upgrade to version"
+                                },
+                                "allFixes": null,
+                                "reachability": ""
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "freemarker-2.3.19.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "a251045e5fadd02824d17f1aa8c412accf1aa1c9",
+                "licenses": [
+                    "BSD 3"
+                ]
+            },
+            {
+                "name": "spring-core-4.3.13.RELEASE.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "eea18d7f4d01f1baa1b6728b678b5a6fe23c61f6",
+                "licenses": [
+                    "Apache 2.0"
+                ],
+                "vulnerabilities": [
+                    {
+                        "name": "CVE-2021-22096",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 4.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2021-22096",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://tanzu.vmware.com/security/cve-2021-22096",
+                            "fixResolution": "Upgrade to version org.springframework:spring-core:5.2.18.RELEASE,5.3.12;org.springframework:spring-web:5.2.18.RELEASE,5.3.12;org.springframework:spring-webmvc:5.2.18.RELEASE,5.3.12;org.springframework:spring-webflux:5.2.18.RELEASE,5.3.12",
+                            "date": "2021-10-28T15:22:35Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2021-22060",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 4.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2021-22060",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://spring.io/security/cve-2021-22060",
+                            "fixResolution": "Upgrade to version org.springframework:spring-core:5.2.19, 5.3.14;org.springframework:spring-web:5.2.19, 5.3.14",
+                            "date": "2022-01-07T22:39:55Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2018-1272",
+                        "type": "",
+                        "severity": "HIGH",
+                        "score": 7.5,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2018-1272",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://tanzu.vmware.com/security/cve-2018-1272",
+                            "fixResolution": "Upgrade to version org.springframework:spring-core:4.3.15.RELEASE,5.0.5.RELEASE;org.springframework:spring-web:4.3.15.RELEASE,5.0.5.RELEASE",
+                            "date": "2018-04-06T13:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2018-1199",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 5.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2018-1199",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1199",
+                            "fixResolution": "Upgrade to version org.springframework.security:spring-security-web:4.1.5.RELEASE,4.2.4.RELEASE,5.0.1.RELEASE;org.springframework.security:spring-security-config:4.1.5.RELEASE,4.2.4.RELEASE,5.0.1.RELEASE;org.springframework:spring-core:4.3.14.RELEASE,5.0.3.RELEASE",
+                            "date": "2018-03-16T20:00:00Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    },
+                    {
+                        "name": "CVE-2022-22970",
+                        "type": "",
+                        "severity": "MEDIUM",
+                        "score": 5.3,
+                        "cvss3_severity": "",
+                        "cvss3_score": 0,
+                        "scoreMetadataVector": "",
+                        "publishDate": "",
+                        "url": "",
+                        "description": "",
+                        "topFix": {
+                            "vulnerability": "CVE-2022-22970",
+                            "type": "UPGRADE_VERSION",
+                            "origin": "WHITESOURCE_EXPERT",
+                            "url": "https://tanzu.vmware.com/security/cve-2022-22970",
+                            "fixResolution": "Upgrade to version org.springframework:spring-beans:5.2.22,5.3.20;org.springframework:spring-core:5.2.22,5.3.20",
+                            "date": "2022-05-12T19:28:47Z",
+                            "message": "Upgrade to version"
+                        },
+                        "allFixes": null,
+                        "reachability": ""
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "spring-core-4.3.13.RELEASE.jar",
+        "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+        "sha1": "eea18d7f4d01f1baa1b6728b678b5a6fe23c61f6",
+        "licenses": [
+            "Apache 2.0"
+        ],
+        "vulnerabilities": [
+            {
+                "name": "CVE-2021-22096",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 4.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2021-22096",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://tanzu.vmware.com/security/cve-2021-22096",
+                    "fixResolution": "Upgrade to version org.springframework:spring-core:5.2.18.RELEASE,5.3.12;org.springframework:spring-web:5.2.18.RELEASE,5.3.12;org.springframework:spring-webmvc:5.2.18.RELEASE,5.3.12;org.springframework:spring-webflux:5.2.18.RELEASE,5.3.12",
+                    "date": "2021-10-28T15:22:35Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2021-22060",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 4.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2021-22060",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://spring.io/security/cve-2021-22060",
+                    "fixResolution": "Upgrade to version org.springframework:spring-core:5.2.19, 5.3.14;org.springframework:spring-web:5.2.19, 5.3.14",
+                    "date": "2022-01-07T22:39:55Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-1272",
+                "type": "",
+                "severity": "HIGH",
+                "score": 7.5,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-1272",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://tanzu.vmware.com/security/cve-2018-1272",
+                    "fixResolution": "Upgrade to version org.springframework:spring-core:4.3.15.RELEASE,5.0.5.RELEASE;org.springframework:spring-web:4.3.15.RELEASE,5.0.5.RELEASE",
+                    "date": "2018-04-06T13:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2018-1199",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 5.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2018-1199",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1199",
+                    "fixResolution": "Upgrade to version org.springframework.security:spring-security-web:4.1.5.RELEASE,4.2.4.RELEASE,5.0.1.RELEASE;org.springframework.security:spring-security-config:4.1.5.RELEASE,4.2.4.RELEASE,5.0.1.RELEASE;org.springframework:spring-core:4.3.14.RELEASE,5.0.3.RELEASE",
+                    "date": "2018-03-16T20:00:00Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            },
+            {
+                "name": "CVE-2022-22970",
+                "type": "",
+                "severity": "MEDIUM",
+                "score": 5.3,
+                "cvss3_severity": "",
+                "cvss3_score": 0,
+                "scoreMetadataVector": "",
+                "publishDate": "",
+                "url": "",
+                "description": "",
+                "topFix": {
+                    "vulnerability": "CVE-2022-22970",
+                    "type": "UPGRADE_VERSION",
+                    "origin": "WHITESOURCE_EXPERT",
+                    "url": "https://tanzu.vmware.com/security/cve-2022-22970",
+                    "fixResolution": "Upgrade to version org.springframework:spring-beans:5.2.22,5.3.20;org.springframework:spring-core:5.2.22,5.3.20",
+                    "date": "2022-05-12T19:28:47Z",
+                    "message": "Upgrade to version"
+                },
+                "allFixes": null,
+                "reachability": ""
+            }
+        ],
+        "children": [
+            {
+                "name": "commons-logging-1.2.jar",
+                "dependencyFile": "/java/work/mend-poc-webgoat/pom.xml",
+                "sha1": "4bfc12adfe4842bf07b657f0369c4cb522955686",
+                "licenses": [
+                    "Apache 2.0"
+                ]
+            }
+        ]
+    }
+]
