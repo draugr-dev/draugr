@@ -381,7 +381,7 @@ type sarifProperties struct {
 	// one's rating. It survives the file because the gate on new findings reads the ranked severity
 	// back from here, and without it a floored finding is judged at the rating the run did not use.
 	SeverityFloor Severity `json:"severityFloor,omitempty"`
-	// CWE is Result.CWE, the CWE ids a converter stated for the flaw.
+	// CWE is Result.CWE, the CWE ids a converter or a tool's own file stated for the flaw.
 	CWE []string `json:"cwe,omitempty"`
 	// Converter is Result.Converter: which converter wrote the finding and which properties it set.
 	// It survives the file for the reason Escalation does, since the properties it vouches for move a

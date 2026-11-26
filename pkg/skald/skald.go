@@ -337,8 +337,8 @@ type findingReport struct {
 	// another user, on a Dockerfile finding that says the image runs as root. Evidence that orders the
 	// finding after the rest of its band and leaves the band as it is. Absent on every other finding.
 	PrivilegeDrop *sarif.PrivilegeDrop `json:"privilegeDrop,omitempty"`
-	// CWE are the CWE ids of the flaw, where a declared converter stated them. Absent on every other
-	// finding.
+	// CWE are the CWE ids of the flaw, where the file the finding was read from states them: a
+	// declared converter's, or one of the tool imports that read a CWE. Absent on every other finding.
 	CWE []string `json:"cwe,omitempty"`
 	// Converter is the declared converter that wrote the finding: its name, contract version, the
 	// SHA-256 of the file read, which of Draugr's properties it set, and any raise it asked for.
