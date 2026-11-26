@@ -92,6 +92,9 @@ var notOurs = map[string]string{
 	"--require-hashes":   "pip's",
 	"--cache":            "npm's",
 	"--rm":               "docker run's",
+	"--group-add":        "docker run's, opening the Docker socket in the container guide",
+	"--build-arg":        "docker build's",
+	"--pull":             "docker build's",
 
 	// Each tool's export flags, in the guide to importing each tool's file.
 	"--sarif-output":      "Semgrep's",

@@ -130,6 +130,11 @@ make install-latest
 go install github.com/draugr-dev/draugr/cmd/draugr@latest
 ```
 
+## In a container
+
+To run Draugr without installing it or its scanners on your machine,
+[build an image from the repository's Dockerfile](../guides/docker.md).
+
 ## Scanners. The tools Draugr runs
 
 With Draugr installed, add the scanners for the controls you use. The fastest way is to let
