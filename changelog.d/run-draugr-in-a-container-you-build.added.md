@@ -1,1 +1,0 @@
-- **Run Draugr in a container you build.** `contrib/docker/Dockerfile` builds an image holding Draugr and the scanners a first scan runs, each downloaded from its maker, and fetches the KEV, EPSS and Go vulnerability feeds before each scan. [Run Draugr in a container](https://draugr.dev/docs/latest/guides/docker/) shows how to build it and keep the feeds and databases in volumes.
