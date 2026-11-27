@@ -101,8 +101,13 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				verdict, vcol = "FAIL", cFail
 			}
 			line := col.Paint(cDim, "DRAUGR") + "  " + col.Chip(vcol, verdict)
-			if s.prioritized {
+			if len(s.findings) > 0 {
 				line += "  " + strings.TrimSpace(bandChips(col, s))
+			} else {
+				line += "  no findings"
+			}
+			for _, n := range coverageNotes(d) {
+				line += col.Paint(cAccent, " · "+strings.ToLower(n[:1])+strings.TrimSuffix(n[1:], "."))
 			}
 			_, _ = fmt.Fprintln(out, line)
 			var failed []string
@@ -120,7 +125,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				parts = append(parts, english.Count(len(failing), "caveat")+" "+english.Choose(len(failing), "fails", "fail")+" the run")
 			}
 			if detail && len(parts) > 0 {
-				_, _ = fmt.Fprintf(out, "              %s\n", col.Paint(cDim, strings.Join(parts, " · ")))
+				_, _ = fmt.Fprintf(out, "  %s\n", col.Paint(cDim, strings.Join(parts, " · ")))
 			}
 		}
 		var order []*bytes.Buffer
@@ -141,9 +146,6 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		}
 		switch variant {
 		case "A":
-			if len(s.findings) == 0 {
-				break
-			}
 			if !bytes.HasSuffix(bTail.Bytes(), []byte("\n\n")) {
 				_, _ = fmt.Fprintln(out)
 			}
