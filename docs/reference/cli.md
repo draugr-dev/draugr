@@ -1846,7 +1846,7 @@ both:
 one its scanner's read tables come from, a line under the table says so, here for a newer one:
 
 ```
-prowler 5.49.0 is newer than 5.48.0, the release Draugr's read tables come from. A check whose reads changed may have its result discarded though it ran, or kept though a read it needs was denied. `pip install prowler==5.48.0` matches them, without what Prowler added since.
+prowler 5.53.0 is newer than 5.52.0, the release Draugr's read tables come from. A check whose reads changed may have its result discarded though it ran, or kept though a read it needs was denied. `pip install prowler==5.52.0` matches them, without what Prowler added since.
 ```
 
 It is a note, and `--strict` does not fail on it.

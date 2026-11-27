@@ -1,0 +1,1 @@
+- **Prowler 5.52.0 is the release the cloud checks are read against.** What each AWS, Azure and Google Cloud check reads was checked against its source, and `draugr doctor` now suggests `pip install prowler==5.52.0` when another release is on PATH. Earlier releases still run, with the note doctor prints.

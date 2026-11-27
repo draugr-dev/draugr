@@ -332,7 +332,7 @@ func Catalog() map[string]Tool {
 // which is the cue to regenerate the tables and move this.
 //
 // A quoted literal on a line of its own: tool-bump reads it with grep.
-const ProwlerTablesVersion = "5.48.0"
+const ProwlerTablesVersion = "5.52.0"
 
 // All returns the catalog's tools sorted by binary name, for a full environment check when
 // no Saga narrows the set.
