@@ -15,19 +15,23 @@ sets rules on the server, such as how strict a project's gate must be, a run tha
 fails the pipeline; [the organization's policy](../reference/cli.md#the-organizations-policy) says
 how.
 
-You need Draugr installed and a repository to scan. The steps use the hosted server, app.draugr.dev.
-A server you run yourself works the same way at its own address.
+You need [Draugr installed](../getting-started/install.md) and a repository to scan. The steps use
+the hosted server, app.draugr.dev. A server you run yourself works the same way at its own address.
 
 ## 1. Create your organization
 
 The hosted server, [app.draugr.dev](https://app.draugr.dev), takes sign-ups by invitation for now, and
 you can [ask for one](https://draugr.dev/contact/?about=early-access). The invitation is an email with
-a code and a link.
+a code, the date it is good until, and a link.
 
 Open the link. It opens **Create an organization**, and the code travels in the link, so the page
 does not ask for it. Give the organization a name, your name, the address the invitation went to and
 a password, and press **Create organization**. You are signed in to the new organization at once,
 with no confirmation email to wait for.
+
+Give a different address and the press sends a link to it instead. Open the link within a day to
+finish creating the organization. A code that has expired or been used is refused; ask whoever
+invited you for another.
 
 On a server you run yourself, ask whoever runs it for a code. Where it is open to sign-ups, the same
 page asks for none.
@@ -41,8 +45,10 @@ A new organization opens on three steps.
    `DRAUGR_API_URL`, the server's address (`https://app.draugr.dev` on the hosted server), and
    `DRAUGR_API_TOKEN`. The token is shown once and not stored, so copy it now. If it is lost, open
    the project, then **Setup**, and issue another there.
-3. **Add Draugr to the pipeline.** The console shows `draugr init` for a repository with no Saga,
-   and the four lines below with your project's identifier in place of `payments`.
+3. **Publish a run.** The console shows the install line, `draugr init` for a repository with no
+   Saga, the four lines below with your project's identifier in place of `payments`, the two values
+   again, and `draugr tools install` and `draugr scan .`. The same two values publish a run from a
+   laptop as from a pipeline.
 
 The token is write-only and scoped to this one project.
 
@@ -72,6 +78,7 @@ Set the two values in the environment and scan:
 ```bash
 export DRAUGR_API_URL=https://app.draugr.dev
 export DRAUGR_API_TOKEN=drgr_ci_…
+draugr tools install   # once per machine: the scanners this scan runs
 draugr scan .
 ```
 
@@ -102,6 +109,12 @@ gate, and counts its findings by the priorities P1 to P4 the scan gave them.
 
 If the run is not there, the scan's output says why: a server that refuses a run answers with an
 error code and a reason, and Draugr prints both.
+
+On app.draugr.dev a new organization is on the free plan. It keeps each run's findings and counts
+but not the scanner output, which is deleted within about a day, and it limits runs a month,
+projects, members and findings in one run. [The free plan](https://draugr.dev/server/#free-plan)
+lists each limit and what happens at it, and the console's **Settings › Usage** shows how much is
+used.
 
 ## Related
 
