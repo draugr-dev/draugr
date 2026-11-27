@@ -1,0 +1,39 @@
+Narration for the video scripts/record-tutorial.sh renders from tutorial.tape, one block per beat.
+
+A heading's time is when the beat starts in the video, and its words start a moment later. The
+times come from that render's timing.log, checked against frames of the video, because the video
+runs slower than the clock while a scan keeps the machine busy. A re-pin or a change to the tape
+moves them, so re-time the blocks and check that no block's words run into the next.
+
+## 0:00 · Install
+This is the Draugr tutorial, in the terminal. First, install Draugr. The script checks the download against its checksum, and says cosign would check the signature too.
+
+## 0:13 · Clone the demo
+Clone the demo, a deliberately vulnerable shop, and move its descriptor aside, so Draugr sees a repository nobody has described.
+
+## 0:25 · Install the scanners
+Draugr tools install fetches the scanners a scan of this tree runs, each from the people who make it, and checks each one against the checksum this release of Draugr pins. Nothing is declared yet, so Draugr chose them from the files alone.
+
+## 0:51 · Scan with nothing declared
+Now the scan. Draugr ranks every finding from P1 to P4. With nothing declared, it treats every part of the shop as public and critical, so the ranks follow severity alone. The demo fails, as it should.
+
+## 1:09 · Declare what each part is
+Step two. Put the descriptor back. It turns on more checks, so install what they add, cosign and Syft. Then fetch the data Draugr ranks with: the flaws known to be exploited, from CISA, the odds a flaw will be, from EPSS, and Go's vulnerability database.
+
+## 1:32 · Without the declarations
+The descriptor says the API and the storefront are public, and the worker and the platform are internal. To see what that changes, delete those lines, keeping copies, and scan. The run fails on two files a scanner could not read, and still writes its findings for the comparison.
+
+## 2:08 · With them
+Put the lines back and scan again. The first thing to fix is a jQuery flaw in the storefront, raised to critical because it is on CISA's list of exploited flaws.
+
+## 2:22 · Compare the runs
+Draugr diff pairs the two runs. Nothing is new or fixed. Twenty-seven findings moved down, all in the worker and the platform.
+
+## 2:39 · Read a finding
+Step three. Write the report as one HTML file. It holds every finding, searchable and filtered by component, and loads nothing from the network. The tutorial follows the jQuery flaw through it.
+
+## 2:59 · Gate pull requests
+Step four. On each pull request, the demo's CI posts this diff as a comment.
+
+## 3:08 · Run the gate
+This is the gate itself: fail on any new P1. Both runs hold hundreds of P1s, and it passes with exit code zero, because it judges only what changed. A pull request that adds a P1 fails it.

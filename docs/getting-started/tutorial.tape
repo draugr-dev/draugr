@@ -19,9 +19,12 @@ Set Padding 24
 Set TypingSpeed 45ms
 Set WindowBar Colorful
 
-# Off camera: the fresh home the runner made, a plain prompt to wait on, and an install fetch the
-# site counts apart from a reader's (the typed command is the tutorial's own).
+# Off camera: the fresh home the runner made, a plain prompt to wait on, an install fetch the site
+# counts apart from a reader's (the typed command is the tutorial's own), and a log of when each
+# command starts, which the narration is timed against.
 Hide
+Type `trap 'printf "%s %s\n" "$EPOCHREALTIME" "$BASH_COMMAND" >>"$TUTORIAL_TIMING"' DEBUG`
+Enter
 Type `export HOME="$TUTORIAL_HOME" PATH="$TUTORIAL_HOME/.local/bin:$TUTORIAL_PATH" DRAUGR_NO_UPDATE_CHECK=1 PS1='$ '`
 Enter
 Type `curl() { local a=() x; for x in "$@"; do [ "$x" = https://draugr.dev/install.sh ] && x="$x?internal"; a+=("$x"); done; command curl "${a[@]}"; }`
