@@ -20,9 +20,18 @@ FROM golang:1.27.4-trixie AS go
 
 ARG DRAUGR_VERSION=latest
 # go install checks the module against Go's checksum database, and fetches a newer toolchain
-# where the release asks for one.
-RUN CGO_ENABLED=0 GOTOOLCHAIN=auto GOBIN=/out \
-    go install -trimpath -ldflags="-s -w" "github.com/draugr-dev/draugr/cmd/draugr@${DRAUGR_VERSION}"
+# where the release asks for one. A module build records no commit or build time, so `draugr
+# version` would print none: the tag's commit is read from the module's origin, as the module proxy
+# records it, and stamped in with the time of this build. A proxy that records no origin leaves the
+# commit as "none" and says so.
+RUN set -eu; \
+    m=github.com/draugr-dev/draugr; \
+    v=$(go list -m -f '{{.Version}}' "$m@${DRAUGR_VERSION}"); \
+    c=$(go list -m -f '{{with .Origin}}{{.Hash}}{{end}}' "$m@$v" | cut -c1-8); \
+    [ -n "$c" ] || { echo "warning: the module proxy records no commit for $m@$v; draugr version will print commit none" >&2; c=none; }; \
+    CGO_ENABLED=0 GOTOOLCHAIN=auto GOBIN=/out go install -trimpath \
+      -ldflags="-s -w -X $m/internal/version.Commit=$c -X $m/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      "$m/cmd/draugr@$v"
 
 # Python 3.12: Draugr's Semgrep pins are resolved on it. On 3.13 pip fetches a cffi wheel whose
 # hash is not in the pinned set.
