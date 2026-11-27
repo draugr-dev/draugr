@@ -250,6 +250,21 @@ it is text, so a stale one shows up in a diff.
 Two blog posts on the website quote console output as well. They live in a different repository,
 so no test here can catch them; the golden's failure message names them so they don't get missed.
 
+### Recording the tutorial
+
+`docs/getting-started/tutorial.tape` records the terminal half of the
+[tutorial](docs/getting-started/tutorial.md) with [VHS](https://github.com/charmbracelet/vhs),
+which types each command the page shows and runs it. Render it from a fresh home with VHS, ttyd
+and ffmpeg on `PATH`:
+
+```bash
+scripts/record-tutorial.sh <out>    # writes <out>/tutorial.mp4 and tutorial.ascii
+```
+
+The tape types the version and demo commit the page pins, so a re-pin edits both.
+`scripts/check-tutorial-tape.py`, in `make gate`, fails when the tape's commands differ from the
+page's.
+
 ### Adding a field to the Saga
 
 The JSON schema is what an editor answers with before Draugr does, so any place it is looser than

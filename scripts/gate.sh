@@ -138,6 +138,11 @@ echo "▶ console-matches-command"
 # output is real, and the only wrong part is which command produced it.
 ./scripts/check-console-matches-command.py
 
+echo "▶ tutorial-tape"
+# The recording types the tutorial's commands, so a re-pin that edits only the page would leave it
+# recording another release.
+./scripts/check-tutorial-tape.py
+
 echo "▶ spelling"
 ./scripts/check-spelling.sh
 
