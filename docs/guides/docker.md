@@ -51,11 +51,12 @@ docker run --rm \
 ```
 
 Everything after the image name is a `draugr` command, so `draugr doctor`, `draugr validate` and
-the rest run the same way. Run `doctor` first to check that the image holds every tool your
-descriptor's scan runs:
+the rest run the same way. Run `doctor` on your descriptor first to check that the image holds
+every tool its scan runs. Without a descriptor, `doctor` checks every tool Draugr can run, and lists
+as missing the ones the recipe leaves out:
 
 ```bash
-docker run --rm -v "$PWD":/work draugr doctor
+docker run --rm -v "$PWD":/work draugr doctor draugr.saga.yaml
 ```
 
 **Before a scan, the container fetches the KEV, EPSS and Go vulnerability feeds.** An image built
