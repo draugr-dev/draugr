@@ -94,6 +94,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if variant == "" {
 		variant = "today"
 	}
+	var firstRow *finding
 	emit := func() {
 		closing := func(detail bool) {
 			verdict, vcol := "PASS", cPass
@@ -127,6 +128,22 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			if detail && len(parts) > 0 {
 				_, _ = fmt.Fprintf(out, "  %s\n", col.Paint(cDim, strings.Join(parts, " · ")))
 			}
+			if variant == "D" && firstRow != nil {
+				f := *firstRow
+				name, fixed := packageFix(f, true)
+				var fix string
+				switch u := imageUpdate(f); {
+				case u != "":
+					fix = strings.TrimSpace(name + " " + col.Paint(cDim, "fix") + " " + col.Paint(tui.StyleFixed, u))
+				case fixed != "":
+					fix = name + " " + col.Paint(tui.StyleFixed, "→ "+fixed)
+				default:
+					fix = strings.TrimSpace(name + " " + col.Paint(cDim, "fix") + " " + col.Paint(tui.StyleFixed, fixPhrase(f)))
+				}
+				_, _ = fmt.Fprintf(out, "  %s  %s %s %s %s %s\n", heading(col, "Fix first"),
+					col.Paint(tui.StyleStrong, f.ruleID), col.Paint(cDim, "·"), fix, col.Paint(cDim, "·"),
+					col.Paint(cDim, labeledWhere(f, whereShown(displayLocation(f)))))
+			}
 		}
 		var order []*bytes.Buffer
 		switch variant {
@@ -145,7 +162,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			_, _ = out.Write(b.Bytes())
 		}
 		switch variant {
-		case "A":
+		case "A", "D":
 			if !bytes.HasSuffix(bTail.Bytes(), []byte("\n\n")) {
 				_, _ = fmt.Fprintln(out)
 			}
@@ -403,6 +420,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			represented += 1 + f.repeats
 		}
 		s.folded = len(rows) < len(s.findings)
+		if len(shown) > 0 {
+			firstRow = &shown[0]
+		}
 		_, _ = fmt.Fprintln(w, fixFirstHeading(col, s, represented, len(s.findings)))
 		renderFixFirst(w, col, shown, d.View == ViewCompact, blobLinks(d))
 
