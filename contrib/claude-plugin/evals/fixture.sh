@@ -36,7 +36,8 @@ repo() {
 # descriptor writes draugr.saga.yaml for the workspace. The api service faces the internet and is
 # critical; web is internal. Four variables change it, each a YAML fragment at the indent it lands
 # at: WEB_PATHS replaces web's paths, CONTROLS adds controls, CONFIG adds keys under config, and
-# API_EXTRA adds keys to the api component.
+# API_EXTRA adds keys to the api component. A case with Semgrep rules of its own points RULES at
+# them, by absolute path, before calling it.
 descriptor() {
   cat >draugr.saga.yaml <<YAML
 project: shop
@@ -67,9 +68,21 @@ YAML
 }
 
 # report scans the committed workspace with the draugr on PATH and writes report.json and
-# results.sarif into $1.
+# results.sarif into $1. Any further arguments go to draugr scan as they are.
 report() {
-  draugr scan draugr.saga.yaml --no-gate --no-tips -o "$1" >/dev/null
+  draugr scan draugr.saga.yaml --no-gate --no-tips -o "$1" "${@:2}" >/dev/null
+}
+
+# errored scans like report, for a run that ends incomplete: a control that could not run, or a
+# caveat config.gate.failOnCaveats lists, exits non-zero whatever --no-gate says, and the reports
+# are still written. It fails when the scan exits zero or leaves no report.json, so a fixture that
+# stops producing the error is caught here rather than graded.
+errored() {
+  if report "$@"; then
+    echo "errored: the scan was expected to end incomplete and did not" >&2
+    return 1
+  fi
+  test -s "$1/report.json"
 }
 
 # sarif_only scans like report, then removes report.json, so the actions and the next step can only
