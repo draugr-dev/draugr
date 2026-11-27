@@ -223,7 +223,7 @@ runs:
       id: cosign-first
       if: inputs.verify == 'true'
       continue-on-error: true
-      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
     - name: Wait before installing cosign again
       if: inputs.verify == 'true' && steps.cosign-first.outcome == 'failure'
@@ -236,7 +236,7 @@ runs:
       id: cosign-second
       if: inputs.verify == 'true' && steps.cosign-first.outcome == 'failure'
       continue-on-error: true
-      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
     - name: Check cosign is installed
       id: cosign-check
