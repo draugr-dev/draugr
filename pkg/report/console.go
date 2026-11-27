@@ -1,8 +1,10 @@
 package report
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -84,7 +86,79 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 	s := summarize(d)
 	col := tui.For(w)
+	// Review-only: DRAUGR_SCAN_VARIANT draws one of three orders for a design review. Each section
+	// is written to its own buffer and emitted in the variant's order.
+	variant := os.Getenv("DRAUGR_SCAN_VARIANT")
+	out := w
+	var bHead, bChips, bNotes, bSummary, bContext, bFix, bTail bytes.Buffer
+	if variant == "" {
+		variant = "today"
+	}
+	emit := func() {
+		closing := func(detail bool) {
+			verdict, vcol := "PASS", cPass
+			if s.verdict == norn.Fail {
+				verdict, vcol = "FAIL", cFail
+			}
+			line := col.Paint(cDim, "DRAUGR") + "  " + col.Chip(vcol, verdict)
+			if s.prioritized {
+				line += "  " + strings.TrimSpace(bandChips(col, s))
+			}
+			_, _ = fmt.Fprintln(out, line)
+			var failed []string
+			for _, c := range d.Verdict.Controls {
+				if c.Verdict == norn.Fail || d.Run.Incomplete(c.Control) {
+					failed = append(failed, c.Control)
+				}
+			}
+			failed = append(failed, s.errored...)
+			var parts []string
+			if len(failed) > 0 {
+				parts = append(parts, english.And(failed)+" "+english.Choose(len(failed), "fails", "fail"))
+			}
+			if failing, _ := splitCaveats(d); len(failing) > 0 {
+				parts = append(parts, english.Count(len(failing), "caveat")+" "+english.Choose(len(failing), "fails", "fail")+" the run")
+			}
+			if detail && len(parts) > 0 {
+				_, _ = fmt.Fprintf(out, "              %s\n", col.Paint(cDim, strings.Join(parts, " · ")))
+			}
+		}
+		var order []*bytes.Buffer
+		switch variant {
+		case "B", "C":
+			order = []*bytes.Buffer{&bHead, &bNotes, &bContext, &bFix, &bTail, &bSummary}
+		default:
+			order = []*bytes.Buffer{&bHead, &bChips, &bNotes, &bSummary, &bContext, &bFix, &bTail}
+		}
+		for _, b := range order {
+			if b == &bSummary && (variant == "B" || variant == "C") && bTail.Len() > 0 && !bytes.HasSuffix(bTail.Bytes(), []byte("\n\n")) {
+				_, _ = fmt.Fprintln(out)
+			}
+			if b == &bNotes && (variant == "B" || variant == "C") && len(bytes.TrimSpace(b.Bytes())) == 0 {
+				continue
+			}
+			_, _ = out.Write(b.Bytes())
+		}
+		switch variant {
+		case "A":
+			if len(s.findings) == 0 {
+				break
+			}
+			if !bytes.HasSuffix(bTail.Bytes(), []byte("\n\n")) {
+				_, _ = fmt.Fprintln(out)
+			}
+			closing(true)
+		case "B", "C":
+			closing(false)
+		}
+	}
+	short := variant == "C"
+	if short && d.TopN == 0 {
+		d.TopN = 5
+	}
+	w = &bHead
 	writeVerdictLine(w, col, s, d)
+	w = &bChips
 
 	// listed is how many rows a list printed when it left the rest out, and zero when it printed
 	// everything.
@@ -97,6 +171,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			chips += "  " + col.Paint(cDim, note)
 		}
 		_, _ = fmt.Fprintln(w, chips)
+		w = &bNotes
 		// Beside the counts, because it is a caveat on every one of them and a caveat printed away
 		// from the thing it qualifies is one the reader meets too late. Not dimmed, for the same
 		// reason: somebody reading these bands as a statement about their application has the
@@ -108,6 +183,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		writeCoverageNotes(w, col, d)
 		_, _ = fmt.Fprintln(w)
 	} else if notes := coverageNotes(d); len(notes) > 0 {
+		w = &bNotes
 		writeCoverageNotes(w, col, d)
 		_, _ = fmt.Fprintln(w)
 	}
@@ -117,8 +193,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	// meeting a verdict for the first time: a list of fixes to apply, before the controls that
 	// produced them, reads as instructions from a tool the reader has not yet decided to trust.
 	if d.View == ViewActions && len(s.findings) > 0 {
-		listed = writeActions(w, col, s, d, consoleActionsPerList(d.TopN))
+		listed = writeActions(&bFix, col, s, d, consoleActionsPerList(d.TopN))
 	}
+	w = &bSummary
 
 	// Controls that errored are listed alongside the ones that ran. A control that produced no report
 	// has no verdict entry to hang a row on, so listing only the ones that succeeded makes the output
@@ -251,9 +328,10 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	writeErrors(w, col, d)
 	writeCaveats(w, col, d)
 
-	if !dense(d) {
+	if !dense(d) && !short {
 		writeComponents(w, col, d)
 	}
+	w = &bContext
 
 	// Everything that argued with a band, in one place and counted.
 	//
@@ -264,7 +342,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	//
 	// The dense view keeps only a dataset the run did not read: it says the bands are less than they
 	// could be, which a dense view never drops.
-	writeSignals(w, col, d, s, dense(d))
+	writeSignals(w, col, d, s, dense(d) || short)
 
 	// Evidence, not a control, so a line rather than a row in the table above, where every entry means
 	// "checked, and here is the verdict". Printed before the early returns below, because a clean
@@ -281,6 +359,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	if !d.Evidence {
 		writeGate(w, col, d, false, "")
 	}
+	w = &bFix
 
 	if len(s.findings) == 0 {
 		// A clean run still did whatever it did and still produced whatever it produced, and
@@ -300,7 +379,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// it is worth saying: an SBOM nobody is told about is one nobody uses, a scan that created
 		// something in a cluster owes a record of it whatever the verdict, and somebody asking what
 		// stands behind a pass is asking what somebody asking about a fail is asking.
-		writeTail(w, col, s, d, 0, true)
+		writeTail(&bTail, col, s, d, 0, true)
+		emit()
 		return nil
 	}
 
@@ -346,7 +426,8 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprint(w, "\n")
 	}
-	writeTail(w, col, s, d, listed, true)
+	writeTail(&bTail, col, s, d, listed, true)
+	emit()
 	return nil
 }
 
@@ -2173,6 +2254,11 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 	// writes an HTML report, which holds every row.
 	if wantsReport(s, d, listed) {
 		row(htmlReportFlags(d), reportRowSays)
+	}
+	if os.Getenv("DRAUGR_SCAN_VARIANT") == "C" && rows > 0 {
+		_, _ = fmt.Fprintln(w, heading(col, "Try"))
+		t.Render(w)
+		return
 	}
 	// A caveat row standing for several files names none of them; the evidence lists each.
 	if c, ok := foldedCaveat(d); ok && !d.Evidence {
