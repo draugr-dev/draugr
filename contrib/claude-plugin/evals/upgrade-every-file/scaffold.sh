@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 . "$(dirname "${BASH_SOURCE[0]}")/../fixture.sh"
 repo
+api_packages lodash@4.17.15
 # A dependency scan of the api service, imported into sca, reports two lodash 4.17.15 advisories in
 # package-lock.json and the same two again in a copy of lodash committed under public/vendor. The
 # copies are counted once, under the lockfile's findings, and the one lodash upgrade names both
