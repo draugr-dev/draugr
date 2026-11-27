@@ -33,6 +33,37 @@ repo() {
   git_ commit -q -m "Two services"
 }
 
+# api_packages rewrites the api service's package.json and package-lock.json to depend on the
+# packages named, each as name@version, alongside the minimist its code requires. A case that
+# imports a dependency scan of that lockfile calls it, so the lockfile holds what the scan reports:
+# a model that reads the file to check a finding otherwise finds the package missing, and is right
+# to doubt the scan.
+api_packages() {
+  local deps='    "minimist": "1.2.5"' lock='' p name version
+  lock='    "node_modules/minimist": {
+      "version": "1.2.5",
+      "resolved": "https://registry.npmjs.org/minimist/-/minimist-1.2.5.tgz",
+      "license": "MIT"
+    }'
+  for p in "$@"; do
+    name=${p%@*} version=${p##*@}
+    deps+=",
+    \"$name\": \"$version\""
+    lock+=",
+    \"node_modules/$name\": {
+      \"version\": \"$version\",
+      \"resolved\": \"https://registry.npmjs.org/$name/-/$name-$version.tgz\",
+      \"license\": \"MIT\"
+    }"
+  done
+  printf '{\n  "name": "sealed-paths-api",\n  "version": "1.0.0",\n  "private": true,\n  "license": "Apache-2.0",\n  "dependencies": {\n%s\n  }\n}\n' \
+    "$deps" >services/api/package.json
+  printf '{\n  "name": "sealed-paths-api",\n  "version": "1.0.0",\n  "lockfileVersion": 3,\n  "requires": true,\n  "packages": {\n    "": {\n      "name": "sealed-paths-api",\n      "version": "1.0.0",\n      "license": "Apache-2.0",\n      "dependencies": {\n%s\n      }\n    },\n%s\n  }\n}\n' \
+    "$(printf '%s\n' "$deps" | sed 's/^/    /')" "$lock" >services/api/package-lock.json
+  git_ add services/api/package.json services/api/package-lock.json
+  git_ commit -q -m "Depend on $*"
+}
+
 # descriptor writes draugr.saga.yaml for the workspace. The api service faces the internet and is
 # critical; web is internal. Four variables change it, each a YAML fragment at the indent it lands
 # at: WEB_PATHS replaces web's paths, CONTROLS adds controls, CONFIG adds keys under config, and
@@ -131,6 +162,7 @@ PY
 # 4.17.15 carries three, the worst of them high. Both are P1 in the api service, so the jquery upgrade
 # leads the dependency list on the KEV finding alone, ahead of the upgrade that clears more.
 dependencies() {
+  api_packages jquery@1.8.3 lodash@4.17.15
   mkdir -p reports
   dep() { # rule level score message package version fixed
     printf '{"ruleId":"%s","level":"%s","message":{"text":"%s"},' "$1" "$2" "$4"
