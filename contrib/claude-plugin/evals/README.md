@@ -43,6 +43,8 @@ PATH="$(git rev-parse --show-toplevel)/bin:$HOME/.draugr/bin:$PATH" claude plugi
 `KUBECONFIG` names a file that does not exist, so survey-no-cluster finds no cluster whatever this
 machine is configured for. Results go to `evals/results/`, which is ignored.
 
+To debug a failing case, add `--keep-temp`, which keeps the scaffold directory the case ran in.
+
 An `llm` grader is read by a smaller model than the one being graded. State what a PASS contains as
 conditions it can check one by one; a criterion written as a double negative is the one that judge
 misreads. The judge reads the final reply unless the grader sets `focus: trace`, which a case needs

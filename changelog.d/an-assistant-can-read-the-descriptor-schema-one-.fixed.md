@@ -1,0 +1,1 @@
+- **An assistant can read the descriptor schema one field at a time.** `get_saga_schema` takes a `field` such as `components.exposure` and returns its meaning and accepted values, or an outline of every field without one. The whole schema was too long for Claude Code to pass to a model, so the model guessed values such as an exposure.

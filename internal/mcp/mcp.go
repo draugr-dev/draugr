@@ -172,11 +172,15 @@ func NewServer(opts Options) (*mcp.Server, error) {
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name: "get_saga_schema",
-		Description: "Return the JSON Schema for the Saga descriptor (*.saga.yaml) that this " +
-			"build of Draugr enforces. Use it to write or correct a descriptor rather than " +
-			"guessing at field names, the schema is the authority, and it rejects unknown keys.",
-	}, func(_ context.Context, _ *mcp.CallToolRequest, _ EmptyInput) (*mcp.CallToolResult, SchemaOutput, error) {
-		out, err := GetSchema()
+		Description: "Describe a field of the Saga descriptor (*.saga.yaml) as this build of " +
+			"Draugr enforces it: its JSON Schema, what it means and the values it accepts. " +
+			"Call it with no field for an outline of every field, then with the one you need, " +
+			"such as components.exposure. Paths run through lists and maps without an index: " +
+			"components.exposure, accounts.provider. Use it to write or correct a descriptor rather than " +
+			"guessing at field names or values: the schema is the authority, and it rejects " +
+			"unknown keys.",
+	}, func(_ context.Context, _ *mcp.CallToolRequest, in SchemaInput) (*mcp.CallToolResult, SchemaOutput, error) {
+		out, err := GetSchema(in.Field)
 		return nil, out, err
 	})
 

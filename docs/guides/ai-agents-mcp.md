@@ -74,7 +74,7 @@ The plugin and the binary update separately:
 | Tool | What it answers |
 | --- | --- |
 | `list_controls` | Which controls exist, what each checks, which scanner backs it |
-| `get_saga_schema` | The descriptor schema **this build** enforces, for writing a Saga correctly |
+| `get_saga_schema` | The descriptor schema **this build** enforces, one field at a time, for writing a Saga correctly |
 | `validate_saga` | Whether a descriptor is valid, by path or by content, and why not |
 | `propose_saga` | The descriptor `draugr init` would write for a directory, and the descriptors it already holds; writes nothing |
 | `check_tools` | Which scanners are present, what's missing, and the command that fixes it |
@@ -399,6 +399,10 @@ The assistant could run Trivy and Semgrep itself. Three things it won't get that
 This is where `get_saga_schema` earns its place. The schema comes from the binary you have
 installed, not from the web, so it matches what will actually be enforced, and it rejects unknown
 keys, which means a hallucinated field name fails loudly rather than being ignored.
+
+It answers one field at a time. Asked for `components.exposure`, it returns what exposure means and
+the values it takes; asked for nothing, it returns an outline of every field, one line each, to
+choose from.
 
 A sensible loop: `list_controls` to see what exists → write the descriptor →
 `validate_saga` with the content before writing it to disk.
