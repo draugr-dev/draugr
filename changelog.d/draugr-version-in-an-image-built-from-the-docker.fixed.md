@@ -1,0 +1,1 @@
+- **`draugr version` in an image built from the Docker recipe names its commit and build time.** It printed `commit none, built unknown`, so a report from the container could not say which build it came from. The recipe keeps checking the module against Go's checksum database.
