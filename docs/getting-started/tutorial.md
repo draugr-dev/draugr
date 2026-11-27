@@ -15,7 +15,7 @@ vulnerable shop, in four steps:
 3. open one finding in the HTML report;
 4. see how a pull request is gated, and run the same gate on your machine.
 
-Every block of output comes from Draugr 0.191.0 on demo commit `bb729745`, run on 2026-11-26. A
+Every block of output comes from Draugr 0.193.0 on demo commit `bb729745`, run on 2026-11-27. A
 newer release or commit prints different counts, and so can a later day, because the scanners read
 advisory databases that change over time. A line reading `…` stands for lines cut from the output.
 
@@ -25,14 +25,14 @@ advisory databases that change over time. A line reading `…` stands for lines 
 
 ## 1. Scan with nothing declared
 
-Install Draugr 0.191.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
+Install Draugr 0.193.0 into `~/.local/bin`, which [install](install.md) covers in full, and check
 the version.
 
 ```console
-$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.191.0 sh
+$ curl -fsSL https://draugr.dev/install.sh | DRAUGR_VERSION=v0.193.0 sh
 …
 $ draugr version
-draugr 0.191.0 (commit …)
+draugr 0.193.0 (commit …)
 ```
 
 Clone the demo at the commit this page was written against.
@@ -69,7 +69,7 @@ The demo is deliberately vulnerable, so this scan fails. That is the expected re
 ```console
 $ draugr scan .
 …
-DRAUGR  FAIL  draugr-demo  11.162s
+DRAUGR  FAIL  draugr-demo  11.898s
 
  37 P1 28 P2 18 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -169,7 +169,7 @@ is still written.
 ```console
 $ draugr scan --no-publish --report sarif -o before
 …
-DRAUGR  FAIL  draugr-demo 1.0  14.231s
+DRAUGR  FAIL  draugr-demo 1.0  9.718s
 
  301 P1 715 P2 255 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
@@ -211,7 +211,7 @@ Scan again.
 ```console
 $ draugr scan --no-publish --report sarif -o after --top 1
 …
-DRAUGR  FAIL  draugr-demo 1.0  12.238s
+DRAUGR  FAIL  draugr-demo 1.0  9.599s
 
  294 P1 707 P2 250 P3 20 P4
 …
@@ -269,6 +269,9 @@ Gate: fails on any P1 this change introduces.
 Nothing is new or fixed. Only priorities changed.
 
 RERANKED  27 · 27 lowered
+  worker: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+  platform: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+
   Priority  Severity  Rule                                                                                      Scanner      Component  Location
   P1 → P2   critical  CVE-2026-4800                                                                             trivy        worker     worker/package-lock.json:73
             Arbitrary code execution via untrusted input in template imports
@@ -289,7 +292,9 @@ RERANKED  27 · 27 lowered
 …
 ```
 
-Every finding is in both runs, so the declarations moved bands and fixed nothing. The worker's
+Every finding is in both runs, so the declarations moved bands and fixed nothing. The lines under
+`RERANKED` name what changed for each component: its exposure and criticality, from the public and
+critical Draugr assumed to the internal and supporting the descriptor declares. The worker's
 critical lodash flaw went from P1 to P2, its highs to P3 and its mediums to P4. The rows cut here
 are more worker and platform findings that moved the same way. The diff's unchanged count includes
 the two findings the descriptor accepts, which the scan's `1 of 1271` leaves out. Both runs read KEV
@@ -356,6 +361,8 @@ Gate: fails on any P1 this change introduces.
 Nothing is new or fixed. Only priorities changed.
 
 RERANKED  top 1 of 27 · 27 lowered
+  worker: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+
   Priority  Severity  Rule           Scanner  Location
   P1 → P2   critical  CVE-2026-4800  trivy    worker/package-lock.json:73
 …
