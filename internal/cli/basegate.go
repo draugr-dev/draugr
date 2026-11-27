@@ -156,8 +156,8 @@ func (g baseGate) judges(c comparison) bool { return c.findings != nil && g.sett
 //
 // A run the gate on new findings judged fails on what its change introduced, and says so in the
 // words its verdict line uses: the gate, how many new findings met it, and the base. The
-// organization's policy is the one other outcome that fails such a run by the time this is asked,
-// since a scan that could not finish has already exited naming what did not run. It is named first
+// organization's policy is the one other outcome of the gate that fails such a run; a scan that
+// could not finish is named after this, by incompleteError. The policy is named first
 // where it failed beside the change, and alone, with its rules, where nothing new did: a bare
 // "policy verdict: fail" under a verdict line saying "nothing new" names no cause at all. Any other
 // run fails on its policy verdict.

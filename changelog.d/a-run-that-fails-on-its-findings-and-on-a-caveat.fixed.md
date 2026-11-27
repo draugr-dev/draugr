@@ -1,0 +1,1 @@
+- **A run that fails on its findings and on a caveat or a scanner error says both.** The last line names the failing gate first, then what the scan did not cover, and no longer suggests `--allow-scan-errors` where accepting the partial results would still fail the run.

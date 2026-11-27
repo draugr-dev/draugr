@@ -161,10 +161,10 @@ $ git status --short
 Every scan of the demo with its descriptor opens and closes with a line too wide for this page, so
 the blocks below cut both. The first line is `config.gate.failOnNew is P1 and no --base names a scan
 to compare against, so no finding was judged as new.`, and step 4 makes that comparison with
-`draugr diff`. The last is `draugr: scan incomplete: 2 caveats fail it under
-config.gate.failOnCaveats (use --allow-scan-errors to accept partial results)`, and the command exits
-non-zero, because the demo's descriptor fails a run in which a scanner left files unread. The report
-is still written.
+`draugr diff`. The last is `draugr: policy verdict: fail; the scan is also incomplete: 2 caveats
+fail it under config.gate.failOnCaveats`, and the command exits non-zero: the P1 findings fail the
+gate, and the demo's descriptor also fails a run in which a scanner left files unread. The report is
+still written.
 
 ```console
 $ draugr scan --no-publish --report sarif -o before
