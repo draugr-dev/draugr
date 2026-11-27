@@ -37,26 +37,33 @@ A finding in `base` and a finding in `head` are the same finding when one of the
 |---|---|---|
 | content | tool, rule, file, a hash of the lines around the finding, component, repository | the finding moving within the file, a scanner rewording its message |
 | identity | tool, rule, file, message, component, repository | the finding moving within the file |
+| package | tool, rule, file or image, package name and version, component, repository, for a finding about an installed package | the vulnerability feed rewording the advisory, or changing its fixed version or score |
 | objects | tool, rule, location, component, repository, for a finding that lists the objects failing a check | an object joining or leaving the check |
 
-The content key is tried first, and only findings that carry a content hash have one. Either key
-matching pairs the two findings, so a finding whose surrounding lines were edited still matches on
-its identity.
+The keys are tried in the order listed, and a finding has the content key only where it carries a
+content hash. Any key matching pairs the two findings, so a finding whose surrounding lines were
+edited still matches on its identity.
 
 Findings pair one to one. A file can hold several findings with the same identity, one rule
 reporting the same message on three lines, and each base finding pairs with at most one head
 finding. Three in `head` against two in `base` is two unchanged and one new; one in `head` against
 two in `base` is one unchanged and one fixed. Within one identity, findings pair in line order.
 
-Neither key includes the line number or the severity. Code moves, and a finding that slid down
+No key includes the line number or the severity. Code moves, and a finding that slid down
 twelve lines is not a fix plus a new problem. A CVE that gets re-scored is still the same CVE.
 
 The component and the repository are part of every key. The same flaw in two components, or the
 same file in two repositories, is two findings. A repository is compared by its identity rather
 than as written, so `https://…/api`, `https://…/api.git` and `git@…:api.git` are one repository.
 
+A finding about an installed package, a dependency or an image's operating-system package, also has
+the package key. Its message is the feed's text about the advisory: the description, the version
+that fixes it and whether it has an exploit score yet. The feed changes those between two scans of
+an unchanged package, and an image finding has no line to hash, so the package at its version pairs
+it instead. Upgrading the package changes the version, and the finding is fixed.
+
 A finding that lists the objects failing a check, such as a `kubernetes` check naming every pod
-that runs privileged, also has the objects key, tried after the other two. Its message is its list of objects, so it changes whenever one
+that runs privileged, also has the objects key, tried last. Its message is its list of objects, so it changes whenever one
 object joins or leaves the list. A check that gained an object is **new**, which a gate on new
 findings judges; one that only kept or lost objects is **unchanged**, as the `head` lists it. In
 neither case is the check at `base` fixed, because it still fails. Both scans have to come from a
@@ -73,7 +80,7 @@ accepted.
 
 The message is part of the identity key, which is why both sides have to come from the same
 Draugr: a release that rewords what a scanner reported changes the key for any finding without a
-content hash. See [do not pay for the base scan twice](#do-not-pay-for-the-base-scan-twice).
+content hash or a package. See [do not pay for the base scan twice](#do-not-pay-for-the-base-scan-twice).
 
 What each kind of change does, from scans of one repository holding a leaked AWS key, each change a
 commit scanned as `head` against the original as `base`:
@@ -307,7 +314,7 @@ gate does not read them, since nobody introduced them.
 
 The headline says how many were raised and how many lowered. The `RERANKED` table lists each finding
 with the band it had and the band it has, raised ones first. Here the `worker` and `platform` components
-declared their context between the two scans:
+declared their context between the two scans, and a line under the heading names what each declared:
 
 ```console
 $ draugr diff out-base/results.sarif out-head/results.sarif --fail-on-new P1 --view compact
@@ -321,6 +328,9 @@ Gate: fails on any P1 this change introduces.
 Nothing is new or fixed. Only priorities changed.
 
 RERANKED  5 · 5 lowered
+  worker: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+  platform: exposure public (assumed) → internal, criticality critical (assumed) → supporting
+
   Priority  Severity  Rule                                                                        Scanner      Component  Location
   P1 → P2   critical  CVE-2026-4800                                                               trivy        worker     worker/package-lock.json:73
   P1 → P3   high      KSV-0014                                                                    Trivy        platform   deploy/pod.yaml:8
@@ -332,12 +342,34 @@ TRY
   --format markdown  the comment a pull request gets
 ```
 
+A component whose reranked rows all moved because it declared a new exposure or criticality gets
+one line under the heading. `(assumed)` marks a value it had not declared, which Draugr ranks as
+`public` and `critical`. What moved a single finding goes on the line under its row:
+
+- `↑ KEV` or `↑ EPSS`: an exploitation signal raised the severity.
+- `↓ unreachable`: reachability analysis found no path from the code to it, so the severity was
+  lowered.
+- `↓ pinned`: a lockfile pins the reference, which holds the band at P3.
+- `↑ floor`: the control holds the band up whatever the component declares, or `↑ converter <name>`
+  where a declared converter does.
+- `↑ minimum severity high`: the control's minimum severity raised the scanner's rating.
+- `severity medium → high`: the scanner rated the finding again.
+- `no longer KEV`, `no longer unreachable` and the like: the base had the mark and the head does not.
+- `(was EPSS)`: the head has a different value for the same mark.
+
+`--view compact` drops the lines under the rows and keeps the component lines. A row with no line
+under it moved only for its component's line, or had the same recorded inputs in both scans. A base written before 0.189.0 in which no
+finding carries an exposure or criticality names no classification, because it cannot say what its
+components declared.
+
 A finding that changed component and band is moved rather than reranked, because the component it
 moved to is why its band changed, and `PRIORITY CHANGED` lists it with both. `--top` caps the
 reranked rows and `--min-priority` leaves them alone, as it leaves moved ones. `--format markdown`
-carries the table under `### Reranked`, and `--format json` lists each finding under `reranked`
-with the band it had in `base` (`fromPriority`) and which way it went (`direction`), counted in the
-summary's `reranked`, `raised` and `lowered`.
+carries the table under `### Reranked`, with the component lines as a list above it and a `Why`
+column where a row has its own. `--format json` lists each finding under `reranked` with the band it
+had in `base` (`fromPriority`), which way it went (`direction`) and what changed (`changed`, each
+with its `input`, the `from` and `to` values the scans recorded and the console's `text`), counted
+in the summary's `reranked`, `raised` and `lowered`.
 
 ### Where the base comes from
 
@@ -402,17 +434,24 @@ change is the point: a control the team no longer wants, a component that really
 than declared, an `ignore` entry for generated files, a repository's `revision` moved to a new
 release, or a control's settings changed, such as `sca` moved from `trivyFs` to another scanner or a
 `semgrep` ruleset swapped. Each of the last three changes what a scan reads or looks for, as a
-shorter `paths` does, so it fails the gate until it merges like a control turned off. Turning on one
-more scanner, a block that sets only `enabled: true`, passes.
+shorter `paths` does, so it fails the gate like a control turned off, until the pipeline trusts the
+change. Turning on one more scanner, a block that sets only `enabled: true`, passes.
 
 The same holds for a file outside the descriptor that can set a finding aside or change what a
 scanner finds: a VEX document the descriptor names, a `.trivyignore`, `.gitleaksignore`,
-`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, a `.semgrepignore` in
-any of its directories, or a ruleset a setting
-names, edited in place. A pull request that adds one or edits one fails until it merges, and the run
-names it: `This change adds .gitleaksignore, which can set findings aside or change what a scanner
-finds, so the gate holds until it merges.` A comment beside the line, such as `# nosemgrep`, is not
-held; the listing marks the finding `accepted by this change` for a reviewer to read.
+`.semgrepignore` or `.gitleaks.toml` at the root of a scanned repository, a `.semgrepignore` in any
+of its directories, or a ruleset a setting names, edited in place. A pull request that adds one or
+edits one fails until the pipeline trusts it, and the run names it: `This change adds
+.gitleaksignore, which can set findings aside or change what a scanner finds, so the gate fails
+until the pipeline trusts this change.`, and its first line counts it, `1 file needs trust`. A
+comment beside the line, such as `# nosemgrep`, is not held; the listing marks the finding `accepted
+by this change` for a reviewer to read.
+
+A `${{ NAME }}` reference is compared as written, not as the value it held in each scan, so
+`revision: ${{ GITHUB_SHA }}` is not a moved revision although the base's commit and the head's
+differ. A literal equal to the value of a variable the descriptor references is recorded as that
+reference, so the two scans' records can show `${{ ROOT }}/rules.yml` where the descriptor says
+`/work/rules.yml`. [Substitution](../reference/saga-schema.md#substitution) describes both.
 
 The failing run prints a digest of the pull request's descriptor, which covers those files too:
 

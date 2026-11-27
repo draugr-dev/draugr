@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/standin"
 	"github.com/draugr-dev/draugr/pkg/config"
 )
 
@@ -36,9 +37,7 @@ func fakeEditor(t *testing.T, files map[string]string) string {
 	}
 	dir := t.TempDir()
 	script := filepath.Join(dir, "editor")
-	if err := os.WriteFile(script, []byte(fakeEditorScript), 0o700); err != nil { // #nosec G306 -- it is run
-		t.Fatal(err)
-	}
+	standin.Write(t, script, []byte(fakeEditorScript), 0o700)
 	for name, body := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
 			t.Fatal(err)

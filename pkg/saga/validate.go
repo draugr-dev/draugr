@@ -167,6 +167,21 @@ func (m *Model) Validate() error {
 					"config.exploitability.maxAge %q is not a duration (want e.g. 24h, 30m, 168h)", x.MaxAge))
 			}
 		}
+		if len(x.Advisories) > 0 && x.KEV == "" && x.EPSS == "" {
+			errs = append(errs, errors.New("config.exploitability.advisories needs config.exploitability.kev or "+
+				"epss, which match the CVEs it finds: set one, or remove advisories"))
+		}
+		seen := map[AdvisoryEcosystem]bool{}
+		for _, e := range x.Advisories {
+			switch {
+			case !slices.Contains(AdvisoryEcosystems, e):
+				errs = append(errs, fmt.Errorf("config.exploitability.advisories %q is not an ecosystem Draugr reads "+
+					"advisories for (want %s)", e, orList(AdvisoryEcosystems)))
+			case seen[e]:
+				errs = append(errs, fmt.Errorf("config.exploitability.advisories lists %q twice", e))
+			}
+			seen[e] = true
+		}
 		// A path is anything else, and cannot be checked here, the descriptor may name a file this
 		// machine does not have, which is a legitimate thing for a shared descriptor to do and a
 		// scan-time error rather than a validation one.
@@ -714,6 +729,15 @@ func orList[T ~string](values []T) string {
 	return strings.Join(words[:len(words)-1], ", ") + " or " + words[len(words)-1]
 }
 
+// article is the indefinite article read before a format's name, by its first letter as written:
+// "an osv-scanner-json file", "a mend-json file".
+func article(name string) string {
+	if name != "" && strings.ContainsRune("aeiou", rune(name[0])) {
+		return "an"
+	}
+	return "a"
+}
+
 // OrList is orList for callers outside this package, so one phrasing serves every place a closed
 // vocabulary is offered back to somebody who missed it.
 func OrList[T ~string](values []T) string { return orList(values) }
@@ -888,6 +912,22 @@ func validateImportFormat(imp Import, at string) []error {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated by the severity "+
 			"Veracode states. Remove severity", at, imp.Format)}
 	}
+	if controls, ok := ImportFormatControls[imp.ReadFormat()]; ok && imp.Control != "" && !slices.Contains(controls, imp.Control) {
+		// The reader takes the results of the import's control from the file, and the file holds
+		// none for another, so the import would read as a clean scan.
+		return []error{fmt.Errorf("%s: %s %s file holds no %s results; import it into %s", at, article(imp.Format),
+			imp.Format, imp.Control, orList(controls))}
+	}
+	if imp.Severity != nil && (imp.ReadFormat() == ImportFormatGitLabSAST ||
+		imp.ReadFormat() == ImportFormatGitLabDependencyScanning || imp.ReadFormat() == ImportFormatJFrogSimpleJSON ||
+		imp.ReadFormat() == ImportFormatCheckmarxOneJSON || imp.ReadFormat() == ImportFormatMendJSON ||
+		imp.ReadFormat() == ImportFormatTwistcliJSON || imp.ReadFormat() == ImportFormatAquaJSON) {
+		// The tools that write GitLab's format are many, and Draugr runs few of them, and none of
+		// JFrog's, Checkmarx's, Mend's, Prisma Cloud's or Aqua's, so the file is rated by the severity
+		// it states for each one.
+		return []error{fmt.Errorf("%s.severity maps a SARIF property, and %s %s file is rated by the severity "+
+			"it states. Remove severity", at, article(imp.Format), imp.Format)}
+	}
 	if imp.Severity != nil && imp.ReadFormat() != ImportFormatSARIF {
 		return []error{fmt.Errorf("%s.severity maps a SARIF property, and a %s file is rated as Draugr's own run "+
 			"of its tool rates it. Remove severity", at, imp.Format)}
@@ -902,6 +942,38 @@ func validateImportFormat(imp Import, at string) []error {
 	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatVeracodePipelineJSON {
 		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since a Pipeline Scan file records no "+
 			"suppression. Remove it", at)}
+	}
+	// A GitLab report leaves out what the tool's own settings suppressed, and records no suppression
+	// on the vulnerabilities it holds.
+	if imp.Suppressions != "" && (imp.ReadFormat() == ImportFormatGitLabSAST ||
+		imp.ReadFormat() == ImportFormatGitLabDependencyScanning) {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since a GitLab report records no "+
+			"suppression. Remove it", at)}
+	}
+	// JFrog's simple-json records no suppression on the vulnerabilities it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatJFrogSimpleJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since JFrog's simple-json records no "+
+			"suppression. Remove it", at)}
+	}
+	// Mend's dependency JSON records no suppression on the libraries it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatMendJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Mend's dependency JSON records "+
+			"no suppression. Remove it", at)}
+	}
+	// twistcli's JSON records no suppression on the vulnerabilities it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatTwistcliJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since twistcli's JSON records "+
+			"no suppression. Remove it", at)}
+	}
+	// Aqua's scanner JSON records no suppression on the vulnerabilities it holds.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatAquaJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Aqua's scanner JSON records "+
+			"no suppression. Remove it", at)}
+	}
+	// Semgrep leaves a result a nosemgrep comment suppressed out of its JSON.
+	if imp.Suppressions != "" && imp.ReadFormat() == ImportFormatSemgrepJSON {
+		return []error{fmt.Errorf("%s.suppressions has nothing to apply to, since Semgrep leaves what a nosemgrep "+
+			"comment suppressed out of its JSON. Remove it", at)}
 	}
 	return nil
 }

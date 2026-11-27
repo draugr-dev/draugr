@@ -131,7 +131,7 @@ func counts(r Result) []int {
 // not zero. Unchanged is always named, because zero there is the answer rather than noise: a diff
 // of two identical scans has to say it compared something.
 func headline(r Result, emoji bool) []string {
-	var parts []string
+	parts := heldCounts(r, emoji)
 	for i, n := range counts(r) {
 		if n == 0 {
 			continue
@@ -164,6 +164,35 @@ func headline(r Result, emoji bool) []string {
 		return parts
 	}
 	return append(parts, fmt.Sprintf("%d unchanged", len(r.Unchanged)))
+}
+
+// heldCounts counts what failed the run by itself, before any finding: the controls the base ran
+// that this change stops or narrows, and the files it adds or edits that can set findings aside.
+// Empty unless the gate is set and they decide it.
+//
+// They lead the headline because they are why it says FAIL. A run failed by an ignore file has no
+// new finding to count, and a header of "1 accepted  0 unchanged" beside FAIL leaves the reader to
+// guess which count failed it.
+func heldCounts(r Result, emoji bool) []string {
+	if !r.Gate.Stated() || !r.Held.Fails() {
+		return nil
+	}
+	stopped, narrowed := splitDropped(r.Held.Dropped)
+	var parts []string
+	add := func(n int, what, done string) {
+		if n == 0 {
+			return
+		}
+		part := english.Count(n, what) + " " + done
+		if emoji {
+			part = "⏸️ " + part
+		}
+		parts = append(parts, part)
+	}
+	add(len(stopped), "control", "stopped")
+	add(len(narrowed), "control", "narrowed")
+	add(len(r.Held.Files), "file", english.Choose(len(r.Held.Files), "needs trust", "need trust"))
+	return parts
 }
 
 // splitUnchanged separates the unchanged findings still counting from the ones suppressed in both
@@ -1114,6 +1143,9 @@ type jsonRerank struct {
 	// Direction is "raised" where head ranks the finding more urgent than base did, "lowered"
 	// otherwise.
 	Direction string `json:"direction"`
+	// Changed is each input to the band that base and head recorded differently. Absent where
+	// neither records a difference: the row says nothing rather than guessing.
+	Changed []Cause `json:"changed,omitempty"`
 }
 
 type jsonSummary struct {
@@ -1159,7 +1191,7 @@ func renderJSON(w io.Writer, r Result) error {
 		} else {
 			doc.Summary.Lowered++
 		}
-		doc.Reranked = append(doc.Reranked, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: direction})
+		doc.Reranked = append(doc.Reranked, jsonRerank{Finding: rr.Result, FromPriority: rr.From, Direction: direction, Changed: rr.Causes()})
 	}
 	if doc.New == nil {
 		doc.New = []sarif.Result{}

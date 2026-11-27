@@ -14,10 +14,12 @@ scanners. Draugr does not run the tool. It reads the file an earlier pipeline st
 Trivy's, govulncheck's, Grype's and OSV-Scanner's own JSON can be imported the same way, and keeps
 more than their SARIF does ([Import a tool's own JSON](#import-a-tools-own-json)).
 A repository's GitHub code-scanning and Dependabot alerts can be read from GitHub with no
-file at all ([Import GitHub's alerts](#import-githubs-alerts)).
+file at all ([Import GitHub's alerts](#import-githubs-alerts)), and so can a SonarQube project's
+security issues ([Import SonarQube](#import-sonarqube)).
 
 The steps below use Bandit, which writes no commit into its SARIF, so they include binding the file
-to the commit it scanned. Another tool's file follows the same steps, with the limits
+to the commit it scanned. Another tool's file follows the same steps, with its own export command and
+quirks ([Import each tool's file](importing-each-tool.md)) and the limits
 [Before you import](../../internal/scanners/sarif-import.md#before-you-import) lists. The ones a
 first import meets:
 
@@ -363,6 +365,352 @@ imports:
 - **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
   and records no suppression.
 
+## Import GitLab's security reports
+
+GitLab's analyzers write their findings in GitLab's security report format rather than SARIF, and
+other tools write it for GitLab too, such as Semgrep with `--gitlab-sast`. Draugr reads two of its
+schemas, at version 15.x:
+
+- **`gitlab-sast`**, the `gl-sast-report.json` of a SAST scan, for `sast`;
+- **`gitlab-dependency-scanning`**, the `gl-dependency-scanning-report.json` of a dependency scan, for
+  `sca`.
+
+```bash
+semgrep scan --config p/default --gitlab-sast -o gl-sast-report.json
+```
+
+```yaml
+imports:
+  - control: sast
+    file: gl-sast-report.json
+    format: gitlab-sast
+    commit: ${{ CI_COMMIT_SHA }}
+  - control: sca
+    file: gl-dependency-scanning-report.json
+    format: gitlab-dependency-scanning
+    commit: ${{ CI_COMMIT_SHA }}
+```
+
+- **A SAST vulnerability is a finding** at its file and line, under its first identifier, whatever
+  its type, such as `python_flask_rule-flask-tainted-sql-string`. Its `cwe` identifiers give its
+  CWE, and its description is the detail.
+- **A SAST finding names the scanner the vulnerability states**, such as `Find Security Bugs` in a
+  SpotBugs report.
+- **A dependency vulnerability is a finding** in the package at the version installed, in the file
+  the report names. Its rule is its first CVE, so KEV and EPSS reach it, else its first GHSA id,
+  else its first identifier. Its other CVE and GHSA ids are its aliases.
+- **The fixed version is read from `solution`** in the two forms Gemnasium writes,
+  `Upgrade to version 0.3.3 or above.` and `Upgrade to v1.9.0 or greater.` A solution in any other
+  form leaves the finding with no fixed version, and its text is kept in the finding's detail.
+- **Go and npm packages get a package URL and ecosystem**: those in `go.mod`, `go.sum`,
+  `package.json`, `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock` and `pnpm-lock.yaml`. A
+  package in any other file has neither.
+- **Rated by the severity the report states:** `Critical`, `High`, `Medium` and `Low` as their
+  bands, and `Info` as low. `Unknown`, or no severity, ranks high, and the finding says so:
+  `not scored yet` on a dependency, `not rated, so ranked high` on code.
+- **Only `commit` binds the file**, since a GitLab report names no commit.
+- **A report is refused** when its schema version or scan type is another, when its `status` is
+  `failure`, when a severity is not one of GitLab's, or when a vulnerability names no file,
+  identifier or package. Each error says which.
+- **The import takes no `severity` mapping and no `suppressions`**: the report states its own rating
+  and records no suppression.
+
+## Import JFrog Xray
+
+`jf audit` writes SARIF, but it folds each dependency finding's CVE, package and version into the
+rule id, such as `CVE-2020-8203_lodash_4.17.0`, and gives the fixed version only in a property. Its
+`simple-json` keeps each as a field. The same file holds JFrog's SAST, secrets and IaC findings, so
+import it once into each control it covers:
+
+```bash
+jf audit --format simple-json > reports/jfrog.json
+```
+
+```yaml
+imports:
+  - control: sca
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+  - control: sast
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+  - control: secrets
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+  - control: iac
+    file: reports/jfrog.json
+    format: jfrog-simple-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+Each import reads only its control's findings, and an import of a control whose scan the file does
+not record is refused, so drop the ones your `jf audit` does not run.
+
+- **Each vulnerable package is a finding** at the version installed, in each manifest that declares a
+  direct dependency bringing it in. Its rule is its first CVE, so KEV and EPSS reach it, else Xray's own
+  id, such as `XRAY-609848`. Its other CVEs and Xray's id are its aliases, and its detail names the
+  direct dependency that brings it in.
+- **The fixed version is read where Xray names a single version**, `[4.17.19]`. Several such versions
+  are joined with commas, as Trivy's are. A fix written as a range, such as `(,1.2.0)`, leaves the finding with
+  no fixed version, and the range is kept in its detail.
+- **Go and npm packages get a package URL.** Every package keeps the type Xray names, such as `npm`
+  or `Maven`, as its ecosystem.
+- **Rated by Xray's severity:** `Critical`, `High`, `Medium` and `Low` as their bands, and
+  `Information` as low. `Unknown`, or no severity, ranks high, and the finding says `not scored yet`.
+- **JFrog's contextual analysis is kept in the detail and changes no priority.** A finding JFrog
+  marks `Not Applicable` ranks as any other does.
+- **A violation a watch raised is read as well**, and a finding listed in both places is one finding.
+- **With `--watches`, `--project` or `--repo-path`**, also pass `--vuln`, or the file holds only what
+  Xray's policies flag. Pass `--fail=false` too: a matched Fail build rule otherwise exits 3 and stops
+  the pipeline before Draugr reads the file.
+- **A SAST, secrets or IaC finding is read at its file and line** under JFrog's rule id, such as
+  `js-template-injection`, with the CWE a SAST rule names. It is rated by JFrog's severity, as a
+  dependency finding is, except that `Unknown` or no severity says `not rated, so ranked high`.
+- **A secret's token validation is kept in the detail and changes no priority.** A secret JFrog marks
+  `Not a token` ranks as any other does.
+- **Only `commit` binds the file**, since it names no commit.
+- **A file is refused** when the scan for the import's control did not run or failed, when it lists an
+  error, when a severity is not one of JFrog's, when a vulnerability names no package, advisory id or
+  manifest, or when a code finding names no rule or file. Each error says which.
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
+## Import Checkmarx One
+
+Checkmarx One's JSON holds a scan's SAST, SCA and KICS results in one file. Import that file once
+into each control whose results you want, and each import reads its own:
+
+```bash
+cx results show --scan-id <id> --report-format json --output-path reports    # writes reports/cx_result.json
+```
+
+```yaml
+imports:
+  - control: sast
+    file: reports/cx_result.json
+    format: checkmarx-one-json
+    commit: ${{ GITHUB_SHA }}
+  - control: sca
+    file: reports/cx_result.json
+    format: checkmarx-one-json
+    commit: ${{ GITHUB_SHA }}
+  - control: iac
+    file: reports/cx_result.json
+    format: checkmarx-one-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **A SAST result is a finding** at the file and line where its data flow starts, as Checkmarx's
+  SARIF places it, under its query, such as `SQL_Injection`, with its CWE. Its description is the
+  detail, followed by the file and line the data flows to.
+- **An SCA result is a finding** in the package at the version installed, in each manifest
+  Checkmarx names. Its rule is its CVE, so KEV and EPSS reach it, else Checkmarx's own id. Its fixed
+  version is Checkmarx's recommended version, and where it is not itself a direct dependency, its
+  detail names the direct dependencies that bring it in. Maven, Go and npm packages with a version
+  get a package URL.
+- **A KICS result is a finding** at its file and line, under KICS's query id, the rule Draugr's own
+  [KICS](../../internal/scanners/kics.md) reports it under.
+- **Rated by Checkmarx's severity:** `CRITICAL`, `HIGH`, `MEDIUM` and `LOW` as their bands, and
+  `INFO` as low. No severity ranks high, and the finding says so: `not scored yet` on a dependency,
+  `not rated, so ranked high` on code.
+- **A result triaged Not Exploitable or Ignored in Checkmarx One is one the tool suppressed**: set
+  aside with the state and its comment as the reason, or counted with `suppressions: count`.
+  Proposed Not Exploitable awaits review, and counts.
+- **The file's container image and supply-chain results are not read**, since they describe no file
+  in the repository.
+- **Only `commit` binds the file**, since it names no commit. It is the commit the scan read, which
+  for a scan exported later with `--scan-id` may not be the pipeline's current commit.
+- **A file is refused** when it does not list as many results as its `totalCount`, when a severity is not
+  one of Checkmarx's, or when a result names no query, file, package or manifest, and an import into
+  any control but `sast`, `sca` and `iac` is refused. Each error says which.
+- **The import takes no `severity` mapping**: the file states its own rating.
+
+## Import Mend
+
+Mend's code scan writes SARIF, which imports as any other SARIF file does. Its dependency scan,
+`mend dep`, writes no SARIF, so import its JSON into `sca`:
+
+```bash
+mend dep --format json --export-results reports/mend.json
+```
+
+```yaml
+imports:
+  - control: sca
+    file: reports/mend.json
+    format: mend-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerability of a library is a finding** at the version installed, in the manifest Mend
+  names. Its rule is its CVE, so KEV and EPSS reach it, else Mend's own id, such as `WS-2022-0468`.
+  A library the tree lists more than once still gives one finding per vulnerability. A transitive
+  library's detail names the direct dependency that brings it in.
+- **The package and version come from the library's file name**, `jackson-databind-2.9.5.jar`. A name
+  with no hyphen before a digit, such as `foo.jar`, is the package whole, with no version, and the
+  detail says so.
+- **A Maven package is named `group:artifact` and gets a package URL** when Mend's fixes for the
+  library agree on one group, as Trivy names a package in a `pom.xml`. Otherwise it keeps the artifact
+  name, with no package URL.
+- **The fixed version is read from Mend's fix** where it names this package, as `2.9.8` or
+  `com.fasterxml.jackson.core:jackson-databind:2.9.10.8`. Only versions above the installed one count,
+  and several are joined with commas, as Trivy's are.
+- **Mend's whole fix stays in the detail** when it also names another package, names no version above
+  the installed one, or is written in any other form.
+- **Rated by Mend's severity:** `CRITICAL`, `HIGH`, `MEDIUM` and `LOW` as their bands.
+- **Only `commit` binds the file**, since it names no commit.
+- **A file is refused** when it is not a list of libraries, when a library has no `name` or
+  `dependencyFile`, when a vulnerability has no `name`, or when a severity is not one of Mend's, and an
+  import into any control but `sca` is refused. Each error says which.
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
+## Import Prisma Cloud
+
+Import the JSON Prisma Cloud's `twistcli images scan` writes into `images`. The
+`PaloAltoNetworks/prisma-cloud-scan` Action's SARIF names each package only in text, so import the
+JSON rather than that. `twistcli` does not pull the image, so pull or build it first:
+
+```bash
+twistcli images scan --address "$PRISMA_CONSOLE" --user "$PRISMA_ACCESS_KEY" \
+  --password "$PRISMA_SECRET_KEY" --output-file reports/twistcli.json ghcr.io/acme/web:1.0
+```
+
+```yaml
+imports:
+  - control: images
+    file: reports/twistcli.json
+    format: twistcli-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerability of a package is a finding** at the version installed, in the image. Its rule is
+  its CVE, so KEV and EPSS reach it, and its location is the image's name, or its ID where the file
+  names none.
+- **An operating-system package** is one `twistcli` writes as `glibc (used in libc6, libc-bin)`, or
+  lists with the type `os`. It is named by its source package, `glibc`, in the distribution's
+  ecosystem, with the image's operating system, and the binary packages are in the detail.
+- **Any other package** keeps the name `twistcli` gives it, with no ecosystem, and its path in the
+  image is in the detail.
+- **The fixed version is read from the status**, `fixed in` and one or more versions. Where the
+  package's ecosystem is known, only versions above the installed one count; otherwise every version
+  counts. Several are joined with commas, as Trivy's are. `open` is no fix.
+- **The whole status stays in the detail** when it is written in any other form or names no version
+  above the installed one.
+- **Rated by the CVSS score, else `twistcli`'s severity.** A score less severe than the severity is
+  not used, so the finding keeps the severity. `critical`, `high`, `medium` and `low` are their bands,
+  and `important` and `moderate`, a distribution's words, are high and medium.
+- **Compliance results are not read.** They describe how the image is built, such as a missing
+  `HEALTHCHECK`, not a flaw in a package.
+- **Only `commit` binds the file**, since it names no commit.
+- **An import into any control but `images` is refused.**
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
+## Import Aqua
+
+Import the JSON Aqua's `scannercli scan` writes into `images`. The image is scanned from a
+registry Aqua's console has an integration for, and `--registry` is that integration's name:
+
+```bash
+scannercli scan --host "$AQUA_CONSOLE" --user "$AQUA_USER" --password "$AQUA_PASSWORD" \
+  --registry "$AQUA_REGISTRY" --jsonfile reports/aqua.json acme/web:1.0
+```
+
+```yaml
+imports:
+  - control: images
+    file: reports/aqua.json
+    format: aqua-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+- **Each vulnerability of a package is a finding** at the version installed, in the image. Its rule is
+  its CVE, so KEV and EPSS reach it, else Aqua's id for it, such as a Debian `DSA`. Its location is
+  the file's `image`, else the reference it was pulled by, else its digest. A package listed twice
+  with the same vulnerability at the same path is one finding, rated by the more severe copy.
+- **An operating-system package** is one whose format is `apk`, `deb` or `rpm`. It is in the
+  distribution's ecosystem and carries the image's operating system. A binary package built from a
+  differently named source package names the source in the detail.
+- **Any other package** is in the ecosystem its format names where Draugr knows it, such as `npm`, and
+  in none otherwise. Aqua names a Java package by its path in the image, and a library it finds by
+  path alone has only that path, which becomes its name. Where Aqua found it is in the detail.
+- **The fixed version is read from `fix_version`**: one version, or several joined by commas. Where
+  the package's ecosystem is known, only versions above the installed one count; otherwise every
+  version counts.
+- **The whole fix stays in the detail** when Aqua writes the vendor's words after the versions or in
+  place of them, or names no version above the installed one.
+- **Rated by the more severe of Aqua's CVSS score and its severity.** `critical`, `high`, `medium`
+  and `low` are their bands, and `negligible`, which Aqua gives where a distribution calls a flaw
+  unimportant, is low. So Aqua's `critical` at a score of 3.7 stays critical, and its `negligible`
+  at a score of 10 is critical.
+- **Sensitive data, malware and image assurance results are not read.**
+- **Only `commit` binds the file**, since it names no commit.
+- **An import into any control but `images` is refused.**
+- **The import takes no `severity` mapping and no `suppressions`**: the file states its own rating
+  and records no suppression.
+
+## Import Semgrep
+
+Semgrep's SARIF names a Supply Chain finding's package and CVE only in its message. Its JSON keeps
+both, with the code results beside them, so import it once into each of `sast` and `sca`. For code
+results alone, Semgrep's SARIF imports as any other SARIF file; the JSON also rates them from the
+rule's impact and likelihood, as [`semgrep`](../../internal/scanners/semgrep.md) does.
+
+```bash
+semgrep ci --json-output=reports/semgrep.json
+```
+
+```yaml
+imports:
+  - control: sast
+    file: reports/semgrep.json
+    format: semgrep-json
+    commit: ${{ GITHUB_SHA }}
+  - control: sca
+    file: reports/semgrep.json
+    format: semgrep-json
+    commit: ${{ GITHUB_SHA }}
+```
+
+`semgrep scan --config <rules> --json-output=<file>` writes the same format, for a scan with rules
+of your own.
+
+- **Each code result is a finding in `sast`** at its file and line, under its rule's id, with the
+  CWE the rule's metadata names. It is rated from the rule's impact and likelihood, as Draugr's own
+  Semgrep run rates it, else by the rule's severity: `CRITICAL` critical, `ERROR` and `HIGH` high,
+  `WARNING` and `MEDIUM` medium, `LOW` and `INFO` low.
+- **In `sast`, the tool is named as Semgrep's SARIF names it**, `Semgrep OSS`, or `Semgrep PRO` for a
+  scan with the Pro engine, so a code finding Draugr's own Semgrep run also reports is counted once.
+- **Each Supply Chain result is a finding in `sca`**: an advisory in a dependency at the version
+  installed, in the lockfile that lists it. Its rule is its CVE, so KEV and EPSS reach it, else its
+  GHSA id, else Semgrep's rule id. An npm, PyPI, RubyGems, Go, Cargo, Maven, Composer, NuGet, Pub or
+  Hex package carries its package URL.
+- **The fixed version is read from the rule's `sca-fix-versions`**, the versions it names for this
+  package. Where the ecosystem's versions can be ordered, only those above the installed one count.
+  A fix for an older release line is not counted: where Semgrep names no version above the installed
+  one, the detail lists what it names.
+- **Rated by the advisory's `sca-severity`**: `CRITICAL`, `HIGH`, `MODERATE` or `MEDIUM` as medium,
+  and `LOW`,
+  else by the rule's severity.
+- **A rule that looks for the vulnerable code** reports a result at each place it finds it. Those
+  results are one finding, whose detail names each place, or says Semgrep found no use. The rating
+  stays the advisory's either way.
+- **Semgrep Secrets results are not read**, in either control.
+- **A file a rule timed out on is listed under `unread-files`** in `sast`, as for Draugr's own run,
+  and so is a file Semgrep skipped for its size where it ran with `--verbose`.
+- **What a `nosemgrep` comment suppressed is not in the file**, unless Semgrep ran with
+  `--disable-nosem`, and nor is a finding triaged as
+  ignored in Semgrep AppSec Platform, so Draugr never sees or counts either. To keep such a decision
+  in the report, with its reason, set the finding aside in the descriptor's `config.exclude`.
+- **Only `commit` binds the file**, since it names no commit.
+- **An import into any control but `sast` or `sca` is refused.**
+- **The import takes no `severity` mapping and no `suppressions`**: it is rated as described above,
+  and the file records no suppression.
+
 ## Import GitHub's alerts
 
 Where a repository's code scanning or Dependabot already runs on GitHub, Draugr can read its alerts
@@ -421,8 +769,51 @@ the binding to a commit, and every error.
 A tool that writes neither SARIF nor a JSON Draugr reads, such as `npm audit`, reaches a scan
 through a converter your pipeline runs on its output: [Write a converter](writing-a-converter.md).
 
+## Import SonarQube
+
+SonarQube writes no report file: its findings stay on the server. Draugr reads a project's security
+issues from SonarQube's Web API, as it reads GitHub's alerts. Name the project by its key:
+
+```yaml
+components:
+  - name: api
+    repositories:
+      - url: https://github.com/acme/api
+    imports:
+      - control: sast
+        source: sonarqube
+        project: acme_api
+```
+
+Then scan with a token that can browse the project in `SONAR_TOKEN`, and, for SonarQube Server, its
+address in `SONAR_HOST_URL`, the two variables SonarSource's own scanners read. Where
+`SONAR_HOST_URL` is unset, Draugr reads SonarQube Cloud. A token in another variable is named with
+`tokenEnv` and listed in `$DRAUGR_TOKEN_ENVS`, as for GitHub's alerts.
+
+What to expect:
+
+- **Only security issues are read**: each at its file and line, under its rule, rated by its
+  security impact, with the rule's CWEs on SonarQube Cloud. Code smells and bugs are not read, nor
+  are security hotspots, which SonarQube now raises as security issues.
+- **An issue a person accepted or marked as a false positive is set aside**, with the latest comment
+  on it as the reason. `suppressions: count` counts it instead.
+- **The commit is the one SonarQube's latest analysis read.** Run the scan after the analysis of the
+  same commit, or the import is listed under **Caveats** as `unbound-imports`.
+- **SonarQube's refusals stop the run**: a token it refuses, a project it does not know, a project
+  with no analysis yet, or more than the 10,000 issues its search returns. None reads as a project
+  with no findings.
+- **SonarSource's terms govern the token's use.** Its
+  [Acceptable Use Policy](https://www.sonarsource.com/legal/aup/) applies to SonarQube Cloud and
+  Server; Community Build is outside it. [License & terms](../../internal/scanners/sarif-import.md#license--terms)
+  quotes the clauses that bear on reading results into another tool.
+
+[SonarQube's security issues](../../internal/scanners/sarif-import.md#sonarqubes-security-issues)
+has how each issue is read and every error.
+
 ## See also
 
+- [Import each tool's file](importing-each-tool.md): the export command, the control and the quirks
+  for CodeQL, Snyk, Checkmarx One, Fortify, Semgrep, Checkov, KICS, gosec and others.
 - [`components[].imports`](../reference/saga-schema.md#componentsimports) in the Saga reference.
 - The [`sarif-import` scanner](../../internal/scanners/sarif-import.md): how severities are read,
   every field under **Measured against**, and the errors a file can produce.

@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 const (
@@ -310,9 +312,7 @@ func TestThePluginCarriesNothingTheDirectoryHolds(t *testing.T) {
 func TestTheHookIsSilentWhenDraugrIsInstalled(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "draugr"), []byte("#!/bin/sh\n"), 0o700); err != nil { // #nosec G306 -- must be executable to be found
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(dir, "draugr"), []byte("#!/bin/sh\n"), 0o700)
 	if out := runHook(t, dir); out != "" {
 		t.Errorf("hook printed output with draugr on PATH:\n%s", out)
 	}

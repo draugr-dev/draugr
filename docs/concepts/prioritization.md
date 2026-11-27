@@ -155,6 +155,26 @@ finding's `cveLookup` in `report.json` names the record, so a CVE Draugr looked 
 one the scanner reported. With no current copy, nothing is looked up, and the Signals section
 counts the findings KEV and EPSS could not check and names the command that fetches it.
 
+Other ecosystems' advisories are read from OSV.dev, for each ecosystem a descriptor names in
+[`config.exploitability.advisories`](../reference/saga-schema.md#configexploitability): a GitHub
+advisory id on an npm package, a PyPI advisory, a RustSec advisory, and a Go flaw whose Go record
+lists no CVE yet. The same rule applies, with one addition: a finding whose ids lead to two records
+of the same flaw, as a RustSec advisory and its GitHub copy do, takes their CVE only where every
+record that lists one agrees. The finding's `cveLookup` then names the record's source and license,
+and Signals credits each source:
+
+```text
+CVE from OSV.dev for 2 findings: 1 from the GitHub Advisory Database (CC-BY-4.0), 1 from the RustSec Advisory Database (CC0-1.0)
+```
+
+Signals also counts the findings of an ecosystem left out, with the value that reads its
+advisories, and the findings an ecosystem's advisories left without a CVE, whose records list none
+or different ones:
+
+```text
+KEV and EPSS did not check 4 npm findings with an advisory id and no CVE. config.exploitability.advisories: [npm] looks up their CVEs.
+```
+
 The looked-up CVE also lets two scanners' copies of one flaw count once. A scanner that names a Go
 flaw only by its GitHub advisory id, and another that names it only by its CVE, otherwise share no
 id, and each copy counts. Where the record lists exactly one CVE, the copy keyed on it joins the

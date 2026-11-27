@@ -546,17 +546,22 @@ func TestDoctorChecksAnImportedFile(t *testing.T) {
 	}
 }
 
-// An import of GitHub's alerts is checked for the token it will send, once per source, repository
-// and variable, without reaching GitHub: the variable has to be one it may read, and set.
+// An import of GitHub's alerts or SonarQube's issues is checked for the token it will send, once per
+// source, project, repository and variable, without reaching the service: the variable has to be one
+// it may read, and set. SonarQube's row names the server the token goes to.
 func TestDoctorChecksASourcesToken(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghp_"+strings.Repeat("b", 36))
+	t.Setenv("SONAR_TOKEN", "sqp_"+strings.Repeat("b", 40))
+	t.Setenv("SONAR_HOST_URL", "")
 	t.Setenv("DRAUGR_TOKEN_ENVS", "")
 	code := plugin.FileTarget{Source: "github-code-scanning", Repository: "acme/api"}
 	got := Run(context.Background(), []plugin.Target{
 		code, code,
 		plugin.FileTarget{Source: "github-dependabot", Repository: "acme/api", TokenEnv: "OTHER_TOKEN"},
+		plugin.FileTarget{Source: "sonarqube", Project: "acme_api"},
+		plugin.FileTarget{Source: "sonarqube", Project: "acme_api"},
 	}, Options{Offline: true})
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("%d checks, want one per source and variable: %+v", len(got), got)
 	}
 	for _, c := range got {
@@ -569,10 +574,15 @@ func TestDoctorChecksASourcesToken(t *testing.T) {
 			if c.Status != Failed || !strings.Contains(c.Detail, "$OTHER_TOKEN is not listed in $DRAUGR_TOKEN_ENVS") {
 				t.Errorf("dependabot check %+v", c)
 			}
+		case "sonarqube acme_api":
+			if c.Kind != "issues" || c.Status != Passed ||
+				c.Detail != "token in $SONAR_TOKEN, findings read from https://sonarcloud.io by the scan" {
+				t.Errorf("sonarqube check %+v", c)
+			}
 		default:
 			t.Errorf("unexpected check %+v", c)
 		}
-		if strings.Contains(c.Detail, "ghp_") {
+		if strings.Contains(c.Detail, "ghp_") || strings.Contains(c.Detail, "sqp_") {
 			t.Errorf("the token is in %+v", c)
 		}
 	}
@@ -600,6 +610,33 @@ func TestDoctorChecksAnImportedFileAsItsFormat(t *testing.T) {
 		details[c.Status] = c.Detail
 	}
 	if details[Passed] != "Trivy JSON, 1 finding, commit not stated. The scan lists it under unbound-imports" || !strings.Contains(details[Failed], "not govulncheck JSON") {
+		t.Errorf("checks %+v", got)
+	}
+}
+
+// A file that holds several controls' results is checked once for each control it is imported into,
+// each row naming the control and counting that control's findings, since each import reads its own.
+func TestDoctorChecksAFileOncePerControlItIsReadInto(t *testing.T) {
+	cx := filepath.Join(t.TempDir(), "cx_result.json")
+	doc := `{"results":[` +
+		`{"type":"sast","severity":"HIGH","data":{"queryName":"SQL_Injection","nodes":[{"line":3,"fileName":"/a.java"}]}},` +
+		`{"type":"kics","severity":"LOW","data":{"queryId":"q-1","filename":"/main.tf","line":1}},` +
+		`{"type":"kics","severity":"LOW","data":{"queryId":"q-2","filename":"/main.tf","line":2}}],` +
+		`"totalCount":3,"scanID":"s"}`
+	if err := os.WriteFile(cx, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	at := func(control string) plugin.FileTarget {
+		return plugin.FileTarget{Path: cx, Component: "api", Format: "checkmarx-one-json", Control: control}
+	}
+	got := Run(context.Background(), []plugin.Target{at("sast"), at("iac"), at("iac")}, Options{Offline: true})
+	rows := map[string]string{}
+	for _, c := range got {
+		rows[c.Target] = c.Detail
+	}
+	unbound := ", commit not stated. The scan lists it under unbound-imports"
+	if len(got) != 2 || rows[cx+" · api · sast"] != "Checkmarx One JSON, 1 finding"+unbound ||
+		rows[cx+" · api · iac"] != "Checkmarx One JSON, 2 findings"+unbound {
 		t.Errorf("checks %+v", got)
 	}
 }

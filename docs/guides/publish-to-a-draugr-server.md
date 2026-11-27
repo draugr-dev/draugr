@@ -77,9 +77,18 @@ export DRAUGR_API_TOKEN=drgr_ci_…
 draugr scan .
 ```
 
-The scan prints its verdict as usual, and a log line `run published` naming the run, the project and
-the verdict the server recorded. With neither variable set the publisher skips, so the same Saga still
-runs on a laptop that publishes nowhere. With only one of them set, the scan fails.
+The scan prints its verdict as usual, and ends with a **Published** block naming the run and the
+project it went to: the address of the run's page where the server gives one, and otherwise the run's
+id and the server.
+
+```console
+PUBLISHED
+  https://app.draugr.dev/#/projects/payments/runs/7f3c2a  payments · 7f3c2a
+```
+
+The HTML report says the same at its foot. A retried job publishes the same run again: the server
+keeps the first copy, and the block says the run was recorded by an earlier attempt. With neither variable set the publisher skips, so the same
+Saga still runs on a laptop that publishes nowhere. With only one of them set, the scan fails.
 
 In a pipeline, keep the token as the CI system's secret. The [GitHub Actions](github-action.md#server),
 [GitLab](gitlab-ci.md#server) and [Azure Pipelines](azure-pipelines.md#server) guides show where each
@@ -87,9 +96,10 @@ one keeps it.
 
 ## 5. Find the run in the console
 
-Sign in at [app.draugr.dev](https://app.draugr.dev), or your own server's address, and choose the
-project from the project list. The project's **Runs** list has a row for the run, with its verdict as
-an icon. Open the row: the run's page says the verdict in words, lists each control that failed the
+Open the address the **Published** block printed. Where it printed an id and no address, sign in at
+[app.draugr.dev](https://app.draugr.dev), or your own server's address, open the project the block
+named, and find that id in its **Runs** list, where the run's row shows its verdict as an icon. Open
+the row: the run's page says the verdict in words, lists each control that failed the
 gate, and counts its findings by the priorities P1 to P4 the scan gave them.
 
 If the run is not there, the scan's output says why: a server that refuses a run answers with an

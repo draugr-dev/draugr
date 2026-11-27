@@ -381,7 +381,7 @@ type sarifProperties struct {
 	// one's rating. It survives the file because the gate on new findings reads the ranked severity
 	// back from here, and without it a floored finding is judged at the rating the run did not use.
 	SeverityFloor Severity `json:"severityFloor,omitempty"`
-	// CWE is Result.CWE, the CWE ids a converter stated for the flaw.
+	// CWE is Result.CWE, the CWE ids a converter or a tool's own file stated for the flaw.
 	CWE []string `json:"cwe,omitempty"`
 	// Converter is Result.Converter: which converter wrote the finding and which properties it set.
 	// It survives the file for the reason Escalation does, since the properties it vouches for move a
@@ -453,6 +453,16 @@ type sarifSuppressionProperties struct {
 	Digest      string `json:"digest,omitempty"`
 	// Line is the line in Source the exclusion starts at.
 	Line int `json:"line,omitempty"`
+	// VEXStatus and VEXJustification are what the exclusion declared the suppression means as a claim
+	// about the product, read back so a VEX document or the accepted findings made from this file
+	// state the claim the run recorded rather than the reading that says less.
+	VEXStatus        string `json:"vexStatus,omitempty"`
+	VEXJustification string `json:"vexJustification,omitempty"`
+	// Service is the service an imported alert was dismissed in, so a report read back still says
+	// who dismissed it there. Namespaced, as the result's Rating is, because a finding whose
+	// suppression names a service is kept apart from the other copies of its flaw, and a plain key
+	// another tool happened to write would do that on its say-so.
+	Service string `json:"draugr/service,omitempty"`
 }
 
 type sarifMessage struct {
@@ -576,12 +586,14 @@ func (r Report) MarshalSARIFWith(opts MarshalOptions) ([]byte, error) {
 		// itself after the upload.
 		if s := res.Suppression; s != nil {
 			sup := sarifSuppression{Kind: s.Kind, Justification: s.Justification}
-			if s.Expires != "" || s.Origin != "" || s.Author != "" ||
-				s.Asserted != "" || s.Source != "" || s.StatementID != "" || s.Digest != "" || s.Line != 0 {
+			if s.Expires != "" || s.Origin != "" || s.Author != "" || s.Asserted != "" || s.Source != "" ||
+				s.StatementID != "" || s.Digest != "" || s.Line != 0 ||
+				s.VEXStatus != "" || s.VEXJustification != "" || s.Service != "" {
 				sup.Properties = &sarifSuppressionProperties{
 					Expires: s.Expires,
 					Origin:  s.Origin, Author: s.Author, Asserted: s.Asserted, Source: s.Source,
 					StatementID: s.StatementID, Digest: s.Digest, Line: s.Line,
+					VEXStatus: s.VEXStatus, VEXJustification: s.VEXJustification, Service: s.Service,
 				}
 			}
 			sr.Suppressions = []sarifSuppression{sup}
@@ -810,6 +822,8 @@ func readSuppression(sups []sarifSuppression) *Suppression {
 	if p := first.Properties; p != nil {
 		sup.Expires = p.Expires
 		sup.Author, sup.Asserted, sup.Source, sup.Line = p.Author, p.Asserted, p.Source, p.Line
+		sup.StatementID, sup.Digest = p.StatementID, p.Digest
+		sup.VEXStatus, sup.VEXJustification, sup.Service = p.VEXStatus, p.VEXJustification, p.Service
 		if p.Origin != "" {
 			// Draugr's own, read back as what it was written as.
 			sup.Origin = p.Origin

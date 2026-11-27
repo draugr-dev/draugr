@@ -2124,6 +2124,7 @@ func writeTail(w io.Writer, col tui.Painter, s summary, d Data, listed int, list
 		writeEvidence(w, col, d, "  ")
 	}
 	writeReports(w, col, d)
+	writePublished(w, col, d)
 	if dense(d) {
 		// The dense view leaves out what describes the run and keeps the one row that says where the
 		// rest of it is: a compact list of the first few findings is the view most likely to have
@@ -2321,10 +2322,13 @@ func writeSignals(w io.Writer, col tui.Painter, d Data, s summary, onlyUnread bo
 	rows, notes := signals(d, s)
 	if onlyUnread {
 		// The compact view keeps what says the answer is less than it appears: findings KEV and EPSS
-		// could not check, whether for want of a lookup or because an imported file names no CVE.
+		// could not check, whether for want of a lookup, for want of an ecosystem's advisories, or
+		// because an imported file names no CVE.
 		notes = nil
-		if note := lookupNote(d, s); note != "" {
-			notes = []string{note}
+		for _, note := range []string{lookupNote(d, s), advisoriesNote(d, s), unresolvedNote(d, s)} {
+			if note != "" {
+				notes = append(notes, note)
+			}
 		}
 		if slices.ContainsFunc(rows, func(r signalRow) bool { return r.Name == "KEV" }) {
 			notes = append(notes, noCVENotes(d, s)...)

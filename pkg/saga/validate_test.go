@@ -1,6 +1,8 @@
 package saga
 
 import (
+	"cmp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -452,12 +454,13 @@ func TestValidateAcceptsCamelCaseControllerKeys(t *testing.T) {
 func TestExploitabilityConfigRoundTripsThroughLoad(t *testing.T) {
 	m, err := Load([]byte("project: x\nrelease:\n  version: \"1\"\n" +
 		"config:\n  exploitability:\n    kev: cache\n    epss: auto\n" +
-		"    epssThreshold: 0.1\n    maxAge: 168h\n"))
+		"    epssThreshold: 0.1\n    maxAge: 168h\n    advisories: [npm, crates.io]\n"))
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
 	x := m.Config.Exploitability
-	if x == nil || x.KEV != "cache" || x.EPSS != FeedSourceAuto || x.MaxAge != "168h" {
+	if x == nil || x.KEV != "cache" || x.EPSS != FeedSourceAuto || x.MaxAge != "168h" ||
+		!slices.Equal(x.Advisories, []AdvisoryEcosystem{AdvisoryNpm, AdvisoryCrates}) {
 		t.Fatalf("exploitability config = %+v", x)
 	}
 	if x.EPSSThreshold == nil || *x.EPSSThreshold != 0.1 {
@@ -496,6 +499,21 @@ func TestExploitabilityConfigValidation(t *testing.T) {
 			"maxAge is not a duration",
 			"config:\n  exploitability:\n    maxAge: \"3 days\"\n",
 			"not a duration",
+		},
+		{
+			"an ecosystem with no advisories feed",
+			"config:\n  exploitability:\n    kev: cache\n    advisories: [maven]\n",
+			`config.exploitability.advisories "maven" is not an ecosystem Draugr reads advisories for (want npm, pypi, crates.io or go)`,
+		},
+		{
+			"an ecosystem twice",
+			"config:\n  exploitability:\n    epss: cache\n    advisories: [npm, npm]\n",
+			`config.exploitability.advisories lists "npm" twice`,
+		},
+		{
+			"advisories with neither kev nor epss",
+			"config:\n  exploitability:\n    advisories: [npm]\n",
+			"config.exploitability.advisories needs config.exploitability.kev or epss, which match the CVEs it finds",
 		},
 	}
 	for _, c := range cases {
@@ -995,6 +1013,9 @@ func TestValidateImportSources(t *testing.T) {
 			{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/web"}}},
 		{two, []Import{{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme/api"},
 			{Control: "sast", File: "api.sarif"}}},
+		{one, []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api", TokenEnv: "SQ_TOKEN"}}},
+		{two, []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api", Repository: "acme/api"},
+			{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_web", Repository: "acme/web"}}},
 	} {
 		if err := with(c.repos, c.imps...); err != nil {
 			t.Errorf("%+v refused: %v", c.imps, err)
@@ -1006,7 +1027,7 @@ func TestValidateImportSources(t *testing.T) {
 		want  string
 	}{
 		{one, Import{Control: "sast", File: "a.sarif", Source: ImportSourceGitHubCodeScanning}, "imports[0]: names both file and source"},
-		{one, Import{Control: "sast", Source: "gitlab-sast"}, `imports[0].source "gitlab-sast" is not one of github-code-scanning, github-dependabot`},
+		{one, Import{Control: "sast", Source: "gitlab-sast"}, `imports[0].source "gitlab-sast" is not one of github-code-scanning, github-dependabot, sonarqube`},
 		{one, Import{Control: "sast", Source: "GitHub-Code-Scanning"}, "imports[0].source"},
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Format: "sarif"}, "imports[0].format is read only with file"},
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Commit: "abc1234"}, "imports[0].commit is read only with file"},
@@ -1017,6 +1038,13 @@ func TestValidateImportSources(t *testing.T) {
 		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "acme"}, `imports[0].repository "acme" is not owner/name`},
 		{one, Import{Control: "sast", File: "a.sarif", TokenEnv: "GH_TOKEN"}, "imports[0].tokenEnv is read only with source"},
 		{one, Import{Control: "sast", File: "a.sarif", Repository: "acme/api"}, "imports[0].repository is read only with source"},
+		{one, Import{Control: "sast", File: "a.sarif", Project: "acme_api"}, "imports[0].project is read only with source"},
+		{one, Import{Control: "sast", Source: ImportSourceSonarQube}, "imports[0].project is required with source sonarqube"},
+		{one, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning, Project: "acme_api"},
+			"imports[0].project is read only with source sonarqube, and this import reads github-code-scanning"},
+		{one, Import{Control: "sca", Source: ImportSourceSonarQube, Project: "acme_api"},
+			"imports[0]: source sonarqube reads sast findings, not sca. Import it into sast"},
+		{two, Import{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"}, "imports[0]: the component declares 2 repositories"},
 		{two, Import{Control: "sast", Source: ImportSourceGitHubCodeScanning}, "imports[0]: the component declares 2 repositories. " +
 			"Name the one whose alerts to read with repository: owner/name, one import per repository"},
 	} {
@@ -1028,6 +1056,16 @@ func TestValidateImportSources(t *testing.T) {
 		{Control: "sast", Source: ImportSourceGitHubCodeScanning, Repository: "Acme/API"}}
 	if err := with(two, twice...); err == nil || !strings.Contains(err.Error(), "github-code-scanning Acme/API is imported into sast twice") {
 		t.Errorf("err = %v, want one source read twice into one control refused", err)
+	}
+	sonarTwice := []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"},
+		{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"}}
+	if err := with(one, sonarTwice...); err == nil || !strings.Contains(err.Error(), "sonarqube acme_api is imported into sast twice") {
+		t.Errorf("err = %v, want one project read twice into one control refused", err)
+	}
+	sonarTwo := []Import{{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api"},
+		{Control: "sast", Source: ImportSourceSonarQube, Project: "acme_api_legacy"}}
+	if err := with(one, sonarTwo...); err != nil {
+		t.Errorf("two projects of one repository refused: %v", err)
 	}
 }
 
@@ -1049,12 +1087,15 @@ func TestMergingKeepsOneImportOfASource(t *testing.T) {
 // SARIF property, is refused beside a tool's own JSON rather than ignored.
 func TestValidateImportFormat(t *testing.T) {
 	with := func(imp Import) error {
-		imp.Control, imp.File = "sca", "reports/tool.json"
+		imp.Control, imp.File = cmp.Or(imp.Control, "sca"), "reports/tool.json"
 		return (&Model{Release: Release{Version: "1"}, Components: []Component{{Name: "api", Imports: []Import{imp}}}}).Validate()
 	}
 	mapping := &ImportSeverity{Property: "impact", Values: map[string]string{"Major": "high"}}
-	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
-		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping}} {
+	for _, imp := range []Import{{}, {Format: "sarif"}, {Format: "trivy-json"}, {Format: "trivy-json", Control: "images"}, {Format: "govulncheck-json"}, {Format: "grype-json"},
+		{Format: "osv-scanner-json"}, {Format: "sarif", Severity: mapping},
+		{Format: "checkmarx-one-json", Control: "iac", Suppressions: ImportSuppressionsCount}, {Format: "mend-json"},
+		{Format: "twistcli-json", Control: "images"}, {Format: "aqua-json", Control: "images"},
+		{Format: "semgrep-json", Control: "sast"}, {Format: "semgrep-json", Control: "sca"}} {
 		if err := with(imp); err != nil {
 			t.Errorf("format %q refused: %v", imp.Format, err)
 		}
@@ -1064,7 +1105,7 @@ func TestValidateImportFormat(t *testing.T) {
 		want string
 	}{
 		{Import{Format: "sarif-2.0"}, `imports[0].format "sarif-2.0" is not one of sarif, trivy-json, govulncheck-json, grype-json, osv-scanner-json, veracode-pipeline-json, ` +
-			`draugr-converter`},
+			`gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, checkmarx-one-json, mend-json, twistcli-json, aqua-json, semgrep-json, draugr-converter`},
 		{Import{Format: "grype-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a grype-json file"},
 		{Import{Format: "OSV-Scanner-JSON"}, `imports[0].format "OSV-Scanner-JSON" must be lowercase: osv-scanner-json`},
 		{Import{Format: "osv-scanner-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and an osv-scanner-json " +
@@ -1074,8 +1115,55 @@ func TestValidateImportFormat(t *testing.T) {
 		{Import{Format: "osv-scanner-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to apply to"},
 		{Import{Format: "veracode-pipeline-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a " +
 			"veracode-pipeline-json file is rated by the severity Veracode states. Remove severity"},
-		{Import{Format: "veracode-pipeline-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to " +
+		{Import{Format: "veracode-pipeline-json", Control: "sast", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has nothing to " +
 			"apply to, since a Pipeline Scan file records no suppression. Remove it"},
+		{Import{Format: "gitlab-sast", Control: "sast", Severity: mapping}, "imports[0].severity maps a SARIF property, and a " +
+			"gitlab-sast file is rated by the severity it states. Remove severity"},
+		{Import{Format: "gitlab-sast", Control: "sast", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has nothing to " +
+			"apply to, since a GitLab report records no suppression. Remove it"},
+		{Import{Format: "gitlab-dependency-scanning", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a gitlab-dependency-scanning file is rated by the severity it states. Remove severity"},
+		{Import{Format: "gitlab-dependency-scanning", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since a GitLab report records no suppression. Remove it"},
+		{Import{Format: "jfrog-simple-json", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a jfrog-simple-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "jfrog-simple-json", Suppressions: ImportSuppressionsHonor}, "imports[0].suppressions has " +
+			"nothing to apply to, since JFrog's simple-json records no suppression. Remove it"},
+		{Import{Format: "checkmarx-one-json", Control: "sast", Severity: mapping}, "imports[0].severity maps a SARIF " +
+			"property, and a checkmarx-one-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "checkmarx-one-json", Control: "secrets"}, "imports[0]: a checkmarx-one-json file holds no " +
+			"secrets results; import it into sast, sca or iac"},
+		{Import{Format: "mend-json", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a mend-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "mend-json", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since Mend's dependency JSON records no suppression. Remove it"},
+		{Import{Format: "mend-json", Control: "sast"}, "imports[0]: a mend-json file holds no sast results; import it into sca"},
+		{Import{Format: "twistcli-json", Control: "images", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a twistcli-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "twistcli-json", Control: "images", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since twistcli's JSON records no suppression. Remove it"},
+		{Import{Format: "twistcli-json", Control: "sca"}, "imports[0]: a twistcli-json file holds no sca results; " +
+			"import it into images"},
+		{Import{Format: "aqua-json", Control: "images", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and an aqua-json file is rated by the severity it states. Remove severity"},
+		{Import{Format: "aqua-json", Control: "images", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since Aqua's scanner JSON records no suppression. Remove it"},
+		{Import{Format: "aqua-json", Control: "sca"}, "imports[0]: an aqua-json file holds no sca results; " +
+			"import it into images"},
+		{Import{Format: "semgrep-json", Control: "sast", Severity: mapping}, "imports[0].severity maps a SARIF property, " +
+			"and a semgrep-json file is rated as Draugr's own run of its tool rates it. Remove severity"},
+		{Import{Format: "semgrep-json", Control: "sca", Suppressions: ImportSuppressionsCount}, "imports[0].suppressions has " +
+			"nothing to apply to, since Semgrep leaves what a nosemgrep comment suppressed out of its JSON. Remove it"},
+		{Import{Format: "semgrep-json", Control: "secrets"}, "imports[0]: a semgrep-json file holds no secrets results; " +
+			"import it into sast or sca"},
+		{Import{Format: "trivy-json", Control: "secrets"}, "imports[0]: a trivy-json file holds no secrets results; import it into sca or images"},
+		{Import{Format: "govulncheck-json", Control: "sast"}, "imports[0]: a govulncheck-json file holds no sast results; import it into sca"},
+		{Import{Format: "grype-json", Control: "images"}, "imports[0]: a grype-json file holds no images results; import it into sca"},
+		{Import{Format: "osv-scanner-json", Control: "licenses"}, "imports[0]: an osv-scanner-json file holds no licenses results; import it into sca"},
+		{Import{Format: "veracode-pipeline-json"}, "imports[0]: a veracode-pipeline-json file holds no sca results; import it into sast"},
+		{Import{Format: "gitlab-sast"}, "imports[0]: a gitlab-sast file holds no sca results; import it into sast"},
+		{Import{Format: "gitlab-dependency-scanning", Control: "sast"}, "imports[0]: a gitlab-dependency-scanning file holds no sast results; import it into sca"},
+		{Import{Format: "jfrog-simple-json", Control: "images"}, "imports[0]: a jfrog-simple-json file holds no images results; import it into sca, sast, secrets or iac"},
 		{Import{Format: "Trivy-JSON"}, `imports[0].format "Trivy-JSON" must be lowercase: trivy-json`},
 		{Import{Format: "trivy-json", Severity: mapping}, "imports[0].severity maps a SARIF property, and a trivy-json file is rated " +
 			"as Draugr's own run of its tool rates it. Remove severity"},

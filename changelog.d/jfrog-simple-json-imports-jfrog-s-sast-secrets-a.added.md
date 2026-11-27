@@ -1,0 +1,1 @@
+- **`jfrog-simple-json` imports JFrog's SAST, secrets and IaC findings**, not only its dependency vulnerabilities. Import the file `jf audit --format simple-json` writes once into each of `sca`, `sast`, `secrets` and `iac`; each import reads that control's findings at their file and line, with JFrog's rule and severity and, for SAST, the CWE.

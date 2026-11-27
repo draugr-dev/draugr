@@ -243,6 +243,9 @@ func alertTools(meta importLog) string {
 // repository's settings are left to the scan, which names what GitHub refused. The detail never holds
 // the token.
 func SourceCheck(ft plugin.FileTarget) (detail string, ok bool) {
+	if isSonarSource(ft) {
+		return sonarSourceCheck(ft)
+	}
 	name, _, err := githubToken(ft)
 	if err != nil {
 		return err.Error(), false

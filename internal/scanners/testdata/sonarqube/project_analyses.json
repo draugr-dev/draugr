@@ -1,0 +1,29 @@
+{
+  "paging": {
+    "pageIndex": 1,
+    "pageSize": 1,
+    "total": 1
+  },
+  "analyses": [
+    {
+      "key": "analysis-1",
+      "date": "2026-11-26T17:04:36+0000",
+      "events": [
+        {
+          "key": "event-1",
+          "category": "SQ_UPGRADE",
+          "name": "26.11.0.134175"
+        },
+        {
+          "key": "event-2",
+          "category": "VERSION",
+          "name": "not provided"
+        }
+      ],
+      "projectVersion": "not provided",
+      "manualNewCodePeriodBaseline": false,
+      "revision": "61486d359fa0ec8222c3c922e2b8ca497fe6e0cb",
+      "detectedCI": "undetected"
+    }
+  ]
+}

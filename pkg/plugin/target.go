@@ -449,6 +449,10 @@ type FileTarget struct {
 	CommitUnset string
 	// Format is what the file is, one of saga.ImportFormats. Empty is SARIF.
 	Format string
+	// Control is the control the descriptor imports the file into. A format whose read depends on it
+	// (saga.ImportFormatReadsByControl) reads that control's results from the file, or refuses a file
+	// that holds none.
+	Control string
 	// CountSuppressed counts the findings the file's tool suppressed, as the descriptor's
 	// imports[].suppressions: count asks, rather than setting them aside.
 	CountSuppressed bool
@@ -461,6 +465,8 @@ type FileTarget struct {
 	// Repository is the repository the descriptor names for the source as owner/name, empty where the
 	// component's one repository names it.
 	Repository string
+	// Project is the SonarQube project key a sonarqube source reads, empty for every other.
+	Project string
 	// Converter is the converter the descriptor declares for a draugr-converter file: the name the
 	// file has to state, and the properties it may set. Nil for every other format.
 	Converter *saga.ImportConverter
@@ -470,11 +476,11 @@ type FileTarget struct {
 func (FileTarget) Kind() TargetKind { return TargetFile }
 
 // Identity returns the path, e.g. "reports/checkmarx.sarif", or for a source the source and the
-// repository it names, "github-code-scanning acme/api". The kind is beside it wherever the two are
-// shown or keyed together, as for every other target.
+// project and repository it names, "github-code-scanning acme/api" or "sonarqube acme_api". The kind
+// is beside it wherever the two are shown or keyed together, as for every other target.
 func (t FileTarget) Identity() string {
 	if t.Source != "" {
-		return strings.TrimSpace(t.Source + " " + t.Repository)
+		return strings.Join(strings.Fields(t.Source+" "+t.Project+" "+t.Repository), " ")
 	}
 	return t.Path
 }
@@ -484,7 +490,8 @@ func (t FileTarget) Identity() string {
 // them, the revision it is held to, the repository its findings are placed in and the scope that
 // keeps or leaves out each one; the component it is read for, which its account names; the commit
 // the descriptor holds it to, or the variable that left it
-// unbound; the format it is read as, since one file read by two readers is two answers; whether
+// unbound; the format it is read as, since one file read by two readers is two answers, and for a
+// format that reads one control's results the control; whether
 // the tool's own suppressions are counted; the converter and what it may set; and the descriptor's
 // mapping of its tool's rating where it gives one.
 //
@@ -506,6 +513,11 @@ func (t FileTarget) CacheDetail() string {
 	// A SARIF file's key is as it was before formats existed, so its cached reads stay valid.
 	if t.Format != "" && t.Format != saga.ImportFormatSARIF {
 		detail += " format=" + t.Format
+	}
+	// One file read into two controls by a format whose read depends on the control is two answers.
+	// Other formats read the file the same in any control, and their keys stay as they were.
+	if saga.ImportFormatReadsByControl(t.Format) {
+		detail += " control=" + t.Control
 	}
 	for _, r := range t.Repositories {
 		detail += " repo=" + r.Identity()

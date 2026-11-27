@@ -639,7 +639,8 @@ func TestWhatTheBaseHeldIsSaid(t *testing.T) {
 	}
 
 	unrecorded := Compare(sarif.Report{}, sarif.Report{}).HoldToBase(engine.Declarations{}, engine.Declarations{}, false, matrixRank)
-	if notes := unrecorded.Held.Notes(); len(notes) != 1 || !strings.HasPrefix(notes[0], "The base report records no exposure") {
+	if notes := unrecorded.Held.Notes(); len(notes) != 1 || notes[0] != "The base report records no exposure, criticality, "+
+		"controls or exclusions, so this change's own declarations decide" {
 		t.Errorf("unrecorded notes = %q", notes)
 	}
 	if !strings.Contains(renderJSONString(t, unrecorded), `"unrecorded": true`) {

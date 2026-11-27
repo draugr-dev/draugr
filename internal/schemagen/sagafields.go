@@ -272,6 +272,21 @@ func sagaFields() map[string]map[string]any {
 			"maximum": 1,
 			"minimum": 0,
 		},
+		"exploitabilityConfig.advisories": {
+			"description": "Ecosystems whose OSV.dev advisories a scan reads to find the CVE of a finding with a " +
+				"GitHub, PyPI, RustSec or Go advisory id and no CVE, so KEV and EPSS can match it. Each is " +
+				"one archive, fetched when kev or epss is \"auto\" and read from the cache when it is " +
+				"\"cache\"; npm's weighs hundreds of megabytes. Omit to read none.",
+			"items": map[string]any{
+				"anyOf": vocab(saga.AdvisoryEcosystems,
+					valueDoc{"npm", "npm packages: GitHub Advisory Database records."},
+					valueDoc{"pypi", "PyPI packages: PyPI Advisory Database and GitHub Advisory Database records."},
+					valueDoc{"crates.io", "Rust crates: RustSec and GitHub Advisory Database records."},
+					valueDoc{"go", "Go modules: Go Vulnerability Database and GitHub Advisory Database records, used " +
+						"for Go findings whose local Go vulnerability database record lists no CVE."},
+				),
+			},
+		},
 		"exploitabilityConfig.maxAge": {
 			"description": "How old a cached feed may be before \"auto\" refetches it and a scan warns that it is " +
 				"stale. It is also the age at which govulncheck stops reading the local Go vulnerability " +
@@ -484,14 +499,22 @@ func sagaFields() map[string]map[string]any {
 				valueDoc{"github-dependabot", "The repository's Dependabot alerts, read from GitHub's REST API, which GitHub " +
 					"marks public preview and subject to change. Each carries the advisory, its CVE, a CVSS score, the " +
 					"package and the first patched version."},
+				valueDoc{"sonarqube", "A SonarQube project's security issues, read from SonarQube Cloud's Web API or the " +
+					"server $SONAR_HOST_URL names, into sast. Each carries a rule, a location, a severity and, on SonarQube " +
+					"Cloud, the rule's CWEs. Needs project."},
 			),
 			"description": "A service whose alerts for the component's repository are read in place of a file. " +
 				"Exactly one of file and source.",
 		},
 		"import.tokenEnv": {
-			"description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset. " +
-				"Any other name must be listed in $DRAUGR_TOKEN_ENVS. A classic token needs security_events, or " +
-				"public_repo for a public repository. Source only.",
+			"description": "The environment variable holding the token a source is read with, GITHUB_TOKEN when unset, or " +
+				"SONAR_TOKEN for sonarqube. Any other name must be listed in $DRAUGR_TOKEN_ENVS. For GitHub, a classic " +
+				"token needs security_events, or public_repo for a public repository. Source only.",
+			"minLength": 1,
+		},
+		"import.project": {
+			"description": "The key of the SonarQube project whose security issues a sonarqube source reads. " +
+				"Required by sonarqube, and refused by every other source and by a file.",
 			"minLength": 1,
 		},
 		"import.repository": {
@@ -513,12 +536,36 @@ func sagaFields() map[string]map[string]any {
 					"rated by the CVSS score it states."},
 				valueDoc{"veracode-pipeline-json", "The results.json Veracode's Pipeline Scan writes with -jo true, with each " +
 					"flaw's file, line, CWE and Veracode's severity."},
+				valueDoc{"gitlab-sast", "A SAST report in GitLab's security report format, schema version 15, as GitLab's " +
+					"analyzers and semgrep scan --gitlab-sast write it, with each vulnerability's file, line, rule, CWE and " +
+					"severity."},
+				valueDoc{"gitlab-dependency-scanning", "A dependency scanning report in GitLab's security report format, " +
+					"schema version 15, as GitLab's Gemnasium analyzer writes it, with each vulnerability's package, installed " +
+					"version, fixed version, CVE and severity."},
+				valueDoc{"jfrog-simple-json", "The JSON jf audit --format simple-json writes, holding its dependency, SAST, " +
+					"secrets and IaC scans. Each import reads its control's: dependency vulnerabilities with each one's package, " +
+					"installed version, fixed version, CVE and Xray's severity, and code findings with JFrog's rule, file, line, " +
+					"severity and, for SAST, the CWE."},
+				valueDoc{"checkmarx-one-json", "The JSON cx results show --report-format json writes, holding a Checkmarx One " +
+					"scan's SAST, SCA and KICS results. Import it once into each of sast, sca and iac; each import reads its " +
+					"control's results, with Checkmarx's severity and the CWE, and for SCA the package, installed version, " +
+					"recommended version and CVE."},
+				valueDoc{"mend-json", "The JSON mend dep --format json --export-results writes, for sca, with each vulnerable " +
+					"library's package, installed version, the fixed version Mend names for it, CVE and Mend's severity."},
+				valueDoc{"twistcli-json", "The JSON twistcli images scan --output-file writes, for images, with each vulnerable " +
+					"package's name, installed and fixed versions, CVE, and CVSS score or Prisma Cloud's severity."},
+				valueDoc{"aqua-json", "The JSON Aqua's scannercli scan --jsonfile writes, for images, with each vulnerable " +
+					"package's name, installed and fixed versions, CVE, and CVSS score or Aqua's severity."},
+				valueDoc{"semgrep-json", "The JSON semgrep ci --json-output or semgrep scan --json-output writes, holding a " +
+					"scan's code and Supply Chain results. Import it once into each of sast and sca; sast reads the code " +
+					"results with the CWE, rated as Draugr's Semgrep run rates them, and sca the vulnerable dependencies with " +
+					"the package, installed and fixed versions, CVE and the advisory's severity."},
 				valueDoc{"draugr-converter", "The file a converter writes in Draugr's versioned contract, for a tool Draugr has " +
 					"no reader for. Needs converter."},
 			),
 			"description": "What the file is. A tool's own JSON keeps what its SARIF leaves out, such as the package " +
 				"and the fixed version, or govulncheck's call paths, and is rated as Draugr's run of the tool rates it, " +
-				"or for OSV-Scanner and Veracode by the rating the file states.",
+				"or for OSV-Scanner, Veracode, GitLab's formats, JFrog's, Checkmarx One's, Mend's, twistcli's and Aqua's by the rating the file states.",
 		},
 		"import.commit": {
 			"description": "The commit the file describes, such as ${{ GITHUB_SHA }}, for a tool that writes none into " +
@@ -532,10 +579,12 @@ func sagaFields() map[string]map[string]any {
 				valueDoc{"count", "Every finding counts, so only the descriptor's own exclusions set one aside. The tool's suppression is kept in the finding's detail."},
 			),
 			"description": "What a finding the file's tool suppressed does here, in a comment in the code or in the tool's own " +
-				"settings, or an alert a person dismissed in GitHub. A suppression the file marks rejected or underReview, " +
+				"settings, an alert a person dismissed in GitHub, or a result triaged Not Exploitable or Ignored in Checkmarx One. A suppression the file marks rejected or underReview, " +
 				"an alert a bot dismissed, and one Dependabot dismissed by its own rule never set a finding aside. " +
 				"Refused beside format osv-scanner-json, whose file leaves out what OSV-Scanner's configuration ignores, " +
-				"and veracode-pipeline-json, whose file records no suppression.",
+				"and veracode-pipeline-json, gitlab-sast, gitlab-dependency-scanning, jfrog-simple-json, mend-json, twistcli-json and aqua-json, " +
+				"whose files record no suppression. Also refused beside format semgrep-json, whose file leaves out what a " +
+				"nosemgrep comment suppressed.",
 		},
 		"import.converter": {
 			"description": "The converter that wrote a draugr-converter file, and which of Draugr's result properties it may " +

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 func TestCheckErrors(t *testing.T) {
@@ -47,9 +49,7 @@ func TestCheckErrors(t *testing.T) {
 func TestHideAndFail(t *testing.T) {
 	a, b, clean := t.TempDir(), t.TempDir(), t.TempDir()
 	for _, f := range []string{filepath.Join(a, "trivy"), filepath.Join(a, "gitleaks"), filepath.Join(b, "trivy")} {
-		if err := os.WriteFile(f, []byte("#!/bin/sh\n"), 0o700); err != nil { // #nosec G306 -- an executable fixture
-			t.Fatal(err)
-		}
+		standin.Write(t, f, []byte("#!/bin/sh\n"), 0o700)
 	}
 	c := Container{Work: t.TempDir(), Path: strings.Join([]string{a, b, clean}, string(os.PathListSeparator))}
 	if err := c.Hide("trivy"); err != nil {

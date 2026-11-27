@@ -61,3 +61,34 @@ func TestEveryWorkflowBuildsOnThePinnedGo(t *testing.T) {
 		}
 	}
 }
+
+// TestTheDockerRecipeBuildsOnThePinnedGo holds the Go image in contrib/docker/Dockerfile to the patch
+// ci.yml pins. The image's toolchain is the one govulncheck loads a scanned module's packages with,
+// so a different patch there gives a different verdict on the standard library from the one the
+// same scan gives in CI, and a bump of the pin that leaves the recipe behind is the usual way that
+// happens.
+func TestTheDockerRecipeBuildsOnThePinnedGo(t *testing.T) {
+	t.Parallel()
+
+	ci, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := goVersionPin.FindSubmatch(ci)
+	if m == nil {
+		t.Fatal("ci.yml declares no GO_VERSION")
+	}
+	recipe, err := os.ReadFile("../../contrib/docker/Dockerfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	froms := regexp.MustCompile(`(?m)^FROM\s+golang:([^\s@-]+)`).FindAllSubmatch(recipe, -1)
+	if len(froms) == 0 {
+		t.Fatal("contrib/docker/Dockerfile builds from no golang image")
+	}
+	for _, f := range froms {
+		if string(f[1]) != string(m[1]) {
+			t.Errorf("contrib/docker/Dockerfile builds on golang:%s, and ci.yml pins Go %s", f[1], m[1])
+		}
+	}
+}

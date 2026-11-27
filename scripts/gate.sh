@@ -80,12 +80,25 @@ echo "▶ self-scan (sast)"
 #
 # A scanner counts where Draugr finds it: on PATH, or in ~/.draugr/bin, where `draugr tools install`
 # puts it and which need not be on PATH.
+#
+# --no-publish because a pre-push check reports to the person running it and nowhere else. The
+# descriptor's `github` publisher turns on inside GitHub Actions, so a workflow that runs this gate
+# would otherwise upload a sast-only SARIF to code scanning for its branch, or fail for want of a
+# token it never needed.
+#
+# Both of the descriptor's sast scanners, not either. The scan fails its control when one is
+# missing, so a machine holding only Semgrep would fail the gate on "gosec not installed" rather
+# than skip, and the skip below names exactly what to install.
 has_sast_tool() { command -v "$1" >/dev/null 2>&1 || [ -x "$HOME/.draugr/bin/$1" ]; }
 if [ -x bin/draugr ]; then
-	if has_sast_tool semgrep || has_sast_tool gosec; then
-		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips
+	missing=()
+	for tool in semgrep gosec; do
+		has_sast_tool "$tool" || missing+=("$tool")
+	done
+	if [ ${#missing[@]} -eq 0 ]; then
+		bin/draugr scan .draugr/self.saga.yaml --controls sast --working-tree --no-tips --no-publish
 	else
-		echo "  no sast scanner found, skipping (pipx install semgrep, or draugr tools install gosec)"
+		echo "  ${missing[*]} not installed, skipping (bin/draugr tools install ${missing[*]})"
 		skipped+=(self-scan)
 	fi
 else
@@ -124,6 +137,11 @@ echo "▶ console-matches-command"
 # A block pasted from a slightly different run is invisible to review: the prose is right, the
 # output is real, and the only wrong part is which command produced it.
 ./scripts/check-console-matches-command.py
+
+echo "▶ tutorial-tape"
+# The recording types the tutorial's commands, so a re-pin that edits only the page would leave it
+# recording another release.
+./scripts/check-tutorial-tape.py
 
 echo "▶ spelling"
 ./scripts/check-spelling.sh

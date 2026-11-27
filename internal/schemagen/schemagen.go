@@ -11,6 +11,7 @@
 package schemagen
 
 import (
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -663,6 +664,31 @@ func addFragmentImport(defs, fragProps map[string]any) error {
 	return nil
 }
 
+// importFormatControlDocs say which of a file's results each control an import of it may name reads,
+// by format and control.
+var importFormatControlDocs = map[string]string{
+	saga.ImportFormatCheckmarxOneJSON + " sast":        "The file's SAST results, Checkmarx's static analysis of the code.",
+	saga.ImportFormatCheckmarxOneJSON + " sca":         "The file's SCA results, Checkmarx's scan of the dependencies.",
+	saga.ImportFormatCheckmarxOneJSON + " iac":         "The file's KICS results, Checkmarx's scan of infrastructure as code.",
+	saga.ImportFormatMendJSON + " sca":                 "The file's vulnerable libraries, the only results Mend's dependency scan writes.",
+	saga.ImportFormatTwistcliJSON + " images":          "The vulnerable packages twistcli's image scan found in the image.",
+	saga.ImportFormatAquaJSON + " images":              "The vulnerable packages Aqua's image scan found in the image.",
+	saga.ImportFormatSemgrepJSON + " sast":             "The file's code results, Semgrep Code's matches in the source.",
+	saga.ImportFormatSemgrepJSON + " sca":              "The file's Supply Chain results, the vulnerable dependencies Semgrep found in lockfiles.",
+	saga.ImportFormatTrivyJSON + " sca":                "A filesystem scan's vulnerable dependencies, from trivy fs --format json.",
+	saga.ImportFormatTrivyJSON + " images":             "An image scan's vulnerable packages, from trivy image --format json.",
+	saga.ImportFormatGovulncheckJSON + " sca":          "The file's vulnerable Go modules, the only results govulncheck writes.",
+	saga.ImportFormatGrypeJSON + " sca":                "The file's matches, the dependencies a Grype directory scan found vulnerable.",
+	saga.ImportFormatOSVScannerJSON + " sca":           "The file's vulnerable packages, from the lockfiles and SBOMs OSV-Scanner read.",
+	saga.ImportFormatVeracodePipelineJSON + " sast":    "The file's flaws, Veracode's static analysis of the built application.",
+	saga.ImportFormatGitLabSAST + " sast":              "The file's vulnerabilities, the only results a GitLab SAST report holds.",
+	saga.ImportFormatGitLabDependencyScanning + " sca": "The file's vulnerable packages, the only results a GitLab dependency scanning report holds.",
+	saga.ImportFormatJFrogSimpleJSON + " sca":          "The file's dependency vulnerabilities, Xray's scan of the dependencies.",
+	saga.ImportFormatJFrogSimpleJSON + " sast":         "The file's SAST findings, JFrog's static analysis of the code.",
+	saga.ImportFormatJFrogSimpleJSON + " secrets":      "The file's secrets findings, JFrog's scan for credentials in the code.",
+	saga.ImportFormatJFrogSimpleJSON + " iac":          "The file's IaC findings, JFrog's scan of infrastructure as code.",
+}
+
 // importRules are the rules across an import's keys that pkg/saga's validateImports enforces, so an
 // editor refuses the import `draugr validate` would. converter is false for a fragment's import,
 // which has no converter key and no draugr-converter format, so the rules about them are left out.
@@ -681,11 +707,22 @@ func importRules(converter bool) []any {
 		}
 	}
 	rules := []any{
-		// A source reads alerts rather than a file, and a file reads no service's token or repository.
+		// A source reads alerts rather than a file, and a file reads no service's token, repository or
+		// project.
 		map[string]any{
 			"if":   map[string]any{"required": []any{"source"}},
 			"then": map[string]any{"properties": fileOnly},
-			"else": map[string]any{"properties": map[string]any{"tokenEnv": false, "repository": false}},
+			"else": map[string]any{"properties": map[string]any{"tokenEnv": false, "repository": false, "project": false}},
+		},
+		// SonarQube names a project by its own key, which only that source reads, and its security issues
+		// are code findings.
+		map[string]any{
+			"if": map[string]any{"properties": map[string]any{"source": map[string]any{"const": saga.ImportSourceSonarQube}},
+				"required": []any{"source"}},
+			"then": map[string]any{"required": []any{"project"},
+				"properties": map[string]any{"control": map[string]any{"anyOf": []any{map[string]any{"const": "sast",
+					"description": "SonarQube's security issues are code findings, at a file and line under a rule."}}}}},
+			"else": map[string]any{"properties": map[string]any{"project": false}},
 		},
 		// severity maps a SARIF result property.
 		map[string]any{
@@ -702,6 +739,58 @@ func importRules(converter bool) []any {
 			"if":   format(map[string]any{"const": saga.ImportFormatVeracodePipelineJSON}),
 			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
 		},
+		// Neither of GitLab's reports records a suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatGitLabSAST}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatGitLabDependencyScanning}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// JFrog's simple-json records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatJFrogSimpleJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// Mend's dependency JSON records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatMendJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// twistcli's JSON records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatTwistcliJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// Aqua's scanner JSON records no suppression.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatAquaJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+		// Semgrep leaves what a nosemgrep comment suppressed out of its JSON.
+		map[string]any{
+			"if":   format(map[string]any{"const": saga.ImportFormatSemgrepJSON}),
+			"then": map[string]any{"properties": map[string]any{"suppressions": false}},
+		},
+	}
+	// A file holding several tools' results, or one control's only, is read into the controls it has
+	// results for.
+	for _, f := range slices.Sorted(maps.Keys(saga.ImportFormatControls)) {
+		controls := make([]any, 0, len(saga.ImportFormatControls[f]))
+		for _, c := range saga.ImportFormatControls[f] {
+			variant := map[string]any{"const": c}
+			// A pair with no sentence is left without one, which TestEveryClosedVocabularyExplainsItsValues
+			// reports.
+			if doc := importFormatControlDocs[f+" "+c]; doc != "" {
+				variant["description"] = doc
+			}
+			controls = append(controls, variant)
+		}
+		rules = append(rules, map[string]any{
+			"if":   format(map[string]any{"const": f}),
+			"then": map[string]any{"properties": map[string]any{"control": map[string]any{"anyOf": controls}}},
+		})
 	}
 	if converter {
 		// A converter's file needs the converter that wrote it and records no suppressions, and no

@@ -28,9 +28,11 @@ not published. They live here for readers browsing the repo.
 - [Publish to GitHub code scanning](guides/code-scanning.md), the native `github` publisher.
 - [Publish runs to a Draugr server](guides/publish-to-a-draugr-server.md), from sign-up to the first run in the console.
 - [Import another scanner's SARIF](guides/importing-sarif.md), CodeQL, Checkmarx, Bandit or any SARIF 2.1.0 file, ranked and gated with the rest.
+- [Import each tool's file](guides/importing-each-tool.md), the export command, the control and the quirks for each common tool.
 - [Write a converter](guides/writing-a-converter.md), for a tool Draugr has no reader for, with the package, CWE ids or a raise it may set.
 - [Gate PRs on new findings](guides/pr-diff.md), `draugr diff` and sticky PR comments.
 - [Check each commit with pre-commit](guides/pre-commit.md), the `draugr` hook, which fails a commit adding a finding `HEAD` does not have.
+- [Run Draugr in a container](guides/docker.md), an image you build holding Draugr and the scanners a first scan runs.
 - [See findings in your editor](guides/findings-in-your-editor.md), SARIF as inline diagnostics in VS Code and JetBrains.
 - [Use Draugr from an AI coding assistant](guides/ai-agents-mcp.md), the MCP server, and why it beats letting an assistant improvise.
 - [Reports & publishers](guides/reports-and-publishers.md), render many formats, deliver anywhere.

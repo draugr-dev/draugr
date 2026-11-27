@@ -54,11 +54,17 @@ jobs:
         env:
           ONLY: ${{ inputs.tool }}
           # The listings are public and unauthenticated requests are rate-limited per runner IP,
-          # which is shared. The job's own token lifts that and reaches nothing else.
-          GH_TOKEN: ${{ github.token }}
+          # which is shared. The job's own token lifts that and reaches nothing else. Named
+          # GITHUB_TOKEN because that is the variable Draugr reads (internal/tools/upstream.go).
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          go run ./cmd/draugr tools outdated --json > /tmp/outdated.json
+          # `tools outdated` exits non-zero when it could not ask about a tool, and the JSON still
+          # names each one with its error. Kept, so the errors print below before the step fails.
+          status=0
+          go run ./cmd/draugr tools outdated --json > /tmp/outdated.json || status=$?
+          jq -r '.[] | select(.error) | "::error::could not ask \(.tool): \(.error)"' /tmp/outdated.json
+          [ "$status" -eq 0 ] || exit "$status"
           if [ -n "$ONLY" ]; then
             list=$(jq -c --arg t "$ONLY" '[.[] | select(.tool == $t) | .tool]' /tmp/outdated.json)
           else
@@ -66,7 +72,6 @@ jobs:
           fi
           echo "tools=$list" >> "$GITHUB_OUTPUT"
           echo "any=$(jq -r 'length > 0' <<<"$list")" >> "$GITHUB_OUTPUT"
-          jq -r '.[] | select(.error) | "could not ask \(.tool): \(.error)"' /tmp/outdated.json
 
   # One tool, bumped and then made to prove itself. `fail-fast: false` because these are
   # independent proposals and one bad release should not withdraw the others.
@@ -148,8 +153,8 @@ jobs:
         id: bump
         env:
           TOOL: ${{ matrix.tool }}
-          # For the release listings `tools outdated` reads, as in `behind`.
-          GH_TOKEN: ${{ github.token }}
+          # For the release listings `tools outdated` and pinbump read, as in `behind`.
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           read -r from from_go < <(go run ./cmd/draugr tools outdated --json \
@@ -182,8 +187,13 @@ jobs:
         if: steps.bump.outputs.moved == 'true'
         # The spelling check fails rather than skips without misspell, so it is installed the way
         # ci.yml installs it.
+        # The gate's self-scan runs the sast scanners of Draugr's own descriptor, Semgrep and gosec.
+        # The demo's install above brings Semgrep and not gosec, so gosec is installed here at its
+        # pin, the moved one when gosec is the tool being bumped.
         run: |
+          set -euo pipefail
           go install github.com/client9/misspell/cmd/misspell@v0.3.4
+          go run ./cmd/draugr tools install -y gosec
           MISSPELL="$(go env GOPATH)/bin/misspell" make gate
 
       # The half a hash cannot tell you. Every tool installed for real at the new pin, then a full
@@ -351,7 +361,12 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-${{ matrix.tool }}
-          path: /tmp/proof/${{ matrix.tool }}
+          # The tool's folder travels inside the artifact: upload-artifact keeps the path after
+          # the first wildcard, so this stores <tool>/meta.json. download-artifact unpacks a lone
+          # matching artifact straight into its path and several into a folder each, so a
+          # proof that carried only its files would land in a different place when one tool is
+          # behind than when several are.
+          path: /tmp/proof/*
           retention-days: 7
 
   # A branch per proven tool, holding that tool's pin and nothing else, for the integration suite
@@ -375,6 +390,9 @@ jobs:
         with:
           pattern: proof-*
           path: /tmp/proof
+          # Each proof holds its tool's folder, so merged they are /tmp/proof/<tool>/ however
+          # many there are.
+          merge-multiple: true
         continue-on-error: true
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Push one branch per proof
@@ -384,6 +402,12 @@ jobs:
           git config user.name "Wilson Santos"
           git config user.email "wilson@draugr.dev"
           base=$(git rev-parse HEAD)
+          # A proof outside a folder of its own would be passed over below, and the run would
+          # end green with a proven tool proposed nowhere.
+          if compgen -G "/tmp/proof/*.json" > /dev/null; then
+            echo "::error::a proof landed in /tmp/proof rather than in a folder named for its tool: $(ls /tmp/proof)"
+            exit 1
+          fi
           staged=()
           for meta in /tmp/proof/*/meta.json; do
             [ -f "$meta" ] || continue
@@ -446,6 +470,8 @@ jobs:
         with:
           pattern: proof-*
           path: /tmp/proof
+          # /tmp/proof/<tool>/ however many there are, as in `stage`.
+          merge-multiple: true
         continue-on-error: true
 
       # A tool counts only when both of its integration jobs passed. Read from the run's jobs,

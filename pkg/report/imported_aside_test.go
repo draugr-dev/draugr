@@ -221,3 +221,27 @@ func TestMarkdownListsWhereAndWhyEachImportedToolSetFindingsAside(t *testing.T) 
 		}
 	}
 }
+
+// A row set aside in a service other than GitHub names that service, and Dependabot's alerts, which
+// a person dismisses on GitHub too, keep GitHub's wording.
+func TestASetAsideRowNamesTheServiceItWasSetAsideIn(t *testing.T) {
+	aside := func(rule, tool, service string) sarif.Result {
+		return sarif.Result{RuleID: rule, Level: sarif.LevelWarning, Priority: "P2", Component: "app", Tool: tool,
+			Scanner: sarif.ImportScanner, Location: sarif.Location{URI: "app/client.py", StartLine: 20},
+			Suppression: &sarif.Suppression{Kind: "external", Origin: sarif.OriginScanner, Author: "reviewer",
+				Justification: "retired next quarter", Service: service, Source: "k1"}}
+	}
+	results := []sarif.Result{aside("python:S4423", "SonarQube", "SonarQube"), aside("GHSA-2222-3333-4444", "Dependabot", "Dependabot")}
+	d := Data{Project: "app", Run: engine.Result{Silenced: 2, Controls: map[string]plugin.ControlResult{
+		"sast": {Control: "sast", Report: sarif.Report{Results: results}},
+	}}}
+	out := renderWith(t, consoleReporter{}, d)
+	for _, want := range []string{"SonarQube   1 finding set aside in SonarQube, not counted", "Dependabot  1 alert dismissed in GitHub, not counted"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "SonarQube   1 alert dismissed in GitHub") {
+		t.Errorf("SonarQube's row says GitHub:\n%s", out)
+	}
+}

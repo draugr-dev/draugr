@@ -13,6 +13,7 @@ import (
 
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/netpolicy"
+	"github.com/draugr-dev/draugr/internal/standin"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/sarif"
 )
@@ -179,9 +180,7 @@ func TestGrypeFSErrorCarriesWhatGrypeSaid(t *testing.T) {
 		"printf '%s\\n' 'Database checksum invalid, run `grype db delete` to remove it and `grype db update` to update.' >&2\n" +
 		"printf '[0000] ERROR \\033[31mfailed to load vulnerability db: bad db checksum (/home/u/.cache/grype/db/6/vulnerability.db): \"xxh64:55000f2cfe183096\" vs \"xxh64:4a9cf99fd7662c01\"\\033[0m\\n' >&2\n" +
 		"exit 1\n"
-	if err := os.WriteFile(filepath.Join(bin, "grype"), []byte(script), 0o700); err != nil { // #nosec G306 -- an executable the test runs
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(bin, "grype"), []byte(script), 0o700)
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	useGrypeDB(t, execGrype)
 
@@ -498,9 +497,7 @@ func TestGrypeScansReadTheDatabaseOnceBeforeAnyScan(t *testing.T) {
 		t.Run(fmt.Sprintf("offline=%v", offline), func(t *testing.T) {
 			netpolicy.SetOffline(offline)
 			bin, state := t.TempDir(), t.TempDir()
-			if err := os.WriteFile(filepath.Join(bin, "grype"), []byte(grypeMigratingStandIn), 0o700); err != nil { // #nosec G306 -- an executable the test runs
-				t.Fatal(err)
-			}
+			standin.Write(t, filepath.Join(bin, "grype"), []byte(grypeMigratingStandIn), 0o700)
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("GRYPE_STANDIN_STATE", state)
 			useGrypeDB(t, execGrype)

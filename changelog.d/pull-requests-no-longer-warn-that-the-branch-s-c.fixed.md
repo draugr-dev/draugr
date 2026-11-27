@@ -1,1 +1,0 @@
-- **Pull requests no longer warn that the branch's code-scanning configuration is missing.** The new findings the GitHub Action uploads on a pull request now carry the scan's category, so code scanning compares them with the branch's analysis in that category.

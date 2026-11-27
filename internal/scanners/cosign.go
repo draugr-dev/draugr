@@ -49,6 +49,20 @@ const (
 	cosignFound              = `got "`
 )
 
+// cosignOnlyAttestations is what `cosign verify` says, from 3.1.6, when a bundle verified under
+// the identity asked for and none of the bundles that verified is a cosign signature: an
+// attestation, such as a GitHub artifact attestation, whose predicate is SLSA provenance rather
+// than cosign's own signing predicate. It is reached only after verification succeeded, because
+// a read where nothing verifies fails earlier with `no matching attestations`. Earlier releases
+// exited 0 on the same image, and this scanner reads both answers the same way.
+const cosignOnlyAttestations = "no matching signatures exist"
+
+// onlyAttestationsVerified reports whether cosign verified the image's attestation under the
+// identity asked for and refused only because it is not a cosign signature.
+func onlyAttestationsVerified(code int, stderr []byte) bool {
+	return code == 1 && strings.Contains(string(stderr), cosignOnlyAttestations)
+}
+
 const (
 	cosignExitNoSignature   = 10
 	cosignExitNonExistent   = 11
@@ -171,6 +185,12 @@ func (s *cosignVerifier) Prewarm(ctx context.Context) error {
 	return nil
 }
 
+// DataState reports the Sigstore trust root's version and when this machine last fetched it
+// (implements plugin.DataStater).
+func (s *cosignVerifier) DataState(ctx context.Context) []plugin.DataState {
+	return cosignTrustRoot(ctx)
+}
+
 // Scan verifies one image against the expectation the control resolved for it.
 func (s *cosignVerifier) Scan(ctx context.Context, target plugin.Target, cfg plugin.Config) (sarif.Report, error) {
 	img, ok := target.(plugin.ImageTarget)
@@ -257,6 +277,11 @@ func (s *cosignVerifier) check(ctx context.Context, ref string, expect expectati
 			Message:  fmt.Sprintf("Signed by %s, not %s.", withoutHost(found), expect.Signer),
 		}, "", nil
 	}
+	// The declared signer's attestation verified, and cosign refused it only for not being a
+	// cosign signature. The same image passed with exit 0 before cosign 3.1.6.
+	if onlyAttestationsVerified(code, stderr) {
+		return nil, "", nil
+	}
 	// A signature in the bundle format that does not verify: one made with a key and no
 	// transparency-log entry, as an organization signing offline makes, or one whose log entry
 	// names another certificate. cosign answers both with exit 1 and a sentence rather than a code
@@ -339,11 +364,14 @@ func (s *cosignVerifier) whoSigned(ctx context.Context, ref string, expect expec
 		// cosign verified something and printed what this could not read. Not an absence of
 		// identity: an answer nobody read, which is an error rather than an empty signer.
 		return Signature{}, err
+	case code == 0 && sig.Optional.Subject == "" && sig.Critical.Type != cosignSignatureType,
+		onlyAttestationsVerified(code, stderr):
+		// An attestation verified under the permissive read, printed with no identity in it
+		// before cosign 3.1.6 and refused for not being a signature from it. Either way its
+		// signer is read from the probes.
+		subject, issuer := s.attestedBy(ctx, ref, expect)
+		return Signature{Identity: subject, Issuer: issuer, Signed: true}, nil
 	case code == 0:
-		if sig.Optional.Subject == "" && sig.Critical.Type != cosignSignatureType {
-			subject, issuer := s.attestedBy(ctx, ref, expect)
-			return Signature{Identity: subject, Issuer: issuer, Signed: true}, nil
-		}
 		return Signature{Identity: sig.Optional.Subject, Issuer: sig.Optional.Issuer, Signed: true}, nil
 	case code == cosignExitNoSignature, code == cosignExitNonExistent:
 		return Signature{}, nil

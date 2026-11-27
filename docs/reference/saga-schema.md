@@ -54,6 +54,20 @@ decides.
 export DRAUGR_SAGA_ENVS=STAGING_HOST,DEPLOY_REGION
 ```
 
+A scan runs with the values, and records some fields with the references. Each `results.sarif`
+holds what its descriptor declared, so that
+[`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) can judge a pull request against its base:
+each repository's `url`, `paths`, `ignore` and `revision`, a digest of every control's settings,
+and each VEX document and each file a setting names. Those are recorded as the descriptor writes
+them, `${{ GITHUB_SHA }}` rather than the commit, because a variable can hold another value in
+every job while the descriptor stays the same.
+
+The reference is put back wherever its value appears, so a literal that holds the value of a
+variable the descriptor references elsewhere is recorded as that reference too, in whole or in
+part. With `ROOT` set to `/work`, a literal `/work/rules.yml` is recorded as
+`${{ ROOT }}/rules.yml`. In that job the literal and the reference name the same path. Only a
+variable the descriptor or one of its fragments references, and that holds a value, is put back.
+
 ### Values
 
 Every key needs a value. `config:` on its own line, `release: null`, `release: ~` and a bare `-` in
@@ -395,28 +409,63 @@ components:
 
 | field | meaning |
 |---|---|
-| `control` | the control the file's findings belong to, such as `sast` or `sca` |
+| `control` | the control the file's findings belong to, such as `sast` or `sca`. Each tool's JSON [format](#import-formats) names the control it takes, and an import into another is refused. `checkmarx-one-json` takes `sast`, `sca` or `iac`, `jfrog-simple-json` takes `sca`, `sast`, `secrets` or `iac`, and each import reads that control's results from the file. `sarif` and `draugr-converter` take any control |
 | `file` | the file, relative to where Draugr runs: a SARIF 2.1.0 log, or the tool's own JSON or a converter's file `format` names. Exactly one of `file` and `source` |
-| `source` | GitHub's alerts for the component's repository, read from GitHub's REST API in place of a file: `github-code-scanning` or `github-dependabot`. Exactly one of `file` and `source`. See [GitHub's alerts](#githubs-alerts) |
-| `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
-| `repository` | `source` only: the repository whose alerts to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
+| `source` | a service's findings for the component's repository, read from its API in place of a file: `github-code-scanning` or `github-dependabot` ([GitHub's alerts](#githubs-alerts)), or `sonarqube`, a SonarQube project's security issues, into `sast` only ([SonarQube](#sonarqube)). Exactly one of `file` and `source` |
+| `tokenEnv` | optional, `source` only: the environment variable holding the token, `GITHUB_TOKEN` when unset, or `SONAR_TOKEN` for `sonarqube`. Any other name must be listed in `$DRAUGR_TOKEN_ENVS`, which the pipeline sets |
+| `project` | required by `source: sonarqube` and refused otherwise: the key of the SonarQube project whose security issues to read |
+| `repository` | `source` only: the repository whose findings to read, as `owner/name`. Optional where the component declares one repository; required, one import each, where it declares several |
 | `format` | optional, `file` only: what the file is, one of the [formats](#import-formats) below. `sarif` when left out |
 | `converter` | `file` only, required for `draugr-converter`, refused for any other format: the converter that wrote the file. `name` is the name the file has to state, `contract` the contract version it writes (`1`), and `sets`, optional, which of `package`, `cwe`, `labels`, `reachable` and `raise` it may set. A property outside `sets`, or one [no converter may set](converter-contract.md#what-no-converter-may-set), is refused. A fragment may not declare one: declare it in the descriptor itself ([Write a converter](../guides/writing-a-converter.md)) |
 | `commit` | optional, `file` only: the commit the file describes, such as `${{ GITHUB_SHA }}`, as 7 to 64 hexadecimal characters. Binds the file as its own `runs[].versionControlProvenance` does, for a tool that writes none. The only binding for a tool's JSON, which names no commit |
 | `severity` | optional, SARIF only: the result property the tool states its rating in, and the severity each of its values means |
-| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, or alerts a person dismissed in GitHub; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json` or `draugr-converter` import (neither file records one) |
+| `suppressions` | optional: `honor` (the default) sets aside findings the tool suppressed, alerts a person dismissed in GitHub, or results triaged Not Exploitable or Ignored in Checkmarx One; `count` counts them. Any other value is refused, and so is the setting on an `osv-scanner-json` import (its file leaves out what OSV-Scanner's configuration ignores), and on a `veracode-pipeline-json`, `gitlab-sast`, `gitlab-dependency-scanning`, `jfrog-simple-json`, `mend-json`, `twistcli-json`, `aqua-json` or `draugr-converter` import (none of those files records one). Also refused on a `semgrep-json` import, whose file leaves out what a `nosemgrep` comment suppressed. |
 
 #### Import formats
 
 - **`sarif`**, the default: a SARIF 2.1.0 log, from any tool.
-- **`trivy-json`**: what `trivy fs --format json` writes.
-- **`govulncheck-json`**: what `govulncheck -format json` writes.
-- **`grype-json`**: what `grype dir:<path> -o json` writes, for a directory scan only.
-- **`osv-scanner-json`**: what `osv-scanner scan --format json` writes, for lockfiles and SBOMs
-  only. Draugr does not run OSV-Scanner, so the file is read by the score and fix it states.
+- **`trivy-json`**: what `trivy fs --format json` writes, for `sca`, or what `trivy image --format json`
+  writes, for `images`. Each is read for its vulnerabilities, and an import into the other control is refused.
+- **`govulncheck-json`**: what `govulncheck -format json` writes, for `sca`.
+- **`grype-json`**: what `grype dir:<path> -o json` writes, for `sca`. Only a directory scan is read.
+- **`osv-scanner-json`**: what `osv-scanner scan --format json` writes, for `sca`. Only lockfile and
+  SBOM results are read. Draugr does not run OSV-Scanner, so the file is read by the score and fix it states.
 - **`veracode-pipeline-json`**: the `results.json` Veracode Pipeline Scan writes with `-jo true`,
   for `sast`. Each flaw is read with its file, line, CWE and Veracode's severity
   ([Import Veracode Pipeline Scan](../guides/importing-sarif.md#import-veracode-pipeline-scan)).
+- **`gitlab-sast`**: a SAST report in GitLab's security report format, schema version 15.x, as
+  GitLab's analyzers and `semgrep scan --gitlab-sast` write it, for `sast`. Each vulnerability is read
+  with its file, line, rule, CWE and the severity the report states.
+- **`gitlab-dependency-scanning`**: a dependency scanning report in GitLab's format, schema version
+  15.x, as GitLab's Gemnasium analyzer writes it, for `sca`. Each vulnerability is read with its package,
+  installed version, fixed version, CVE and severity
+  ([Import GitLab's security reports](../guides/importing-sarif.md#import-gitlabs-security-reports)).
+- **`jfrog-simple-json`**: what `jf audit --format simple-json` writes, for `sca`, `sast`, `secrets`
+  and `iac`, imported once into each. Each import reads its control's findings: each dependency
+  vulnerability with its package, installed version, fixed version, CVE and Xray's severity, and each
+  SAST, secrets and IaC finding with its file, line, JFrog's rule and severity and, for SAST, its CWE
+  ([Import JFrog Xray](../guides/importing-sarif.md#import-jfrog-xray)).
+- **`checkmarx-one-json`**: what `cx results show --report-format json` writes, for `sast`, `sca` and
+  `iac`, imported once into each. Each import reads its control's results: SAST with its file, line,
+  query and CWE, SCA with its package, installed version, recommended version, CVE and CWE, and KICS with
+  its file, line and query, each with Checkmarx's severity
+  ([Import Checkmarx One](../guides/importing-sarif.md#import-checkmarx-one)).
+- **`mend-json`**: what `mend dep --format json --export-results <file>` writes, for `sca` only. Each
+  vulnerable library is read with its package, installed version, the fixed version Mend's fix names
+  for it, CVE and Mend's severity
+  ([Import Mend](../guides/importing-sarif.md#import-mend)).
+- **`twistcli-json`**: what Prisma Cloud's `twistcli images scan --output-file <file>` writes, for
+  `images` only. Each vulnerable package is read with its name, installed version, fixed version, CVE,
+  and CVSS score or `twistcli`'s severity
+  ([Import Prisma Cloud](../guides/importing-sarif.md#import-prisma-cloud)).
+- **`aqua-json`**: what Aqua's `scannercli scan --jsonfile <file>` writes, for `images` only. Each
+  vulnerable package is read with its name, installed version, fixed version, CVE, and CVSS score or
+  Aqua's severity ([Import Aqua](../guides/importing-sarif.md#import-aqua)).
+- **`semgrep-json`**: what `semgrep ci --json-output=<file>` or `semgrep scan --json-output=<file>`
+  writes, for `sast` and `sca`, imported once into each. `sast` reads the code results with their file,
+  line, rule and CWE, rated as Draugr's Semgrep run rates them, and `sca` the Supply Chain results with
+  their package, installed version, fixed version, CVE and the advisory's severity
+  ([Import Semgrep](../guides/importing-sarif.md#import-semgrep)).
 - **`draugr-converter`**: a converter's file in the [converter contract](converter-contract.md),
   with `converter` declaring the converter.
 
@@ -558,6 +607,34 @@ preview and subject to change". The
 [`sarif-import`](../../internal/scanners/sarif-import.md#githubs-alerts) page has how each is read,
 bound to a commit, and the errors.
 
+#### SonarQube
+
+**`source: sonarqube`** reads a SonarQube project's security issues from its Web API, into `sast`:
+
+```yaml
+imports:
+  - control: sast
+    source: sonarqube
+    project: acme_api              # the project key
+```
+
+- **The server** is `$SONAR_HOST_URL`, which SonarSource's scanners read too, or SonarQube Cloud
+  where it is unset. It never comes from the descriptor, so a pull request cannot send the token
+  elsewhere.
+- **The token** is read from `tokenEnv`, `SONAR_TOKEN` when unset, and needs permission to browse
+  the project.
+- **Issues with a security impact are read**, open, confirmed, accepted and false positive ones, each
+  at its file and line under its rule, rated by its security impact. A fixed issue is not, and
+  neither are security hotspots, whose API SonarQube deprecated in favor of security issues.
+- **An accepted or false-positive issue is set aside** under `suppressions: honor`, with the latest
+  comment on it as the reason. `count` counts it.
+- **The commit** of SonarQube's latest analysis binds the import where it is this run's; otherwise the
+  import is unbound and listed under **Caveats**.
+- **Reading the issues is a `network` effect**, recorded in the report.
+
+The [`sarif-import`](../../internal/scanners/sarif-import.md#sonarqubes-security-issues) page has how
+each issue is read, its severity, and the errors.
+
 ## `config.controls`
 
 A map of control name → free-form settings. A control runs only when **enabled**:
@@ -588,13 +665,13 @@ controls`](cli.md#draugr-controls) lists and what the [JSON
 Schema](../guides/editor-support.md) offers for autocompletion. All three
 come from one place and cannot disagree.
 
-**A pull request that changes a control's settings is held to its base.** A scanner switched,
-turned off or given other options, or a setting of the control's own changed, here or in a
-component's `controls`, fails the new-findings gate on a pull request until it merges, since what the
-change adds may not have been looked for. Turning on one more scanner passes. A ruleset or template a
-setting names, edited in place under a setting that still names it, fails the same way, a directory
-by any file under it. [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif) names the setting or
-file that changed and how to trust it.
+**A pull request that changes a control's settings is held to its base.** A scanner switched, turned
+off or given other options, or a setting of the control's own changed, here or in a component's
+`controls`, fails the new-findings gate on a pull request until the pipeline trusts the change,
+since what the change adds may not have been looked for. Turning on one more scanner passes. A
+ruleset or template a setting names, edited in place under a setting that still names it, fails the
+same way, a directory by any file under it. [`draugr diff`](cli.md#draugr-diff-basesarif-headsarif)
+names the setting or file that changed and how to trust it.
 
 ### Scanning an API from its specification
 
@@ -1882,7 +1959,7 @@ in what the run covered, listed under **Caveats** in the report:
 | `not-measured` | a scanner that cannot honor a component's scope, so it did not run for that component |
 | `unread-files` | a file whose contents no scanner read in full, in a repository that was read: a dependency file, a Terraform file calling a module that was not loaded or not evaluated, a Helm chart that was not rendered, a file the secrets scan skipped, a source file Semgrep skipped or did not finish, a `go.mod` gosec found no Go package in, or an image whose operating system the scanner does not support |
 | `unread-checks` | a check the scan could not evaluate, or could evaluate only in part: a cloud check whose read was denied, a CIS Kubernetes check whose audit read nothing on the node `kube-bench-job` ran it on, or an HTTP header check on an endpoint that answered with a non-2xx status |
-| `unbound-imports` | an imported SARIF file, or GitHub's alerts, that names no commit, so nothing ties its findings to the code being scanned |
+| `unbound-imports` | an imported SARIF file, GitHub's alerts or SonarQube's issues, naming no commit or another one, so nothing ties its findings to the code being scanned |
 | `uncommitted-files` | a local repository with uncommitted changes the scan did not read, because it read the committed revision; [`--working-tree`](cli.md#--working-tree-for-the-loop-of-fixing-something) reads them. Draugr's own reports folder, `.draugr/out` or the run's `-o`, is not counted |
 
 ```yaml
@@ -2542,6 +2619,7 @@ config:
     epss: cache
     epssThreshold: 0.5  # optional; default 0.5
     maxAge: 24h         # optional; default 24h
+    advisories: [npm]   # optional; npm | pypi | crates.io | go
 ```
 
 | Key | Meaning |
@@ -2550,6 +2628,7 @@ config:
 | `epss` | FIRST's EPSS scores. A CVE at or above `epssThreshold` is raised **one level**. |
 | `epssThreshold` | The EPSS probability (0–1) that triggers the bump. Zero disables it while leaving KEV in force. |
 | `maxAge` | How old a cached feed may be before `auto` refetches it and a scan warns, and before govulncheck stops reading the local Go vulnerability database. `draugr feeds status --saga` and `feeds update --saga` apply the same limit. A Go duration; `0s` never expires a copy. |
+| `advisories` | The ecosystems whose OSV.dev advisories are read to find the CVE of a finding with an advisory id and no CVE: `npm`, `pypi`, `crates.io`, `go`. Needs `kev` or `epss`. Omit to read none. |
 
 KEV wins where both apply: observed exploitation outranks a prediction about it. Either signal works
 without the other. Set one key and omit the other.
@@ -2584,6 +2663,24 @@ keeps in the cache, and matches such a finding on the CVEs of the one record tha
 that is missing or older than `maxAge` is not read, and `auto` does not fetch it. An id that leads to
 more than one record, or to a record with no CVE, resolves nothing. `SIGNALS` then counts the
 findings KEV and EPSS could not check.
+
+**Advisories of other ecosystems.** A GitHub advisory id on an npm package, a PyPI one (`PYSEC-…`)
+or a RustSec one (`RUSTSEC-…`) has no record in the Go database. Each ecosystem `advisories` names
+reads [OSV.dev's](https://google.github.io/osv.dev/data/) archive of that ecosystem's records, one
+feed each (`osv-npm`, `osv-pypi`, `osv-crates.io`, `osv-go`), fetched when `kev` or `epss` is `auto`
+and read from the cache when they are `cache`. A copy the scan cannot read fails it. `go` is used
+for a Go finding whose Go database record lists no CVE. npm's archive measured 211 MB on
+2026-11-17, PyPI's 36 MB and crates.io's 4 MB, and the cache keeps an index of each record's ids
+rather than the archive. [Prioritization](../concepts/prioritization.md#exploitability) has how an
+id resolves and what `SIGNALS` says about it.
+
+The records are under their sources' licenses: GitHub's, PyPA's and the Go team's under CC BY 4.0,
+RustSec's under CC0 1.0 except those adapted from GitHub's, which RustSec marks CC BY 4.0 on the
+record. A CVE found in one names its source, license and record in the finding's `cveLookup`.
+OSV.dev offers the archives over HTTPS with no account and no terms of use
+([OSV-Scanner's terms](../../internal/scanners/osv-scanner.md#license-terms-and-what-is-sent) has the
+reading). Fetching one sends nothing about the repository: it is a download of the archive from
+`storage.googleapis.com`, the request `draugr feeds update osv-npm` makes.
 
 A scan started by an assistant through [`draugr mcp`](../guides/ai-agents-mcp.md) reads `auto` as
 `cache`. It never fetches, and a feed the cache does not hold fails the call with an error naming

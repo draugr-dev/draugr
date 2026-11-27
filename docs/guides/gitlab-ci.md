@@ -232,6 +232,10 @@ descriptor declares that no enabled control examines. The pipeline that goes gre
 opened your images. Add `--fail-on-uncovered` to make that a failing job on a descriptor meant to be
 complete.
 
+Where GitLab's SAST or dependency scanning already runs in the pipeline, Draugr can read the
+reports it writes, and their findings join those of Draugr's own scanners, ranked and gated the same
+way: see [Import GitLab's security reports](importing-sarif.md#import-gitlabs-security-reports).
+
 ## Without the template
 
 Nothing above is magic. The whole integration is the binary plus the environment GitLab already

@@ -83,10 +83,12 @@ rest. Asking for one of them by name on a host without its runtime is an error r
 than a skip.
 
 **The pin is a resolved tree, not one file.** Semgrep is pinned by the digest PyPI publishes for
-every package in its dependency tree, and retire.js by an npm lockfile. Where that resolution
-cannot be applied on your platform, the install falls back to an unpinned resolve and says so,
-because a pin that only holds on the maintainer's machine would make the tool uninstallable
-everywhere else.
+every package in its dependency tree, and retire.js by an npm lockfile. Semgrep's tree is resolved
+once for each Python from 3.10 to 3.14, and every package carries the digest of each Linux and macOS
+wheel of its version, so the set covers those Pythons on x86-64 Linux and Apple-silicon macOS. On
+any other Python or platform, Linux on arm64 or musl among them, or when `pip check` finds the
+pinned tree incomplete, the install falls back to an unpinned resolve and says so, because a pin
+that only holds on the maintainer's machine would make the tool uninstallable everywhere else.
 
 **govulncheck has a second pin, the Go that builds it.** A govulncheck binary can only load modules
 whose `go` line is no newer than the Go it was built with, so Draugr builds it with the newer of

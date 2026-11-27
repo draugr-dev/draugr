@@ -12,6 +12,108 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.193.0] - 2026-11-26
+
+### Added
+
+- **A scan that publishes to a Draugr server says where the run went.** The console ends with a Published block, and the HTML report repeats it in its footer. Each names the project, and gives the address of the run's page, or the run's id and the server where the server returns no address.
+
+- **`draugr doctor` and `draugr scan --evidence` say how current the Sigstore trust root is.** They name the version of the trust root cosign holds and when cosign last refreshed it, as they do for the Trivy and Grype databases and the Nuclei template set.
+
+### Changed
+
+- **`draugr diff` counts what failed a run in its first line.** A control the change stops or narrows, or an ignore file or VEX document it edits, now appears as `1 control stopped` or `2 files need trust` ahead of the findings, and the note says the gate fails until the pipeline trusts the change.
+
+- **`draugr diff` says why a reranked finding moved.** A component that declared a new exposure or criticality gets one line under `RERANKED`, and a row names what moved that finding alone, such as `↑ KEV`, `↓ unreachable` or a new severity. The pull-request comment and `--format json` carry the same.
+
+- **`draugr tools install` fetches newer versions:** cosign 3.1.6 (was 3.1.4), grype 0.122.1 (was 0.121.0), retire 6.1.2 (was 6.1.0), semgrep 1.187.0 (was 1.182.1), syft 1.57.2 (was 1.55.0) and trivy 0.76.2 (was 0.76.1), and it builds govulncheck 1.10.0 with go1.27.4 (was 1.9.0 with go1.27.3).
+
+- **`draugr tools install semgrep` installs the pinned, hash-checked set on Python 3.10 to 3.14, on x86-64 Linux and Apple-silicon macOS.** Before, only the Python the set was resolved with got it, and the others installed unverified. `pip check` now confirms the pinned tree is complete. Linux on arm64 or musl still installs unverified.
+
+### Fixed
+
+- **`draugr diff` no longer cuts a word from its note about a base report that records no declarations.** The note now reads "so this change's own declarations decide".
+
+- **A saved report keeps each suppression's VEX details.** `results.sarif` now records a suppression's VEX status and justification, the VEX statement and document it came from, and the service an imported alert was dismissed in, so the MCP `summarize_report` and `draugr diff` read them back.
+
+- **The provenance control passes again on an image whose provenance is a GitHub artifact attestation.** cosign 3.1.6 refuses such an attestation where earlier versions printed it, which stopped the control. An attestation from a declared signer passes, and discovery names who signed it.
+
+## [0.192.0] - 2026-11-26
+
+### Added
+
+- **Import Aqua image scans.** An import with `format: aqua-json` reads what Aqua's `scannercli scan --jsonfile` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by Aqua's CVSS score or severity, whichever is more severe.
+
+- **Import Mend's dependency scan.** An import with `format: mend-json` reads the JSON `mend dep --format json --export-results` writes into `sca`: each vulnerable library with its installed version, the fixed version Mend names, its CVE so KEV and EPSS reach it, and Mend's severity. A transitive library's detail names the direct dependency that brings it in.
+
+- **Import Prisma Cloud image scans.** An import with `format: twistcli-json` reads what `twistcli images scan --output-file` writes into `images`: each vulnerable package with its installed and fixed versions, under its CVE so KEV and EPSS reach it, rated by its CVSS score, or by Prisma Cloud's severity where that is more severe.
+
+- **Import Semgrep's JSON, Supply Chain findings included.** `format: semgrep-json` reads what `semgrep ci --json-output` writes. Import the file once into `sast` for code results, rated from each rule's impact and likelihood, and once into `sca` for Supply Chain results, with the package, installed and fixed versions and CVE, so KEV and EPSS reach them.
+
+- **Read a SonarQube project's security issues into `sast`.** An import with `source: sonarqube` and `project:` reads them from SonarQube Cloud, or the server named in `$SONAR_HOST_URL`, with `$SONAR_TOKEN`. Each finding keeps its file, line, rule and severity. An accepted issue is set aside with its latest comment as the reason. Run the scan after SonarQube analyzes the same commit.
+
+- **Run Draugr in a container you build.** `contrib/docker/Dockerfile` builds an image holding Draugr and the scanners a first scan runs. Before a scan, the container fetches the KEV, EPSS and Go vulnerability feeds, keeping a copy less than a day old. [Run Draugr in a container](https://draugr.dev/docs/latest/guides/docker/) shows how to build it and keep the feeds and databases in volumes.
+
+### Fixed
+
+- **A Trivy import goes only into the control its scan belongs to.** `draugr validate` and the editor refuse a `trivy-json` file imported into `secrets`, `iac` or another control its scan does not cover. An image scan from `trivy image --format json` imports into `images`, each finding at the image Trivy scanned, and a filesystem scan into `sca`.
+
+- **Every import goes only into the control its format's findings belong to.** `draugr validate` and the editor refuse a JFrog, GitLab, Veracode, govulncheck, Grype or OSV-Scanner file imported into another control, such as JFrog's dependency findings into `sast`.
+
+- **`draugr tools outdated` reads a public release listing when GitHub refuses your `GITHUB_TOKEN`.** It asks again without the token, so a token GitHub rejects no longer stops a tool from being compared. When GitHub refuses the request without the token too, the error prints the reason GitHub gave beside its status.
+
+## [0.191.0] - 2026-11-26
+
+### Added
+
+- **`draugr doctor --json` lists every place a tool cannot write.** A tool's new `unwritable` field has one entry for each such place, with its `path` and the `variable` to set to move it. A script can now fix them all in one run. `cannotWrite` still names the first.
+
+- **Import Checkmarx One's own JSON.** An import with `format: checkmarx-one-json` reads what `cx results show --report-format json` writes. Import the file once for each of `sast`, `sca` and `iac`. It reads code findings with their CWE, dependency findings with their package, versions and CVE, and KICS findings. A result triaged Not Exploitable or Ignored counts as suppressed by the tool.
+
+- **Import GitLab security reports.** An import with `format: gitlab-sast` reads a GitLab SAST report, such as Semgrep writes with `--gitlab-sast`, and `format: gitlab-dependency-scanning` reads a Gemnasium dependency scanning report, each finding with its rule or package, CVE, fixed version and the severity the report states.
+
+- **Import JFrog Xray's dependency findings.** An import with `format: jfrog-simple-json` reads what `jf audit --format simple-json` writes, each vulnerable package with its installed and fixed version, CVE and Xray's severity, in each manifest that brings it in.
+
+- **Keep a scan's results when one tool runs out of memory, with `--tool-memory 8GiB` or `scan.toolMemory`.** On Linux, Draugr stops a tool once it and the processes it starts hold more than that much memory, and fails only that control. Without the bound, a memory limit on the scan can end every control at once.
+
+### Fixed
+
+- **`draugr diff` keeps an image or dependency finding unchanged when the vulnerability feed rewords its advisory.** The same package at the same version was reported fixed and new, which failed a gate on new findings for a pull request that changed nothing. A change in priority band on these findings now shows as reranked.
+
+## [0.190.1] - 2026-11-25
+
+### Fixed
+
+- **An advisory two imported files name by different ids is counted once.** One file names it by GitHub advisory id, the other by CVE. Where the first lists the CVE as an alias, or Draugr looked it up, the two now merge even where only one file gives a package URL, as Trivy's SARIF gives none for a Go module.
+
+- **`draugr doctor` lists every place a tool can't write.** Before, a row named only the first. With both `GOMODCACHE` and `GOCACHE` unwritable, the gosec and govulncheck rows now name both in the Notes column, so you can fix both before running again.
+
+## [0.190.0] - 2026-11-25
+
+### Added
+
+- **Find the CVE of npm, PyPI, crates.io and Go findings that name only an advisory id.** With `kev` or `epss` on, set `config.exploitability.advisories`, for example `[npm, pypi]`, and Draugr reads those ecosystems' OSV.dev advisories, so KEV and EPSS apply. Each CVE found names its source and license.
+
+### Fixed
+
+- **An imported finding whose path matches no file in the checkout is kept.** gosec writes such a relative path for a Go module in a subdirectory. The file is listed under `unread-files`, and `paths:` and `ignore:` no longer drop the finding.
+
+- **`draugr doctor` checks Go's module and build caches when gosec or govulncheck runs.** On a read-only home directory it reports `can't write` and names `GOMODCACHE` or `GOCACHE`, where it used to pass and the scan then failed.
+
+## [0.189.5] - 2026-11-25
+
+### Fixed
+
+- **A scan works when your home directory is read-only.** Set `DRAUGR_HOME` to a directory you can write to, and what Trivy, Grype, Syft, Semgrep, cosign and Nuclei write as they run goes under it, so the scan no longer fails. `draugr doctor` marks a tool that cannot write where it keeps its data, names the place, and fails.
+
+- **`draugr feeds --help` says when a scan fetches a feed itself.** A scan fetches KEV and EPSS, when set to `auto`, if the copy is missing or stale. Online, it fetches the Go vulnerability database again if a copy you fetched is too old or fails its checks.
+
+- **Pull requests no longer warn that the branch's code-scanning configuration is missing.** The GitHub Action now uploads a pull request's new findings under the same category as the branch's own scan, so GitHub can compare the two.
+
+- **REPORTS fits your terminal with a long `-o` path.** Each report's path stays whole on its line, with what the file is for on the next, instead of padding every row past the edge.
+
+- **The HTML report names every way findings were set aside.** It now lists a setting such as `config.controls.sca.devDependencies: suppress`, and a scanner configuration file such as `.semgrepignore` that kept findings without listing them, as the console and Markdown reports already did.
+
 ## [0.189.4] - 2026-11-25
 
 ### Fixed
@@ -7577,7 +7679,13 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.189.4...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.193.0...HEAD
+[0.193.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.193.0
+[0.192.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.192.0
+[0.191.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.191.0
+[0.190.1]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.1
+[0.190.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.190.0
+[0.189.5]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.5
 [0.189.4]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.4
 [0.189.3]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.3
 [0.189.2]: https://github.com/draugr-dev/draugr/releases/tag/v0.189.2

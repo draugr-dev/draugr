@@ -217,6 +217,12 @@ func execute(ctx context.Context, args []string) int {
 	if dir, err := tools.BinDir(); err == nil {
 		_ = os.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
+	// And with DRAUGR_HOME set, what those tools write as they run goes under it too, so a home
+	// directory that cannot be written does not stop a scan whose tools were installed elsewhere.
+	if err := tools.PointToolWritesUnderDraugrHome(); err != nil {
+		fmt.Fprintln(os.Stderr, "draugr: "+err.Error())
+		return 1
+	}
 
 	root := newRootCommand()
 	root.SetArgs(args)

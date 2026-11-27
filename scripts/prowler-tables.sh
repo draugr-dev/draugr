@@ -54,9 +54,10 @@ Prowler $latest is on PyPI, and the scanner's tables of what each check reads ar
 
 A check whose reads changed between the two releases can have its result discarded though it ran, or kept though a read it needs was denied.
 
-To catch up, install Prowler $latest and:
+To catch up, clone prowler-cloud/prowler at the $latest tag and at $tables, which nothing here installs or runs, and:
 
-- regenerate \`awsCheckReads\` in \`internal/scanners/prowler_aws_reads.go\` with \`scripts/prowler-check-reads.py\`, over the installed package and the framework's check list;
+- regenerate \`awsCheckReads\` in \`internal/scanners/prowler_aws_reads.go\` and \`azureCheckReads\` in \`internal/scanners/prowler_azure_reads.go\` with \`scripts/prowler-check-reads.py\`, over the clone's \`prowler\` directory and the framework's compliance file in it;
+- for \`awsServiceActions\` and \`azureServiceActions\`, diff each service module those tables name between the two releases, and read each call a module adds;
 - for \`internal/scanners/prowler_gcp_reads.go\`, which has no generator, diff \`prowler/providers/gcp/\` between the two releases and read again each check whose clients or their calls changed, and any new service the framework now lists;
 - set \`ProwlerTablesVersion\` to $latest, and move the \`prowlercloud/prowler\` image digest in \`.github/workflows/integration.yml\` to the $latest tag's, so the live cloud run checks the same release.
 

@@ -19,7 +19,7 @@ const azureDataPlane = "keyvault-data"
 
 // azureCheckReads lists the services a check reads, where that is more than the service its name
 // starts with, in the order a reader is told about them: the first denied one names the row. From
-// Prowler 5.48.0's source: scripts/prowler-check-reads.py over the checks of cis_6.0_azure gives the
+// the source of tools.ProwlerTablesVersion: scripts/prowler-check-reads.py over the checks of cis_6.0_azure gives the
 // first two, and keyvault_service.py and keyvault_key_rotation_enabled.py the other two, because a
 // service's own calls are outside what that script follows.
 var azureCheckReads = map[string][]string{

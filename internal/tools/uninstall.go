@@ -73,9 +73,10 @@ func ScanDataDir(tool string) string {
 	return filepath.Join(root, sub)
 }
 
-// cacheDirs are where each tool keeps what it downloads for itself, outside ~/.draugr, at the
-// tool's own default or where the environment variable it reads moves it. Another install of the
-// same tool reads the same place, which is why removing them is asked for separately.
+// cacheDirs are where each tool keeps what it downloads for itself, at the tool's own default or
+// where the environment variable it reads moves it, which DRAUGR_HOME does (see toolWrites). At the
+// default, another install of the same tool reads the same place, which is why removing them is
+// asked for separately.
 //
 // Downloaded data only. A tool's settings are somebody's configuration and can hold a login, so
 // ~/.config/nuclei and ~/.semgrep are not here, though both sit beside what the tools download.
@@ -100,13 +101,13 @@ func cacheDirs(tool string) []string {
 	case "grype":
 		return []string{env("GRYPE_DB_CACHE_DIR", in(cache, "grype"))}
 	case "syft":
-		return []string{in(cache, "syft")}
+		return []string{env("SYFT_CACHE_DIR", in(cache, "syft"))}
 	case "notation":
 		return []string{in(cache, "notation")}
 	case "nuclei":
-		return []string{in(home, "nuclei-templates")}
+		return []string{env("NUCLEI_TEMPLATES_DIR", in(home, "nuclei-templates"))}
 	case "cosign":
-		return []string{in(home, ".sigstore")}
+		return []string{env("TUF_ROOT", in(home, ".sigstore"))}
 	}
 	return nil
 }

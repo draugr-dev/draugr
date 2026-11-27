@@ -124,7 +124,7 @@ win over a settings file.
 | | |
 |---|---|
 | `DRAUGR_CONFIG` | the machine or organization settings file to read, instead of the discovered ones |
-| `DRAUGR_HOME` | where Draugr keeps what it downloads, in place of `~/.draugr`. [`tools install`](#draugr-tools-install-tool) writes to its `bin/`, the tools' data goes to its `data/` and the feeds to its `feeds/`. Every command looks in its `bin/` before `PATH`, and [`doctor`](#draugr-doctor-sagayaml) names it. Must be an absolute path, because a relative one stops every command. `~/.draugr/config.yaml` stays where it is |
+| `DRAUGR_HOME` | where Draugr keeps what it downloads, in place of `~/.draugr`. [`tools install`](#draugr-tools-install-tool) writes to its `bin/`, the tools' data goes to its `data/` and the feeds to its `feeds/`. What the tools write as they run, such as Trivy's database and Semgrep's settings, goes under `data/` too, as [`tools install`](#draugr-tools-install-tool) lists. Every command looks in its `bin/` before `PATH`, and [`doctor`](#draugr-doctor-sagayaml) names it. Must be an absolute path, because a relative one stops every command. `~/.draugr/config.yaml` stays where it is |
 | `DRAUGR_OFFLINE` | make no network calls. Equivalent to `--offline` |
 | `DRAUGR_NO_UPDATE_CHECK` | skip the check for a newer release, without disabling the rest of the network |
 | `DRAUGR_NO_TIPS` | suppress the console's contextual tips |
@@ -674,6 +674,7 @@ whether it is a shortlist or every finding, and `--top 0` also lists every row u
 | `-j, --jobs` | `0` (auto) | Max scan jobs to run in parallel (`0` = one per CPU or per 2 GiB of memory, whichever is fewer); reported as `stats.concurrency` (or `scan.jobs` in `draugr.config.yaml`) |
 | `--limit-tool-threads` | `false` | Hold each tool's threads and Go build processes to its job's share of the parallelism bound, for a machine with many cores and little memory per core. Uses less memory and makes a run slower; left off, each tool sizes itself to the machine, as *Each tool's own parallelism* below explains (or `scan.limitToolThreads` in `draugr.config.yaml`) |
 | `--share-workers` | `false` | Hold Semgrep's analysis processes and Trivy's files in flight to each job's share of the parallelism bound. Uses less memory and CPU, and can make a run slower, as *Each tool's own parallelism* below explains. Implies `--limit-tool-threads` (or `scan.shareWorkers` in `draugr.config.yaml`) |
+| `--tool-memory` | none | Stop a tool once it and the processes it starts hold more than this much resident memory, such as `8GiB`, failing its control and keeping the rest of the scan. Linux only, as *When a tool runs out of memory* below explains (or `scan.toolMemory` in `draugr.config.yaml`) |
 | `--allow-effects` | - | Accept scanner effects for this run: `disclosure`, `mutate`, `network`, `privilege`. Any other value is refused before the scan. `config.allowEffects` is the reviewed equivalent. See [below](#scanners-that-do-more-than-read) |
 | `--no-publish` | `false` | Skip the descriptor's configured publishers (still writes `-o` artifacts and stdout) |
 | `--policy` | `false` | Require the [organization's policy](#the-organizations-policy) check |
@@ -686,8 +687,9 @@ the policy check runs only under `--policy`.
 
 The `--cache-*` flags have counterparts in [`draugr.config.yaml`](#draugr-config) under `cache:`
 (`dir`, `ttl`, `readOnly`, `requireDigest`); `--view`, `--evidence`, `--top` and `--no-tips` under
-`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs` and `--limit-tool-threads` under `scan:`
-(`jobs`, `limitToolThreads`). A flag on the command line wins over the file.
+`output:` (`view`, `evidence`, `top`, `tips`); and `--jobs`, `--limit-tool-threads`, `--share-workers`
+and `--tool-memory` under `scan:` (`jobs`, `limitToolThreads`, `shareWorkers`, `toolMemory`). A flag on
+the command line wins over the file.
 
 ```bash
 draugr scan draugr.saga.yaml
@@ -768,6 +770,36 @@ scope's `MemoryMax`. Where neither reports memory, n is half the CPUs. `stats.pe
 records the largest resident memory any one tool process reached, `stats.peakDraugrMemoryBytes`
 Draugr's own, and `stats.jobMemory` each job's largest tool process; see the [report
 schema](report-schema.md#tool-memory).
+
+**When a tool runs out of memory.** A tool that the kernel kills for memory fails its own control,
+with an error naming the tool, and the other controls' results are reported as usual. On Linux,
+Draugr raises each tool's `oom_score_adj` to 500 as it starts it, so that when memory runs out the
+kernel kills a tool before it kills Draugr, which holds every finished control's results.
+
+That depends on the kernel killing one process and the rest carrying on. Whatever set the memory
+limit may instead end everything inside it once one process is killed. A systemd service or scope
+does that under `OOMPolicy=stop`, which it takes from `DefaultOOMPolicy=` unless it delegates its
+cgroup: the unit "is terminated cleanly by the service manager" (`systemd.scope(5)`), so Draugr is
+sent SIGTERM with every other process in it and the controls still running are canceled. Under
+`OOMPolicy=kill` the kernel kills every process in the unit at once. Run such a scan with
+`OOMPolicy=continue`, or give it a bound below the limit with `--tool-memory`.
+
+`--tool-memory 8GiB`, or `scan.toolMemory: 8GiB` in `draugr.config.yaml`, stops a tool once the
+resident memory of the tool and of the processes it starts, added together, passes 8 GiB. Draugr
+reads it from `/proc` four times a second and stops the tool's whole process group with SIGKILL, so a
+tool can pass the bound by what it allocates in a quarter of a second before it is stopped. Memory
+two of those processes share is counted for each. The control's error names the tool and the bound,
+and says to raise it:
+
+```
+run govulncheck: used more than the 8GiB of memory --tool-memory allows, so Draugr stopped it. Raise `--tool-memory`, or `scan.toolMemory`, to let it finish.
+```
+
+The bound is per tool run, so jobs running at once can together use up to `--jobs` times the bound.
+It takes a whole number of `KiB`, `MiB`, `GiB` or `TiB`. There is no bound by default, so each tool
+may use all the memory the machine gives it, and `0` removes a bound a configuration file set. The
+bound is enforced on Linux only. On macOS and Windows a run given one logs a warning and runs its
+tools unbounded, and the kernel's choice is left as it is.
 
 **Severity bands.** The console reports each finding's severity band (critical, high, medium or
 low), derived from its CVSS score where the scanner supplies one, and `--fail-on` takes the same
@@ -877,7 +909,7 @@ command; on a runner without a network, copy a newer cache in, as
 | Key | Holds |
 |---|---|
 | `tool`, `data` | the tool and the data source, as the row names them |
-| `version` | the schema version of a Trivy or Grype database, the first twelve characters of the Trivy checks bundle's digest, or the Nuclei template release |
+| `version` | the schema version of a Trivy or Grype database, the first twelve characters of the Trivy checks bundle's digest, the Nuclei template release, or `root` and the version of the Sigstore root metadata cosign holds |
 | `published`, `downloaded` | each an RFC 3339 time in UTC, absent where the tool records none |
 | `tooOld` | the tool's own reason, for a copy it refuses |
 
@@ -1248,8 +1280,11 @@ its component.
 **Reranked** is a finding in both scans and excused in neither, in the same component, whose priority band
 changed: a component that declared its exposure or criticality, or a new exploitation signal. A
 `RERANKED` table lists each with the band it had and the band it has (`P1 → P3`), raised ones
-first, and the headline counts how many were raised and how many lowered. A reranked finding is not
-counted as unchanged. A finding that changed component and band is moved, not reranked, and its
+first, and the headline counts how many were raised and how many lowered. A line under the heading
+names a component's changed exposure or criticality. The line under a row names what moved that
+finding alone, such as `↑ KEV` or `↓ unreachable`. Both appear only where both scans record the
+input. A reranked finding
+is not counted as unchanged. A finding that changed component and band is moved, not reranked, and its
 band change is in `PRIORITY CHANGED`.
 
 New, unaccepted, accepted and fixed findings are listed in one `CHANGED` table, ranked by priority,
@@ -1362,13 +1397,13 @@ the change to the base's declaration until it merges:
   gate the way a narrowed `paths` does, on one component or on a project-wide control.
 - A new finding set aside by a `config.exclude` rule the base did not have is listed as accepted and
   gated as new.
-- A file the change adds, or reads with other content than the base did, fails the gate until it
-  merges, whichever control it applies to: a `not_affected` statement in a VEX document, a line in
-  `.trivyignore` or `.gitleaksignore`, an allowlist in `.gitleaks.toml`, or a ruleset edited in place
-  under a setting that still names it. A file the change removes passes, since that only widens what
-  is reported. A VEX document fetched from a URL or read from another repository is compared by
-  where it is, not by what it says, because the change cannot edit it and the base already chose to
-  trust it.
+- A file the change adds, or reads with other content than the base did, fails the gate until
+  the pipeline trusts the change, whichever control it applies to: a `not_affected` statement in a
+  VEX document, a line in `.trivyignore` or `.gitleaksignore`, an allowlist in `.gitleaks.toml`, or
+  a ruleset edited in place under a setting that still names it. A file the change removes passes,
+  since that only widens what is reported. A VEX document fetched from a URL or read from another
+  repository is compared by where it is, not by what it says, because the change cannot edit it and
+  the base already chose to trust it.
 - A base report from 0.189.3 or earlier did not record a `.semgrepignore` below the root. The diff
   reads the file at the commit the base report names, from the checkout it runs in, so an unchanged
   file passes and an edited one is held as changed. Where it cannot read it, because the checkout
@@ -1381,21 +1416,24 @@ the change to the base's declaration until it merges:
   have the finding, the listing says `accepted by this change: suppressed in source (nosemgrep)`,
   with the tool's reason where it gave one and the directive's name where it gave none.
 
-The diff says each, for example `The base ran sca on api and this change does not, so nothing it adds
-there was looked for.`, or, where the control still runs, what changed: `This change alters what
-secrets reads on api (ignore src/client.py), so what it adds there may not have been looked for.` or
-`This change alters what sca reads on api (setting trivyFs changed), so what it adds there may not
-have been looked for.` or `This change adds .gitleaksignore and changes vex/pyyaml.openvex.json,
-which can set findings aside or change what a scanner finds, so the gate holds until it merges.`,
-naming the repository after a file where the run reads more than one (`.gitleaksignore in
-api.git`). A change that lowers a classification or adds an exclusion, and adds no finding of its
-own, passes. A base report from a release that did not record the declaration says so and leaves
-the head's to decide. One from 0.189.0 recorded each repository without its `paths`, so its
-controls are compared by repository alone. One from 0.189.1 recorded neither `ignore` nor
-`revision`, so a head that declares either looks newly added. It recorded no control's settings
-either, and reads as declaring none, so a head with settings is held until trusted. It recorded no
-files either, and reads as reading none, so a head that reads any of them is held until trusted.
-Scan the base with the same release as the head.
+The diff says each, for example `The base ran sca on api and this change does not, so nothing it
+adds there was looked for.`, or, where the control still runs, what changed: `This change alters
+what secrets reads on api (ignore src/client.py), so what it adds there may not have been looked
+for.` or `This change alters what sca reads on api (setting trivyFs changed), so what it adds there
+may not have been looked for.` or `This change adds .gitleaksignore and changes
+vex/pyyaml.openvex.json, which can set findings aside or change what a scanner finds, so the gate
+fails until the pipeline trusts this change.`, naming the repository after a file where the run
+reads more than one (`.gitleaksignore in api.git`). When a gate is set and the change is not
+trusted, the first line counts what failed the run before any finding: `2 files need trust`, `1
+control stopped` or `1 control narrowed`, as in
+`DRAUGR DIFF  FAIL  2 files need trust  3 unchanged`. A change that lowers a classification or adds
+an exclusion, and adds no finding of its own, passes. A base report from a release that did not
+record the declaration says so and leaves the head's to decide. One from 0.189.0 recorded each
+repository without its `paths`, so its controls are compared by repository alone. One from 0.189.1
+recorded neither `ignore` nor `revision`, so a head that declares either looks newly added. It
+recorded no control's settings either, and reads as declaring none, so a head with settings is held
+until trusted. It recorded no files either, and reads as reading none, so a head that reads any of
+them is held until trusted. Scan the base with the same release as the head.
 
 A diff held to its base prints a digest of the head's descriptor. Given that digest as
 `--trust-descriptor-change`, the diff is judged by the head's descriptor and still says what the
@@ -1745,7 +1783,7 @@ control name this build does not provide with the message
 With a descriptor, it **exits non-zero** when:
 
 - the descriptor cannot be loaded or names a control this build does not provide;
-- a required tool is missing or has no data;
+- a required tool is missing, has no data, or cannot write where it keeps its data;
 - a target check fails;
 - under `--policy`, the organization's [policy](#policy) would refuse or fail the scan;
 - a `draugr-api` publisher has an endpoint with neither a token nor a
@@ -1763,6 +1801,11 @@ binary.
 
 A tool is also reported as unusable (`✗ no data`) when it is installed but its supporting data is
 not: `kube-bench` without its `cfg/` benchmarks, `nuclei` without its templates.
+
+It is reported as `✗ can't write` when it cannot write where it keeps its downloads or settings,
+such as Trivy's database under a read-only home directory. The row names each such place and the
+setting that moves it: [`DRAUGR_HOME`](#environment), which moves every tool's, or the tool's own
+variable where somebody set it to that place.
 
 ### Versions
 
@@ -1803,7 +1846,7 @@ both:
 one its scanner's read tables come from, a line under the table says so, here for a newer one:
 
 ```
-prowler 5.49.0 is newer than 5.48.0, the release Draugr's read tables come from. A check whose reads changed may have its result discarded though it ran, or kept though a read it needs was denied. `pip install prowler==5.48.0` matches them, without what Prowler added since.
+prowler 5.53.0 is newer than 5.52.0, the release Draugr's read tables come from. A check whose reads changed may have its result discarded though it ran, or kept though a read it needs was denied. `pip install prowler==5.52.0` matches them, without what Prowler added since.
 ```
 
 It is a note, and `--strict` does not fail on it.
@@ -1985,9 +2028,11 @@ The list is **reported, not failed**, unless `--fail-on-uncovered` is passed or
 The JSON's top-level fields are `draugr`, `descriptor`, `toolsDir`, `tools`, `missing`, `targets`,
 `policy`, `data` and `uncoveredSurfaces`. `toolsDir` is the directory looked in before `PATH`, the
 one the `TOOLS` heading names, which is `~/.draugr/bin` or `bin/` under [`DRAUGR_HOME`](#environment).
-`missing` counts each required tool that is absent or has no data,
-the count the exit code is decided on. An optional tool that is absent is listed and not counted.
-A tool with no data carries the hint for getting it.
+`missing` counts each required tool that is absent or has no data. An optional tool that is absent
+is listed and not counted. A tool with no data carries the hint for getting it. A tool that cannot
+write where it keeps its data fails the check as a missing one does. It carries `unwritable`, a list
+with one entry for each such place: its `path`, and the `variable` to set to a writable directory
+to move it. `cannotWrite` is the first entry's path, and the hint names every place in words.
 
 ```bash
 draugr doctor                       # inventory: what Draugr can use, and what you have
@@ -2096,7 +2141,10 @@ trivy        0.74.0   0.76.0    draugr tools install trivy --version 0.76.0
 ```
 
 A tool whose upstream could not be asked shows `?` and `could not ask:` with the reason, and the
-last line adds how many could not be asked. The command beside a tool that is behind installs the
+last line adds how many could not be asked. Where GitHub gave a reason with its refusal, the reason
+follows the status. With `GITHUB_TOKEN` set, GitHub is asked with the token, which raises its rate
+limit. The release listings are public, so where GitHub refuses the token, the listing is asked for
+again without it. The command beside a tool that is behind installs the
 upstream's version. Without `--version`, `draugr tools install <tool>` installs the pinned one.
 
 `govulncheck` is also compared on the Go it is built with, against the newest stable release
@@ -2133,6 +2181,26 @@ export DRAUGR_HOME=/opt/draugr
 draugr tools install --saga draugr.saga.yaml   # into /opt/draugr/bin
 draugr doctor draugr.saga.yaml                 # TOOLS  looked for in /opt/draugr/bin (DRAUGR_HOME), then on PATH
 ```
+
+What the tools write as they run goes under `data/` as well, so a scan needs nothing from the home
+directory. Draugr sets each tool's own variable to a directory there, unless it is already set:
+
+| Tool | Variable | Under `data/` |
+|---|---|---|
+| Trivy | `TRIVY_CACHE_DIR` | `trivy/` |
+| Grype | `GRYPE_DB_CACHE_DIR` | `grype/db/` |
+| Syft | `SYFT_CACHE_DIR` | `syft/` |
+| Semgrep | `SEMGREP_SETTINGS_FILE`, `SEMGREP_LOG_FILE` | `semgrep/` |
+| cosign | `TUF_ROOT` | `cosign/` |
+| Nuclei | `NUCLEI_CONFIG_DIR`, `NUCLEI_TEMPLATES_DIR` | `nuclei/` |
+
+Those tools then keep their caches under `DRAUGR_HOME`, apart from any other install of the same
+tool. Semgrep reads its settings there too, a `semgrep login` included; set `SEMGREP_SETTINGS_FILE`
+to keep using yours.
+gosec and govulncheck build the code they read with Go, whose build and module caches follow Go's
+own `GOCACHE` and `GOMODCACHE`, as they do for `go build`. `draugr doctor` checks that both take a
+write wherever gosec or govulncheck is among the tools. Where either cache does not, the tool's row
+is `can't write` and names each cache that fails with the variable that moves it.
 
 **What gets installed.** `--saga` installs the tools that descriptor's scan will run and nothing
 else. With no arguments it reads the current directory the way `draugr scan` does: it installs what
@@ -2258,10 +2326,12 @@ present and verification fails, that tool's install fails.
 
 Semgrep publishes no release binary, so it is installed from PyPI into a virtual environment Draugr
 owns (`~/.draugr/venv/semgrep`), with every artifact in the resolved tree matched against a digest
-recorded in this build, dependencies included. Those digests describe the pinned version only, so
-`--version` installs another version by name, and its line reads `unverified; no digests recorded in
-this build for this version`. `retire` works the same way with its pinned lockfile. When `semgrep`
-is missing, `doctor` suggests `draugr tools install semgrep`.
+recorded in this build, dependencies included. The digests cover Python 3.10 to 3.14 on x86-64 Linux
+and Apple-silicon macOS. Anywhere else, or when `pip check` finds the pinned tree incomplete, the
+install falls back to an unpinned resolve and its line reads `unverified` with the reason. The
+digests describe the pinned version only, so `--version` installs another version by name, and its
+line reads `unverified; no digests recorded in this build for this version`. `retire` works the same way with its pinned lockfile. When `semgrep` is missing, `doctor`
+suggests `draugr tools install semgrep`.
 
 Naming a tool Draugr runs but does not provision, such as `kubectl` or `git`, is refused, and
 `draugr doctor` names where it comes from.
@@ -2275,8 +2345,9 @@ the same paths under [`DRAUGR_HOME`](#environment) when it is set. A copy instal
 Each tool's own cache stays unless `--caches` is given: Trivy's and Grype's vulnerability
 databases, Nuclei's templates, and the smaller ones Syft, Notation and cosign keep. A tool's settings
 are not a cache and stay either way, such as `~/.config/nuclei` and Semgrep's login in `~/.semgrep`.
-The caches sit at the tool's default location, or where `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR`
-moves it, so removing them also empties the cache of any other install of the same tool.
+The caches sit at the tool's default location, or where its own variable moves it, such as
+`TRIVY_CACHE_DIR`, which `DRAUGR_HOME` sets. At the default, removing them also empties the cache of
+any other install of the same tool.
 `~/.draugr/feeds` belongs to no tool, and [`draugr feeds`](#draugr-feeds) manages it.
 
 Name the tools to remove, or pass `--all`; with neither, the command is an error.
@@ -2339,7 +2410,7 @@ Fetch and inspect the datasets a scan reads from `~/.draugr/feeds`. A scan reads
 fetches on its own in two cases only:
 
 - `kev` and `epss`, when `--kev`, `--epss` or `config.exploitability` says `auto` and the copy is
-  missing or older than its maximum age.
+  missing or older than its maximum age, and the `osv-` feeds the descriptor names with them.
 - `govulndb`, online, when a copy `draugr feeds update` fetched is too old or fails its checks
   ([govulncheck](../../internal/scanners/govulncheck.md#data)). A machine with no copy is not given
   one.
@@ -2351,10 +2422,13 @@ Anything else waits for `draugr feeds update`.
 | `kev` | CISA's Known Exploited Vulnerabilities catalog | [exploitability](saga-schema.md#configexploitability) |
 | `epss` | FIRST's EPSS scores | [exploitability](saga-schema.md#configexploitability) |
 | `govulndb` | the Go vulnerability database | [govulncheck](../../internal/scanners/govulncheck.md); also the CVE lookup for `GO-…` and `GHSA-…` findings ([exploitability](saga-schema.md#configexploitability)) |
+| `osv-npm`, `osv-pypi`, `osv-crates.io`, `osv-go` | OSV.dev's advisories for one ecosystem | the CVE lookup for findings with an advisory id and no CVE, where `config.exploitability.advisories` names the ecosystem ([exploitability](saga-schema.md#configexploitability)) |
 
-### `draugr feeds update [kev|epss|govulndb]`
+### `draugr feeds update [kev|epss|govulndb|osv-<ecosystem>]`
 
-Download the feeds into `~/.draugr/feeds`, every feed when none is named. A copy younger than the
+Download the feeds into `~/.draugr/feeds`. With none named, that is `kev`, `epss` and `govulndb`,
+and the `osv-` feed of each ecosystem the descriptor `--saga` names in
+`config.exploitability.advisories`. A copy younger than the
 [limit](#staleness) is left alone unless `--force` is given. Refused under `--offline`.
 
 Each feed gets a line saying it is `current (<age> old)`, or `fetching <url>…` followed by the path
@@ -2364,7 +2438,7 @@ and size written. A fetch that fails with a copy already cached keeps that copy,
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--force` | `false` | Fetch even if the cached copy is current |
-| `--saga` | none | Descriptor, or directory holding one, to read the [limit](#staleness) from. One that does not load is an error |
+| `--saga` | none | Descriptor, or directory holding one, to read the [limit](#staleness) and `advisories` from. One that does not load is an error |
 
 ```bash
 draugr feeds update            # every feed
@@ -2375,7 +2449,10 @@ draugr feeds update --force    # refetch regardless of age
 EPSS is published gzipped and is decompressed on the way in, so the cache holds a CSV the scanner
 can read directly. The Go vulnerability database is published as a zip and unpacked into
 `~/.draugr/feeds/govulndb`, the directory govulncheck's `-db` reads; an archive whose index is
-empty or unreadable is refused and the previous copy kept. Each write is atomic.
+empty or unreadable is refused and the previous copy kept. An OSV.dev archive is downloaded to a
+temporary file and kept as an index of each record's id, aliases and stated license, in
+`osv-<ecosystem>.json`; one with no advisory record is refused and the previous copy kept. Each
+write is atomic.
 
 **In CI, run this as its own step**, so a feed outage shows in that step rather than inside the
 scan.
@@ -2404,6 +2481,10 @@ A copy is `(stale)` here when it is older than the [limit](#staleness). A stale 
 does not fail a scan: it ranks findings on older data, and the report names the age. A stale
 `govulndb` copy is fetched again when a scan starts. When that fetch fails, govulncheck queries
 `vuln.go.dev` instead, and with `--offline` the control reports an error. `--saga` works as it does for `feeds update`.
+
+An `osv-` feed is listed where it is cached, or where the descriptor `--saga` names its ecosystem in
+`config.exploitability.advisories`, in which case a missing copy is named with the command that
+fetches it. One nothing asked for is left out.
 
 ### Staleness
 
@@ -2492,6 +2573,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `scan.jobs` | a whole number of 0 or more; 0, sized to the machine | 0 | How many scan jobs run at once. `0` means one per CPU or per 2 GiB of memory, whichever is fewer. Overridden by `--jobs`. |
 | `scan.limitToolThreads` | true or false | false | Whether each tool's threads and Go build processes are held to its job's share of half the CPUs or one per 4 GiB of memory, whichever is fewer, for less memory and a slower scan. Unset means each tool sizes itself to the machine. Overridden by `--limit-tool-threads`. |
 | `scan.shareWorkers` | true or false | false | Whether Semgrep's analysis processes and Trivy's files in flight are held to each job's share of the bound `limitToolThreads` applies, for less memory and CPU and a slower scan, and turns that limit on. Unset means each tool sizes its own pool. Overridden by `--share-workers`. |
+| `scan.toolMemory` | a size such as 512MiB or 8GiB, or 0 for none | none | The most resident memory one tool may use, with the processes it starts, before Draugr stops it and fails its control, as a whole number of KiB, MiB, GiB or TiB such as `8GiB`. Enforced on Linux only. Unset or `0` means no bound. Overridden by `--tool-memory`. |
 | `tools.<tool>.version` | a release, such as 0.69.3 | Draugr's pin | The version to install, e.g. `0.69.3`. |
 <!-- end of generated config keys -->
 
@@ -2759,7 +2841,7 @@ and `__pycache__`, and every hidden directory except `.draugr`.
 | Tool | Purpose |
 |---|---|
 | `list_controls` | Which controls exist, what each checks, which scanner backs it, and the options each scanner accepts |
-| `get_saga_schema` | The Saga schema this build enforces |
+| `get_saga_schema` | One field of the Saga schema this build enforces, named by `field` (`components.exposure`); with no `field`, an outline of every field |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `propose_saga` | Return the descriptor `draugr init` would write for `path`, a directory under the working directory, with `perDirectory` for `--per-directory`; writes nothing and names any descriptor already there |
 | `check_tools` | Report which scanners are installed and what to run if any are missing; given a descriptor, the tools `draugr doctor` requires for it |

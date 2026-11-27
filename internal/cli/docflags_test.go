@@ -43,6 +43,11 @@ var docFlag = regexp.MustCompile("(?:^|[\\s`(\\[])(--[a-z][a-z0-9]*(?:-[a-z0-9]+
 var notOurs = map[string]string{
 	// Semgrep's, named where init explains which CI steps write SARIF.
 	"--sarif": "Semgrep's",
+	// Semgrep's, in the GitLab import guide, which writes GitLab's SAST report with it.
+	"--gitlab-sast": "Semgrep's",
+	// JFrog's jf audit, in the JFrog import guide, which writes the vulnerabilities and keeps the exit
+	// code at 0 where Xray's policies apply.
+	"--fail": "JFrog's", "--repo-path": "JFrog's", "--vuln": "JFrog's", "--watches": "JFrog's",
 	// Trivy's, quoted where a scanner's own behavior, caching or air-gapped setup is explained.
 	"--exit-code":         "Trivy's",
 	"--severity":          "Trivy's",
@@ -86,6 +91,38 @@ var notOurs = map[string]string{
 	"--ignore-scripts":   "npm's",
 	"--require-hashes":   "pip's",
 	"--cache":            "npm's",
+	"--rm":               "docker run's",
+	"--group-add":        "docker run's, opening the Docker socket in the container guide",
+	"--build-arg":        "docker build's",
+	"--pull":             "docker build's",
+
+	// Each tool's export flags, in the guide to importing each tool's file.
+	"--sarif-output":      "Semgrep's",
+	"--error":             "Semgrep's",
+	"--json-output":       "Semgrep's",
+	"--verbose":           "Semgrep's",
+	"--disable-nosem":     "Semgrep's",
+	"--sarif-file-output": "Snyk's",
+	"--report-format":     "Checkmarx One's cx",
+	"--output-path":       "Checkmarx One's cx",
+	"--output-name":       "Checkmarx One's cx and KICS'",
+	"--scan-id":           "Checkmarx One's cx",
+	"--threshold":         "Checkmarx One's cx",
+	"--export-results":    "Mend's mend dep",
+	"--address":           "Prisma Cloud's twistcli",
+	"--user":              "Prisma Cloud's twistcli and Aqua's scannercli",
+	"--password":          "Prisma Cloud's twistcli and Aqua's scannercli",
+	"--host":              "Aqua's scannercli",
+	"--registry":          "Aqua's scannercli",
+	"--jsonfile":          "Aqua's scannercli",
+	"--av":                "Fortify fcli's",
+	"--rel":               "Fortify fcli's",
+	"--file":              "Grype's",
+	"--output-file":       "OSV-Scanner's and Prisma Cloud's twistcli",
+	"--output-file-path":  "Checkov's",
+	"--soft-fail":         "Checkov's",
+	"--report-formats":    "KICS'",
+	"--ignore-on-exit":    "KICS'",
 
 	// Ours and gone. Named only where the removal is explained, which is the one place naming
 	// them helps: somebody arriving from a descriptor that used them needs to find out what

@@ -7,7 +7,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -38,11 +40,13 @@ type sarifImport struct {
 	// github reads the alerts an import names a GitHub source for. Injectable for tests, which
 	// answer from recorded responses.
 	github githubClient
+	// sonar reads the security issues an import names a SonarQube source for. Injectable for tests.
+	sonar sonarClient
 }
 
 // NewSARIFImport returns the scanner every import is planned for.
 func NewSARIFImport() plugin.Scanner {
-	return sarifImport{resolve: git.ResolveRevision, github: newGitHubClient()}
+	return sarifImport{resolve: git.ResolveRevision, github: newGitHubClient(), sonar: newSonarClient()}
 }
 
 // Info describes the import scanner.
@@ -61,6 +65,8 @@ func (sarifImport) Info() plugin.ScannerInfo {
 				Detail: "asks GitHub's REST API for the repository's code-scanning alerts, with the import's token"},
 			{Kind: plugin.EffectNetwork, Source: saga.ImportSourceGitHubDependabot, Online: true,
 				Detail: "asks GitHub's REST API for the repository's Dependabot alerts, with the import's token"},
+			{Kind: plugin.EffectNetwork, Source: saga.ImportSourceSonarQube, Online: true,
+				Detail: "asks SonarQube's Web API for the project's security issues, with the import's token"},
 		},
 	}
 }
@@ -126,13 +132,21 @@ type importReader func(data []byte, ft plugin.FileTarget) (importRead, error)
 // JSON is read with the parser Draugr's run of that tool uses, so a finding carries what a native one
 // does; a new format is a reader here and a name in saga.ImportFormats.
 var importReaders = map[string]importReader{
-	saga.ImportFormatSARIF:                readSARIFImport,
-	saga.ImportFormatTrivyJSON:            readTrivyImport,
-	saga.ImportFormatGovulncheckJSON:      readGovulncheckImport,
-	saga.ImportFormatGrypeJSON:            readGrypeImport,
-	saga.ImportFormatOSVScannerJSON:       readOSVScannerImport,
-	saga.ImportFormatVeracodePipelineJSON: readVeracodePipelineImport,
-	saga.ImportFormatConverter:            readConverterImport,
+	saga.ImportFormatSARIF:                    readSARIFImport,
+	saga.ImportFormatTrivyJSON:                readTrivyImport,
+	saga.ImportFormatGovulncheckJSON:          readGovulncheckImport,
+	saga.ImportFormatGrypeJSON:                readGrypeImport,
+	saga.ImportFormatOSVScannerJSON:           readOSVScannerImport,
+	saga.ImportFormatVeracodePipelineJSON:     readVeracodePipelineImport,
+	saga.ImportFormatGitLabSAST:               readGitLabSASTImport,
+	saga.ImportFormatGitLabDependencyScanning: readGitLabDependencyScanningImport,
+	saga.ImportFormatJFrogSimpleJSON:          readJFrogSimpleJSONImport,
+	saga.ImportFormatCheckmarxOneJSON:         readCheckmarxOneImport,
+	saga.ImportFormatMendJSON:                 readMendDependencyImport,
+	saga.ImportFormatTwistcliJSON:             readTwistcliImport,
+	saga.ImportFormatAquaJSON:                 readAquaImport,
+	saga.ImportFormatSemgrepJSON:              readSemgrepImport,
+	saga.ImportFormatConverter:                readConverterImport,
 }
 
 // readImport reads data as the format ft names.
@@ -172,6 +186,9 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	if !ok {
 		return sarif.Report{}, fmt.Errorf("%s: unsupported target %T (want file)", plugin.ImportScanner, target)
 	}
+	if isSonarSource(ft) {
+		return s.scanSonarQube(ctx, ft)
+	}
 	if ft.Source != "" {
 		return s.scanGitHub(ctx, ft)
 	}
@@ -196,7 +213,8 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	}
 	placeImported(rep.Results, meta, ft.Repositories)
 	toolsSuppressions(rep.Results, ft)
-	keep, scoped := scopeImported(rep.Results, read.outside, ft.Repositories)
+	missing := missingFromCheckout(rep.Results, ft.Repositories)
+	keep, scoped := scopeImported(rep.Results, slices.Concat(read.outside, missing), ft.Repositories)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
 	keep, scoped.folded = foldRepeats(rep.Results)
 	rep.Results, rated = keepOnly(rep.Results, keep), keepOnly(rated, keep)
@@ -238,7 +256,51 @@ func (s sarifImport) Scan(ctx context.Context, target plugin.Target, _ plugin.Co
 	for _, p := range read.outside {
 		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: outsideCheckout})
 	}
+	for _, p := range missing {
+		rep.Inputs = append(rep.Inputs, sarif.Input{Scanner: plugin.ImportScanner, Path: p, Unread: namesNoFile})
+	}
 	return rep, nil
+}
+
+// namesNoFile is why a relative path in an imported file was not placed in the component: no file
+// of that name is in the checkout of the repository its finding was placed in. The finding still
+// counts, kept whole rather than scoped, since paths: and ignore: would be judged on a path that is
+// not the file's.
+const namesNoFile = "names no file in the checkout, so paths: and ignore: do not apply to it"
+
+// missingFromCheckout are the findings' relative paths, once each and in order, that name no file in
+// the local checkout of the repository each finding was placed in.
+//
+// A tool can write a path relative to something other than the repository's root: gosec writes it
+// relative to the Go module it analyzed, so a module in a subdirectory gives `main.go` for
+// `checkout/main.go`. Scoped as written, such a finding is judged on a path that is not its file's,
+// and paths: can leave out a finding whose file they hold. No other path is guessed for it, since a
+// file of the same name may be in several directories.
+//
+// A finding placed in no repository, or in one named by a remote address, has no checkout here to
+// look in, and its path is taken as written.
+func missingFromCheckout(results []sarif.Result, repos []plugin.RepositoryTarget) []string {
+	roots := map[string]string{}
+	for _, r := range repos {
+		if !git.IsLocalPath(r.URL) {
+			continue
+		}
+		if abs, err := filepath.Abs(r.URL); err == nil {
+			roots[r.Source()] = abs
+		}
+	}
+	var missing []string
+	for _, r := range results {
+		uri := r.Location.URI
+		root, ok := roots[r.ImportedRepository]
+		if !ok || uri == "" || uri == "." || filepath.IsAbs(uri) || slices.Contains(missing, uri) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(uri))); errors.Is(err, fs.ErrNotExist) {
+			missing = append(missing, uri)
+		}
+	}
+	return missing
 }
 
 // toolsSuppressions settles what a finding the file's tool suppressed does here, as the import's
@@ -445,6 +507,9 @@ func toolJSON(ft plugin.FileTarget) string {
 // repository Draugr can establish, and its findings are placed in none and merge with nothing. A
 // finding counted under a native copy it is not would take a flaw out of the count, so where the
 // repository is in doubt both copies stay counted.
+//
+// A finding about an image is placed in no repository: its location is the image's reference, which
+// names nothing in a checkout.
 func placeImported(results []sarif.Result, meta importLog, repos []plugin.RepositoryTarget) {
 	next := 0
 	for _, run := range meta.Runs {
@@ -462,7 +527,9 @@ func placeImported(results []sarif.Result, meta importLog, repos []plugin.Reposi
 			if next >= len(results) {
 				return
 			}
-			results[next].ImportedRepository = where
+			if results[next].Image == "" {
+				results[next].ImportedRepository = where
+			}
 			next++
 		}
 	}
@@ -543,7 +610,8 @@ func (s importScope) detail() []sarif.Field {
 // every checkout, is somewhere nothing can place, and one with no placed repository could be in any
 // of the component's repositories, each scoped differently. Leaving either out would drop a flaw on a
 // guess. A component that lists one repository several times, a subtree each, keeps a finding inside
-// any of them, as its checkouts together hold it.
+// any of them, as its checkouts together hold it. A finding about an image is in no repository's
+// tree, and stays.
 func scopeImported(results []sarif.Result, outside []string, repos []plugin.RepositoryTarget) ([]bool, importScope) {
 	var s importScope
 	keep := make([]bool, len(results))
@@ -551,7 +619,7 @@ func scopeImported(results []sarif.Result, outside []string, repos []plugin.Repo
 	for i, r := range results {
 		keep[i] = true
 		uri := r.Location.URI
-		if !scoped || uri == "" || uri == "." || slices.Contains(outside, uri) {
+		if !scoped || uri == "" || uri == "." || r.Image != "" || slices.Contains(outside, uri) {
 			continue
 		}
 		if r.ImportedRepository == "" {

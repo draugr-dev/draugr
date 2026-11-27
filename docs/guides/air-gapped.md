@@ -34,7 +34,7 @@ downloaded.
 | When | What |
 |------|------|
 | `draugr tools install` | each tool's pinned release archive, verified against a recorded SHA-256 |
-| `draugr feeds update` | the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database |
+| `draugr feeds update` | the CISA KEV catalog, the FIRST EPSS scores and the Go vulnerability database, and with `--saga` the OSV.dev advisories the descriptor's `config.exploitability.advisories` names |
 | `draugr self-update` | the latest Draugr release |
 | `draugr doctor` | the latest Draugr release, to compare against yours, and each remote target a scan would read |
 | a scan, before it starts | the reference data each scanner reads, warmed once for the whole run |
@@ -54,7 +54,7 @@ Do this once, on a machine that has a network, and copy `~/.draugr` across.
 
 ```bash
 draugr tools install --all      # binaries and their data into ~/.draugr/bin
-draugr feeds update             # KEV, EPSS and the Go vulnerability database into ~/.draugr/feeds
+draugr feeds update --saga .    # KEV, EPSS, the Go vulnerability database and the descriptor's OSV.dev advisories
 trivy image --download-db-only  # Trivy's vulnerability database, into its own cache
 grype db update                 # Grype's vulnerability database, if you run it
 nuclei -update-templates        # Nuclei's template set, if you run dast
@@ -154,6 +154,11 @@ A copy older than `config.exploitability.maxAge` is used and reported as stale r
 refused; on a deliberately pinned runner, raise `maxAge` so a reproducible verdict does not come
 with a warning every run. See
 [`config.exploitability`](../reference/saga-schema.md#configexploitability).
+
+The OSV.dev advisories `config.exploitability.advisories` names follow the same rule. Each is a feed
+of its own, `osv-npm` for npm's, so prepare the cache with `--saga` pointing at the descriptor, or
+name the feeds. A scan whose descriptor names one the cache does not hold stops with the command
+that fetches it.
 
 ## Descriptors that name remote fragments
 

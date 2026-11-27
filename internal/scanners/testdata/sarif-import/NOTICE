@@ -9,6 +9,47 @@ dependency-check-6.1.2.sarif
   07e90e8f7c002d3141d1c307c03da019a9dea680). It is used under DefectDojo's
   BSD 3-Clause license, reproduced below from its LICENSE.md.
 
+twistcli-packagename.json
+twistcli-no-cvss.json
+twistcli-many-vulns.json
+
+  The JSON of three image scans as Prisma Cloud's twistcli images scan
+  --output-file writes it, copied unchanged from DefectDojo's repository at
+  commit cd0a4483a224707f72a0fc3112359089c1446b55: files
+  unittests/scans/twistlock/packagename.json (git blob
+  ca675a1f405d796b8cf509fa8ceac8b84c18a5b2), no_cvss.json (git blob
+  95b327a19d84dba3a3bcdb701ba1ab2ae89b4d8c) and many_vulns.json (git blob
+  682eca6e49d8c7b7326e9c51d6fb032548538346), which DefectDojo's Twistlock
+  parser tests read. They are used under the same BSD 3-Clause license as
+  dependency-check-6.1.2.sarif, reproduced below from its LICENSE.md.
+
+semgrep-scan.json
+
+  The JSON Semgrep 1.182.1 wrote with semgrep scan --json-output, unchanged,
+  of a project made for this test: a Python file, a JavaScript file, a
+  requirements.txt, a Gemfile.lock and a gradle.lockfile. Its code results come
+  from two rules written for this test. Its Supply Chain results come from the
+  rule ssc-82207871-bbda-49be-b1af-49fd927a2f93, taken from the ruleText of a
+  Semgrep Supply Chain advisory in DefectDojo's repository at commit
+  cd0a4483a224707f72a0fc3112359089c1446b55: file
+  unittests/scans/semgrep/sca-deployments-vulns.json (git blob
+  74329a6c3a60212a099c71cb9bf8abf4345a4cf1), which DefectDojo's Semgrep parser
+  tests read. The rule's message and metadata, which the results repeat, are
+  used under the same BSD 3-Clause license as dependency-check-6.1.2.sarif,
+  reproduced below from its LICENSE.md.
+
+aqua-many-vulns.json
+aqua-debian-severity.json
+
+  The JSON of two image scans as Aqua's scannercli scan --jsonfile writes it,
+  copied unchanged from DefectDojo's repository at commit
+  cd0a4483a224707f72a0fc3112359089c1446b55: files
+  unittests/scans/aqua/many_vulns.json (git blob
+  4385649e9a95a47b7cfadcd8def52c55fe72082b) and vulns_with_aqua_severity.json
+  (git blob d91a098b40c0c438235df669e7b82d470c6e429a), which DefectDojo's Aqua
+  parser tests read. They are used under the same BSD 3-Clause license as
+  dependency-check-6.1.2.sarif, reproduced below from its LICENSE.md.
+
   Copyright (c) 2015-2023 DefectDojo, Inc. All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -74,3 +115,153 @@ veracode-pipeline-js.sarif
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
+
+gitlab-sast-semgrep-analyzer.json
+gitlab-sast-spotbugs.json
+
+  SAST reports in GitLab's security report format, the output GitLab's own
+  analyzers expect of their test projects, copied unchanged from GitLab's
+  repositories. GitLab writes the placeholder ":AUTO_SKIP:" in the fields
+  that differ between runs, such as each vulnerability's id and the scan's
+  times and versions.
+
+  gitlab-sast-semgrep-analyzer.json is
+  https://gitlab.com/gitlab-org/security-products/analyzers/semgrep, file
+  qa/expect/python/pip-flask/gl-sast-report.json at commit
+  c1bc0a30ae36960e55ed1a33a2548f7a9d4987be (git blob
+  57579908bf5e48f90c17a23d45052eb23ebd0102).
+
+  gitlab-sast-spotbugs.json is
+  https://gitlab.com/gitlab-org/security-products/analyzers/spotbugs, file
+  qa/expect/maven/default/gl-sast-report.json at commit
+  90850a820f74bcaedf29e8c59ebab5b0c3a749f4 (git blob
+  8840a7ab30ea7dd9322caff06efe5432aabda1a1).
+
+  Both repositories carry the same MIT license, reproduced below from their
+  LICENSE files.
+
+  Copyright GitLab Inc.
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+gitlab-dependency-scanning-gemnasium.json
+
+  A dependency scanning report GitLab's Gemnasium analyzer 6.6.8 (image
+  registry.gitlab.com/security-products/gemnasium:6, digest
+  sha256:a6425bfaf3e5e79d701c4a7dc09494552c557c0f0f9402d26f37ecc963d33448)
+  wrote on 2026-11-26 of https://github.com/draugr-dev/draugr-demo at commit
+  ee9ac77, run once to record it, with its vendor directory excluded. It read
+  GitLab's community advisory database,
+  https://gitlab.com/gitlab-org/advisories-community, at commit
+  c93afb89859e7852fed2b1bcb55fb322028b1e6d, from which each vulnerability's
+  name, description and solution come. That database is used under its MIT
+  license, reproduced below from its LICENSE file.
+
+  The MIT License (MIT)
+
+  Copyright (c) 2020 GitLab B.V.
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+  of the Software, and to permit persons to whom the Software is furnished to do
+  so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+jfrog-audit-simple-json.json
+jfrog-audit-sarif.json
+
+  What JFrog's CLI writes as simple-json and as SARIF of the same jf audit
+  results, the expected output of its own test of those writers, copied
+  unchanged from https://github.com/jfrog/jfrog-cli-security at tag v1.41.4
+  (commit b723b302f57c2a55d190031f1f995fce66acd839):
+
+  jfrog-audit-simple-json.json is file
+  tests/testdata/output/audit/audit_simple_json.json (git blob
+  301f512c1d0bee4d1268bf26d74288be6772ee47), and jfrog-audit-sarif.json is
+  file tests/testdata/output/audit/audit_sarif.json (git blob
+  329181b68b41d0027e4abefe0f6b1b514897d792).
+  TestConvertResults in utils/results/conversion/convertor_test.go there
+  compares each writer's output with them.
+
+  They are used under the Apache License, Version 2.0, that repository's
+  license (its LICENSE file), which is also this repository's and is in
+  LICENSE at its root. That repository has no NOTICE file.
+
+checkmarx-one-results.json
+
+  The JSON of a Checkmarx One scan's results, as cx results show
+  --report-format json writes it, copied unchanged from
+  https://github.com/Checkmarx/ast-cli at tag 2.3.72 (commit
+  f4a4da11e850435c63b98a136fb6954d8cd449c9): file
+  internal/commands/data/cx_result.json (git blob
+  420c35961987159a2a2aeb19a56f123c34a7baa4), which that repository's tests of
+  cx chat sast read as a results file. Checkmarx renamed the scanned files for
+  its tests, and its SCA result's cveName reads CWE-78 where the id names
+  CVE-2013-7285.
+
+  It is used under the Apache License, Version 2.0, that repository's license
+  (its LICENSE file), which is also this repository's and is in LICENSE at its
+  root. That repository has no NOTICE file.
+
+mend-dep.json
+
+  The JSON of a Mend dependency scan of a Maven project, as mend dep --format
+  json --export-results writes it, copied unchanged from
+  https://github.com/carlspring/mend-actions at commit
+  be7f2e33ff881480a84725d2a90f839006b5c22b: file
+  src/test/resources/dependencies.json (git blob
+  998e971c834c9ad5d5b282a297b8d48249668501), which that repository keeps among
+  its test resources as the output of the mend dep its action runs.
+
+  Copyright 2025 SAP
+  Copyright 2025 Carlspring Limited
+
+  It is used under the Apache License, Version 2.0, that repository's license
+  (its LICENSE.md file), which is also this repository's and is in LICENSE at
+  its root. That repository has no NOTICE file.
+
+aqua-photon.json
+
+  The JSON of an image scan as Aqua's scannercli scan --jsonfile writes it,
+  copied unchanged from https://github.com/aquasecurity/harbor-scanner-aqua at
+  commit 085b02593caf650e701576c74da5d417d33f5695: file
+  pkg/aqua/test_fixtures/aqua_report_photon_3.0.json (git blob
+  4cba09e001c9db88e5522ca38eb60daf7ab28562), which that repository's tests of
+  its scannercli adapter read.
+
+  It is used under the Apache License, Version 2.0, that repository's license
+  (its LICENSE file), which is also this repository's and is in LICENSE at its
+  root. That repository's NOTICE file reads:
+
+    harbor-scanner-aqua
+    Copyright 2019-2021 Aqua Security Software Ltd.
+
+    This product includes software developed by Aqua Security (https://aquasec.com).

@@ -39,6 +39,8 @@ type server struct {
 	body   string
 	// duplicate answers a retried post.
 	duplicate bool
+	// runURL, when set, is the run's page the server names in its answer.
+	runURL string
 	// policy, when set, is the organization's verdict the server answers with.
 	policy map[string]any
 	// polls are the answers to GET /v1/ingest/runs/{id}/policy, in order, the last repeated.
@@ -110,6 +112,9 @@ func (p *server) server(t *testing.T) *httptest.Server {
 		}
 		if p.policy != nil {
 			answer["policy"] = p.policy
+		}
+		if p.runURL != "" {
+			answer["url"] = p.runURL
 		}
 		_ = json.NewEncoder(w).Encode(answer)
 	})

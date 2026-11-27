@@ -57,10 +57,12 @@ func RunCombinedWithEnv(ctx context.Context, dir string, argv, env []string) ([]
 	}
 	started := time.Now()
 	cmd := command(ctx, dir, argv, env)
-	out, err := cmd.CombinedOutput()
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	over, err := wait(ctx, cmd)
 	recordPeak(ctx, cmd.ProcessState)
-	log(ctx, argv, dir, started, out, err)
-	return out, explain(ctx, argv[0], err)
+	log(ctx, argv, dir, started, out.Bytes(), err)
+	return out.Bytes(), explain(ctx, argv[0], stopped(ctx, over, err))
 }
 
 // RunWithEnv is Run with extra environment variables layered over the parent's, each "K=V".
@@ -75,10 +77,10 @@ func RunWithEnv(ctx context.Context, dir string, argv, env []string) ([]byte, er
 	}
 	started := time.Now()
 	cmd := command(ctx, dir, argv, env)
-	out, err := cmd.Output()
+	over, out, err := output(ctx, cmd)
 	recordPeak(ctx, cmd.ProcessState)
 	log(ctx, argv, dir, started, out, err)
-	return out, explain(ctx, argv[0], err)
+	return out, explain(ctx, argv[0], stopped(ctx, over, err))
 }
 
 // command is the process for argv: run in dir, with the caller's environment, env layered over it,
@@ -141,10 +143,10 @@ func RunWithLog(ctx context.Context, dir string, argv, env []string, stream Log)
 	cmd := command(ctx, dir, argv, env)
 	held := &keptLines{keep: stream.Keep}
 	cmd.Stderr = held
-	out, err := cmd.Output()
+	over, out, err := output(ctx, cmd)
 	recordPeak(ctx, cmd.ProcessState)
 	kept := held.Bytes()
-	// Output() fills the exit error's Stderr only when it captured the stream itself, and explain and
+	// output fills the exit error's Stderr only when it captured the stream itself, and explain and
 	// log read it from there.
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		exit.Stderr = shown(kept)
@@ -154,7 +156,7 @@ func RunWithLog(ctx context.Context, dir string, argv, env []string, stream Log)
 		}
 	}
 	log(ctx, argv, dir, started, out, err)
-	return out, kept, explain(ctx, argv[0], err)
+	return out, kept, explain(ctx, argv[0], stopped(ctx, over, err))
 }
 
 // keptLines is a writer that holds, of what a tool writes to it, each line keep accepts, newline
@@ -288,6 +290,9 @@ func explain(ctx context.Context, tool string, err error) error {
 	exit, ok := errors.AsType[*exec.ExitError](err)
 	if ok && (exit.ExitCode() == 126 || exit.ExitCode() == 127) {
 		return cannotStart(tool, err, exit)
+	}
+	if errors.Is(err, ErrOverMemoryBound) {
+		return err
 	}
 	if ok && killed(exit) && ctx.Err() == nil {
 		return killedError{err}

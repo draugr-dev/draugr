@@ -2,6 +2,8 @@ package scanpolicy
 
 import (
 	"context"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/draugr-dev/draugr/internal/toolexec"
@@ -11,8 +13,8 @@ import (
 // Each scan.* key sets its limit where its flag was not typed, a typed flag wins whatever its value,
 // and a key the file leaves out leaves the limit as it was.
 func TestConfigureFoldsTheFileUnderTypedFlags(t *testing.T) {
-	on, off, four := true, false, 4
-	file := config.ScanSettings{Jobs: &four, LimitToolThreads: &on, ShareWorkers: &on}
+	on, off, four, eight, none := true, false, 4, "8GiB", "0"
+	file := config.ScanSettings{Jobs: &four, LimitToolThreads: &on, ShareWorkers: &on, ToolMemory: &eight}
 	for _, tc := range []struct {
 		name  string
 		start Limits
@@ -20,11 +22,11 @@ func TestConfigureFoldsTheFileUnderTypedFlags(t *testing.T) {
 		typed map[string]bool
 		want  Limits
 	}{
-		{"no flags", Limits{}, file, nil, Limits{Jobs: 4, LimitToolThreads: true, ShareWorkers: true}},
+		{"no flags", Limits{}, file, nil, Limits{Jobs: 4, LimitToolThreads: true, ShareWorkers: true, ToolMemory: "8GiB"}},
 		{"every flag typed", Limits{Jobs: 0}, file,
-			map[string]bool{JobsFlag: true, LimitToolThreadsFlag: true, ShareWorkersFlag: true}, Limits{}},
-		{"a file that turns them off", Limits{LimitToolThreads: true, ShareWorkers: true},
-			config.ScanSettings{LimitToolThreads: &off, ShareWorkers: &off}, nil, Limits{}},
+			map[string]bool{JobsFlag: true, LimitToolThreadsFlag: true, ShareWorkersFlag: true, ToolMemoryFlag: true}, Limits{}},
+		{"a file that turns them off", Limits{LimitToolThreads: true, ShareWorkers: true, ToolMemory: "1GiB"},
+			config.ScanSettings{LimitToolThreads: &off, ShareWorkers: &off, ToolMemory: &none}, nil, Limits{ToolMemory: "0"}},
 		{"a file that sets nothing", Limits{Jobs: 7, ShareWorkers: true}, config.ScanSettings{}, nil,
 			Limits{Jobs: 7, ShareWorkers: true}},
 	} {
@@ -63,6 +65,41 @@ func TestContextMarksTheToolLimits(t *testing.T) {
 		if toolexec.LimitsThreads(ctx) != tc.wantLimited || toolexec.SharesWorkers(ctx) != tc.wantPool {
 			t.Errorf("%+v: threads limited %t, workers shared %t, want %t and %t", tc.limits,
 				toolexec.LimitsThreads(ctx), toolexec.SharesWorkers(ctx), tc.wantLimited, tc.wantPool)
+		}
+	}
+}
+
+// A bound no run could apply is refused, naming the flag when it was typed and the key when a file
+// set it, and an empty or valid one passes.
+func TestCheckNamesWhereABadBoundCameFrom(t *testing.T) {
+	for _, ok := range []string{"", "0", "512MiB"} {
+		if err := (Limits{ToolMemory: ok}).Check(nil); err != nil {
+			t.Errorf("%q refused: %v", ok, err)
+		}
+	}
+	bad := Limits{ToolMemory: "8G"}
+	if err := bad.Check(map[string]bool{ToolMemoryFlag: true}); err == nil || !strings.HasPrefix(err.Error(), "--tool-memory: ") {
+		t.Errorf("a typed bad bound: %v, want the flag named", err)
+	}
+	if err := bad.Check(nil); err == nil || !strings.HasPrefix(err.Error(), "scan.toolMemory: ") {
+		t.Errorf("a configured bad bound: %v, want the key named", err)
+	}
+}
+
+// The context carries the bound where the platform enforces one, and none where ToolMemory is unset,
+// zero or a value Check would refuse.
+func TestContextCarriesTheMemoryBound(t *testing.T) {
+	got := toolexec.MemoryBoundOf((Limits{ToolMemory: "2GiB"}).Context(context.Background()))
+	want := uint64(0)
+	if runtime.GOOS == "linux" {
+		want = 2 << 30
+	}
+	if got.Bytes != want {
+		t.Errorf("bound = %+v, want %d bytes on %s", got, want, runtime.GOOS)
+	}
+	for _, none := range []string{"", "0", "8G"} {
+		if b := toolexec.MemoryBoundOf((Limits{ToolMemory: none}).Context(context.Background())); b.Bytes != 0 {
+			t.Errorf("%q gave the bound %+v", none, b)
 		}
 	}
 }

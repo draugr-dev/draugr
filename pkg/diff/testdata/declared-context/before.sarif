@@ -3,6 +3,14 @@
   "runs": [
     {
       "tool": {"driver": {"name": "Draugr"}},
+      "properties": {
+        "draugr/provenance": [
+          {"tool": "draugr/declared", "fields": {"controls": "[]", "exclusions": "[]"}},
+          {"tool": "draugr/declared", "component": "api", "fields": {"controls": "[]", "criticality": "", "exposure": "", "repositories": "[]", "scopes": "[]"}},
+          {"tool": "draugr/declared", "component": "platform", "fields": {"controls": "[]", "criticality": "", "exposure": "", "repositories": "[]", "scopes": "[]"}},
+          {"tool": "draugr/declared", "component": "worker", "fields": {"controls": "[]", "criticality": "", "exposure": "", "repositories": "[]", "scopes": "[]"}}
+        ]
+      },
       "results": [
         {
           "ruleId": "CVE-2026-4800",

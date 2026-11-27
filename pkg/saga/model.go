@@ -532,7 +532,26 @@ type ExploitabilityConfig struct {
 	// reason to say "do not tell me it is old", reproducing last quarter's verdict requires last
 	// quarter's feed.
 	MaxAge string `yaml:"maxAge,omitempty"`
+	// Advisories names the ecosystems whose OSV.dev advisories are read to find the CVE of a
+	// finding its scanner named only by a GitHub, PyPI, RustSec or Go advisory id, so KEV and EPSS
+	// can match it. Each is one archive, fetched and read the way kev and epss are; npm's weighs
+	// hundreds of megabytes, which is why each is asked for by name. Empty reads none.
+	Advisories []AdvisoryEcosystem `yaml:"advisories,omitempty"`
 }
+
+// AdvisoryEcosystem is an ecosystem whose OSV.dev advisories a scan can read.
+type AdvisoryEcosystem string
+
+// The ecosystems config.exploitability.advisories accepts.
+const (
+	AdvisoryNpm    AdvisoryEcosystem = "npm"
+	AdvisoryPyPI   AdvisoryEcosystem = "pypi"
+	AdvisoryCrates AdvisoryEcosystem = "crates.io"
+	AdvisoryGo     AdvisoryEcosystem = "go"
+)
+
+// AdvisoryEcosystems lists every AdvisoryEcosystem, in the order the reference documents them.
+var AdvisoryEcosystems = []AdvisoryEcosystem{AdvisoryNpm, AdvisoryPyPI, AdvisoryCrates, AdvisoryGo}
 
 // DependencyHealthConfig turns on ranking by what is known about a dependency itself.
 //
@@ -1031,8 +1050,8 @@ type Import struct {
 	// Exactly one of File and Source.
 	File string `yaml:"file,omitempty"`
 	// Source names a service whose alerts for the component's repository are read in place of a
-	// file: ImportSourceGitHubCodeScanning or ImportSourceGitHubDependabot. Exactly one of File and
-	// Source.
+	// file: ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot or ImportSourceSonarQube.
+	// Exactly one of File and Source.
 	//
 	// One source per import, as one file is, so each has its own control, suppressions setting and
 	// line in the report: code-scanning alerts belong in sast and Dependabot's in sca.
@@ -1047,6 +1066,10 @@ type Import struct {
 	// one import per repository, because the alerts of one would otherwise be read as another's.
 	// Source only.
 	Repository string `yaml:"repository,omitempty"`
+	// Project is the SonarQube project whose issues and hotspots a sonarqube source reads, its project
+	// key. Required by that source and refused by every other: SonarQube names a project by its own key,
+	// which no repository address gives.
+	Project string `yaml:"project,omitempty"`
 	// Format is what the file is: ImportFormatSARIF, the default, or a tool's own JSON, which
 	// Draugr reads with the reader its own run of that tool uses. A dependency scanner's SARIF
 	// states the package and its fixed version only in prose, and govulncheck's carries no call
@@ -1109,6 +1132,36 @@ const (
 	// ImportFormatVeracodePipelineJSON is the results.json Veracode's Pipeline Scan writes with
 	// `-jo true`.
 	ImportFormatVeracodePipelineJSON = "veracode-pipeline-json"
+	// ImportFormatGitLabSAST is a SAST report in GitLab's security report format, the
+	// gl-sast-report.json GitLab's analyzers write and other tools write for GitLab.
+	ImportFormatGitLabSAST = "gitlab-sast"
+	// ImportFormatGitLabDependencyScanning is a dependency scanning report in GitLab's security report
+	// format, the gl-dependency-scanning-report.json GitLab's analyzers write.
+	ImportFormatGitLabDependencyScanning = "gitlab-dependency-scanning"
+	// ImportFormatJFrogSimpleJSON is the simple-json JFrog's CLI writes with jf audit --format
+	// simple-json, which holds a scan's dependency, SAST, secrets and IaC findings together. Each import
+	// of it reads the results of its own control, so the file is imported once into each of sca, sast,
+	// secrets and iac (ImportFormatControls).
+	ImportFormatJFrogSimpleJSON = "jfrog-simple-json"
+	// ImportFormatCheckmarxOneJSON is the JSON Checkmarx One's CLI writes with cx results show
+	// --report-format json, which holds a scan's SAST, SCA and KICS results together. Each import of it
+	// reads the results of its own control, so the file is imported once into each of sast, sca and
+	// iac (ImportFormatControls).
+	ImportFormatCheckmarxOneJSON = "checkmarx-one-json"
+	// ImportFormatMendJSON is the JSON Mend's CLI writes of a dependency scan with mend dep --format
+	// json --export-results <file>, a list of the libraries it found and their vulnerabilities.
+	ImportFormatMendJSON = "mend-json"
+	// ImportFormatTwistcliJSON is the JSON Prisma Cloud's twistcli writes of an image scan with
+	// twistcli images scan --output-file <file>, the image's vulnerable packages.
+	ImportFormatTwistcliJSON = "twistcli-json"
+	// ImportFormatAquaJSON is the JSON Aqua's scanner writes of an image scan with scannercli scan
+	// --jsonfile <file>, the image's packages and their vulnerabilities.
+	ImportFormatAquaJSON = "aqua-json"
+	// ImportFormatSemgrepJSON is the JSON Semgrep writes with semgrep ci --json-output=<file> or semgrep
+	// scan --json-output=<file>, which holds a scan's code and Supply Chain results together. Each import
+	// of it reads the results of its own control, so the file is imported once into each of sast and sca
+	// (ImportFormatControls).
+	ImportFormatSemgrepJSON = "semgrep-json"
 	// ImportFormatConverter is the file a declared converter writes, in the versioned contract
 	// pkg/converter reads.
 	ImportFormatConverter = "draugr-converter"
@@ -1116,7 +1169,56 @@ const (
 
 // ImportFormats are the values an import's format accepts.
 var ImportFormats = []string{ImportFormatSARIF, ImportFormatTrivyJSON, ImportFormatGovulncheckJSON, ImportFormatGrypeJSON,
-	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatConverter}
+	ImportFormatOSVScannerJSON, ImportFormatVeracodePipelineJSON, ImportFormatGitLabSAST,
+	ImportFormatGitLabDependencyScanning, ImportFormatJFrogSimpleJSON, ImportFormatCheckmarxOneJSON, ImportFormatMendJSON,
+	ImportFormatTwistcliJSON, ImportFormatAquaJSON, ImportFormatSemgrepJSON, ImportFormatConverter}
+
+// ImportFormatControls are the controls an import of a format may name, by format, for a format that
+// holds several tools' results or only one control's. A format absent here is read whole into
+// whichever control the import names.
+var ImportFormatControls = map[string][]string{
+	ImportFormatCheckmarxOneJSON: {"sast", "sca", "iac"},
+	// Semgrep's JSON holds its code results and its Supply Chain results; its Secrets results, which it
+	// may hold too, are not read.
+	ImportFormatSemgrepJSON: {"sast", "sca"},
+	// Mend's dependency scan holds vulnerable libraries only, so an import into any other control
+	// would read packages as that control's findings.
+	ImportFormatMendJSON: {"sca"},
+	// twistcli's file is an image scan: its vulnerabilities are the image's packages, and its
+	// compliance results, which are not read, describe how the image is built.
+	ImportFormatTwistcliJSON: {"images"},
+	// Aqua's scanner JSON is an image scan: its vulnerabilities are the image's packages, and its
+	// sensitive data, malware and assurance results, which are not read, are not packages.
+	ImportFormatAquaJSON: {"images"},
+	// Trivy's JSON is read for its vulnerabilities only: a filesystem scan's into sca and an image
+	// scan's into images, which the reader holds to the file's ArtifactType.
+	ImportFormatTrivyJSON: {"sca", "images"},
+	// govulncheck reports vulnerable Go modules, each read at the go.mod of the module it analyzed.
+	ImportFormatGovulncheckJSON: {"sca"},
+	// The reader takes a Grype directory scan only, whose matches are the repository's dependencies.
+	ImportFormatGrypeJSON: {"sca"},
+	// The reader takes lockfile and SBOM results only, and refuses an image or a git source.
+	ImportFormatOSVScannerJSON: {"sca"},
+	// Veracode Pipeline Scan is a static analysis of the built application; its flaws are code
+	// findings with a file, a line and a CWE.
+	ImportFormatVeracodePipelineJSON: {"sast"},
+	// A GitLab SAST report holds code findings; GitLab writes dependency findings to a report of
+	// their own, read as gitlab-dependency-scanning.
+	ImportFormatGitLabSAST: {"sast"},
+	// A GitLab dependency scanning report holds vulnerable packages only.
+	ImportFormatGitLabDependencyScanning: {"sca"},
+	// jf audit's file holds its dependency, SAST, secrets and IaC scans together, and each import of
+	// it reads its own control's.
+	ImportFormatJFrogSimpleJSON: {"sca", "sast", "secrets", "iac"},
+}
+
+// ImportFormatReadsByControl reports whether what a file of format reads as depends on the control it
+// is imported into: a file holding several controls' results is read for that control's, and a Trivy
+// file is refused in the control its scan does not belong to. One file imported into two controls is
+// then two reads. A format bound to one control reads the same in the only control it may name.
+func ImportFormatReadsByControl(format string) bool {
+	return len(ImportFormatControls[format]) > 1
+}
 
 // The services an import's Source names.
 const (
@@ -1125,18 +1227,26 @@ const (
 	ImportSourceGitHubCodeScanning = "github-code-scanning"
 	// ImportSourceGitHubDependabot is a repository's Dependabot alerts, read from GitHub's REST API.
 	ImportSourceGitHubDependabot = "github-dependabot"
+	// ImportSourceSonarQube is a SonarQube project's security issues and hotspots, read from the Web
+	// API of SonarQube Cloud or of the server $SONAR_HOST_URL names.
+	ImportSourceSonarQube = "sonarqube"
 )
 
 // ImportSources are the values an import's source accepts.
-var ImportSources = []string{ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot}
+var ImportSources = []string{ImportSourceGitHubCodeScanning, ImportSourceGitHubDependabot, ImportSourceSonarQube}
 
-// Name is what the import reads as a reader is told it: the file, or the source and the repository
-// it names, `github-code-scanning acme/api`.
+// ImportSourceControls are the controls an import of a source may name, for a source whose findings
+// belong to one control. SonarQube's security issues and hotspots are code findings, at a file and
+// line under a rule.
+var ImportSourceControls = map[string][]string{ImportSourceSonarQube: {"sast"}}
+
+// Name is what the import reads as a reader is told it: the file, or the source and the project and
+// repository it names, `github-code-scanning acme/api` or `sonarqube acme_api`.
 func (i Import) Name() string {
 	if i.Source == "" {
 		return i.File
 	}
-	return strings.TrimSpace(i.Source + " " + i.Repository)
+	return strings.Join(strings.Fields(i.Source+" "+i.Project+" "+i.Repository), " ")
 }
 
 // ReadFormat is the format the import's file is read as: Format, or SARIF where it names none.

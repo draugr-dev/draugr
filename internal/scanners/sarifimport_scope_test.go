@@ -36,6 +36,26 @@ var monorepoLog = exampleLog(strings.Join([]string{
 	foundAt("EX2", "tools/gen.py"),
 }, ","), "")
 
+// monorepoFiles are the files monorepoLog's findings are in, as a checkout of the monorepo holds them.
+var monorepoFiles = []string{"services/api/handler.py", "services/web/app.py", "services/web/vendor/lib.py", "tools/gen.py"}
+
+// importCheckout is a directory holding an empty file at each of paths, the checkout an imported file's
+// findings are placed in: a finding whose file the checkout lacks is not scoped.
+func importCheckout(t *testing.T, paths ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, p := range paths {
+		full := filepath.Join(dir, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
 // importedPaths is each component's imported findings in control, by path.
 func importedPaths(res engine.Result, control string) map[string][]string {
 	out := map[string][]string{}
@@ -59,7 +79,7 @@ func TestAnImportIntoTwoComponentsSplitsByTheirPaths(t *testing.T) {
 	reg.RegisterController(controllers.NewSAST())
 	reg.RegisterScanner(semgrep)
 	reg.RegisterScanner(NewSARIFImport())
-	repo := t.TempDir()
+	repo := importCheckout(t, monorepoFiles...)
 	file := writeFile(t, monorepoLog)
 	imports := []saga.Import{{Control: "sast", File: file}}
 	model := saga.Model{
@@ -118,10 +138,11 @@ func TestAnImportIntoTwoComponentsSplitsByTheirPaths(t *testing.T) {
 // still outside the tools repository the file is about. Where the file names neither, which paths
 // apply is unknown, so every finding stays and the run counts them as not scoped.
 func TestAnImportIsScopedByTheRepositoryItIsPlacedIn(t *testing.T) {
+	// Named for the repositories, which a file's versionControlProvenance is matched to by name.
 	root := t.TempDir()
 	service, tools := filepath.Join(root, "service"), filepath.Join(root, "tools")
 	for _, dir := range []string{service, tools} {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
+		if err := os.Rename(importCheckout(t, "app/x.py", "cmd/y.go", "docs/z.md"), dir); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -176,7 +197,7 @@ func TestAnImportIsScopedByTheRepositoryItIsPlacedIn(t *testing.T) {
 // checkout, which the run lists as unread. A repository listed once per subtree keeps a finding in
 // any of them. The severity source describes the findings kept.
 func TestAnImportKeepsWhatItCannotPlace(t *testing.T) {
-	dir := t.TempDir()
+	dir := importCheckout(t, "app/a.go", "deploy/chart.yaml", "lib/b.go")
 	repos := []plugin.RepositoryTarget{{URL: dir, Paths: []string{"app"}}, {URL: dir, Paths: []string{"deploy"}}}
 	results := strings.Join([]string{
 		foundAt("EX2", "/opt/ci/build/gen.go"),
@@ -241,12 +262,90 @@ func TestImportScopeFields(t *testing.T) {
 	}
 	rep, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{
 		Path: writeFile(t, monorepoLog), Component: "web",
-		Repositories: []plugin.RepositoryTarget{{URL: t.TempDir(), Ignore: []string{"services/web/vendor"}}},
+		Repositories: []plugin.RepositoryTarget{{URL: importCheckout(t, monorepoFiles...), Ignore: []string{"services/web/vendor"}}},
 	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(rep.Results) != 3 || field(t, rep, "left out") != "1 finding matched by ignore, not counted" {
 		t.Errorf("results = %d, left out = %q", len(rep.Results), field(t, rep, "left out"))
+	}
+}
+
+// A path that names no file in the checkout of the repository its finding is placed in is not the
+// file's path. gosec writes paths relative to the Go module it analyzed, so a module in checkout/
+// gives main.go for checkout/main.go. Such a finding stays, is listed unread with the reason, and is
+// not judged by paths: or ignore:, which would leave it out on a path that is not its file's. A path
+// that names a real file outside paths: is still left out. Placement decides which checkout is read:
+// a path that is a file in one repository names no file in the other.
+func TestAnImportedPathNamingNoFileIsKeptAndListed(t *testing.T) {
+	root := t.TempDir()
+	service, tools := filepath.Join(root, "service"), filepath.Join(root, "tools")
+	for dir, files := range map[string][]string{service: {"checkout/main.go", "docs/z.md"}, tools: {"cmd/y.go"}} {
+		if err := os.Rename(importCheckout(t, files...), dir); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repos := []plugin.RepositoryTarget{{URL: service, Paths: []string{"checkout"}}, {URL: tools, Paths: []string{"cmd"}}}
+	results := strings.Join([]string{
+		foundAt("G705", "main.go"), foundAt("G705", "main.go"), foundAt("EX2", "checkout/main.go"), foundAt("EX2", "docs/z.md"),
+	}, ",")
+	for _, c := range []struct {
+		name, repo  string
+		kept        []string
+		unread      []string
+		leftOutSaid string
+	}{
+		{
+			name: "placed in the service", repo: "service",
+			kept:        []string{"main.go", "main.go", "checkout/main.go"},
+			unread:      []string{"main.go"},
+			leftOutSaid: "1 finding outside paths, not counted",
+		},
+		{
+			name: "placed in the tools repository", repo: "tools",
+			kept:   []string{"main.go", "main.go", "checkout/main.go", "docs/z.md"},
+			unread: []string{"main.go", "checkout/main.go", "docs/z.md"},
+		},
+	} {
+		extra := `"versionControlProvenance":[{"repositoryUri":"https://example.com/acme/` + c.repo + `.git"}],`
+		rep, err := NewSARIFImport().Scan(context.Background(),
+			plugin.FileTarget{Path: writeFile(t, exampleLog(results, extra)), Component: "api", Repositories: repos}, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		var kept, unread []string
+		for _, r := range rep.Results {
+			kept = append(kept, r.Location.URI)
+		}
+		for _, in := range rep.Inputs {
+			if in.Unread != namesNoFile {
+				t.Errorf("%s: %s unread as %q, want %q", c.name, in.Path, in.Unread, namesNoFile)
+			}
+			unread = append(unread, in.Path)
+		}
+		// The two findings at main.go differ in nothing, so the file's repeat is folded into one.
+		kept = slices.Compact(kept)
+		if want := slices.Compact(c.kept); !slices.Equal(kept, want) {
+			t.Errorf("%s: kept %q, want %q", c.name, kept, want)
+		}
+		if !slices.Equal(unread, c.unread) {
+			t.Errorf("%s: unread %q, want %q, each once", c.name, unread, c.unread)
+		}
+		if c.leftOutSaid != "" && field(t, rep, "left out") != c.leftOutSaid {
+			t.Errorf("%s: left out = %q, want %q", c.name, field(t, rep, "left out"), c.leftOutSaid)
+		}
+	}
+}
+
+// A finding placed in a repository named by a remote address has no checkout here to look in, and
+// its path is taken as written rather than listed unread.
+func TestAnImportIntoARemoteRepositoryReadsPathsAsWritten(t *testing.T) {
+	got := missingFromCheckout(
+		[]sarif.Result{{Location: sarif.Location{URI: "main.go"}, ImportedRepository: "https://example.com/acme/service.git"}},
+		[]plugin.RepositoryTarget{{URL: "https://example.com/acme/service.git"}},
+	)
+	if len(got) != 0 {
+		t.Errorf("missing = %q, want nothing for a repository with no local checkout", got)
 	}
 }

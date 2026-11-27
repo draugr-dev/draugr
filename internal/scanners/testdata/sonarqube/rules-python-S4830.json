@@ -1,0 +1,31 @@
+{
+  "rule": {
+    "key": "python:S4830",
+    "repo": "python",
+    "name": "Server certificates should be verified during SSL/TLS connections",
+    "severity": "CRITICAL",
+    "status": "READY",
+    "isTemplate": false,
+    "tags": [],
+    "sysTags": [
+      "cwe",
+      "cryptography",
+      "privacy",
+      "ssl"
+    ],
+    "lang": "py",
+    "langName": "Python",
+    "scope": "MAIN",
+    "isExternal": false,
+    "type": "VULNERABILITY",
+    "cleanCodeAttribute": "TRUSTWORTHY",
+    "cleanCodeAttributeCategory": "RESPONSIBLE",
+    "impacts": [
+      {
+        "softwareQuality": "SECURITY",
+        "severity": "HIGH"
+      }
+    ]
+  },
+  "actives": []
+}

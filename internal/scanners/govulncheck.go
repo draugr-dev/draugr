@@ -84,7 +84,10 @@ func govulncheckUnfinished(dir string, err error) []sarif.Input {
 		return nil
 	}
 	reason := "govulncheck: did not finish, so no Go module here was analyzed"
-	if killed {
+	switch {
+	case errors.Is(err, toolexec.ErrOverMemoryBound):
+		reason = "govulncheck: used more memory than --tool-memory allows and was stopped, so no Go module here was analyzed"
+	case killed:
 		reason = "govulncheck: was killed before it finished, most likely for lack of memory, so no Go module here was analyzed"
 	}
 	runs, _ := govulncheckPlan(dir)

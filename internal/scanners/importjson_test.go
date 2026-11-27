@@ -384,6 +384,56 @@ func TestAnImportedToolJSONPlacesAbsolutePaths(t *testing.T) {
 	}
 }
 
+// A Trivy file is read in the control its scan belongs to: an image scan in images, a filesystem scan
+// in sca. In the other, its findings would read as that control's, so the file is refused.
+func TestATrivyFileIsReadInTheControlItsScanBelongsTo(t *testing.T) {
+	image := filepath.Join("testdata", "sarif-import", "trivy-image-alpine.json")
+	fs := filepath.Join("testdata", "sarif-import", "trivy-fs-gomod.json")
+	for _, c := range []struct{ name, path, control, want string }{
+		{"an image scan in images", image, "images", ""},
+		{"a filesystem scan in sca", fs, "sca", ""},
+		{"an image scan in sca", image, "sca", "an image scan; import it into images"},
+		{"a filesystem scan in images", fs, "images", "a filesystem scan; images reads trivy image --format json"},
+	} {
+		rep, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{Path: c.path,
+			Format: saga.ImportFormatTrivyJSON, Control: c.control}, nil)
+		switch {
+		case c.want == "" && (err != nil || len(rep.Results) == 0):
+			t.Errorf("%s: %d findings, err %v, want the file read", c.name, len(rep.Results), err)
+		case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+			t.Errorf("%s: err = %v, want %q", c.name, err, c.want)
+		}
+	}
+	if err := trivyImportControl("", "images"); err == nil || !strings.Contains(err.Error(), "a Trivy scan;") {
+		t.Errorf("no ArtifactType in images: %v", err)
+	}
+}
+
+// An image scan's findings are about the image Trivy scanned, as a native image finding is about the
+// one Draugr asked for: its image and location are the image, and it is placed in no repository, so a
+// component's paths: leave it in and the image is not listed as naming no file in the checkout.
+func TestATrivyImageImportIsAboutTheImage(t *testing.T) {
+	rep, err := NewSARIFImport().Scan(context.Background(), plugin.FileTarget{
+		Path: filepath.Join("testdata", "sarif-import", "trivy-image-alpine.json"), Format: saga.ImportFormatTrivyJSON,
+		Control: "images", Repositories: []plugin.RepositoryTarget{{URL: t.TempDir(), Paths: []string{"svc"}}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Results) == 0 {
+		t.Fatal("no findings")
+	}
+	for _, r := range rep.Results {
+		if r.Image != "alpine:3.10" || r.Location.URI != "alpine:3.10" || r.OperatingSystem != "alpine 3.10.9" ||
+			r.ImportedRepository != "" {
+			t.Errorf("%s: image %q at %q, os %q, placed in %q", r.RuleID, r.Image, r.Location.URI, r.OperatingSystem,
+				r.ImportedRepository)
+		}
+	}
+	if len(rep.Inputs) != 0 {
+		t.Errorf("inputs = %+v", rep.Inputs)
+	}
+}
+
 // A file that is not the format the import names is refused, rather than read as a clean scan, in
 // words the errors block keeps whole: its last clause, within 80 characters.
 func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
@@ -398,6 +448,8 @@ func TestAnImportRefusesAFileThatIsNotItsFormat(t *testing.T) {
 		{"Trivy JSON as govulncheck JSON", saga.ImportFormatGovulncheckJSON, `{"SchemaVersion":2,"Results":[]}`, "not govulncheck JSON"},
 		{"SARIF as Grype JSON", saga.ImportFormatGrypeJSON, sarifLog, "not Grype JSON. Write it with grype dir:. -o json"},
 		{"SARIF as OSV-Scanner JSON", saga.ImportFormatOSVScannerJSON, sarifLog, "not OSV-Scanner JSON. Write it with osv-scanner scan --format json"},
+		{"SARIF as Aqua's scanner JSON", saga.ImportFormatAquaJSON, sarifLog, "not Aqua's scanner JSON. Write it with scannercli scan --jsonfile"},
+		{"SARIF as Semgrep's JSON", saga.ImportFormatSemgrepJSON, sarifLog, "not Semgrep's JSON. Write it with semgrep ci --json-output"},
 		{"an unknown format", "sarif-2.0", sarifLog, "format sarif-2.0 is not one Draugr reads. draugr validate lists them"},
 		{"no converter declared", saga.ImportFormatConverter, sarifLog, "declares no converter. Add converter to the import"},
 	} {

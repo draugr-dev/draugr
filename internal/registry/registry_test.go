@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 func TestParse(t *testing.T) {
@@ -255,9 +257,7 @@ func fakeHelper(t *testing.T, name, body, stderr string) {
 	} else {
 		script += "echo '" + stderr + "' >&2\nexit 1\n"
 	}
-	if err := os.WriteFile(filepath.Join(dir, "docker-credential-"+name), []byte(script), 0o700); err != nil { // #nosec G306 -- an executable test helper
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(dir, "docker-credential-"+name), []byte(script), 0o700)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 

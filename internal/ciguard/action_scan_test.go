@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/draugr-dev/draugr/internal/standin"
 )
 
 // stubScan stands in for the binary in the Action's scan step. It advertises the code-scanning report
@@ -71,9 +73,7 @@ func runActionScan(t *testing.T, env ...string) scanRun {
 		t.Fatal(err)
 	}
 	// #nosec G306 -- the stub has to be executable to stand in for the binary
-	if err := os.WriteFile(filepath.Join(bin, "draugr"), []byte(stubScan), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	standin.Write(t, filepath.Join(bin, "draugr"), []byte(stubScan), 0o700)
 	args, outputs := filepath.Join(root, "args"), filepath.Join(root, "github-output")
 	// #nosec G204 -- the Action's own checked-in script, run as GitHub runs it
 	cmd := exec.Command("bash", "-c", actionStep(t, "scan"))

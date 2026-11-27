@@ -135,6 +135,10 @@ type Status struct {
 	// BuildGo is the Go release the binary was built with, read for a tool Draugr builds with Go
 	// (GoToolchain). Empty for any other tool, and where the file carries no build information.
 	BuildGo string
+	// Unwritable lists the places the tool writes as it runs that cannot be written, each of which
+	// fails a scan as surely as the tool being absent. Empty where every such place can be, or
+	// nobody asked.
+	Unwritable []Unwritable
 }
 
 // LookPathFunc resolves a binary name to a path (defaults to exec.LookPath).
@@ -328,7 +332,7 @@ func Catalog() map[string]Tool {
 // which is the cue to regenerate the tables and move this.
 //
 // A quoted literal on a line of its own: tool-bump reads it with grep.
-const ProwlerTablesVersion = "5.48.0"
+const ProwlerTablesVersion = "5.52.0"
 
 // All returns the catalog's tools sorted by binary name, for a full environment check when
 // no Saga narrows the set.

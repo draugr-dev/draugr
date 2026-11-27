@@ -34,3 +34,18 @@ func TestWhereASuppressionWasRecorded(t *testing.T) {
 		}
 	}
 }
+
+// A decision made in a service is placed in that service, in GitHub's word for GitHub's alerts and as
+// set aside elsewhere, and a file's suppression where its kind says.
+func TestWhereNamesTheServiceAndItsWord(t *testing.T) {
+	for _, c := range []struct{ service, kind, want string }{
+		{"GitHub code scanning", "external", "dismissed in GitHub code scanning"},
+		{"Dependabot", "external", "dismissed in Dependabot"},
+		{"SonarQube", "external", "set aside in SonarQube"},
+		{"", "inSource", "suppressed " + SuppressedIn("inSource")},
+	} {
+		if got := (Suppression{Service: c.service, Kind: c.kind}).Where(); got != c.want {
+			t.Errorf("%q: Where = %q, want %q", c.service, got, c.want)
+		}
+	}
+}

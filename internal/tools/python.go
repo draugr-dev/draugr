@@ -24,6 +24,12 @@ var pythonPins embed.FS
 // checked first and named plainly.
 const minPythonMinor = 10
 
+// newestPythonMinor is the newest Python 3 minor findPython looks for by name, and the newest the
+// pinned sets are resolved for. internal/tools/pythonpins/generate.py resolves every minor from
+// minPythonMinor to this one, and TestThePinsCoverEveryPythonTheInstallerUses holds the two
+// together, so an interpreter the installer picks is one the pins were built for.
+const newestPythonMinor = 14
+
 // PythonSpec describes a tool that ships as a Python package rather than a release binary.
 //
 // Some scanners publish no binary at all: Semgrep's GitHub releases carry zero assets, and it
@@ -93,18 +99,27 @@ func installPython(ctx context.Context, root, tool string, spec PythonSpec, vers
 	// --no-deps keeps pip to the set that was pinned rather than resolving alongside it. The set
 	// describes one version, so another version skips it: installing from it would put the pinned
 	// release on disk under the requested version's name.
+	//
+	// --no-deps also means pip never asks whether the set is the whole tree. It is resolved on
+	// Linux, so a platform whose dependencies differ would get a tool missing a package and still
+	// be told it was pinned. `pip check` reads every installed package's requirements against this
+	// interpreter and this platform, offline, and a tree it finds incomplete takes the fallback.
 	level := LevelUnverified
 	if version == pythonVersions[tool] {
 		err = run(ctx, pip, "install", "--quiet", "--no-input", "--require-hashes",
 			"--no-deps", "-r", reqPath)
 		if err == nil {
+			err = run(ctx, pip, "check")
+		}
+		if err == nil {
 			level = LevelPinned
 		}
 	}
 	if level != LevelPinned {
-		// The pins are resolved on one platform, so another may legitimately need a different
-		// wheel. Falling back keeps the tool installable everywhere; dropping the level keeps the
-		// report honest, because nothing recorded in this binary checked what was installed.
+		// The pins cover the Pythons and platforms generate.py names, so another may legitimately
+		// need a different wheel or another package. Falling back keeps the tool installable
+		// everywhere; dropping the level keeps the report honest, because nothing recorded in this
+		// binary checked what was installed.
 		fallbackErr := run(ctx, pip, "install", "--quiet", "--no-input",
 			spec.Package+"=="+version)
 		if fallbackErr != nil {
@@ -154,7 +169,7 @@ func findPython(ctx context.Context, minMinor int) (string, error) {
 		minMinor = minPythonMinor
 	}
 	var candidates []string
-	for minor := 14; minor >= minMinor; minor-- {
+	for minor := newestPythonMinor; minor >= minMinor; minor-- {
 		candidates = append(candidates, "python3."+strconv.Itoa(minor))
 	}
 	candidates = append(candidates, "python3")

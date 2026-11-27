@@ -7,16 +7,17 @@ import (
 	"strings"
 )
 
-// importKey is what names one import in a list: its control and its file, or its control, source and
-// repository.
+// importKey is what names one import in a list: its control and its file, or its control, source,
+// project and repository.
 type importKey struct {
-	control, file, source, repository string
+	control, file, source, project, repository string
 }
 
 // key is the import's importKey. The repository is compared as GitHub compares one, without regard to
 // case.
 func (i Import) key() importKey {
-	return importKey{control: i.Control, file: i.File, source: i.Source, repository: strings.ToLower(i.Repository)}
+	return importKey{control: i.Control, file: i.File, source: i.Source, project: i.Project,
+		repository: strings.ToLower(i.Repository)}
 }
 
 // githubRepository is an owner/name as GitHub spells one: letters, digits, hyphens, underscores and
@@ -27,7 +28,7 @@ var githubRepository = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 // would do nothing.
 func validateFileOnly(imp Import, at string) []error {
 	var errs []error
-	for _, k := range []struct{ key, value string }{{"tokenEnv", imp.TokenEnv}, {"repository", imp.Repository}} {
+	for _, k := range []struct{ key, value string }{{"tokenEnv", imp.TokenEnv}, {"repository", imp.Repository}, {"project", imp.Project}} {
 		if k.value != "" {
 			errs = append(errs, fmt.Errorf("%s.%s is read only with source, and this import reads a file. Remove %s", at, k.key, k.key))
 		}
@@ -35,8 +36,10 @@ func validateFileOnly(imp Import, at string) []error {
 	return errs
 }
 
-// validateImportSource refuses a source Draugr does not read, the keys only a file reads, a
-// repository not written as owner/name, and a source left to choose among several repositories.
+// validateImportSource refuses a source Draugr does not read, the keys only a file reads, a source
+// imported into a control its findings do not belong to, a sonarqube source without the project it
+// reads and a project on any other, a repository not written as owner/name, and a source left to
+// choose among several repositories.
 //
 // The repository is required where the component declares more than one, because the alerts belong
 // to one repository and nothing in them says which of the component's it is. Whether the repository
@@ -59,6 +62,18 @@ func validateImportSource(imp Import, repositories []Repository, at string) []er
 			errs = append(errs, fmt.Errorf("%s.%s is read only with file, and this import reads %s. Remove %s",
 				at, k.key, imp.Source, k.key))
 		}
+	}
+	if controls, ok := ImportSourceControls[imp.Source]; ok && imp.Control != "" && !slices.Contains(controls, imp.Control) {
+		errs = append(errs, fmt.Errorf("%s: source %s reads %s findings, not %s. Import it into %s",
+			at, imp.Source, orList(controls), imp.Control, orList(controls)))
+	}
+	switch {
+	case imp.Source == ImportSourceSonarQube && strings.TrimSpace(imp.Project) == "":
+		errs = append(errs, fmt.Errorf("%s.project is required with source sonarqube: the key of the SonarQube project "+
+			"whose security issues to read", at))
+	case imp.Source != ImportSourceSonarQube && imp.Project != "":
+		errs = append(errs, fmt.Errorf("%s.project is read only with source sonarqube, and this import reads %s. Remove project",
+			at, imp.Source))
 	}
 	if imp.Repository != "" && !githubRepository.MatchString(imp.Repository) {
 		errs = append(errs, fmt.Errorf("%s.repository %q is not owner/name, such as draugr-dev/draugr", at, imp.Repository))

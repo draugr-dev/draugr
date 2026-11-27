@@ -51,7 +51,8 @@ A control only runs when it is **enabled**, globally under `config.controls` or 
 [Write your first Saga](first-saga.md) builds one field by field; the
 [Saga schema](../reference/saga-schema.md) has every field.
 
-Then fetch the scanners that descriptor runs, pinned and checksum-verified, into `~/.draugr/bin`:
+Then fetch the scanners that descriptor runs, pinned and checksum-verified, into `~/.draugr/bin`, or
+`bin/` under [`DRAUGR_HOME`](../reference/cli.md#environment) where that is set:
 
 ```bash
 draugr tools install

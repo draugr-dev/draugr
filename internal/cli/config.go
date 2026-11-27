@@ -369,6 +369,9 @@ func flatten(f config.File) []kv {
 	if s := f.Scan.ShareWorkers; s != nil {
 		out = append(out, kv{"scan.shareWorkers", strconv.FormatBool(*s)})
 	}
+	if m := f.Scan.ToolMemory; m != nil {
+		out = append(out, kv{"scan.toolMemory", *m})
+	}
 	if l := f.Log; l != (config.LogSettings{}) {
 		if l.Level != "" {
 			out = append(out, kv{"log.level", l.Level})

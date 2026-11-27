@@ -129,16 +129,34 @@ or Go advisory, and OSV-Scanner's carries no score. The import's
 with the parser Draugr's own run of that tool uses, so an imported finding is the finding a native
 run makes of the same file. OSV-Scanner's JSON is read into findings shaped as Draugr's dependency
 scanners shape theirs, as [`osv-scanner`](osv-scanner.md) reads its own run, except that an import
-reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Veracode. Pipeline Scan writes no SARIF, so its `results.json` is read into code findings.
+reads a RustSec unmaintained notice as a vulnerability. Draugr does not run Veracode. Pipeline Scan
+writes no SARIF, so its `results.json` is read into code findings. GitLab's reports are read the
+same way, a SAST report into code findings and a dependency scanning report into findings shaped as
+Draugr's dependency scanners shape theirs. A JFrog simple-json file's dependency scan is read into
+findings shaped the same way. A Checkmarx One JSON file holds SAST, SCA and KICS results, and each
+import of it reads those of the control it names, the SCA results into dependency findings. Mend's
+dependency scan writes no SARIF, so its JSON is read into dependency findings too. Prisma Cloud's
+`twistcli` writes no SARIF either, so its image-scan JSON is read into image findings. Aqua's
+`scannercli` writes JSON of an image scan, read into image findings too. Semgrep's JSON holds its
+code and Supply Chain results, and each import of it reads those of the control it names, the
+Supply Chain results into dependency findings.
 
 | `format` | The file | Read as | Each finding carries |
 |---|---|---|---|
 | `sarif` | a SARIF 2.1.0 log, from any tool (the default) | this page describes | what the file states, as [Dependency findings](#dependency-findings) lists |
-| `trivy-json` | `trivy fs --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded |
+| `trivy-json` | `trivy fs --format json`, or for `images` `trivy image --format json` | [`trivy-fs`](trivy-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the other advisory ids Trivy lists, and an exclusion Trivy recorded; for an image scan, the image Trivy scanned as its image and location, and the image's operating system for its own packages |
 | `govulncheck-json` | `govulncheck -format json` | [`govulncheck`](govulncheck.md) reads it | the advisory under its CVE, the module, its version and fixed version, and the reachability verdict with its call paths |
 | `grype-json` | `grype dir:<path> -o json` | [`grype-fs`](grype-fs.md) reads it | the advisory, the package, its installed and fixed versions, its package URL and ecosystem, the identifiers Grype relates to the advisory, such as its CVE, and a match Grype's configuration ignored |
 | `osv-scanner-json` | `osv-scanner scan --format json` | [`osv-scanner`](osv-scanner.md) reads it, with the difference above | the advisory OSV-Scanner matched, every id and alias it groups with it, such as its CVE, the package, its installed and fixed versions, its package URL and ecosystem, and the score OSV-Scanner gives the group |
 | `veracode-pipeline-json` | Pipeline Scan's `results.json`, written with `-jo true` | this page describes | the flaw's file and line, placed in the checkout ([Import Veracode Pipeline Scan](../../docs/guides/importing-sarif.md#import-veracode-pipeline-scan)), its CWE, Veracode's severity as the rating, Veracode's explanation as the detail, and Veracode's flaw hashes as fingerprints |
+| `gitlab-sast` | a SAST report in GitLab's security report format, schema 15 | this page describes | the vulnerability's file and line, its first identifier as the rule, the CWE its identifiers name, the severity the report states as the rating, and its description as the detail ([Import GitLab's security reports](../../docs/guides/importing-sarif.md#import-gitlabs-security-reports)) |
+| `gitlab-dependency-scanning` | a dependency scanning report in GitLab's format, schema 15 | this page describes | the advisory under its CVE, else its GHSA id, else the report's own id, its other ids as aliases, the package, its installed version, the fixed version the report's solution names, its package URL and ecosystem for Go and npm, and the severity the report states as the rating |
+| `jfrog-simple-json` | `jf audit --format simple-json` | this page describes | the findings of the import's control: for `sast`, `secrets` and `iac` JFrog's rule at the file and line, JFrog's severity as the rating, for SAST the CWE, and for a secret JFrog's token validation as the detail; for `sca` the advisory under its CVE, else Xray's own id, its other ids as aliases, the package, its installed and fixed versions, its package URL for Go and npm, the package type Xray names as its ecosystem, and Xray's severity as the rating, in each manifest that declares a direct dependency bringing it in ([Import JFrog Xray](../../docs/guides/importing-sarif.md#import-jfrog-xray)) |
+| `checkmarx-one-json` | `cx results show --report-format json` | this page describes | the results of the import's control: for `sast` the query at the file and line the data flow starts, its CWE and the line the data flows to; for `sca` the advisory under its CVE, else Checkmarx's own id, its CWE, the package, its installed version, the recommended version as the fix, its package URL for Maven, Go and npm packages with a version, and the ecosystem its identifier names, in each manifest Checkmarx names; for `iac` KICS's query id at the file and line. Each is rated by Checkmarx's severity, and a result triaged Not Exploitable or Ignored is the tool's suppression ([Import Checkmarx One](../../docs/guides/importing-sarif.md#import-checkmarx-one)) |
+| `mend-json` | `mend dep --format json --export-results <file>` | this page describes | the advisory under its CVE, else Mend's own WS- id, the package and installed version its file name gives, named `group:artifact` with its Maven package URL where Mend's fixes name one group for it, the versions Mend's fix names for it above the installed one as the fix, Mend's severity as the rating, and the direct dependency that brings in a transitive one, once per library and manifest however often the tree lists it ([Import Mend](../../docs/guides/importing-sarif.md#import-mend)) |
+| `twistcli-json` | `twistcli images scan --output-file <file>` | this page describes | the advisory under its CVE, the image the file names (else its ID) as its image and location, the package (an operating-system package by its source package, with the image's operating system), its installed and fixed versions, and the CVSS score or `twistcli`'s severity as the rating, whichever is more severe. Compliance results are not read ([Import Prisma Cloud](../../docs/guides/importing-sarif.md#import-prisma-cloud)) |
+| `aqua-json` | `scannercli scan --jsonfile <file>` | this page describes | the advisory under its CVE, the image the file names (else the reference it was pulled by, else its digest) as its image and location, the package (an operating-system package with the image's operating system and the distribution's ecosystem), its installed and fixed versions, and Aqua's CVSS score or severity as the rating, whichever is more severe. Sensitive data, malware and assurance results are not read ([Import Aqua](../../docs/guides/importing-sarif.md#import-aqua)) |
+| `semgrep-json` | `semgrep ci --json-output=<file>`, or `semgrep scan --json-output=<file>` | this page describes | the results of the import's control: for `sast` the rule's match at its file and line, its CWE, and the rating Draugr's [`semgrep`](semgrep.md) run gives it from the rule's impact and likelihood, else the rule's severity; for `sca` the advisory under its CVE, else its GHSA id, else Semgrep's rule id, its other ids as aliases, the package, its installed version, the versions the rule's `sca-fix-versions` names for it above the installed one as the fix, its package URL and ecosystem, the lockfile and line, the advisory's `sca-severity` as the rating, and each place a reachability rule found the vulnerable code used. Secrets results are not read ([Import Semgrep](../../docs/guides/importing-sarif.md#import-semgrep)) |
 | `draugr-converter` | what a converter the descriptor declares writes | the [converter contract](../../docs/reference/converter-contract.md) | the finding as the tool reported it, and the properties the converter may set ([A converter's file](#a-converters-file)) |
 
 - **Severity is the native run's.** A Trivy finding is rated by the highest CVSS score Trivy lists
@@ -295,6 +313,13 @@ cannot be applied, the finding stays:
   scoped differently. Its findings stay and are counted as not scoped.
 - **No location.** A finding that names no file is kept.
 - **A path outside every checkout.** It is kept as written and listed under `unread-files`.
+- **A path that names no file in the checkout.** A relative path names no file in the checkout of the
+  repository its finding is placed in. This happens when a tool writes paths relative to something
+  other than the repository's root: gosec writes them relative to the Go module it analyzed, so a
+  module in `checkout/` gives `main.go` for `checkout/main.go`. The finding is kept, and the path is
+  listed under `unread-files`, as `names no file in the checkout, so paths: and ignore: do not apply
+  to it`. No other path is guessed for it. A repository named by a remote address has no checkout
+  to look in, so its paths are taken as written.
 
 **Measured against** says what was left out, after `component`:
 
@@ -607,6 +632,79 @@ that found nothing:
   for a file whose `scan_status` is not `SUCCESS`, with its message where it gives one;
 - `severity 9; Veracode rates a flaw 0 to 5. Import the results.json Pipeline Scan wrote, unedited`,
   for a flaw rated outside Veracode's scale;
+- `not a GitLab SAST report. Import the gl-sast-report.json a GitLab analyzer wrote, or the file a
+  tool wrote in that format, such as semgrep scan --gitlab-sast`, or `not a GitLab dependency scanning
+  report. Import the gl-dependency-scanning-report.json a GitLab analyzer wrote`, for a file with no
+  `scan` or no `vulnerabilities` list;
+- `schema version "14.1.2". Draugr reads GitLab's SAST schema version 15.x, which GitLab 15 and later
+  require`, for a report of another major version;
+- `a "dependency_scanning" scan, and format gitlab-sast reads a SAST scan. Import the
+  gl-sast-report.json`, for a report of the other kind;
+- `scan status "failure". Draugr reads a scan that succeeded. Run the scan again`, for a report whose
+  scan failed;
+- `a vulnerability names no file, identifier or package, which every one in a GitLab report of this
+  kind carries. Import the file the tool wrote, unedited`, for a vulnerability missing one of them,
+  the package counting in a dependency scanning report only;
+- `severity "Severe"; GitLab's format rates a vulnerability Critical, High, Medium, Low, Info or
+  Unknown. Import the file the tool wrote, unedited`, for a severity outside GitLab's list;
+- `not JFrog simple-json. Write it with jf audit --format simple-json`, for a file with no
+  `scansStatus` or no `vulnerabilities` list, such as JFrog's SARIF;
+- `no dependency scan: the file records none. Run jf audit without selecting scanners, or with
+  --sca`, for a file whose `scansStatus` has no `scaScanStatusCode`;
+- `the dependency scan did not succeed (status 1). Draugr reads a scan that succeeded. Run jf audit
+  again`, for a file whose dependency scan failed;
+- `the scan of svc failed (npm install failed), so findings may be missing from the file. Fix it and
+  run jf audit again`, for a file that lists an error, naming the first;
+- `a vulnerability names no package, advisory id or manifest, which every one jf audit writes
+  carries. Import the file jf audit wrote, unedited`, for a vulnerability or violation missing one of
+  them;
+- `severity "Severe"; Xray rates a vulnerability Critical, High, Medium, Low, Information or Unknown.
+  Import the file jf audit wrote, unedited`, for a severity outside Xray's list;
+- `not Checkmarx One JSON. Write it with cx results show --scan-id <id> --report-format json`, for
+  a file with no `results` list, `totalCount` or `scanID`, such as Checkmarx's SARIF;
+- `the file lists 0 results and counts 75, so results are missing or were added. Import the file cx
+  results show wrote, unedited`, for a file whose `totalCount` is not the number of results it lists;
+- `the import names control "secrets"; import this file into sast, sca or iac`, for an import into
+  another control, which `draugr validate` refuses first;
+- `a SAST result (id 13588362) names no query or file; every result cx results show writes names
+  them. Import the file the CLI wrote, unedited`, and the same for a KICS result, and for an SCA
+  result with no vulnerability, package or manifest;
+- `severity "SEVERE"; Checkmarx One rates a result CRITICAL, HIGH, MEDIUM, LOW or INFO. Import the
+  file cx results show wrote, unedited`, for a severity outside Checkmarx's list;
+- `not Mend's dependency JSON. Write it with mend dep --format json --export-results <file>`, for a
+  file that is not a list of libraries;
+- `library jackson-databind-2.9.5.jar has no dependencyFile, the manifest that declares it, which mend
+  dep writes for every one. Import the file mend dep wrote, unedited`, and the same for a library with
+  no `name` and a vulnerability with no `name`;
+- `severity "SEVERE" of CVE-2018-19362 in jackson-databind-2.9.5.jar; Mend rates a vulnerability
+  CRITICAL, HIGH, MEDIUM or LOW. Import the file mend dep wrote, unedited`, for a severity outside
+  Mend's list;
+- `not twistcli's JSON. Write it with twistcli images scan --output-file <file> <image>`, for a file
+  that is not an object with `results`;
+- `vulnerability CVE-2018-6485 in some-docker-image has no packageName, which twistcli writes for every
+  one. Import the file twistcli wrote, unedited`, and the same for an image with no `id` and a
+  vulnerability with no `id`;
+- `severity "severe" of CVE-2018-6485 in glibc; twistcli rates a vulnerability critical, high, medium
+  or low. Import the file twistcli wrote, unedited`, for a severity outside `twistcli`'s list, and
+  `cvss "high" of CVE-2018-6485 in glibc; twistcli writes a number from 0 to 10. Import the file
+  twistcli wrote, unedited`, for a score that is not one;
+- `not Aqua's scanner JSON. Write it with scannercli scan --jsonfile <file> <image>`, for a file that
+  is not an object with `resources` or `vulnerability_summary`;
+- `a resource in web has no name or path, which Aqua's scanner writes for every one. Import the file
+  scannercli wrote, unedited`, and the same for a file that names no image and a vulnerability with
+  no `name`;
+- `aqua_severity "severe" of CVE-1 in zlib; Aqua rates a vulnerability critical, high, medium, low or
+  negligible. Import the file scannercli wrote, unedited`, for a severity outside Aqua's list, and
+  `aqua_score "high" of CVE-1 in zlib; Aqua writes a number from 0 to 10. Import the file scannercli
+  wrote, unedited`, for a score that is not one;
+- `not Semgrep's JSON. Write it with semgrep ci --json-output=<file>`, for a file that is not an
+  object with `results`, `errors` and `paths`;
+- `result 1 (r) has no path, which Semgrep writes for every one. Import the file Semgrep wrote,
+  unedited`, and the same for a result with no `check_id` and a Supply Chain result naming no package;
+- `result 1 (r): severity "SEVERE"; a Semgrep rule's severity is CRITICAL, HIGH, MEDIUM, LOW, INFO,
+  ERROR or WARNING. Import the file Semgrep wrote, unedited`, for a severity outside Semgrep's list,
+  and `result 1 (ssc): sca-severity "URGENT"; Semgrep rates an advisory CRITICAL, HIGH, MODERATE or
+  LOW. Import the file Semgrep wrote, unedited`, for an advisory severity outside it;
 - `not a converter file. A converter writes contract draugr-converter`, for a file read as a
   converter's that is not one. The [converter
   contract](../../docs/reference/converter-contract.md#errors) lists the rest, each naming the key
@@ -617,7 +715,9 @@ file the scan would refuse fails doctor with the same message, including one wri
 commit. A file that passes shows how many results it holds and its commit, as
 `SARIF 2.1.0, 3 results, commit 0123456789ab`. A file with no commit shows `commit not stated`, the
 reason, and that the scan lists it under `unbound-imports`. Each row names its component, since two
-components can hold one file to different repositories. Under `--offline`, a revision only the
+components can hold one file to different repositories, and a `checkmarx-one-json` row names its
+control too, since each import of that file reads its own control's results. A `mend-json` row names
+`sca`. Under `--offline`, a revision only the
 network can resolve, such as a branch of a remote repository, is not checked, and the row says
 `not checked`. Doctor does not compare paths with the component's checkout: the scan lists a path it
 cannot place under `unread-files`.
@@ -819,11 +919,86 @@ unlisted token variable, and an `--offline` run, stop the run before anything is
 
 `draugr doctor` checks that the token's variable may be read and is set, sending nothing.
 
+## SonarQube's security issues
+
+`source: sonarqube` reads a SonarQube project's security issues from its Web API in place of a file,
+into `sast` only. SonarQube writes no report file; what its analysis found is held by the server.
+
+| Request | Asked for |
+|---|---|
+| `GET /api/project_analyses/search` | the latest analysis, for the commit it read |
+| `GET /api/issues/search` | `impactSoftwareQualities=SECURITY`, `issueStatuses=OPEN,CONFIRMED,ACCEPTED,FALSE_POSITIVE`, with comments, 500 a page |
+| `GET /api/rules/show` | each rule the issues name, once, for its name and CWEs |
+
+**The project** is named by `project`, its key. **The server** is `$SONAR_HOST_URL`, the variable
+SonarSource's own scanners read, or SonarQube Cloud, `https://sonarcloud.io`, where it is unset. It is
+never read from the descriptor: the token goes to that server, and a descriptor changes by pull
+request. **The token** is read from the variable `tokenEnv` names, `SONAR_TOKEN` when unset, under
+the same `$DRAUGR_TOKEN_ENVS` rule as GitHub's, and sent as `Authorization: Bearer` to that server
+only. It needs permission to browse the project.
+
+**The repository** the findings are placed in is the component's one repository, or, for a
+component of several, the one `repository: owner/name` names, matched against the end of each
+repository's address on any host.
+
+**What is read.** An issue with a security impact is a finding at its file and first line, under its
+rule, such as `javasecurity:S2083`, with the rule's name and, on SonarQube Cloud, the CWEs its
+security standards list. SonarQube Server's and Community Build's rule answers state no CWE, so their
+findings carry none.
+A fixed issue is not read. An issue the server returns without a security impact, or, on a server
+that gives no impacts, of a type other than `VULNERABILITY`, is left out and counted under
+`left out`: a server that does not know the search's filter answers with every issue, and SonarQube
+ignores a parameter it does not know. Security hotspots are not read: SonarQube deprecated their API
+in favor of security issues, and a former hotspot's rule now raises an issue.
+
+**Severity** is the issue's security impact:
+
+| SonarQube | Draugr |
+|---|---|
+| `BLOCKER` | critical |
+| `HIGH` | high |
+| `MEDIUM` | medium |
+| `LOW`, `INFO` | low |
+
+On a server that gives no impacts, the issue's own severity is read instead: `BLOCKER` critical,
+`CRITICAL` high, `MAJOR` medium, `MINOR` and `INFO` low. A severity outside these stops the run,
+naming the issue. SonarQube gives no score.
+
+**A person's decision.** An issue a person accepted, or marked as a false positive, is set aside on
+an `ACCEPTED` row named for SonarQube, with the latest comment on the issue as the reason and its
+writer as who gave it. `suppressions: count` counts it instead, with the same in its detail.
+
+**The commit** is the one SonarQube's latest analysis of the project read. Where it is the commit this
+run reads, it binds the import. Another commit, or an analysis that names none, leaves every finding
+counted and lists the import under **Caveats** as `unbound-imports`, saying which commit SonarQube
+analyzed.
+
+**Refusals stop the run**, none reading as a project with no findings:
+
+| SonarQube answers | The error |
+|---|---|
+| 401 | `SonarQube refused $SONAR_TOKEN as invalid or expired. Create a new one` |
+| 403 | `$SONAR_TOKEN cannot browse project acme_api (HTTP 403)` |
+| 404 | `https://sonarcloud.io has no project acme_api, or the token cannot see it (HTTP 404)` |
+| 404 to a rule | `SonarQube has no rule java:S4507, which an issue names (HTTP 404)` |
+| no analysis | `SonarQube has no analysis of project acme_api yet` |
+| more than 10,000 issues | `SonarQube counts 10437 security issues, more than the 10000 its search returns` |
+| 429 | waited out for its `Retry-After`, or a minute, three tries in all, as GitHub's is |
+
+SonarQube's search returns no more than 10,000 results however it is paged, so a larger total is
+refused rather than read in part. An empty or unlisted token variable, and an `--offline` run, stop
+the run before anything is sent. `draugr doctor` checks the token's variable and that
+`$SONAR_HOST_URL` is an http or https address, and names the server, sending nothing.
+
 ## What is sent
 
 For an import of a file, nothing. For an import with `source`, to GitHub's REST API at
 `api.github.com`, or `$GITHUB_API_URL`: the repository's owner and name, the alert states asked for,
 and the token. Nothing about the code, the findings or the descriptor is sent.
+
+For `source: sonarqube`, to SonarQube Cloud at `sonarcloud.io`, or the server `$SONAR_HOST_URL` names:
+the project key, the rule keys its issues name, the project's organization, the filters above, and
+the token. Nothing about the code, the findings or the descriptor is sent.
 
 ## License & terms
 
@@ -840,11 +1015,32 @@ API tokens to exceed GitHub's rate limitations". Draugr asks for one repository'
 per run and honors `retry-after`. The terms say nothing specific about a tool keeping alert data; the
 alerts go into the report on the machine that ran the scan.
 
+An import with `source: sonarqube` uses SonarQube's Web API with the reader's own token. SonarQube
+Community Build is distributed under the LGPL-3.0, and SonarSource's
+[Primary Customer Agreement](https://www.sonarsource.com/legal/primary-agreement/) (updated
+2026-08-27) says "SonarSource's no-cost software downloads (such as SonarQube Community Build and
+SonarQube for IDE) are not Products covered by this Agreement". SonarQube Cloud and SonarQube Server
+are Products, used under that agreement and its
+[Acceptable Use Policy](https://www.sonarsource.com/legal/aup/) (updated 2025-11-07), both read on
+2026-11-26. The policy forbids using "Results Data to develop, build, or enhance products or services
+that compete with the Products, including but not limited to static code analysis tools, code
+quality platforms, security scanning tools, or code review systems", and says that nothing in that
+section prohibits "using Results Data in conjunction with general-purpose AI coding assistants,
+development tools, or similar productivity software for Customer's internal software development
+purposes". It also forbids access "in a manner that results in excessive API calls"; Draugr asks for
+one project's issues per import per run, each rule once, and honors `Retry-After`. Whether a use is
+within the policy is between the reader and SonarSource. SonarSource's
+[Privacy Notice](https://www.sonarsource.com/company/privacy/) (updated 2025-11-03) covers what
+SonarQube Cloud records of the requests.
+
 ## Data
 
 For a file, no data source: the scan reads the file the descriptor names, on the machine running
 Draugr, and resolves the component's repository revision with `git`, locally for a path and with
 `git ls-remote` for a remote.
 
-For an import with `source`, `api.github.com` (or `$GITHUB_API_URL`), on every run: the alerts are
+For an import of GitHub's alerts, `api.github.com` (or `$GITHUB_API_URL`), on every run: the alerts are
 GitHub's current account of the repository and are not cached.
+
+For `source: sonarqube`, `sonarcloud.io` (or `$SONAR_HOST_URL`), on every run: the issues are
+SonarQube's current account of the project and are not cached.

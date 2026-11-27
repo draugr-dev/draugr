@@ -26,6 +26,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/registry"
 	"github.com/draugr-dev/draugr/internal/scanners"
 	"github.com/draugr-dev/draugr/pkg/plugin"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // Status is how a check ended.
@@ -175,6 +176,10 @@ func Run(ctx context.Context, targets []plugin.Target, opts Options) []Check {
 			key := "file:" + t.Format + ":" + t.Path + ":" + t.Component + ":" + t.Commit + ":" + t.CommitUnset
 			if t.Converter != nil {
 				key += ":" + t.Converter.Name + ":" + strings.Join(t.Converter.Sets, ",")
+			}
+			// A format whose read depends on the control reads each import differently.
+			if saga.ImportFormatReadsByControl(t.Format) {
+				key += ":" + t.Control
 			}
 			if seen[key] {
 				continue
@@ -577,7 +582,12 @@ func reason(err error, rawURL string) string {
 // one it may read, and is set. The scan stops on either, so the preflight says so first.
 func sourceCheck(t plugin.FileTarget) Check {
 	// "alerts" rather than the target's kind, file: what is read is a service's alerts, not a file.
-	c := Check{Kind: "alerts", Target: t.Identity()}
+	// SonarQube calls what it holds issues.
+	kind := "alerts"
+	if t.Source == saga.ImportSourceSonarQube {
+		kind = "issues"
+	}
+	c := Check{Kind: kind, Target: t.Identity()}
 	detail, ok := scanners.SourceCheck(t)
 	c.Status, c.Detail = Failed, detail
 	if ok {
@@ -598,6 +608,10 @@ func fileCheck(ctx context.Context, p Probes, t plugin.FileTarget, offline bool)
 	if t.Component != "" {
 		// One file imported by two components is checked for each, against its own repositories.
 		c.Target += " · " + t.Component
+	}
+	if saga.ImportFormatReadsByControl(t.Format) {
+		// Each import into another control is a read of its own, with its own result.
+		c.Target += " · " + t.Control
 	}
 	data, err := os.ReadFile(t.Path) // #nosec G304 -- a file the descriptor names for import
 	if err != nil {

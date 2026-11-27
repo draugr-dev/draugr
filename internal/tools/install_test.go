@@ -613,7 +613,7 @@ func TestKubeBenchSpecCarriesItsData(t *testing.T) {
 func TestInstallVersionRoutesLanguagePackages(t *testing.T) {
 	t.Run("python package", func(t *testing.T) {
 		root := t.TempDir()
-		fakePython(t, filepath.Join(t.TempDir(), "calls"), "--require-hashes")
+		fakePython(t, filepath.Join(t.TempDir(), "calls"), "--require-hashes", "check")
 
 		got, err := InstallVersion(t.Context(), "semgrep", "", filepath.Join(root, "bin"), nil, false)
 		if err != nil {

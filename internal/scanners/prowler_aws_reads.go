@@ -22,7 +22,8 @@ import (
 // tools.ProwlerTablesVersion by scripts/prowler-check-reads.py, which reads it as text: for each
 // check, every `from prowler.providers.aws.services.<service>...<name>_client import` in the check's
 // module and in the helper modules it imports, followed to the end. Regenerate it by running that script over
-// the installed `prowler` package with the framework's check list; it prints this table as JSON. A
+// the `prowler` directory of a clone at the release's tag, with compliance/aws/cis_7.0_aws.json in it
+// as the check list; it prints this table as JSON. A
 // check this does not list, from another framework, reads the service its name starts with.
 var awsCheckReads = map[string][]string{
 	"accessanalyzer_enabled":                                                              {"accessanalyzer"},
