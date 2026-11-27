@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -20,7 +19,6 @@ import (
 	"github.com/draugr-dev/draugr/internal/scanpolicy"
 	"github.com/draugr-dev/draugr/internal/surfaces"
 	"github.com/draugr-dev/draugr/internal/tools"
-	"github.com/draugr-dev/draugr/internal/version"
 	"github.com/draugr-dev/draugr/pkg/diff"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/norn"
@@ -125,34 +123,6 @@ func scannerOptionsFor(all map[string][]plugin.Option, sets ...[]string) map[str
 		}
 	}
 	return out
-}
-
-// --- get_saga_schema ---
-
-// SchemaOutput carries the descriptor's JSON Schema.
-//
-// Schema is a decoded object rather than raw bytes so a client receives the schema itself: MCP
-// validates a tool's output against the schema derived from this type, and a []byte field
-// derives as an array, which the schema document then fails to be.
-type SchemaOutput struct {
-	Schema  map[string]any `json:"schema" jsonschema:"the JSON Schema for a Saga descriptor"`
-	Version string         `json:"draugrVersion" jsonschema:"the Draugr build this schema came from"`
-	Hint    string         `json:"hint"`
-}
-
-// GetSchema returns the schema embedded in this binary. The one that will actually be enforced, as
-// opposed to whatever is published on the web for some other version.
-func GetSchema() (SchemaOutput, error) {
-	var doc map[string]any
-	if err := json.Unmarshal(saga.SchemaJSON, &doc); err != nil {
-		return SchemaOutput{}, fmt.Errorf("decode embedded schema: %w", err)
-	}
-	return SchemaOutput{
-		Schema:  doc,
-		Version: version.Version,
-		Hint: "Unknown keys are rejected, so field names must match exactly. " +
-			"Validate any descriptor you write with validate_saga before relying on it.",
-	}, nil
 }
 
 // --- validate_saga ---

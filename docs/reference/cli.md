@@ -2841,7 +2841,7 @@ and `__pycache__`, and every hidden directory except `.draugr`.
 | Tool | Purpose |
 |---|---|
 | `list_controls` | Which controls exist, what each checks, which scanner backs it, and the options each scanner accepts |
-| `get_saga_schema` | The Saga schema this build enforces |
+| `get_saga_schema` | One field of the Saga schema this build enforces, named by `field` (`components.exposure`); with no `field`, an outline of every field |
 | `validate_saga` | Validate a descriptor, by `path` or by `content` |
 | `propose_saga` | Return the descriptor `draugr init` would write for `path`, a directory under the working directory, with `perDirectory` for `--per-directory`; writes nothing and names any descriptor already there |
 | `check_tools` | Report which scanners are installed and what to run if any are missing; given a descriptor, the tools `draugr doctor` requires for it |

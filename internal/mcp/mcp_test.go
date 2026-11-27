@@ -141,19 +141,6 @@ func TestListControls(t *testing.T) {
 	}
 }
 
-func TestGetSchemaReturnsTheEmbeddedSchema(t *testing.T) {
-	out, err := GetSchema()
-	if err != nil {
-		t.Fatalf("GetSchema: %v", err)
-	}
-	if out.Schema["$schema"] == nil {
-		t.Errorf("no $schema key; this should be a JSON Schema document: %v", out.Schema)
-	}
-	if out.Version == "" {
-		t.Error("the schema must say which build it came from, that's the point of asking Draugr rather than the web")
-	}
-}
-
 // misspelledKey is built rather than written so the spell checker doesn't flag the fixture;
 // a typo'd field is exactly what this test needs the descriptor to contain.
 var misspelledKey = "nm" + "ae"
@@ -319,8 +306,8 @@ func TestToolsAnswerOverASession(t *testing.T) {
 	}
 	var schema SchemaOutput
 	decode(t, res, &schema)
-	if len(schema.Schema) == 0 {
-		t.Error("no schema came back")
+	if len(schema.Fields) == 0 {
+		t.Error("no outline came back")
 	}
 
 	// A tool error must arrive as a tool error, not a transport failure: the model has to be
