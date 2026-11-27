@@ -261,6 +261,10 @@ and ffmpeg on `PATH`:
 scripts/record-tutorial.sh <out>    # writes <out>/tutorial.mp4 and tutorial.ascii
 ```
 
+The fresh home is `~/dev`, made anew on each render, because its path shows wherever a tool or a
+feed is installed. The script refuses to start when `~/dev` holds a folder it did not make; set
+`DRAUGR_TUTORIAL_HOME` to render from another path.
+
 The tape types the version and demo commit the page pins, so a re-pin edits both.
 `scripts/check-tutorial-tape.py`, in `make gate`, fails when the tape's commands differ from the
 page's.
