@@ -86,6 +86,11 @@ No findings. A control marked ERROR checked less than it was asked to.
 draugr: scan incomplete: sca could not run (use --allow-scan-errors to accept partial results)
 ```
 
+When the findings fail the gate as well, the last line names them first, as in
+`draugr: policy verdict: fail; the scan is also incomplete: sca could not run`. Fix or triage the
+findings in the report above it. The line leaves out `--allow-scan-errors`, because accepting the
+partial results would still fail the run, and offers it again once the findings pass.
+
 A run with no findings and at least one caveat closes on
 `No findings. The run did not check what its caveats name.` in place of `No findings. ✓`. With an
 ERROR and a caveat, the ERROR line is printed. Where the only caveat is uncommitted files the scan

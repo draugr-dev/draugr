@@ -571,12 +571,17 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// to provision is the common case and the warning scrolls past unread.
 	unwaived, waived := splitScanErrors(run.ScanErrors)
 	incomplete := len(unwaived) > 0 || (len(waived) > 0 && !opts.allowScanErrors)
+	// gateFails is whether the run fails on its findings or its organization's policy, kept apart from
+	// the verdict a scan that did not finish also fails. A run that fails both ways names both when it
+	// exits, and accepting the partial results changes its outcome only where this is false.
+	gateFails := verdict.Verdict == norn.Fail
 	if incomplete {
 		verdict.Verdict = norn.Fail
 	}
 	// A setting in force that the descriptor breaks fails the gate, whatever the findings say.
 	if orgPolicy != nil && orgPolicy.Outcome == skald.PolicyFail {
 		verdict.Verdict = norn.Fail
+		gateFails = true
 	}
 
 	format := opts.format
@@ -701,6 +706,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 			if judged.Fails() {
 				verdict.Verdict = norn.Fail
 				data.Verdict = verdict
+				gateFails = true
 			}
 		}
 	}
@@ -737,30 +743,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	}
 
 	if incomplete {
-		if len(unwaived) == 0 && (len(waived) == 0 || opts.allowScanErrors) {
-			// Nothing failed to run; the gate fails on what the run did not cover.
-			return alsoPublish(fmt.Errorf("scan incomplete: %s under %s "+
-				"(use --allow-scan-errors to accept partial results)",
-				caveatClause(failedCaveats), caveatSetting), publishErr)
+		// A run that fails its gate as well fails whatever is accepted, so the gate leads and the flag
+		// that accepts partial results is not offered: following it would only fail the run again on
+		// a reason the message never gave. --no-gate takes the gate's exit away, so it leaves the scan
+		// error the run's only reason.
+		var gate error
+		if gateFails && !opts.noGate {
+			gate = againstBase.failure(compared, orgPolicy)
 		}
-		// Distinct from a policy failure: nothing was necessarily found, the scan just didn't
-		// finish. Saying so is the difference between a bug report and a shrug.
-		//
-		// The flag is only offered when it would actually help. Recommending it for a planning failure
-		// sent readers to a green PASS over a scan that had checked nothing, the flag accepts a scanner
-		// that failed, and there was no scanner.
-		if len(unwaived) > 0 {
-			return alsoPublish(fmt.Errorf("scan incomplete: %s could not run. "+
-				"--allow-scan-errors does not apply: it accepts a failed scanner, and no scanner ran",
-				strings.Join(unwaived, ", ")), publishErr)
-		}
-		also := ""
-		if len(failedCaveats) > 0 {
-			also = fmt.Sprintf(", and %s under %s", caveatClause(failedCaveats), caveatSetting)
-		}
-		return alsoPublish(fmt.Errorf("scan incomplete: %s could not run%s "+
-			"(use --allow-scan-errors to accept partial results)",
-			strings.Join(waived, ", "), also), publishErr)
+		return alsoPublish(incompleteError(gate, unwaived, waived, failedCaveats, caveatSetting, opts.allowScanErrors), publishErr)
 	}
 	// --no-gate suppresses the *verdict's* exit code only. A scan that could not run still fails,
 	// above: the flag says "I am producing a report to compare later, and the comparison is the
@@ -1556,6 +1547,41 @@ func componentLabels(model *saga.Model) map[string]map[string]string {
 		out[model.Components[i].Name] = model.Components[i].Labels
 	}
 	return out
+}
+
+// incompleteError is the error a scan exits with when it did not finish or a caveat the gate lists
+// failed it. gate is the run's failure on its findings or its policy, nil where those pass.
+//
+// Where the gate fails too it leads, since the findings fail the run with or without what is
+// missing, and --allow-scan-errors is left out because accepting the partial results would not let
+// the run pass.
+func incompleteError(gate error, unwaived, waived []string, failedCaveats []report.FailedCaveat, caveatSetting string, allowScanErrors bool) error {
+	var why, hint string
+	switch {
+	case len(unwaived) > 0:
+		// Distinct from a policy failure: nothing was necessarily found, the scan just didn't
+		// finish. Saying so is the difference between a bug report and a shrug.
+		//
+		// The flag is only offered when it would actually help. Recommending it for a planning failure
+		// sent readers to a green PASS over a scan that had checked nothing, the flag accepts a scanner
+		// that failed, and there was no scanner.
+		why = strings.Join(unwaived, ", ") + " could not run"
+		hint = ". --allow-scan-errors does not apply: it accepts a failed scanner, and no scanner ran"
+	case len(waived) > 0 && !allowScanErrors:
+		why = strings.Join(waived, ", ") + " could not run"
+		if len(failedCaveats) > 0 {
+			why += fmt.Sprintf(", and %s under %s", caveatClause(failedCaveats), caveatSetting)
+		}
+		hint = " (use --allow-scan-errors to accept partial results)"
+	default:
+		// Nothing failed to run; the gate fails on what the run did not cover.
+		why = fmt.Sprintf("%s under %s", caveatClause(failedCaveats), caveatSetting)
+		hint = " (use --allow-scan-errors to accept partial results)"
+	}
+	if gate == nil {
+		return fmt.Errorf("scan incomplete: %s%s", why, hint)
+	}
+	return fmt.Errorf("%w; the scan is also incomplete: %s", gate, why)
 }
 
 // caveatClause says how many caveats fail the run, for the exit message.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/sarif"
 )
 
 // caveatSaga declares two components over one repository each, and a host on web that no enabled
@@ -273,6 +275,86 @@ func TestEveryCaveatKindIsDocumented(t *testing.T) {
 			if !strings.Contains(text, mark) {
 				t.Errorf("%s does not list the caveat kind %s", doc.path, k)
 			}
+		}
+	}
+}
+
+// A run whose findings fail the gate and whose caveat fails it too says both, the findings first,
+// and offers --allow-scan-errors only where accepting the caveat would let the run pass: the
+// findings fail it either way, and --no-gate takes their failure away.
+func TestARunFailingOnFindingsAndACaveatSaysBoth(t *testing.T) {
+	path := writeSaga(t, `
+project: app
+config:
+  gate:
+    failOnCaveats: [not-checked]
+  controllers:
+    images:
+      enabled: true
+components:
+  - name: c
+    images:
+      - image: repo/x:1
+    hosts: [{url: "https://example.com"}]
+`)
+	const caveat = "1 caveat fails it under config.gate.failOnCaveats"
+	for _, c := range []struct {
+		name  string
+		level sarif.Level
+		opts  scanOptions
+		want  string
+	}{
+		{"both fail", sarif.LevelError, scanOptions{},
+			"policy verdict: fail; the scan is also incomplete: " + caveat},
+		{"the caveat accepted", sarif.LevelError, scanOptions{allowScanErrors: true},
+			"policy verdict: fail"},
+		{"no gate", sarif.LevelError, scanOptions{noGate: true},
+			"scan incomplete: " + caveat + " (use --allow-scan-errors to accept partial results)"},
+		{"the findings pass", sarif.LevelNote, scanOptions{},
+			"scan incomplete: " + caveat + " (use --allow-scan-errors to accept partial results)"},
+	} {
+		c.opts.failOn, c.opts.format = "error", "json"
+		err := runScan(context.Background(), path, c.opts, fakeRegistry(c.level), &bytes.Buffer{})
+		if err == nil || err.Error() != c.want {
+			t.Errorf("%s: err = %v, want %q", c.name, err, c.want)
+		}
+	}
+}
+
+// Where the gate fails too, every kind of incomplete run names the gate first and leaves out the
+// flag, which cannot make it pass.
+func TestIncompleteErrorLeadsWithAFailingGate(t *testing.T) {
+	gate := errors.New("policy verdict: fail")
+	caveats := []report.FailedCaveat{{Component: "web"}, {Component: "api"}}
+	const setting = "config.gate.failOnCaveats"
+	for _, c := range []struct {
+		name     string
+		gate     error
+		unwaived []string
+		waived   []string
+		caveats  []report.FailedCaveat
+		allow    bool
+		want     string
+	}{
+		{"caveats", nil, nil, nil, caveats, false,
+			"scan incomplete: 2 caveats fail it under config.gate.failOnCaveats (use --allow-scan-errors to accept partial results)"},
+		{"caveats and the gate", gate, nil, nil, caveats, false,
+			"policy verdict: fail; the scan is also incomplete: 2 caveats fail it under config.gate.failOnCaveats"},
+		{"a scanner", nil, nil, []string{"sca"}, caveats, false,
+			"scan incomplete: sca could not run, and 2 caveats fail it under config.gate.failOnCaveats (use --allow-scan-errors to accept partial results)"},
+		{"a scanner and the gate", gate, nil, []string{"sca"}, nil, false,
+			"policy verdict: fail; the scan is also incomplete: sca could not run"},
+		{"no scanner", nil, []string{"sast"}, nil, nil, false,
+			"scan incomplete: sast could not run. --allow-scan-errors does not apply: it accepts a failed scanner, and no scanner ran"},
+		{"no scanner and the gate", gate, []string{"sast"}, []string{"sca"}, nil, true,
+			"policy verdict: fail; the scan is also incomplete: sast could not run"},
+	} {
+		err := incompleteError(c.gate, c.unwaived, c.waived, c.caveats, setting, c.allow)
+		if err.Error() != c.want {
+			t.Errorf("%s:\n got %q\nwant %q", c.name, err, c.want)
+		}
+		if c.gate != nil && !errors.Is(err, c.gate) {
+			t.Errorf("%s: the gate's error is not wrapped", c.name)
 		}
 	}
 }
