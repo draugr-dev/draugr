@@ -3,6 +3,9 @@
 # release it pins, from a fresh home, into <out>/tutorial.mp4 and tutorial.ascii. <out>/timing.log
 # holds when each command started, in seconds on the clock from when the tape shows the screen. The
 # video falls behind the clock while a scan keeps the machine busy, so check a time against a frame.
+# <out>/session.log is everything the shell printed, escape sequences included, as script(1) logged
+# it: tutorial.ascii keeps only what fit on the screen, and a command whose output runs past the
+# window's height has its top only here.
 #
 #   scripts/record-tutorial.sh <out>
 #
@@ -16,7 +19,7 @@ set -euo pipefail
 
 OUT=${1:?usage: record-tutorial.sh <out folder>}
 TAPE=$(cd "$(dirname "$0")/.." && pwd)/docs/getting-started/tutorial.tape
-for t in vhs ttyd ffmpeg go node npm; do
+for t in vhs ttyd ffmpeg script go node npm; do
   command -v "$t" >/dev/null || { echo "record-tutorial: $t is not on PATH" >&2; exit 1; }
 done
 
@@ -30,7 +33,7 @@ if [ -e "$HOME_DIR" ] && [ ! -e "$HOME_DIR/$MARKER" ] && [ -n "$(ls -A "$HOME_DI
 fi
 # Go writes its module cache read-only, so the last render's home is made writable before removal.
 [ ! -d "$HOME_DIR" ] || chmod -R u+w "$HOME_DIR"
-rm -rf "$HOME_DIR" "$OUT/sys" "$OUT/timing.raw"
+rm -rf "$HOME_DIR" "$OUT/sys" "$OUT/timing.raw" "$OUT/session.log"
 mkdir -p "$HOME_DIR" "$OUT/sys"
 : >"$HOME_DIR/$MARKER"
 for t in go node npm; do ln -s "$(readlink -f "$(command -v "$t")")" "$OUT/sys/$t"; done
@@ -39,8 +42,9 @@ for t in go node npm; do ln -s "$(readlink -f "$(command -v "$t")")" "$OUT/sys/$
 until awk -v n="$(nproc)" '{exit !($1 < n/3)}' /proc/loadavg; do sleep 15; done
 
 cd "$OUT"
-TUTORIAL_HOME=$HOME_DIR TUTORIAL_PATH=$OUT/sys:/usr/bin:/bin TUTORIAL_TIMING=$OUT/timing.raw vhs "$TAPE"
+TUTORIAL_HOME=$HOME_DIR TUTORIAL_PATH=$OUT/sys:/usr/bin:/bin TUTORIAL_TIMING=$OUT/timing.raw \
+  TUTORIAL_SESSION=$OUT/session.log vhs "$TAPE"
 # The video starts when the tape shows the screen, just after the hidden clear.
 awk '!t && / clear$/ { t = $1; next } t { printf "%7.1f  %s\n", $1 - t, substr($0, index($0, " ") + 1) }' \
   "$OUT/timing.raw" >"$OUT/timing.log"
-ls -l "$OUT/tutorial.mp4" "$OUT/tutorial.ascii" "$OUT/timing.log"
+ls -l "$OUT/tutorial.mp4" "$OUT/tutorial.ascii" "$OUT/timing.log" "$OUT/session.log"
