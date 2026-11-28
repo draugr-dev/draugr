@@ -12,6 +12,28 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.194.0] - 2026-11-28
+
+### Added
+
+- **`jfrog-simple-json` imports JFrog's SAST, secrets and IaC findings**, not only its dependency vulnerabilities. Import the file `jf audit --format simple-json` writes once into each of `sca`, `sast`, `secrets` and `iac`; each import reads that control's findings at their file and line, with JFrog's rule and severity and, for SAST, the CWE.
+
+### Changed
+
+- **A policy setting your organization's plan does not enforce reads as observed.** Where a Draugr server marks an enforce setting `not-on-plan`, a scan's POLICY block and `draugr doctor` show `observed, enforcement not on the plan`, not `fails the gate`. Any override this version does not know also reads as observed.
+
+- **Prowler 5.52.0 is the release the cloud checks are read against.** What each AWS, Azure and Google Cloud check reads was checked against its source, and `draugr doctor` now suggests `pip install prowler==5.52.0` when another release is on PATH. Earlier releases still run, with the note doctor prints.
+
+### Fixed
+
+- **A run that fails on its findings and on a caveat or a scanner error says both.** The last line names the failing gate first, then what the scan did not cover, and no longer suggests `--allow-scan-errors` where accepting the partial results would still fail the run.
+
+- **A scan on a fresh machine lists every missing feed in one error.** With KEV, EPSS or OSV.dev advisories read from the cache, the error names every feed the cache lacks, the Go vulnerability database included, and gives one `draugr feeds update` that fetches them. Before, the scan stopped at the first missing feed.
+
+- **An assistant can read the descriptor schema one field at a time.** `get_saga_schema` takes a `field` such as `components.exposure` and returns its meaning and accepted values, or an outline of every field without one. The whole schema was too long for Claude Code to pass to a model, so the model guessed values such as an exposure.
+
+- **`draugr version` in an image built from the Docker recipe names its commit and build time.** It printed `commit none, built unknown`, so a report from the container could not say which build it came from. The recipe keeps checking the module against Go's checksum database.
+
 ## [0.193.0] - 2026-11-26
 
 ### Added
@@ -7679,7 +7701,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.193.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.194.0...HEAD
+[0.194.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.194.0
 [0.193.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.193.0
 [0.192.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.192.0
 [0.191.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.191.0
