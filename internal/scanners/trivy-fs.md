@@ -1,6 +1,7 @@
 ---
 title: "trivy-fs"
-description: "Dependency vulnerabilities from a repository's manifests and lockfiles. The default for the sca control."
+description: "The trivy fs command Draugr runs, flag by flag; options for a DB mirror or extra dependency files; and what it reports when a lockfile won't parse."
+searchTitle: "trivy fs dependency scanning: flags and options"
 section: Scanners
 order: 180
 ---
