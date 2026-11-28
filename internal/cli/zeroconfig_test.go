@@ -142,7 +142,7 @@ func TestEveryScannerTheTreeChoosesHasAFoundRow(t *testing.T) {
 	}
 	reg := builtins.Registry()
 	inBase := usesNames(needs.Uses(reg, base))
-	rows := foundRows(zc.tree)
+	rows := foundRows(zc.result.Read[0].Tree)
 	chosen := 0
 	for _, u := range needs.Uses(reg, zc.model) {
 		if slices.Contains(inBase, u.Info.Name) {
@@ -287,8 +287,8 @@ func TestFoundIsInitsRowsWordedForTheRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := zc.found()
-	rows := foundRows(zc.tree)
+	found := zc.found(builtins.Registry())
+	rows := foundRows(zc.result.Read[0].Tree)
 	if len(found) != len(rows) {
 		t.Fatalf("FOUND has %d rows, init prints %d", len(found), len(rows))
 	}
@@ -316,7 +316,7 @@ func TestFoundIsInitsRowsWordedForTheRun(t *testing.T) {
 	// A scanner the run turned off is written off in its row, never named as on beside the caveat
 	// that says it did not run.
 	zc.turnOffUnrunnable(builtins.Registry(), engine.Scope{}, notInstalled("go", "node"))
-	for _, f := range zc.found() {
+	for _, f := range zc.found(builtins.Registry()) {
 		did[f.Kind] = f.Did
 	}
 	for kind, want := range map[string]string{
@@ -416,7 +416,7 @@ func TestZeroConfigScanReportsAScannerItCannotRunAsACaveat(t *testing.T) {
 		switch format {
 		case "console":
 			for _, want := range []string{
-				"FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml\n",
+				"FOUND  read from the tree · what each kind of file turned on\n",
 				"  go  " + modules + "  sca · gosec off · govulncheck off\n",
 				"\n  not-checked · ",
 				"    " + modules + "  gosec needs Go\n",

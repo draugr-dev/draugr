@@ -114,12 +114,14 @@ type Data struct {
 	View View
 	// Uncovered is what this descriptor declares and no enabled control examines.
 	Uncovered []Gap
-	// Unexamined are the files a run with no descriptor found that called for a scanner this
-	// machine cannot run, which the run turned off. Each is a not-checked caveat.
+	// Unexamined are the files that called for a scanner this machine cannot run, on a run whose
+	// controls were read off its repositories, which turned that scanner off. Each is a not-checked
+	// caveat.
 	Unexamined []Unexamined
-	// Found is what a run with no descriptor read from the tree, a row per kind of file, and nil
-	// for a run from a descriptor. The report does not read the tree; the caller that did passes
-	// what it found.
+	// Found is what a run read from its repositories to turn its controls on, a row per kind of
+	// file: a run with no descriptor, or one whose descriptor sets config.detect. Nil for a run whose
+	// descriptor names its controls itself. The report does not read the tree; the caller that did
+	// passes what it found.
 	Found []Found
 	// FailOnCaveats is the kinds of caveat the gate fails the run on, as gate.failOnCaveats or
 	// --fail-on-caveats set them. A caveat of a listed kind is reported with the errors.
@@ -225,9 +227,10 @@ type Gap struct {
 
 // Unexamined is a set of files that called for a scanner the machine running the scan cannot run.
 //
-// Only a run with no descriptor has them. A descriptor names its scanners, and one that cannot run
-// is an error, because somebody asked for it. With no descriptor the tree chose the scanner, and the
-// run reports what went unexamined rather than failing over a tool nobody asked for.
+// Only a run whose controls were read off its repositories has them: one with no descriptor, or
+// one whose descriptor sets config.detect. A scanner a descriptor names that cannot run is an error,
+// because somebody asked for it. One the files chose is reported as what went unexamined rather
+// than failing over a tool nobody asked for.
 type Unexamined struct {
 	// Component holds the files.
 	Component string
@@ -240,8 +243,8 @@ type Unexamined struct {
 	Why string
 }
 
-// Found is one kind of file a run with no descriptor read from the tree: its kind, the files, and
-// what the run did with them.
+// Found is one kind of file a run read from its repositories to turn its controls on: its kind, the
+// files, and what the run did with them.
 type Found struct {
 	// Kind names what was found, an ecosystem or a kind of file: go, copied JavaScript, Dockerfile.
 	Kind string
@@ -590,6 +593,9 @@ func (d Data) JSONProvenance() skald.Provenance {
 	gate.FailOnCaveats = d.FailOnCaveats
 	p := skald.Provenance{Descriptor: d.Descriptor, CI: d.CI, Gate: gate, Policy: d.Policy, FailedCaveats: FailedCaveats(d), ComponentLabels: d.Labels}
 	p.NotChecked, p.UnboundImports = caveatsOfKinds(d)
+	for _, f := range d.Found {
+		p.Found = append(p.Found, skald.Found{Kind: f.Kind, Paths: f.Paths, Did: f.Did})
+	}
 	reports := make(map[string]sarif.Report, len(d.Run.Controls))
 	for name, cr := range d.Run.Controls {
 		reports[name] = cr.Report

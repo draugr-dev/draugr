@@ -30,11 +30,11 @@ func TestFoundIsInEveryReportAfterTheControls(t *testing.T) {
 			t.Errorf("the markdown report has no row %q:\n%s", want, mdFound)
 		}
 	}
-	if !strings.Contains(html, "<code>draugr init</code> writes to\n<code>draugr.saga.yaml</code>") {
-		t.Errorf("the HTML note does not say where the rows go:\n%s", html)
+	if !strings.Contains(html, `<p class="note">What the run read from the tree, and what each kind of file turned on.</p>`) {
+		t.Errorf("the HTML note does not say what the rows are:\n%s", html)
 	}
-	if !strings.Contains(mdFound, "\nWhat the run read from the tree, which `draugr init` writes to `draugr.saga.yaml`.\n") {
-		t.Errorf("the markdown note does not say where the rows go:\n%s", mdFound)
+	if !strings.Contains(mdFound, "\nWhat the run read from the tree, and what each kind of file turned on.\n") {
+		t.Errorf("the markdown note does not say what the rows are:\n%s", mdFound)
 	}
 	if !before(doc, `href="#controls"`, `href="#found"`) || !before(doc, `<summary id="controls">`, `<summary id="found">`) {
 		t.Error("the HTML report's Found does not follow Controls")

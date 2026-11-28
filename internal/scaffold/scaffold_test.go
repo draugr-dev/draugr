@@ -58,16 +58,57 @@ func scaffoldIn(t *testing.T, files map[string]string, perDirectory bool) string
 	return got
 }
 
-func TestSagaNamesTheFilesBehindEachScanner(t *testing.T) {
+// detectedIn renders the configuration detect turns on for a fresh tree.
+func detectedIn(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	layout(t, dir, files)
+	return detectedConfig(inventory.Read(dir))
+}
+
+// The scaffold holds what only its reader decides, the project and its components, and leaves
+// which controls run to detect: no controls block, however much the tree calls for.
+func TestSagaWritesDetectAndNoControls(t *testing.T) {
 	t.Parallel()
 	got := scaffoldIn(t, shop, false)
+	if !strings.Contains(got, "config:\n  detect: true") {
+		t.Errorf("the scaffold does not set detect:\n%s", got)
+	}
+	for _, not := range []string{"\n  controls:", "\n  reachability:", "      enabled: true"} {
+		if strings.Contains(got, not) {
+			t.Errorf("the scaffold writes %q, which detect decides:\n%s", not, got)
+		}
+	}
+	m, err := Load(inventory.Read(t.TempDir()), "shop")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.Config.Detect || len(m.Config.Controls) != 0 {
+		t.Errorf("Load = detect %v, controls %v; want detect and no controls", m.Config.Detect, m.Config.Controls)
+	}
+}
+
+func TestDetectedNamesTheFilesBehindEachScanner(t *testing.T) {
+	t.Parallel()
+	got := detectedIn(t, shop)
 	for _, want := range []string{
 		"analyzers: [govulncheck]   # ranks a Go finding down when no code calls it · go.mod\n",
 		"retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · web/static/jquery-1.8.3.min.js\n",
 		"grypeFs:\n        enabled: true     # Trivy does not read setup.py · ml/setup.py\n",
 		"gosec:\n        enabled: true     # Go-specific checks · go.mod\n",
 		"# IaC misconfiguration (Trivy config) · deploy/terraform · deploy/chart · Dockerfile\n",
-		"    # images:\n    #   enabled: true",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("detected config missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestSagaNamesTheFilesBehindEachStub(t *testing.T) {
+	t.Parallel()
+	got := scaffoldIn(t, shop, false)
+	for _, want := range []string{
+		"    # images:           # container CVEs, with config.controls.images: {enabled: true}\n",
 		"    #   - image: myorg/shop:latest\n",
 		"    #       path: ./api/openapi.yaml\n",
 		"    # Unread · web/package.json no lockfile · its packages are not checked\n",
@@ -97,7 +138,7 @@ func TestSagaPerDirectoryScopesEachPart(t *testing.T) {
 	got := scaffoldIn(t, files, true)
 	want := "components:\n" +
 		"  - name: shop\n    repositories:\n      - url: .\n        ignore: [services/api/, web/]\n" +
-		"    # images:\n    #   - image: myorg/shop:latest\n" +
+		imageStub("shop") +
 		"  - name: api\n    repositories:\n      - url: .\n        paths: [services/api]\n        ignore: [services/api/worker/]\n" +
 		"  - name: worker\n    repositories:\n      - url: .\n        paths: [services/api/worker]\n" +
 		"    # Unread · services/api/worker/package.json no lockfile · its packages are not checked\n" +
@@ -128,15 +169,11 @@ func TestSagaPerDirectoryPutsEachImageStubWithItsDockerfile(t *testing.T) {
 		"  - name: docs\n    repositories:\n      - url: .\n        paths: [docs]\n" +
 		"    # Unread · docs/package.json no lockfile · its packages are not checked\n" +
 		"  - name: api\n    repositories:\n      - url: .\n        paths: [services/api]\n" +
-		"    # images:\n    #   - image: myorg/api:latest\n" +
+		imageStub("api") +
 		"  - name: worker\n    repositories:\n      - url: .\n        paths: [services/worker]\n" +
-		"    # images:\n    #   - image: myorg/worker:latest\n"
+		imageStub("worker")
 	if !strings.HasSuffix(got, want) {
 		t.Errorf("components =\n%s\nwant\n%s", got[strings.Index(got, "components:"):], want)
-	}
-	// The control stays offered once, in config, however many components build an image.
-	if n := strings.Count(got, "# images:\n    #   enabled: true"); n != 1 {
-		t.Errorf("the images control stub appears %d times:\n%s", n, got)
 	}
 	if _, err := saga.Load([]byte(got)); err != nil {
 		t.Errorf("the scaffold does not load: %v", err)
@@ -154,13 +191,19 @@ func TestSagaPerDirectoryKeepsTheRootImageStubForARootDockerfile(t *testing.T) {
 	}
 	got := scaffoldIn(t, files, true)
 	for _, want := range []string{
-		"ignore: [services/api/]\n    # images:\n    #   - image: myorg/shop:latest\n",
-		"paths: [services/api]\n    # images:\n    #   - image: myorg/api:latest\n",
+		"ignore: [services/api/]\n" + imageStub("shop"),
+		"paths: [services/api]\n" + imageStub("api"),
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)
 		}
 	}
+}
+
+// imageStub is the commented image a component that builds one is offered.
+func imageStub(name string) string {
+	return "    # images:           # container CVEs, with config.controls.images: {enabled: true}\n" +
+		"    #   - image: myorg/" + name + ":latest\n"
 }
 
 // Two npm workspaces, each with one lockfile at its root: every member stays in the component of
@@ -221,13 +264,23 @@ func TestSagaPerDirectoryNamesNeverCollide(t *testing.T) {
 // pattern, so the scaffold writes the pattern that reaches each way such a file is named.
 func TestSagaWritesFilePatternsForRequirementsTrivyDoesNotOpen(t *testing.T) {
 	t.Parallel()
-	got := scaffoldIn(t, map[string]string{
+	files := map[string]string{
 		"api/dev-requirements.txt":  "black==24.1.0\n",
 		"web/requirements/test.txt": "pytest==8.0.0\n",
-	}, false)
+	}
+	got := detectedIn(t, files)
 	want := `filePatterns: ['pip:requirements[^/]*\.txt$', 'pip:(^|/)requirements/[^/]+\.txt$']`
 	if !strings.Contains(got, "      trivyFs:\n        "+want) {
-		t.Errorf("descriptor missing %q:\n%s", want, got)
+		t.Errorf("detected config missing %q:\n%s", want, got)
+	}
+	dir := t.TempDir()
+	layout(t, dir, files)
+	cfg, err := Detected(inventory.Read(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Controls["sca"]["trivyFs"]; !ok {
+		t.Errorf("Detected sca = %v, want the trivyFs patterns", cfg.Controls["sca"])
 	}
 }
 
@@ -445,8 +498,8 @@ var update = flag.Bool("update", false, "rewrite the scaffold golden files")
 
 // The text is pinned whole. The MCP server's propose_saga returns it to an assistant, and a model
 // reads every comment in it, so a change that passes every substring check above can still change
-// what an assistant proposes. A scan with no descriptor reads this text as its own configuration
-// as well, which is the second reason a change to it has to be deliberate.
+// what an assistant proposes. A scan with no descriptor reads this text as its own descriptor as
+// well, which is the second reason a change to it has to be deliberate.
 func TestSagaTextIsPinned(t *testing.T) {
 	t.Parallel()
 	monorepo := map[string]string{
@@ -486,15 +539,15 @@ func TestSagaTextIsPinned(t *testing.T) {
 			}
 			if got != string(want) {
 				t.Errorf("the scaffold text changed. propose_saga returns it to an assistant, and a scan with "+
-					"no descriptor reads it as its configuration. If the change is intended: "+
+					"no descriptor reads it as its descriptor. If the change is intended: "+
 					"go test ./internal/scaffold -update\n--- want ---\n%s\n--- got ---\n%s", want, got)
 			}
 		})
 	}
 }
 
-// Model is the text read back: every scanner the text enables is on in the model, and nothing the
-// text leaves commented out is.
+// Model is the text read back with what detect turns on for the tree: every scanner the detected
+// text enables is on in the model, and nothing the text leaves commented out is.
 func TestModelIsTheTextReadBack(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -508,8 +561,17 @@ func TestModelIsTheTextReadBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	detected, err := saga.Load([]byte("project: shop\n" + detectedConfig(tree) +
+		"components:\n  - name: shop\n    repositories:\n      - url: .\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want.Config.Controls, want.Config.Reachability = detected.Config.Controls, detected.Config.Reachability
 	if !reflect.DeepEqual(m, want) {
 		t.Errorf("Model = %+v\nthe text reads as %+v", m, want)
+	}
+	if !m.Config.Detect {
+		t.Error("the model of a scaffold does not say its controls were detected")
 	}
 	if m.Config.Reachability == nil || !slices.Equal(m.Config.Reachability.Analyzers, []string{"govulncheck"}) {
 		t.Errorf("reachability = %+v, want govulncheck for a go.mod", m.Config.Reachability)
@@ -558,11 +620,11 @@ func TestAPathCannotWriteIntoTheDescriptor(t *testing.T) {
 	}
 }
 
-// A Go library with nothing else, the tree the field test found most often: iac is offered
-// commented out, since Trivy would read nothing, and no hosts stub is written, since nothing
-// serves. A CloudFormation template turns iac on and is named, and a Dockerfile that exposes a
-// port brings the hosts stub, naming the file that called for it.
-func TestSagaTurnsOnIaCAndOffersHostsOnlyWhereTheTreeCallsForThem(t *testing.T) {
+// A Go library with nothing else, the tree the field test found most often: iac stays off, since
+// Trivy would read nothing, and no hosts stub is written, since nothing serves. A CloudFormation
+// template turns iac on and is named, and a Dockerfile that exposes a port brings the hosts stub,
+// naming the file that called for it.
+func TestDetectTurnsOnIaCAndTheScaffoldOffersHostsOnlyWhereTheTreeCallsForThem(t *testing.T) {
 	t.Parallel()
 	library := map[string]string{"go.mod": "module nolint\n", "main.go": "package nolint\n"}
 	for name, tc := range map[string]struct {
@@ -571,14 +633,13 @@ func TestSagaTurnsOnIaCAndOffersHostsOnlyWhereTheTreeCallsForThem(t *testing.T) 
 	}{
 		"a Go library": {
 			files: library,
-			want:  []string{"    # iac:\n    #   enabled: true     # IaC misconfiguration (Trivy config). No Dockerfile, Terraform, Kubernetes or other infrastructure file found\n"},
-			not:   []string{"    iac:\n", "hosts:"},
+			not:   []string{"iac:", "hosts:"},
 		},
 		"a CloudFormation template": {
 			files: map[string]string{"go.mod": "module nolint\n",
 				"stack.yaml": "Resources:\n  Bucket:\n    Type: AWS::S3::Bucket\n"},
 			want: []string{"    iac:\n      enabled: true       # IaC misconfiguration (Trivy config) · stack.yaml\n"},
-			not:  []string{"# iac:", "hosts:"},
+			not:  []string{"hosts:"},
 		},
 		"a Dockerfile that exposes a port": {
 			files: map[string]string{"go.mod": "module nolint\n", "Dockerfile": "FROM scratch\nEXPOSE 8080\n"},
@@ -588,7 +649,7 @@ func TestSagaTurnsOnIaCAndOffersHostsOnlyWhereTheTreeCallsForThem(t *testing.T) 
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := scaffoldIn(t, tc.files, false)
+			got := scaffoldIn(t, tc.files, false) + detectedIn(t, tc.files)
 			for _, w := range tc.want {
 				if !strings.Contains(got, w) {
 					t.Errorf("missing %q in:\n%s", w, got)
@@ -648,9 +709,9 @@ func TestACargoLockTurnsOnOSVScanner(t *testing.T) {
 		"Cargo.toml": "[package]\nname = \"shop\"\nversion = \"0.1.0\"\n\n[dependencies]\nzip = \"0.5\"\n",
 		"Cargo.lock": "version = 3\n\n[[package]]\nname = \"zip\"\nversion = \"0.5.6\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
 	}
-	got := scaffoldIn(t, files, false)
+	got := detectedIn(t, files)
 	if want := "osvScanner:\n        enabled: true     # RustSec advisories Trivy misses · Cargo.lock\n"; !strings.Contains(got, want) {
-		t.Errorf("descriptor missing %q:\n%s", want, got)
+		t.Errorf("detected config missing %q:\n%s", want, got)
 	}
 	dir := t.TempDir()
 	layout(t, dir, files)
@@ -666,7 +727,7 @@ func TestACargoLockTurnsOnOSVScanner(t *testing.T) {
 		"Cargo.toml alone": {"Cargo.toml": files["Cargo.toml"]},
 		"Python lockfile":  {"poetry.lock": "[[package]]\nname = \"requests\"\nversion = \"2.0.0\"\n", "pyproject.toml": "[tool.poetry]\nname = \"shop\"\n"},
 	} {
-		if got := scaffoldIn(t, tree, false); strings.Contains(got, "osvScanner") {
+		if got := detectedIn(t, tree); strings.Contains(got, "osvScanner") {
 			t.Errorf("%s turned on OSV-Scanner:\n%s", name, got)
 		}
 	}

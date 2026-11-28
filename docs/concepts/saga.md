@@ -126,13 +126,13 @@ Three ways in, in rough order of how much you already know:
 
 | Start with | When | What you get |
 |---|---|---|
-| **Nothing** | You want output now | `draugr scan .` scans a repository with no descriptor at all, enabling what `draugr init` would for the same tree |
-| **[`draugr init`](../reference/cli.md#draugr-init-dir)** | You have a repo and want a starting point | Reads the tree and enables the scanners it calls for, naming the files behind each |
+| **Nothing** | You want output now | `draugr scan .` scans a repository with no descriptor at all, turning on what the descriptor `draugr init` writes would for the same tree |
+| **[`draugr init`](../reference/cli.md#draugr-init-dir)** | You have a repo and want a starting point | Writes your components and [`config.detect`](../reference/saga-schema.md#configdetect), which turns on the scanners the files call for on every run |
 | **[`draugr survey`](surveyors.md)** | Something you already run can be enumerated, today a Kubernetes cluster, or a GitHub, GitLab or Azure DevOps organization | [Surveyors](surveyors.md) enumerate the surface and write the components for you |
 
-Zero-config mode scans a single repository as one component, with the controls and scanners
-`draugr init` would write for it and none of what `init` leaves commented out, so no image and no
-host. It cannot know the component's exposure or criticality, so it reads the component as public
+Zero-config mode scans a single repository as one component, with the controls and scanners the
+descriptor `draugr init` writes would turn on and none of what `init` leaves commented out, so no
+image and no host. It cannot know the component's exposure or criticality, so it reads the component as public
 and critical and its bands rank severity alone. The descriptor is what upgrades a scan into a
 qualification.
 

@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/internal/scaffold"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // --- propose_saga ---
@@ -30,7 +32,7 @@ type ProposeOutput struct {
 	Path string `json:"path" jsonschema:"the file to save the descriptor as; its repository URLs are relative to this directory"`
 	// Components and Controls describe what the proposal asks for without parsing it.
 	Components []string `json:"components,omitempty"`
-	Controls   []string `json:"controls,omitempty"`
+	Controls   []string `json:"controls,omitempty" jsonschema:"the controls a scan of the proposal turns on for this directory's files, through its config.detect"`
 	// Existing names the descriptors already in the directory. `draugr init` refuses to overwrite
 	// one, and a proposal handed back beside an existing file reads as a replacement for it unless
 	// something says the file is there.
@@ -79,7 +81,14 @@ func ProposeSagaTool(root string) mcp.ToolHandlerFor[ProposeInput, ProposeOutput
 		if !v.Valid {
 			return nil, ProposeOutput{}, fmt.Errorf("the proposed descriptor does not validate: %s", v.Error)
 		}
-		out.Components, out.Controls = v.Components, v.Controls
+		// The controls are the ones the descriptor's config.detect turns on for this tree, which a
+		// scan of it runs. Read off the descriptor's text they would be none, since init writes
+		// detect and no controls.
+		detected, err := scaffold.Detected(tree)
+		if err != nil {
+			return nil, ProposeOutput{}, err
+		}
+		out.Components, out.Controls = v.Components, enabledControls(detected.Controls)
 
 		if in.PerDirectory && len(tree.Parts) == 0 {
 			out.Warning = "perDirectory: no directory below " + dir + " holds its own dependency " +
@@ -149,4 +158,16 @@ func withinRoot(root, path string) (string, error) {
 		return "", fmt.Errorf("path %s is a file; give the directory it belongs to", path)
 	}
 	return resolved, nil
+}
+
+// enabledControls names the controls in controls that are on, sorted.
+func enabledControls(controls map[string]saga.ControllerSettings) []string {
+	var out []string
+	for name, settings := range controls {
+		if on, _ := settings["enabled"].(bool); on {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

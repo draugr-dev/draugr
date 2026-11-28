@@ -201,6 +201,12 @@ func sagaFields() map[string]map[string]any {
 			"description": "Where rendered reports are delivered. Every report goes to every publisher.",
 		},
 		"config.gate": {},
+		"config.detect": {
+			"description": "Turn on the controls and scanners the repositories' files call for, the ones `draugr scan .` " +
+				"turns on with no descriptor: sca, secrets and sast, gosec and govulncheck for a go.mod, iac for a " +
+				"Dockerfile or other infrastructure file. A control written under controls is set as written and the " +
+				"rest stay detected. Reads repositories on this machine only. Off when absent.",
+		},
 		"config.exclude": {
 			"description": "Findings to suppress, each with a stated reason. A suppressed finding is still reported, " +
 				"marked with its justification, and stops counting toward the verdict.",

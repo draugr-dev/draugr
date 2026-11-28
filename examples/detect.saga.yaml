@@ -1,0 +1,42 @@
+# Example Saga that leaves which controls run to the files in its repositories.
+# Run it from the directory holding both repositories:  draugr scan detect.saga.yaml
+#
+# `detect: true` turns on what the files call for, the controls `draugr scan .` turns on for the
+# same files with no descriptor: sca, secrets and sast always, gosec and govulncheck for a go.mod,
+# iac for a Dockerfile, Terraform or Kubernetes manifest, and the dependency scanners that read
+# files Trivy does not. `draugr init` writes it. `draugr doctor detect.saga.yaml` names each
+# control and the file that turned it on, and the report's FOUND section says the same.
+#
+# The controls are one set for the descriptor. A go.mod in `api` turns gosec on for `web` too,
+# where it finds no Go module and reads nothing.
+#
+# A control written under `controls:` is laid over what was detected: its settings apply, and
+# `enabled: false` turns it off whatever the files call for. Every control not written stays as
+# detected. Writing a control's settings turns it on, so name only the ones you mean to change.
+#
+# detect reads repositories on this machine. A remote `url:` is fetched once the scan runs, after
+# the controls are decided, so the run names it as unread and only `controls:` turns on what its
+# files would call for.
+
+project: shop
+
+config:
+  detect: true
+  controls:
+    sast:
+      gosec:
+        exclude: [G104]   # settings under a detected scanner apply; the rest of sast is detected
+    iac:
+      nonShippingPaths: suppress   # and under a detected control
+
+components:
+  - name: api
+    exposure: public
+    criticality: critical
+    repositories:
+      - url: ./api
+  - name: web
+    exposure: public
+    criticality: important
+    repositories:
+      - url: ./web

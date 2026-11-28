@@ -67,6 +67,11 @@ exposure or criticality moves this component's findings down, which is right onl
 The Saga schema's [`components`](../reference/saga-schema.md#components) section says what each
 value means.
 
+The four controls are the ones a typical repository needs. To have the files decide instead, as the
+descriptor `draugr init` writes does, put `detect: true` under `config`:
+[`config.detect`](../reference/saga-schema.md#configdetect) turns on `sca`, `secrets` and `sast`,
+and `iac`, `gosec` and the rest where the files call for them, on every run.
+
 ## Add more of your surface
 
 Each component is one logical part of your app. List whatever applies, repositories, images, hosts,

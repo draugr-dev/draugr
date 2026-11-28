@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"path"
 	"slices"
 
 	"github.com/draugr-dev/draugr/internal/controllers"
+	"github.com/draugr-dev/draugr/internal/detect"
 	"github.com/draugr-dev/draugr/internal/needs"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/pkg/engine"
@@ -12,57 +14,131 @@ import (
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
-// found is the report's FOUND section: what the tree held and what the run did with each kind of
-// file, from the rows `draugr init` prints for the same tree. Called after turnOffUnrunnable, so a
-// scanner it turned off reads as off.
-func (zc *zeroConfig) found() []report.Found {
-	rows := foundRows(zc.tree)
-	out := make([]report.Found, len(rows))
-	for i, r := range rows {
-		out[i] = report.Found{Kind: r.kind, Files: r.where(), Paths: r.paths, Did: r.scanSays(zc.turnedOff)}
+// found is the report's FOUND section: what each repository held and what the run did with each
+// kind of file, from the rows `draugr init` prints for the same tree, then each repository detect
+// could not read. Called after turnOffUnrunnable, so a scanner it turned off reads as off, and so
+// does anything the descriptor turned off itself.
+func (d *detection) found(reg *engine.Registry) []report.Found {
+	off := d.off(reg)
+	var out []report.Found
+	for i := range d.result.Read {
+		for _, r := range d.rows(i) {
+			out = append(out, report.Found{Kind: r.kind, Files: r.where(), Paths: r.paths, Did: r.scanSays(off)})
+		}
+	}
+	for _, u := range d.result.Unread {
+		out = append(out, report.Found{Kind: "repository", Files: u.URL, Paths: []string{u.URL},
+			Did: "not read · " + detect.UnreadReason})
 	}
 	return out
 }
 
-// turnOffUnrunnable turns off each scanner the tree chose that this machine cannot run, and
-// returns the files each one would have examined.
+// rows are the FOUND rows of the i-th repository detect read. Where it read more than one, each
+// path is the repository's url joined to it, so a row says which repository holds the file.
+func (d *detection) rows(i int) []foundRow {
+	repo := d.result.Read[i]
+	rows := foundRows(repo.Tree)
+	if len(d.result.Read) < 2 {
+		return rows
+	}
+	for j := range rows {
+		paths := make([]string, len(rows[j].paths))
+		for k, p := range rows[j].paths {
+			paths[k] = path.Join(repo.URL, p)
+		}
+		rows[j].paths = paths
+	}
+	return rows
+}
+
+// off are the names a FOUND row may give that the run will not run: each scanner turnOffUnrunnable
+// turned off, and each control or scanner the model leaves off, which for a descriptor is one it
+// turned off itself, `sast: {enabled: false}` turning sast off whatever detect found.
+func (d *detection) off(reg *engine.Registry) []string {
+	off := slices.Clone(d.turnedOff)
+	running := map[string]bool{}
+	for _, u := range needs.Uses(reg, d.model) {
+		running[u.Info.Name] = true
+		for _, c := range u.Controls {
+			running[c] = true
+		}
+	}
+	for i := range d.result.Read {
+		for _, r := range foundRows(d.result.Read[i].Tree) {
+			for _, name := range r.on {
+				if registered(reg, name) && !running[name] && !slices.Contains(off, name) {
+					off = append(off, name)
+				}
+			}
+		}
+	}
+	return off
+}
+
+// registered reports whether name is a control or a scanner the registry knows, which a FOUND row
+// may name. A row also names what is neither, such as the file patterns trivy-fs is given.
+func registered(reg *engine.Registry, name string) bool {
+	if _, ok := reg.Controller(name); ok {
+		return true
+	}
+	_, ok := reg.Scanner(name)
+	return ok
+}
+
+// turnOffUnrunnable turns off each scanner detect chose that this machine cannot run, and returns
+// the files each one would have examined.
 //
-// A scanner the tree chose is one the model runs and the base does not: gosec and govulncheck for a
-// go.mod, retire.js for copied JavaScript, Grype for a file only it reads. No descriptor asked for
-// it, and a reader who never chose a scanner cannot be told their configuration is broken, so a
-// missing tool or runtime is a gap in what the run covered rather than a control that failed, and
-// the run says which files went unexamined and what would examine them. A scanner the base runs
-// keeps the behavior a descriptor's would: missing, it fails its control.
+// A scanner detect chose is one the model runs that neither the base nor the descriptor asked for
+// by name: gosec and govulncheck for a go.mod, retire.js for copied JavaScript, Grype for a file
+// only it reads. Nobody chose it, and a reader who never chose a scanner cannot be told their
+// configuration is broken, so a missing tool or runtime is a gap in what the run covered rather
+// than a control that failed, and the run says which files went unexamined and what would examine
+// them. A scanner the base runs, sca, secrets and sast's own, and one the descriptor names, keep
+// the behavior a descriptor's always had: missing, it fails its control.
 //
 // Called once the install offer has had its answer, so what `draugr tools install` can fetch is
 // offered before anything is turned off. A control outside the scope is left alone, since the run
 // would not have reached its scanners.
-func (zc *zeroConfig) turnOffUnrunnable(reg *engine.Registry, scope engine.Scope, lookPath func(string) (string, error)) []report.Unexamined {
+func (d *detection) turnOffUnrunnable(reg *engine.Registry, scope engine.Scope, lookPath func(string) (string, error)) []report.Unexamined {
 	base, err := zeroConfigBase()
 	if err != nil {
 		return nil
 	}
-	inBase := map[string]bool{}
-	for _, u := range needs.Uses(reg, base) {
-		inBase[u.Info.Name] = true
+	named := map[string]bool{}
+	for _, m := range []*saga.Model{base, d.result.AsWritten(d.model)} {
+		for _, u := range needs.Uses(reg, m) {
+			named[u.Info.Name] = true
+		}
 	}
-	rows := foundRows(zc.tree)
 	var out []report.Unexamined
-	for _, u := range needs.Uses(reg, zc.model) {
-		if inBase[u.Info.Name] || !slices.ContainsFunc(u.Controls, func(c string) bool { return inScope(scope, c) }) {
+	for _, u := range needs.Uses(reg, d.model) {
+		if named[u.Info.Name] || !slices.ContainsFunc(u.Controls, func(c string) bool { return inScope(scope, c) }) {
 			continue
 		}
 		why := cannotRun(u.Info, lookPath)
 		if why == "" {
 			continue
 		}
-		turnOff(zc.model, u.Info)
+		turnOff(d.model, u.Info)
 		keys := foundKeys(u, base)
-		zc.turnedOff = append(zc.turnedOff, keys...)
-		out = append(out, report.Unexamined{
-			Component: zc.model.Components[0].Name, Files: foundFiles(rows, keys...),
-			Paths: foundPaths(rows, keys...), Why: why,
-		})
+		d.turnedOff = append(d.turnedOff, keys...)
+		out = append(out, d.unexamined(keys, why)...)
+	}
+	return out
+}
+
+// unexamined is a caveat for each repository holding files a row turned one of keys on for, under
+// the first component naming the repository, since the scanner is off for every component alike.
+func (d *detection) unexamined(keys []string, why string) []report.Unexamined {
+	var out []report.Unexamined
+	for i, repo := range d.result.Read {
+		rows := d.rows(i)
+		paths := foundPaths(rows, keys...)
+		if len(paths) == 0 {
+			continue
+		}
+		out = append(out, report.Unexamined{Component: repo.Components[0], Files: foundFiles(rows, keys...),
+			Paths: paths, Why: why})
 	}
 	return out
 }

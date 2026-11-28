@@ -635,6 +635,47 @@ imports:
 The [`sarif-import`](../../internal/scanners/sarif-import.md#sonarqubes-security-issues) page has how
 each issue is read, its severity, and the errors.
 
+## `config.detect`
+
+Turns on the controls the repositories' files call for, the ones `draugr scan .` turns on in a
+directory with no descriptor. [`draugr init`](cli.md#draugr-init-dir) writes it, so the file holds
+what only you can decide, the components and their repositories, and nothing Draugr can read off the
+files:
+
+```yaml
+project: shop
+config:
+  detect: true
+components:
+  - name: shop
+    repositories:
+      - url: .
+```
+
+- `sca`, `secrets` and `sast` are always on. The files add the rest: `gosec` and govulncheck
+  reachability for a `go.mod`, `iac` for a Dockerfile, Terraform or other infrastructure file, and
+  retire.js, Grype or OSV-Scanner where their files are. The [`draugr init`](cli.md#draugr-init-dir)
+  table lists each.
+- The files are read on every run, so a pull request that adds the first Terraform file turns `iac`
+  on for that run, and its findings count as new.
+- A control written under `config.controls` is set as written over what was detected.
+  `iac: {enabled: false}` keeps `iac` off, and a setting under `sast` sits beside the `gosec` a
+  `go.mod` turned on. A control the descriptor does not name stays as detected.
+- A scanner only detect turned on that this machine cannot run is turned off, and the report lists
+  the files it would have read as not checked under CAVEATS rather than failing its control.
+  `sca`, `secrets` and `sast`, and any scanner the descriptor names, still fail their control when
+  their tool is missing.
+- The controls are one set for the descriptor. With two repositories, a scanner one repository's
+  files call for runs on both, and reads nothing where there is nothing for it to read.
+- Only repositories on this machine are read. A repository named by a remote URL is fetched once the
+  scan runs, after the controls are decided, so the scan warns that detect did not read it.
+- [`draugr doctor`](cli.md#draugr-doctor-sagayaml) lists what detect turned on under `DETECTED`, by
+  component, with the files behind each. A scan lists the same under `FOUND`, and `report.json`
+  records it in `found[]`.
+
+Off when absent. A descriptor without it runs the controls it names and nothing else, one that
+names none because it only imports another tool's results included.
+
 ## `config.controls`
 
 A map of control name → free-form settings. A control runs only when **enabled**:

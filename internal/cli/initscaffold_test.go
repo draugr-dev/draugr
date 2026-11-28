@@ -6,10 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/detect"
+	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/internal/sagatest"
+	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
 // layout writes files under root, creating their directories.
@@ -54,18 +59,47 @@ func runInitIn(t *testing.T, files map[string]string, opts initOptions) (descrip
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := loadSaga(opts.output); err != nil {
+	if _, err := loadWritten(t.Context(), opts.output, false); err != nil {
 		t.Fatalf("init wrote a descriptor validate refuses: %v\n%s", err, data)
 	}
 	sagatest.EditorAcceptsFile(t, opts.output, false)
 	return string(data), buf.String()
 }
 
-// A tree holding none of what adds a scanner gets the three controls that are always on, iac
-// offered commented out, and no line claiming a file behind it.
+// initDetects runs init in a fresh tree and returns the model a run of what it wrote applies: the
+// descriptor as written, with the controls its config.detect turns on for the tree.
+func initDetects(t *testing.T, files map[string]string, opts initOptions) (*saga.Model, string) {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "shop")
+	layout(t, dir, files)
+	opts.output = filepath.Join(dir, "draugr.saga.yaml")
+	var buf bytes.Buffer
+	if err := runInit(dir, opts, &buf); err != nil {
+		t.Fatal(err)
+	}
+	m, err := saga.LoadFile(opts.output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The url init wrote is the directory the descriptor sits in, which a run from there reaches.
+	if _, err := detect.ApplyWith(m, func(url string) inventory.Tree { return inventory.Read(filepath.Join(dir, url)) }); err != nil {
+		t.Fatal(err)
+	}
+	return m, buf.String()
+}
+
+// enabledBlock reports whether the model turns on the scanner block key under control.
+func enabledBlock(m *saga.Model, control, key string) bool {
+	blk, ok := m.Config.Controls[control][key].(saga.ControllerSettings)
+	return ok && blk["enabled"] == true
+}
+
+// A tree holding none of what adds a scanner gets the three controls that are always on, and no
+// line claiming a file behind it.
 func TestInitOnAnEmptyTreeWritesTheBaseline(t *testing.T) {
 	t.Parallel()
-	got, console := runInitIn(t, map[string]string{"README.md": "shop\n"}, initOptions{})
+	files := map[string]string{"README.md": "shop\n"}
+	got, console := runInitIn(t, files, initOptions{})
 	for _, absent := range []string{"reachability", "retirejs", "grypeFs", "trivyFs", "gosec", "images", "spec:", "Unread", "Directories", " · "} {
 		if strings.Contains(got, absent) {
 			t.Errorf("empty tree wrote %q:\n%s", absent, got)
@@ -75,6 +109,13 @@ func TestInitOnAnEmptyTreeWritesTheBaseline(t *testing.T) {
 		if strings.Contains(console, absent) {
 			t.Errorf("empty tree printed %s:\n%s", absent, console)
 		}
+	}
+	m, _ := initDetects(t, files, initOptions{})
+	if got := slices.Sorted(maps.Keys(m.Config.Controls)); !slices.Equal(got, zeroConfigControls()) {
+		t.Errorf("an empty tree turns on %v, want %v", got, zeroConfigControls())
+	}
+	if m.Config.Reachability != nil {
+		t.Errorf("an empty tree turns on reachability %+v", m.Config.Reachability)
 	}
 }
 
@@ -148,7 +189,7 @@ func TestInitProposesIgnoringDocsExamplesAndTests(t *testing.T) {
 	if ignore := zc.model.Components[0].Repositories[0].Ignore; len(ignore) != 0 {
 		t.Errorf("zero-config ignore = %v, want none: init writes them commented out", ignore)
 	}
-	found := zc.found()
+	found := zc.found(builtins.Registry())
 	if last := found[len(found)-1]; last.Kind != "docs, examples, tests" || last.Did != "scanned · listed last" {
 		t.Errorf("zero-config FOUND ends %+v, want the directories scanned and listed last", last)
 	}
@@ -200,7 +241,7 @@ func TestInitNamesTheSARIFItProposesImporting(t *testing.T) {
 		t.Errorf("zero-config imports = %+v, want none: init writes them commented out", imports)
 	}
 	var did []string
-	for _, f := range zc.found() {
+	for _, f := range zc.found(builtins.Registry()) {
 		if strings.HasPrefix(f.Kind, "SARIF") {
 			did = append(did, f.Kind+": "+f.Did)
 		}
@@ -234,14 +275,12 @@ func TestInitProposesTheGoControlsForModulesThatRequireNothing(t *testing.T) {
 		"tools/go.mod":  "module tools\n\ngo 1.26\n",
 		"tools/main.go": "package main\n",
 	}
-	got, console := runInitIn(t, files, initOptions{})
-	for _, want := range []string{
-		"analyzers: [govulncheck]   # ranks a Go finding down when no code calls it · go.mod · tools/go.mod\n",
-		"gosec:\n        enabled: true     # Go-specific checks · go.mod · tools/go.mod\n",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("descriptor missing %q:\n%s", want, got)
-		}
+	m, console := initDetects(t, files, initOptions{})
+	if r := m.Config.Reachability; r == nil || !slices.Equal(r.Analyzers, []string{"govulncheck"}) {
+		t.Errorf("reachability = %+v, want govulncheck", r)
+	}
+	if !enabledBlock(m, "sast", "gosec") {
+		t.Errorf("sast = %v, want gosec on", m.Config.Controls["sast"])
 	}
 	if !strings.Contains(console, "  go  go.mod · tools/go.mod  gosec · govulncheck\n") {
 		t.Errorf("console does not list the modules under FOUND:\n%s", console)
@@ -278,21 +317,21 @@ func TestInitTurnsOnRetireJSForACopiedLibraryAndNotForATest(t *testing.T) {
 		return files
 	}
 
-	got, console := runInitIn(t, with(map[string]string{
+	m, console := initDetects(t, with(map[string]string{
 		"tests/release-2.2-notes.test.js": "test('notes', () => {})\n",
 		"src/upgrade-1.4.spec.js":         "it('upgrades', () => {})\n",
 	}), initOptions{})
-	if strings.Contains(got, "retirejs") || strings.Contains(console, "copied JavaScript") {
-		t.Errorf("init read a test file as a copied library:\n%s\n%s", got, console)
+	if _, on := m.Config.Controls["sca"]["retirejs"]; on || strings.Contains(console, "copied JavaScript") {
+		t.Errorf("init read a test file as a copied library:\n%v\n%s", m.Config.Controls["sca"], console)
 	}
 
-	got, console = runInitIn(t, with(map[string]string{
+	m, console = initDetects(t, with(map[string]string{
 		"tests/release-2.2-notes.test.js": "test('notes', () => {})\n",
 		"static/jquery-1.8.3.js":          "",
 		"spec/fixtures/jquery-3.0.min.js": "",
 	}), initOptions{})
-	if !strings.Contains(got, "retirejs:\n        enabled: true     # copied JavaScript, outside any lockfile · spec/fixtures/jquery-3.0.min.js · static/jquery-1.8.3.js\n") {
-		t.Errorf("init did not turn retire.js on for the libraries alone:\n%s", got)
+	if !enabledBlock(m, "sca", "retirejs") {
+		t.Errorf("init did not turn retire.js on for the libraries:\n%v", m.Config.Controls["sca"])
 	}
 	if !regexp.MustCompile(`\n  copied JavaScript +spec/fixtures/jquery-3\.0\.min\.js · static/jquery-1\.8\.3\.js +retirejs\n`).MatchString(console) {
 		t.Errorf("console does not name the libraries alone under FOUND:\n%s", console)
@@ -307,20 +346,21 @@ func TestInitWritesFilePatternsForRequirementsTrivyDoesNotOpen(t *testing.T) {
 	for _, c := range []struct {
 		name  string
 		files map[string]string
-		want  string
+		want  []any
 	}{
 		{"named", map[string]string{"requirements-dev.txt": "flask==0.12.2\n", "requirements.txt": "click==8.0.0\n"},
-			`filePatterns: ['pip:requirements[^/]*\.txt$']   # requirements files under other names · requirements-dev.txt` + "\n"},
+			[]any{`pip:requirements[^/]*\.txt$`}},
 		{"in a directory", map[string]string{"requirements/test.txt": "pytest==8.0.0\n"},
-			`filePatterns: ['pip:(^|/)requirements/[^/]+\.txt$']   # requirements files under other names · requirements/test.txt` + "\n"},
+			[]any{`pip:(^|/)requirements/[^/]+\.txt$`}},
 		{"both", map[string]string{"api/dev-requirements.txt": "black==24.1.0\n", "web/requirements/test.txt": "pytest==8.0.0\n"},
-			`filePatterns: ['pip:requirements[^/]*\.txt$', 'pip:(^|/)requirements/[^/]+\.txt$']`},
+			[]any{`pip:requirements[^/]*\.txt$`, `pip:(^|/)requirements/[^/]+\.txt$`}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			got, console := runInitIn(t, c.files, initOptions{})
-			if !strings.Contains(got, "      trivyFs:\n        "+c.want) {
-				t.Errorf("descriptor missing %q:\n%s", c.want, got)
+			m, console := initDetects(t, c.files, initOptions{})
+			blk, _ := m.Config.Controls["sca"]["trivyFs"].(saga.ControllerSettings)
+			if got, _ := blk["filePatterns"].([]any); !slices.Equal(got, c.want) {
+				t.Errorf("sca.trivyFs.filePatterns = %v, want %v", blk["filePatterns"], c.want)
 			}
 			if !strings.Contains(console, "read by a file pattern") {
 				t.Errorf("console does not list the files under FOUND:\n%s", console)
@@ -329,9 +369,9 @@ func TestInitWritesFilePatternsForRequirementsTrivyDoesNotOpen(t *testing.T) {
 	}
 
 	// requirements.txt alone is what Trivy opens anyway, and needs no pattern.
-	got, _ := runInitIn(t, map[string]string{"requirements.txt": "flask==0.12.2\n"}, initOptions{})
-	if strings.Contains(got, "trivyFs") {
-		t.Errorf("init wrote a pattern for requirements.txt:\n%s", got)
+	m, _ := initDetects(t, map[string]string{"requirements.txt": "flask==0.12.2\n"}, initOptions{})
+	if _, on := m.Config.Controls["sca"]["trivyFs"]; on {
+		t.Errorf("init turned on a pattern for requirements.txt: %v", m.Config.Controls["sca"])
 	}
 }
 

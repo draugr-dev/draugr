@@ -183,14 +183,6 @@ func Saga(t inventory.Tree, name string, perDirectory bool) string {
 // component: Here for a Saga run from the directory it describes, or the directory's path from
 // where the Saga runs.
 func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string {
-	// note appends the paths behind a line to its comment, so the reason a control is on can be
-	// checked against the tree.
-	note := func(s string) string {
-		if s == "" {
-			return ""
-		}
-		return " · " + s
-	}
 	var b strings.Builder
 	// The modeline gives editors schema-driven completion, hover docs and validation with no
 	// setup: the YAML language server (VS Code, JetBrains, Neovim) fetches it on open.
@@ -201,6 +193,44 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 	// The project at the top level, which is the only place it is named. A descriptor Draugr wrote
 	// itself must be one Draugr's own next command accepts.
 	fmt.Fprintf(&b, "project: %s\n", Scalar(name))
+	// detect rather than the controls it turns on. Which scanners a tree calls for is something
+	// Draugr reads off the files every run, and a list written down once goes stale the day a
+	// Dockerfile or a go.mod is added. What only the reader can decide, the components and their
+	// repositories, is what the file holds.
+	b.WriteString("config:\n  detect: true   # turns on the controls the files call for, which draugr doctor names\n")
+
+	b.WriteString("components:\n")
+	if perDirectory && len(t.Parts) > 0 {
+		writePerDirectory(&b, t, name, url)
+		return b.String()
+	}
+	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(name), Scalar(url))
+	writeIgnore(&b, nil, t.NonShipping)
+	writeUnresolvedComment(&b, t.Unresolved)
+	if len(t.Parts) > 0 {
+		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
+		b.WriteString("    # `draugr init --per-directory` writes a component for each.\n")
+	}
+	writeImports(&b, t.SARIF, url)
+	writeSurfaceStubs(&b, t, name, len(t.Dockerfiles) > 0)
+	return b.String()
+}
+
+// detectedConfig renders the config block `detect: true` turns on for the tree: sca, secrets and
+// sast for any tree, and each scanner the tree's files call for, with a comment naming the files.
+//
+// The one list of what a tree calls for. A scan with no descriptor and a descriptor that sets
+// detect both read it, through Detected, so a scanner added here is added to both.
+func detectedConfig(t inventory.Tree) string {
+	// note appends the paths behind a line to its comment, so the reason a control is on can be
+	// checked against the tree.
+	note := func(s string) string {
+		if s == "" {
+			return ""
+		}
+		return " · " + s
+	}
+	var b strings.Builder
 	b.WriteString("config:\n")
 	if len(t.Go) > 0 {
 		fmt.Fprintf(&b, "  reachability:\n    analyzers: [govulncheck]   # ranks a Go finding down when no code calls it%s\n",
@@ -230,31 +260,27 @@ func SagaAt(t inventory.Tree, name string, perDirectory bool, url string) string
 		fmt.Fprintf(&b, "      gosec:\n        enabled: true     # Go-specific checks%s\n", note(PathList(GoModules(t))))
 	}
 	// Turned on where Trivy has a file to read. Elsewhere the control runs and reads nothing, and a
-	// descriptor that enables it says something about the tree that is not so.
+	// run that enables it says something about the tree that is not so.
 	if inputs := iacInputs(t); len(inputs) > 0 {
 		fmt.Fprintf(&b, "    iac:\n      enabled: true       # IaC misconfiguration (Trivy config)%s\n", note(PathList(inputs)))
-	} else {
-		b.WriteString("    # iac:\n    #   enabled: true     # IaC misconfiguration (Trivy config). No Dockerfile, Terraform, Kubernetes or other infrastructure file found\n")
 	}
-	if len(t.Dockerfiles) > 0 {
-		b.WriteString("    # images:\n    #   enabled: true     # container CVEs (Trivy). Add your built image below\n")
-	}
-
-	b.WriteString("components:\n")
-	if perDirectory && len(t.Parts) > 0 {
-		writePerDirectory(&b, t, name, url)
-		return b.String()
-	}
-	fmt.Fprintf(&b, "  - name: %s\n    repositories:\n      - url: %s\n", Scalar(name), Scalar(url))
-	writeIgnore(&b, nil, t.NonShipping)
-	writeUnresolvedComment(&b, t.Unresolved)
-	if len(t.Parts) > 0 {
-		fmt.Fprintf(&b, "    # Directories with their own dependency files: %s\n", PathList(t.Parts))
-		b.WriteString("    # `draugr init --per-directory` writes a component for each.\n")
-	}
-	writeImports(&b, t.SARIF, url)
-	writeSurfaceStubs(&b, t, name, len(t.Dockerfiles) > 0)
 	return b.String()
+}
+
+// Detected is the configuration `detect: true` turns on for the tree: its controls, and the
+// reachability analysis a go.mod calls for.
+//
+// Read from detectedConfig's text rather than built beside it, so the settings are the ones the
+// loader makes of a descriptor that wrote them out, and a scanner added to the list cannot reach
+// one reader and not the other.
+func Detected(t inventory.Tree) (saga.Config, error) {
+	text := "project: detected\n" + detectedConfig(t) +
+		"components:\n  - name: detected\n    repositories:\n      - url: " + Here + "\n"
+	m, err := saga.Load([]byte(text))
+	if err != nil {
+		return saga.Config{}, fmt.Errorf("the controls detected for this tree do not load: %w", err)
+	}
+	return saga.Config{Controls: m.Config.Controls, Reachability: m.Config.Reachability}, nil
 }
 
 // RustLockfiles are the tree's Cargo.lock files, which OSV-Scanner reads beside Trivy.
@@ -273,17 +299,32 @@ func RustLockfiles(t inventory.Tree) []string {
 	return locks
 }
 
-// Model is the descriptor Saga writes for the tree, read back as Draugr reads one: one component,
-// with every scanner the tree calls for and nothing that Saga leaves commented out.
+// Load is the descriptor Saga writes for the tree, read back as Draugr reads one: one component,
+// config.detect set, and no control turned on yet.
+func Load(t inventory.Tree, name string) (*saga.Model, error) {
+	m, err := saga.Load([]byte(Saga(t, name, false)))
+	if err != nil {
+		return nil, fmt.Errorf("the scaffold for %s does not load: %w", name, err)
+	}
+	return m, nil
+}
+
+// Model is the descriptor Saga writes for the tree as a run of it applies it: one component, with
+// the controls detect turns on for the tree (Detected) and nothing that Saga leaves commented out.
 //
 // Read from the text rather than built beside it, so a scan with no descriptor runs what `draugr
 // init` would write for the same directory, and a scanner added to one is added to the other. A
 // second construction would agree with the text until the day somebody changed only one of them.
 func Model(t inventory.Tree, name string) (*saga.Model, error) {
-	m, err := saga.Load([]byte(Saga(t, name, false)))
+	m, err := Load(t, name)
 	if err != nil {
-		return nil, fmt.Errorf("the scaffold for %s does not load: %w", name, err)
+		return nil, err
 	}
+	detected, err := Detected(t)
+	if err != nil {
+		return nil, err
+	}
+	m.Config.Controls, m.Config.Reachability = detected.Controls, detected.Reachability
 	return m, nil
 }
 
@@ -307,8 +348,12 @@ func writeSurfaceStubs(b *strings.Builder, t inventory.Tree, name string, images
 }
 
 // writeImageStub comments out the image a component builds, named after the component.
+//
+// The comment names the control because detect does not turn it on: a Dockerfile says an image is
+// built, not where the built one is published, and the images control reads the published one.
 func writeImageStub(b *strings.Builder, name string) {
-	b.WriteString("    # images:\n    #   - image: myorg/" + name + ":latest\n")
+	b.WriteString("    # images:           # container CVEs, with config.controls.images: {enabled: true}\n" +
+		"    #   - image: myorg/" + name + ":latest\n")
 }
 
 // writeUnresolvedComment names the dependency files no scanner can take packages from.

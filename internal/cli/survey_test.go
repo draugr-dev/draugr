@@ -117,6 +117,41 @@ func TestRunSurveyMerge(t *testing.T) {
 	}
 }
 
+// A survey that adds to a descriptor setting config.detect writes back `detect: true` and no
+// controls: the ones detect turns on are read off the repository on every run, and writing them into
+// the file would stop them following the files.
+func TestSurveyMergeKeepsDetectAsWritten(t *testing.T) {
+	dir := t.TempDir()
+	// A relative url resolves against where Draugr runs, so the run starts in the repository.
+	t.Chdir(dir)
+	for name, body := range map[string]string{"go.mod": "module app\n\ngo 1.22\n", "main.go": "package main\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	out := filepath.Join(dir, "draugr.saga.yaml")
+	existing := "project: app\nconfig:\n  detect: true\ncomponents:\n  - name: app\n    repositories:\n      - url: .\n"
+	if err := os.WriteFile(out, []byte(existing), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runSurvey(context.Background(), surveyOptions{output: out}, []surveyor.Request{{Surveyor: "k8s-images"}}, stubRegistry(), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	m, err := saga.LoadFile(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The survey enables the controls of the surfaces it adds, as it does for any descriptor. What
+	// detect turned on for the go.mod, gosec and govulncheck, stays off the page.
+	if _, gosec := m.Config.Controls["sast"]["gosec"]; !m.Config.Detect || gosec || m.Config.Reachability != nil {
+		t.Errorf("detect = %v, sast = %v, reachability = %v; want detect kept and nothing it turned on written",
+			m.Config.Detect, m.Config.Controls["sast"], m.Config.Reachability)
+	}
+	if len(m.Components) != 2 {
+		t.Errorf("components = %d, want the written one and the surveyed one", len(m.Components))
+	}
+}
+
 // Through the root command, `survey` with no surveyor now lists them rather than erroring:
 // there is nothing to get wrong, because a surveyor is chosen by naming it.
 func TestSurveyCommandViaCobraListsSurveyors(t *testing.T) {

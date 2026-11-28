@@ -209,7 +209,7 @@ func markdownActionLine(a action, nameComponents bool) string {
 	return line
 }
 
-// writeFoundRows lists what a run with no descriptor read from the tree, as the console's FOUND
+// writeFoundRows lists what a run read from the tree to turn its controls on, as the console's FOUND
 // section does. The pull request this is pasted into is often the first place somebody meets the
 // run, and without it a scanner the tree turned on is one nobody can account for.
 func writeFoundRows(w io.Writer, d Data) {
@@ -218,7 +218,7 @@ func writeFoundRows(w io.Writer, d Data) {
 	}
 	_, _ = fmt.Fprintln(w, "### Found")
 	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "What the run read from the tree, which `draugr init` writes to `draugr.saga.yaml`.")
+	_, _ = fmt.Fprintln(w, "What the run read from the tree, and what each kind of file turned on.")
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "| Kind | Files | This run |")
 	_, _ = fmt.Fprintln(w, "|---|---|---|")

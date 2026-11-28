@@ -47,7 +47,9 @@ Create `draugr.saga.yaml`. The **Saga** maps your software to the controls that 
 draugr init
 ```
 
-A control only runs when it is **enabled**, globally under `config.controls` or on a component.
+The descriptor it writes sets `config.detect: true`, which turns on the controls the tree's files
+call for on every run, so it stays right when you add a Dockerfile or a `go.mod`. A control you
+write under `config.controls`, or on a component, is set as you write it, `enabled: false` included.
 [Write your first Saga](first-saga.md) builds one field by field; the
 [Saga schema](../reference/saga-schema.md) has every field.
 
@@ -72,24 +74,28 @@ A small Python service, with the descriptor `draugr init` wrote for it:
 
 ```console
 $ draugr scan --top 3
-DRAUGR  FAIL  shop  3.654s
+DRAUGR  FAIL  shop  4.252s
 
- 5 P1 6 P2 0 P3 0 P4
+ 10 P1 8 P2 3 P3 0 P4
  No component declares exposure or criticality, so every one is read as public and critical.
  These bands rank severity alone. `draugr classify` makes them describe this application.
 
 CONTROLS
-  iac      pass   no findings
-  sast     pass   no findings
-  sca      FAIL   5 P1 6 P2
+  iac      FAIL   1 P1 1 P3
+  sast     pass   1 P3
+  sca      FAIL   9 P1 8 P2 1 P3
   secrets  pass   no findings
+
+FOUND  read from the tree · what each kind of file turned on
+  python      requirements.txt  sca
+  Dockerfile  Dockerfile        iac · images off
 
 SIGNALS
   KEV    not read · --kev auto reads it
   EPSS   not read · --epss auto reads it
   floor  nothing raised
 
-FIX FIRST  3 of 11 findings, by priority
+FIX FIRST  3 of 21 findings, by priority
   P1  critical  CVE-2019-10906
       str.format_map allows sandbox escape
       scanner trivy · jinja2 2.10 → 2.10.1
@@ -105,7 +111,7 @@ FIX FIRST  3 of 11 findings, by priority
       scanner trivy · flask 2.0.1 → 2.2.5
       requirements.txt:1
 
-… and 8 more findings, not listed.
+… and 18 more findings, not listed.
 
 TRY
   --top 0                                  every one of them, not the first three
@@ -119,18 +125,22 @@ TRY
       expires: <YYYY-MM-DD>
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out
 
-DRAUGR  FAIL  5 P1 6 P2 0 P3 0 P4
-  sca fails
+DRAUGR  FAIL  10 P1 8 P2 3 P3 0 P4
+  iac and sca fail
   FIX FIRST  CVE-2019-10906 · jinja2 2.10 → 2.10.1 · requirements.txt:3
 draugr: policy verdict: fail
 ```
 
 - **`DRAUGR FAIL`** is the verdict. It fails because at least one finding is P1, the default gate
   (`--fail-on`), and the process **exits non-zero**, so it gates a pipeline directly.
-- **`5 P1 6 P2 0 P3 0 P4`** counts the findings by priority, P1 the most urgent. With no exposure
+- **`10 P1 8 P2 3 P3 0 P4`** counts the findings by priority, P1 the most urgent. With no exposure
   or criticality declared, every component is read as public and critical, so the bands follow
   severity until [Focus](#focus-what-to-fix-first) classifies them.
 - **`CONTROLS`** has a row for each enabled control, saying whether it passed and what it found.
+- **`FOUND`** lists the files that turned those controls on. The descriptor `draugr init` writes
+  sets `config.detect`, so every scan reads them off the tree: `requirements.txt` for `sca`, the
+  Dockerfile for `iac`. `images off` says the Dockerfile builds an image the descriptor does not
+  name yet.
 - **`SIGNALS`** lists what raised or lowered findings in the ranking, and how many each one moved.
   `KEV` and `EPSS` raise a vulnerability that is being exploited, or is likely to be. A scan reads
   them only when asked, so here they say they were not read and which flag reads them.

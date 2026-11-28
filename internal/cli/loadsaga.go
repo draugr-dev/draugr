@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/detect"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/git"
 	"github.com/draugr-dev/draugr/internal/inventory"
@@ -28,19 +29,20 @@ import (
 // init` would write for it; a file target is loaded as a Saga descriptor. Returns whether the model
 // was synthesized so the caller can note it.
 func scanModel(target string) (m *saga.Model, synthesized bool, err error) {
-	res, zc, err := scanResolved(target)
+	res, d, err := scanResolved(target)
 	if err != nil {
-		return nil, zc != nil, err
+		return nil, d.isSynthesized(), err
 	}
-	return res.Model, zc != nil, nil
+	return res.Model, d.isSynthesized(), nil
 }
 
 // scanResolved is scanModel keeping the resolution, for the caller that reports which files the
-// scan was driven by, and what the tree held where there was no descriptor to say.
+// scan was driven by, and what the repositories held where the controls were read off them.
 //
 // A synthesized model has no files behind it, and its Resolved carries no sources rather than one
-// naming a file that was never read. Its zeroConfig is nil for a model loaded from a descriptor.
-func scanResolved(target string) (*saga.Resolved, *zeroConfig, error) {
+// naming a file that was never read. The detection is nil for a descriptor that does not set
+// config.detect, and marked synthesized for a directory with no descriptor.
+func scanResolved(target string) (*saga.Resolved, *detection, error) {
 	path, found, err := resolveDescriptor(target, "scan")
 	if err != nil {
 		return nil, nil, err
@@ -49,14 +51,17 @@ func scanResolved(target string) (*saga.Resolved, *zeroConfig, error) {
 		if target == "" {
 			target = "."
 		}
-		zc, err := synthesize(target)
+		d, err := synthesize(target)
 		if err != nil {
 			return nil, nil, err
 		}
-		return &saga.Resolved{Model: zc.model}, zc, nil
+		return &saga.Resolved{Model: d.model}, d, nil
 	}
-	res, err := loadResolved(context.Background(), path, true)
-	return res, nil, err
+	res, result, err := loadDetected(context.Background(), path, true)
+	if err != nil || result == nil {
+		return res, nil, err
+	}
+	return res, &detection{result: result, model: res.Model}, nil
 }
 
 // resolveDescriptor turns a path that may be a directory into the descriptor to act on. An empty
@@ -218,18 +223,27 @@ func zeroConfigControls() []string {
 // secrets".
 func ZeroConfigControls() string { return english.And(zeroConfigControls()) }
 
-// zeroConfig is a scan of a directory that holds no descriptor: what the tree held, the model
-// made of it, and the scanners the run turned off because they cannot run here.
-type zeroConfig struct {
-	tree      inventory.Tree
-	model     *saga.Model
-	turnedOff []string
+// detection is a run whose controls were read off its repositories: a scan of a directory that
+// holds no descriptor, or of a descriptor that sets config.detect. It holds what detect read, the
+// model it turned the controls on in, and the scanners the run turned off because they cannot run
+// here.
+type detection struct {
+	result *detect.Result
+	model  *saga.Model
+	// synthesized marks the scan with no descriptor, whose model is the one `draugr init` would
+	// write for the directory.
+	synthesized bool
+	turnedOff   []string
 }
 
+// isSynthesized reports whether d is a scan with no descriptor, false for nil.
+func (d *detection) isSynthesized() bool { return d != nil && d.synthesized }
+
 // synthesize reads dir as `draugr init` does and returns the model init would write for it, with
-// one component scanning the directory.
+// one component scanning the directory, and the controls detect turns on for it.
 //
-// The model is read from the text init writes (scaffold.Model), so a zero-config scan runs every
+// The model is read from the text init writes (scaffold.Load), and its controls are the ones that
+// descriptor's config.detect turns on, by the same function, so a zero-config scan runs every
 // scanner the tree calls for and nothing init leaves commented out. The project, the component and
 // the repository are named as init names them, read from the working directory. A finding's
 // identity includes its component and its repository, so a run after `init` and a zero-config run
@@ -238,23 +252,29 @@ type zeroConfig struct {
 // The repository is the one change from the text. init writes Here, for a descriptor that sits in
 // the directory it describes; a scan may be pointed at the directory from anywhere, and the url is
 // that directory as the working directory reaches it.
-func synthesize(dir string) (*zeroConfig, error) {
+func synthesize(dir string) (*detection, error) {
 	tree := inventory.Read(dir)
-	m, err := scaffold.Model(tree, scaffold.NameFor(dir))
+	m, err := scaffold.Load(tree, scaffold.NameFor(dir))
 	if err != nil {
 		return nil, err
 	}
 	m.Components[0].Repositories[0].URL = scaffold.RepositoryURL(dir)
-	return &zeroConfig{tree: tree, model: m}, nil
+	// The tree already read rather than read again. The url names a directory that exists, which is
+	// what makes it one detect reads.
+	res, err := detect.ApplyWith(m, func(string) inventory.Tree { return tree })
+	if err != nil {
+		return nil, err
+	}
+	return &detection{result: res, model: m, synthesized: true}, nil
 }
 
 // syntheticSaga is the model a zero-config scan of dir runs.
 func syntheticSaga(dir string) (*saga.Model, error) {
-	zc, err := synthesize(dir)
+	d, err := synthesize(dir)
 	if err != nil {
 		return nil, err
 	}
-	return zc.model, nil
+	return d.model, nil
 }
 
 // loadSaga loads a Saga for a command that needs it, presenting any parse/validation failure with
@@ -292,6 +312,30 @@ func loadResolvedCtx(ctx context.Context, path string) (*saga.Resolved, error) {
 // this machine. Only a scan asks: the history is evidence in a report, and every other command
 // that loads a descriptor would run git for nothing.
 func loadResolved(ctx context.Context, path string, history bool) (*saga.Resolved, error) {
+	res, _, err := loadDetected(ctx, path, history)
+	return res, err
+}
+
+// loadDetected is loadResolved keeping what config.detect read, nil for a descriptor that does not
+// set it.
+//
+// Detected here, where every command that acts on a descriptor loads it, so the tools `draugr tools
+// install` fetches, the feeds a scan needs and the controls a scan runs are all the ones the
+// repositories call for. After the control names are checked, which judges what the reader wrote.
+func loadDetected(ctx context.Context, path string, history bool) (*saga.Resolved, *detect.Result, error) {
+	res, err := loadWritten(ctx, path, history)
+	if err != nil {
+		return nil, nil, err
+	}
+	result, err := detect.Apply(res.Model)
+	if err != nil {
+		return nil, nil, fmt.Errorf("%q: %w", path, err)
+	}
+	return res, result, nil
+}
+
+// loadWritten loads the descriptor as written, before anything is detected.
+func loadWritten(ctx context.Context, path string, history bool) (*saga.Resolved, error) {
 	fetcher := sagafetch.New(ctx)
 	defer fetcher.Close()
 

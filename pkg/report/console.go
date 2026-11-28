@@ -255,7 +255,7 @@ func (r consoleReporter) Render(w io.Writer, d Data) error {
 		}
 		_, _ = fmt.Fprintln(w)
 	}
-	// What the run read from the tree, on a run with no descriptor, beside the controls it explains.
+	// What the run read from the tree to turn its controls on, beside the controls it explains.
 	// Context, so the dense view leaves it out, as it leaves out the components and the signals.
 	if !dense(d) {
 		writeFound(w, col, d)
@@ -2303,11 +2303,11 @@ func sarifReportFlags(d Data) (string, bool) {
 }
 
 // foundNote is what the FOUND heading says about its rows, in every format.
-const foundNote = "read from the tree · `draugr init` writes them to draugr.saga.yaml"
+const foundNote = "read from the tree · what each kind of file turned on"
 
-// writeFound lists what a run with no descriptor read from the tree, a row per kind of file, in the
-// rows `draugr init` prints for the same tree. Nothing on a run from a descriptor, whose reader
-// already wrote down what to scan.
+// writeFound lists what a run read from its repositories to turn its controls on, a row per kind of
+// file, in the rows `draugr init` prints for the same tree. Nothing on a run whose descriptor names
+// its controls itself, since its reader already wrote down what to scan.
 func writeFound(w io.Writer, col tui.Painter, d Data) {
 	if len(d.Found) == 0 {
 		return
