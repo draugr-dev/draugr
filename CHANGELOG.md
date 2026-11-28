@@ -16,17 +16,17 @@ _Nothing yet._
 
 ### Added
 
-- **Choose colors that read on a white terminal.** Set `output.palette: light-background` in `~/.draugr/config.yaml` to deepen the yellow of P2, caveats and `↑ KEV` to amber and the blue-grey of P3 to blue. Every color then keeps at least 3:1 contrast on white. `standard` stays the default.
+- **Choose colors that read on a white terminal.** Set `output.palette: light-background` in `~/.draugr/config.yaml` and P2, caveats and `↑ KEV` turn from yellow to amber, and P3 from blue-grey to blue, so every color keeps at least 3:1 contrast on white. `standard` is the default.
 
 ### Changed
 
-- **A pass and a fixed version are blue, not green.** On a terminal that shows full color (`COLORTERM=truecolor`) and in the HTML report, `pass` and the version that ends a finding (`→ 3.5.0`) are now blue. Beside a red `FAIL` or `P1`, the green looked the same to a reader with deuteranomaly, the most common red-green color vision deficiency.
+- **A pass and a fixed version are blue, not green.** In the HTML report and on terminals that set `COLORTERM=truecolor`, `pass` and the version that ends a finding (`→ 3.5.0`) are blue, because green and red look alike to a reader with deuteranomaly. Other terminals keep green.
 
 - **A scan ends on its answer.** The last lines of `draugr scan` repeat the verdict and counts, name the controls and caveats that fail the run, and give the first `FIX FIRST` row again: its rule, its fix and where it is. A long run that scrolled its top away still ends with what failed and where to start.
 
 ### Fixed
 
-- **A caveat that fails the run reads FAIL, not ERROR.** Its component and the controls it names now read `FAIL` in the console, markdown and HTML reports, where the component read `ERROR` and the control read `pass` or `FAIL`. `ERROR` means a target no scanner read, so it no longer sends you looking for a scanner that broke.
+- **A caveat that fails the run reads FAIL, not ERROR.** The caveat's component and the controls it names now read `FAIL` in the console, markdown and HTML reports. The component used to read `ERROR`, and a control `pass` or `FAIL`. `ERROR` stays for a target no scanner read, so a caveat no longer sends you looking for a scanner that broke.
 
 ## [0.194.0] - 2026-11-28
 
