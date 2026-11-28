@@ -79,6 +79,7 @@ Set the two values in the environment and scan:
 export DRAUGR_API_URL=https://app.draugr.dev
 export DRAUGR_API_TOKEN=drgr_ci_…
 draugr tools install   # once per machine: the scanners this scan runs
+draugr feeds update    # KEV, EPSS and Go advisory data, for a Saga with config.exploitability
 draugr scan .
 ```
 

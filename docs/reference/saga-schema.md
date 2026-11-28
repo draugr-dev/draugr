@@ -2683,8 +2683,8 @@ reading). Fetching one sends nothing about the repository: it is a download of t
 `storage.googleapis.com`, the request `draugr feeds update osv-npm` makes.
 
 A scan started by an assistant through [`draugr mcp`](../guides/ai-agents-mcp.md) reads `auto` as
-`cache`. It never fetches, and a feed the cache does not hold fails the call with an error naming
-the `draugr feeds update` command that fetches it.
+`cache`. It never fetches, and a feed the cache does not hold fails the call with the
+`draugr feeds update` command that fetches the feeds it lacks.
 
 **Flags override this block**, but only the ones you actually type: `--kev`, `--epss` and
 `--epss-threshold`. Passing `--epss-threshold 0.5` beats a descriptor saying `0.1` even though
