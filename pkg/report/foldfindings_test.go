@@ -51,7 +51,7 @@ func TestARuleWithManyFindingsFoldsIntoOneRow(t *testing.T) {
 			t.Errorf("the console does not hold %q", want)
 		}
 	}
-	if n := strings.Count(out, "G115"); n != 1 {
+	if n := strings.Count(listing(out), "G115"); n != 1 {
 		t.Errorf("G115 is on %d rows, want one", n)
 	}
 	if strings.Contains(out, "not listed") {
@@ -117,7 +117,7 @@ func TestTopZeroAndCompactListEveryFinding(t *testing.T) {
 	d := sastData(manyOfOneRule()...)
 	d.TopN = -1
 	out := renderWith(t, consoleReporter{}, d)
-	if strings.Contains(out, "findings in") || strings.Count(out, "G115") != 12 {
+	if strings.Contains(out, "findings in") || strings.Count(listing(out), "G115") != 12 {
 		t.Errorf("--top 0 folded the findings:\n%s", out)
 	}
 	if !strings.Contains(out, "FIX FIRST  13 findings, by priority") {
@@ -127,7 +127,7 @@ func TestTopZeroAndCompactListEveryFinding(t *testing.T) {
 	d = sastData(manyOfOneRule()...)
 	d.View = ViewCompact
 	out = renderWith(t, consoleReporter{}, d)
-	if strings.Contains(out, "findings in") || strings.Count(out, "G115") != 10 {
+	if strings.Contains(out, "findings in") || strings.Count(listing(out), "G115") != 10 {
 		t.Errorf("the compact view folded the findings:\n%s", out)
 	}
 }
@@ -171,7 +171,7 @@ func TestAFoldNeverJoinsShippedCodeAndATest(t *testing.T) {
 	inTest.NonShipping = "test"
 	out := renderWith(t, consoleReporter{}, sastData(sastResult("G115", "a.go", 1), sastResult("G115", "b.go", 2), inTest))
 	t.Logf("rendered:\n%s", out)
-	if !strings.Contains(out, "G115 · 2 findings in 2 files\n") || strings.Count(out, "G115") != 2 ||
+	if !strings.Contains(out, "G115 · 2 findings in 2 files\n") || strings.Count(listing(out), "G115") != 2 ||
 		!strings.Contains(out, "x_test.go:9 · test") {
 		t.Error("the test's finding is not on a row of its own")
 	}
@@ -188,7 +188,7 @@ func TestAFoldNeverJoinsTwoComponentsOrTwoRepositories(t *testing.T) {
 		at("api", "https://example.com/a.git", 1), at("api", "https://example.com/a.git", 2),
 		at("api", "https://example.com/b.git", 3), at("web", "https://example.com/a.git", 4)))
 	t.Logf("rendered:\n%s", out)
-	if strings.Count(out, "G115") != 3 || strings.Count(out, "G115 · 2 findings\n") != 1 {
+	if strings.Count(listing(out), "G115") != 3 || strings.Count(out, "G115 · 2 findings\n") != 1 {
 		t.Error("two components or two repositories share a row")
 	}
 }
@@ -247,7 +247,8 @@ func TestAFoldedMutableTagRowShowsAThirdPartyAction(t *testing.T) {
 	if !strings.Contains(before, "      .github/workflows/ci.yml:10\n") {
 		t.Fatalf("with no reference read, the row does not show the first finding:\n%s", before)
 	}
-	if want := strings.Replace(before, ".github/workflows/ci.yml:10\n", ".github/workflows/test.yml:20\n", 1); got != want {
+	// Twice: on the row, and where the closer names the row again.
+	if want := strings.ReplaceAll(before, ".github/workflows/ci.yml:10\n", ".github/workflows/test.yml:20\n"); got != want {
 		t.Errorf("more than the location moved:\n%s\nwant:\n%s", got, want)
 	}
 	for _, want := range []string{"FIX FIRST  4 findings, by priority\n", "  P1  medium    4 findings in 2 files\n"} {

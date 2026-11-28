@@ -47,3 +47,7 @@ TRY
       reason: <why it is set aside>
       expires: <YYYY-MM-DD>
   draugr explain <rule>              what a rule means and how to fix it, from .draugr/out
+
+DRAUGR  FAIL  2 P1 0 P2 0 P3 0 P4
+  iac and sca fail
+  FIX FIRST  CVE-2019-20477 · PyYAML 5.1 → 5.2 · app/requirements.txt:4

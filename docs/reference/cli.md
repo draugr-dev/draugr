@@ -405,6 +405,21 @@ REPORTS
   .draugr/out/report.json    the whole run, for a script
 ```
 
+**A run ends on its answer.** The last lines of a console scan, under `TRY`, repeat the verdict
+and the counts, name what fails the run, and give the first row of `FIX FIRST` again:
+
+```
+DRAUGR  FAIL  3 P1 3 P2 3 P3 1 P4
+  iac, sast, sca and secrets fail · dast errored
+  FIX FIRST  CVE-2019-10906 · jinja2 2.10 → 2.10.1 · app/requirements.txt:5
+```
+
+| Line | Shown when |
+|---|---|
+| The verdict and counts | Always. A clean run reads `no findings`, and a scoped or partial run adds what it covered, such as `scoped to 1 of 3 components and the sast control` |
+| What fails the run | A control fails (`sca fails`), a control shows `ERROR` under `CONTROLS` because its scanner hit a scan error (`dast errored`), or a caveat fails the run (`2 caveats fail the run`) |
+| `FIX FIRST` | The run listed `FIX FIRST`, in the findings view and `--view compact`. The rule id and location are printed whole; where the line would pass the terminal's width or 96 columns, the location goes on the line under the rule, and the fix with it where the rule and the fix alone would pass it |
+
 ### Installing a missing scanner
 
 On a terminal, a scan that needs a scanner `draugr tools install` fetches and cannot find asks

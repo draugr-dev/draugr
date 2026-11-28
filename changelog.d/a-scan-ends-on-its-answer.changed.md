@@ -1,0 +1,1 @@
+- **A scan ends on its answer.** The last lines of `draugr scan` repeat the verdict and counts, name the controls and caveats that fail the run, and give the first `FIX FIRST` row again: its rule, its fix and where it is. A long run that scrolled its top away still ends with what failed and where to start.

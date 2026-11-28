@@ -34,3 +34,7 @@ TRY
       reason: <why it is set aside>
       expires: <YYYY-MM-DD>
   draugr explain <rule>              what a rule means and how to fix it, from .draugr/out
+
+DRAUGR  FAIL  2 P1 1 P2 0 P3 0 P4
+  sca fails
+  FIX FIRST  CVE-2024-3094 · github.com/ulikunitz/xz 0.5.11 → 0.5.12 · go.mod:12

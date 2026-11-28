@@ -84,7 +84,12 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 	}
 	s := summarize(d)
 	col := tui.For(w)
+	// Everything below goes through e, which remembers how the output ends for the closer.
+	e := &endWriter{w: w}
+	w = e
 	writeVerdictLine(w, col, s, d)
+	// The first FIX FIRST row, which the closer names again as the place to start.
+	var first *finding
 
 	// listed is how many rows a list printed when it left the rest out, and zero when it printed
 	// everything.
@@ -301,6 +306,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		// something in a cluster owes a record of it whatever the verdict, and somebody asking what
 		// stands behind a pass is asking what somebody asking about a fail is asking.
 		writeTail(w, col, s, d, 0, true)
+		writeCloser(e, col, s, d, nil, blobLinks(d))
 		return nil
 	}
 
@@ -321,6 +327,9 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 			represented += 1 + f.repeats
 		}
 		s.folded = len(rows) < len(s.findings)
+		if len(shown) > 0 {
+			first = &shown[0]
+		}
 		_, _ = fmt.Fprintln(w, fixFirstHeading(col, s, represented, len(s.findings)))
 		renderFixFirst(w, col, shown, d.View == ViewCompact, blobLinks(d))
 
@@ -347,6 +356,7 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprint(w, "\n")
 	}
 	writeTail(w, col, s, d, listed, true)
+	writeCloser(e, col, s, d, first, blobLinks(d))
 	return nil
 }
 

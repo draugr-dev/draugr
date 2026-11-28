@@ -118,6 +118,10 @@ TRY
       reason: <why it is set aside>
       expires: <YYYY-MM-DD>
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out
+
+DRAUGR  FAIL  5 P1 6 P2 0 P3 0 P4
+  sca fails
+  FIX FIRST  CVE-2019-10906 · jinja2 2.10 → 2.10.1 · requirements.txt:3
 draugr: policy verdict: fail
 ```
 
@@ -135,6 +139,8 @@ draugr: policy verdict: fail
 - **`FIX FIRST`** lists findings most urgent first, each with its band and severity, the advisory
   and its title, the scanner, the fix and the file. For a dependency the fix is the package, the
   installed version and, after `→`, the release to upgrade to.
+- **The last lines** repeat the verdict and counts, name what fails the run, and give the first
+  row of `FIX FIRST` again, so a run whose top has scrolled away still ends on its answer.
 
 Useful flags:
 
