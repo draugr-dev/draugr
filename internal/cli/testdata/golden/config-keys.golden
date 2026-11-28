@@ -8,6 +8,7 @@ log.level              trace, debug, info, warn or error                     inf
 offline                true or false                                         false
 output.evidence        true or false                                         false
 output.offerInstall    true or false                                         true
+output.palette         standard or light-background                          standard
 output.tips            true or false                                         true
 output.top             a whole number of 0 or more                           10 for scan, every row for diff
 output.view            findings, actions or compact                          findings

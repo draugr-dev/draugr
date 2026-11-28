@@ -38,6 +38,7 @@ output:
   top: 20
   offerInstall: false
   tips: false
+  palette: light-background
 scan:
   jobs: 4
   limitToolThreads: true

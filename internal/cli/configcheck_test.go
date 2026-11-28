@@ -51,6 +51,7 @@ func TestConfigSetRefusesWhatValidateRefuses(t *testing.T) {
 		{"output.top", "-5", `output.top: expected a whole number of 0 or more, got -5`},
 		{"output.view", "banana", `output.view: "banana" is not findings, actions or compact`},
 		{"output.view", "actoins", `did you mean "actions"?`},
+		{"output.palette", "dark", `output.palette: "dark" is not standard or light-background`},
 		{"cache.ttl", "-1h", `cache.ttl: expected a duration of 0s or more, got -1h`},
 		{"cache.ttl", "5", `cache.ttl: expected a duration such as 12h, got 5`},
 		{"output.veiw", "x", `output: "veiw" is not a setting Draugr has, did you mean "view"?`},

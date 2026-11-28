@@ -24,6 +24,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/plugin"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // keysOutput runs `draugr config keys` with prefix and all, and returns what it printed.
@@ -168,9 +169,14 @@ func TestEveryConfigKeyDefaultIsTheOneTheCodeApplies(t *testing.T) {
 		"offline":             func(d string) bool { return d == flagDefault(t, root, "offline") },
 		"output.evidence":     func(d string) bool { return d == flagDefault(t, scan, "evidence") },
 		"output.offerInstall": func(d string) bool { return d == strconv.FormatBool(config.OutputSettings{}.Offers()) },
-		"output.tips":         func(d string) bool { return d == strconv.FormatBool(!notTips) },
-		"output.top":          func(d string) bool { return d == top+" for scan, every row for diff" },
-		"output.view":         func(d string) bool { return d == flagDefault(t, scan, "view") },
+		// What startup does with no palette set: SetPalette with the empty name.
+		"output.palette": func(d string) bool {
+			t.Cleanup(func() { _ = tui.SetPalette(tui.PaletteStandard) })
+			return tui.SetPalette("") == nil && d == string(tui.ActivePalette())
+		},
+		"output.tips": func(d string) bool { return d == strconv.FormatBool(!notTips) },
+		"output.top":  func(d string) bool { return d == top+" for scan, every row for diff" },
+		"output.view": func(d string) bool { return d == flagDefault(t, scan, "view") },
 		// No URL is built in: the draugr-api publisher needs one from the file or $DRAUGR_API_URL.
 		"publish.apiUrl": func(d string) bool { return d == "none" },
 		"scan.jobs":      func(d string) bool { return d == flagDefault(t, scan, "jobs") },

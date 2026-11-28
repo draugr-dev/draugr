@@ -61,6 +61,7 @@ var machineKeys = map[string]struct{ accepts, def string }{
 	"offline":               {acceptsBool, "false"},
 	"output.evidence":       {acceptsBool, "false"},
 	"output.offerInstall":   {acceptsBool, "true"},
+	"output.palette":        {list(paletteNames()), "standard"},
 	"output.tips":           {acceptsBool, "true"},
 	"output.top":            {acceptsCount, "10 for scan, every row for diff"},
 	"output.view":           {list(viewNames()), "findings"},
@@ -77,6 +78,14 @@ func viewNames() []string {
 	out := make([]string, 0, len(report.Views()))
 	for _, v := range report.Views() {
 		out = append(out, string(v))
+	}
+	return out
+}
+
+func paletteNames() []string {
+	out := make([]string, 0, len(tui.Palettes()))
+	for _, p := range tui.Palettes() {
+		out = append(out, string(p))
 	}
 	return out
 }

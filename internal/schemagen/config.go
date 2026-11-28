@@ -14,6 +14,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/report"
 	"github.com/draugr-dev/draugr/pkg/saga"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // durationPattern is what Go's time.ParseDuration reads, without a sign: `draugr config validate`
@@ -44,6 +45,10 @@ func configFields() map[string]map[string]any {
 	views := make([]any, 0, len(report.Views()))
 	for _, v := range report.Views() {
 		views = append(views, map[string]any{"const": string(v), "description": v.Summary()})
+	}
+	palettes := make([]any, 0, len(tui.Palettes()))
+	for _, p := range tui.Palettes() {
+		palettes = append(palettes, map[string]any{"const": string(p), "description": p.Summary()})
 	}
 	return map[string]map[string]any{
 		"tools": {
@@ -116,6 +121,12 @@ func configFields() map[string]map[string]any {
 		"output.tips": {
 			"description": "Whether a console scan prints its contextual tips and its progress line. Unset means " +
 				"it prints them. Overridden by `--no-tips` and `$DRAUGR_NO_TIPS`.",
+		},
+		"output.palette": {
+			"description": "The colors of every command's output on a terminal that announces full color in " +
+				"`$COLORTERM`. Other terminals keep their own sixteen colors.",
+			"type":  "string",
+			"anyOf": palettes,
 		},
 		"scan": {
 			"description": "How a scan runs on this machine.",

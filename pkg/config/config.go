@@ -162,6 +162,10 @@ type OutputSettings struct {
 	// which --no-tips turns off. Unset means it prints them. A pointer, so a more specific file's
 	// `true` overrides a less specific file's `false`.
 	Tips *bool `yaml:"tips,omitempty"`
+	// Palette is the set of colors a terminal that shows full color is drawn in: "standard", the
+	// colors the HTML report and the website share, or "light-background", which keeps every
+	// color readable on a white terminal. Empty is the standard palette.
+	Palette string `yaml:"palette,omitempty"`
 }
 
 // Offers reports whether a scan on a terminal may offer to install missing scanners.
@@ -445,6 +449,9 @@ func merge(a, b File) File {
 	}
 	if b.Output.Tips != nil {
 		out.Output.Tips = b.Output.Tips
+	}
+	if b.Output.Palette != "" {
+		out.Output.Palette = b.Output.Palette
 	}
 
 	out.Scan = a.Scan

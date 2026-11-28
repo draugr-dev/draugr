@@ -20,6 +20,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"golang.org/x/term"
@@ -49,42 +50,145 @@ const (
 	StyleStrong   Style = "1"    // the part of a line to read first, at no cost in color
 )
 
-// exact renders a role in the color the rest of the product uses for it, for a terminal that can
-// show all of them.
-//
-// Sixteen-color red is whatever the reader's theme decided red is, and across the dashboard, the
-// HTML report and the terminal that produced one red per surface. A band is a piece of
-// vocabulary, so it should be the same color wherever somebody meets it, and a terminal
-// announcing twenty-four-bit color can be held to that.
-//
-// Keyed by the sixteen-color value rather than by the constant. Roles that share a code are the
-// same color today, and keying this way keeps them the same color here rather than letting the two
-// palettes disagree about which roles are alike.
-// #nosec G101 -- SGR parameter strings, which a credential scanner reads as high-entropy values.
-var exact = map[Style]Style{
-	StyleCritical: "1;38;2;229;83;75",
-	StyleHigh:     "38;2;229;83;75",
-	StyleMedium:   "38;2;232;184;75",
-	StyleMuted:    "38;2;120;131;141",
-	StylePass:     "38;2;87;171;90",
-	StyleFixed:    "1;38;2;87;171;90",
-	StyleInfo:     "38;2;124;166;184",
+// Palette names a set of colors for a terminal that shows twenty-four-bit color. A terminal that
+// does not gets the sixteen-color codes above whichever palette is chosen, because those are
+// whatever the reader's own theme made of them.
+type Palette string
+
+const (
+	// PaletteStandard is the colors the HTML report, the dashboard and the website use for the
+	// same roles, so a band is one color wherever somebody meets it.
+	PaletteStandard Palette = "standard"
+	// PaletteLightBackground darkens the medium and info bands, and moves the red toward crimson
+	// to keep it apart from the darker medium, so every color keeps at least 3:1 contrast on a
+	// white terminal and 4.5:1 on a dark one. The standard medium is 1.8:1 on white. It leaves the
+	// colors the rest of the product shares, which is why it is a choice and not the default.
+	PaletteLightBackground Palette = "light-background"
+)
+
+// Palettes lists every palette by the name a settings file gives it, the default first.
+func Palettes() []Palette { return []Palette{PaletteStandard, PaletteLightBackground} }
+
+// Summary says in a line what a palette is for, as `draugr config keys` and the settings schema
+// describe it.
+func (p Palette) Summary() string {
+	switch p {
+	case PaletteStandard:
+		return "The colors of the HTML report and the website. Meant for a dark terminal; its yellow is hard to read on white."
+	case PaletteLightBackground:
+		return "Amber, blue and crimson in place of yellow, blue-grey and red, readable on white and on dark terminals."
+	}
+	return ""
 }
 
-// chipColors is the filled form of a role: the band's color behind text dark or light enough to
-// read on it.
+// colors is one palette's twenty-four-bit rendering of the roles.
+type colors struct {
+	// exact renders a role in the palette's color for it, for a terminal that can show all of
+	// them.
+	//
+	// Sixteen-color red is whatever the reader's theme decided red is, and across the dashboard,
+	// the HTML report and the terminal that produced one red per surface. A band is a piece of
+	// vocabulary, so it should be the same color wherever somebody meets it, and a terminal
+	// announcing twenty-four-bit color can be held to that.
+	//
+	// Keyed by the sixteen-color value rather than by the constant. Roles that share a code are the
+	// same color today, and keying this way keeps them the same color here rather than letting the
+	// two renderings disagree about which roles are alike.
+	exact map[Style]Style
+	// chips is the filled form of a role: the band's color behind text dark or light enough to
+	// read on it.
+	//
+	// A filled label is how a band is drawn everywhere else, and it does something a colored word
+	// cannot: the count and the band read as one object rather than as two words that happen to
+	// be adjacent. The foregrounds are picked for contrast against their own background rather
+	// than taken from the palette.
+	chips map[Style]struct{ bg, fg string }
+}
+
+// palettes holds each palette's colors.
 //
-// A filled label is how a band is drawn everywhere else, and it does something a colored word
-// cannot: the count and the band read as one object rather than as two words that happen to be
-// adjacent. The foregrounds are picked for contrast against their own background rather than
-// taken from the palette.
-var chipColors = map[Style]struct{ bg, fg string }{
-	StyleCritical: {"229;83;75", "18;6;5"},
-	StyleHigh:     {"229;83;75", "18;6;5"},
-	StyleMedium:   {"232;184;75", "22;17;10"},
-	StyleInfo:     {"124;166;184", "10;17;22"},
-	StyleMuted:    {"107;118;128", "255;255;255"},
-	StylePass:     {"87;171;90", "6;18;10"},
+// The fix color is blue in both, not green. Red against green is the pair deuteranomaly, the most
+// common red-green color vision deficiency, renders as one olive, and a pass or a fixed version
+// that looks like a failure is the color arguing with the word beside it. TestTheRolesStayApart
+// holds every pair that must differ apart under that simulation and protanomaly's.
+// #nosec G101 -- SGR parameter strings, which a credential scanner reads as high-entropy values.
+var palettes = map[Palette]colors{
+	PaletteStandard: {
+		exact: map[Style]Style{
+			StyleCritical: "1;38;2;229;83;75",
+			StyleHigh:     "38;2;229;83;75",
+			StyleMedium:   "38;2;232;184;75",
+			StyleMuted:    "38;2;120;131;141",
+			StylePass:     "38;2;53;137;233",
+			StyleFixed:    "1;38;2;53;137;233",
+			StyleInfo:     "38;2;124;166;184",
+		},
+		chips: map[Style]struct{ bg, fg string }{
+			StyleCritical: {"229;83;75", "18;6;5"},
+			StyleHigh:     {"229;83;75", "18;6;5"},
+			StyleMedium:   {"232;184;75", "22;17;10"},
+			StyleInfo:     {"124;166;184", "10;17;22"},
+			StyleMuted:    {"107;118;128", "255;255;255"},
+			StylePass:     {"53;137;233", "6;18;10"},
+		},
+	},
+	PaletteLightBackground: {
+		exact: map[Style]Style{
+			StyleCritical: "1;38;2;224;82;94",
+			StyleHigh:     "38;2;224;82;94",
+			StyleMedium:   "38;2;214;121;0",
+			StyleMuted:    "38;2;120;131;141",
+			StylePass:     "38;2;53;137;233",
+			StyleFixed:    "1;38;2;53;137;233",
+			StyleInfo:     "38;2;60;160;188",
+		},
+		chips: map[Style]struct{ bg, fg string }{
+			StyleCritical: {"224;82;94", "18;6;5"},
+			StyleHigh:     {"224;82;94", "18;6;5"},
+			StyleMedium:   {"214;121;0", "22;17;10"},
+			StyleInfo:     {"60;160;188", "10;17;22"},
+			StyleMuted:    {"107;118;128", "255;255;255"},
+			StylePass:     {"53;137;233", "6;18;10"},
+		},
+	},
+}
+
+// KnownPalette reports whether p names a palette, the empty name, the standard one, included.
+func KnownPalette(p Palette) bool {
+	if p == "" {
+		return true
+	}
+	_, ok := palettes[p]
+	return ok
+}
+
+// active is the palette For hands out, set once at startup from the settings in force.
+var active atomic.Value
+
+// SetPalette makes p the palette every later For uses. An empty name is the standard palette, and
+// a name that is not one of Palettes is an error naming them, so a misspelled setting is reported
+// rather than quietly drawn in the default.
+func SetPalette(p Palette) error {
+	if !KnownPalette(p) {
+		names := make([]string, 0, len(palettes))
+		for _, known := range Palettes() {
+			names = append(names, string(known))
+		}
+		return fmt.Errorf("unknown palette %q: use one of %s", p, strings.Join(names, ", "))
+	}
+	if p == "" {
+		p = PaletteStandard
+	}
+	active.Store(p)
+	return nil
+}
+
+// ActivePalette is the palette For hands out: the one SetPalette chose, or the standard one.
+func ActivePalette() Palette {
+	if p, ok := active.Load().(Palette); ok {
+		return p
+	}
+	return PaletteStandard
 }
 
 // Painter renders styled text, or plain text when color isn't appropriate for the destination.
@@ -95,10 +199,31 @@ type Painter struct {
 	// full is whether the terminal can show the project's own colors rather than the sixteen
 	// every terminal has.
 	full bool
+	// palette is the set of colors full draws in. Empty is the standard palette, so the zero
+	// value and the constructors below that do not name one draw what they always drew.
+	palette Palette
 }
 
-// For returns a Painter suited to w: color only for an interactive terminal with NO_COLOR unset.
-func For(w io.Writer) Painter { return Painter{color: ColorEnabled(w), full: FullColor()} }
+// For returns a Painter suited to w: color only for an interactive terminal with NO_COLOR unset,
+// in the palette SetPalette chose.
+func For(w io.Writer) Painter {
+	return Painter{color: ColorEnabled(w), full: FullColor(), palette: ActivePalette()}
+}
+
+// In returns the painter drawing in palette p, for a caller that renders for somebody whose
+// palette is known, such as a test pinning what each palette looks like.
+func (p Painter) In(palette Palette) Painter {
+	p.palette = palette
+	return p
+}
+
+// colors is the palette this painter draws in, the standard one when it names none it knows.
+func (p Painter) colors() colors {
+	if c, ok := palettes[p.palette]; ok {
+		return c
+	}
+	return palettes[PaletteStandard]
+}
 
 // Plain returns a Painter that never colors, for tests and for building strings whose
 // destination isn't known yet.
@@ -129,7 +254,7 @@ func (p Painter) resolve(style Style) Style {
 	if !p.full {
 		return style
 	}
-	if e, ok := exact[style]; ok {
+	if e, ok := p.colors().exact[style]; ok {
 		return e
 	}
 	return style
@@ -146,7 +271,7 @@ func (p Painter) Chip(style Style, text string) string {
 	if !p.color || style == StyleNone {
 		return text
 	}
-	if c, ok := chipColors[style]; ok && p.full {
+	if c, ok := p.colors().chips[style]; ok && p.full {
 		return "\x1b[48;2;" + c.bg + ";38;2;" + c.fg + "m " + text + " \x1b[0m"
 	}
 	return "\x1b[7;" + string(style) + "m " + text + " \x1b[0m"

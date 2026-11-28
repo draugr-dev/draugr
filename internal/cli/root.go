@@ -17,6 +17,7 @@ import (
 	"github.com/draugr-dev/draugr/internal/observability"
 	"github.com/draugr-dev/draugr/internal/tools"
 	"github.com/draugr-dev/draugr/internal/version"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 type globalOptions struct {
@@ -85,6 +86,11 @@ func newRootCommand() *cobra.Command {
 				by = herePath(path)
 			}
 			netpolicy.Decide(offline, by)
+			// The same way for color: one palette for every painter the command makes. startupConfig
+			// left out a name that is not a palette, which loadConfig reports in the command's words.
+			if err := tui.SetPalette(tui.Palette(startup.File.Output.Palette)); err != nil {
+				return err
+			}
 			rootConfigPath = opts.config
 			return nil
 		},

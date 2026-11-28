@@ -1,0 +1,1 @@
+- **A pass and a fixed version are blue, not green.** On a terminal that shows full color (`COLORTERM=truecolor`) and in the HTML report, `pass` and the version that ends a finding (`→ 3.5.0`) are now blue. Beside a red `FAIL` or `P1`, the green looked the same to a reader with deuteranomaly, the most common red-green color vision deficiency.

@@ -15,6 +15,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/report"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // loadConfig reads the configuration in effect for a command run from wd, refusing a file that
@@ -51,7 +52,7 @@ func loadConfig(wd string) (config.Resolved, error) {
 //
 // Lenient where loadConfig refuses, because it runs before any command can report a problem, the
 // commands that mend a broken file included. Each file contributes what decodes from it, and a log
-// value the logger would refuse is left out, so a mistyped log.level cannot stop `draugr config
+// value the logger would refuse or a palette that does not exist is left out, so a mistyped log.level cannot stop `draugr config
 // unset` from removing it. Every command that reads the configuration, `scan`, `doctor`, `diff`,
 // `tools install` and `config` among them, still refuses the file and names each problem.
 func startupConfig(flag string) config.Resolved {
@@ -72,6 +73,9 @@ func startupConfig(flag string) config.Resolved {
 		}
 		if !observability.ValidFormat(f.Log.Format) {
 			f.Log.Format = ""
+		}
+		if !tui.KnownPalette(tui.Palette(f.Output.Palette)) {
+			f.Output.Palette = ""
 		}
 		sources = append(sources, config.Source{Path: path, File: f})
 	}
@@ -169,6 +173,13 @@ func valueProblems(f config.File) []string {
 			names = append(names, string(known))
 		}
 		out = append(out, notOneOf("output.view", string(v), names))
+	}
+	if p := tui.Palette(f.Output.Palette); p != "" && !tui.KnownPalette(p) {
+		names := make([]string, 0, len(tui.Palettes()))
+		for _, known := range tui.Palettes() {
+			names = append(names, string(known))
+		}
+		out = append(out, notOneOf("output.palette", string(p), names))
 	}
 	if f.Output.Top < 0 {
 		out = append(out, fmt.Sprintf("output.top: expected %s, got %d", acceptsCount, f.Output.Top))

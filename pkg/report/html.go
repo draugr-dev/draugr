@@ -1459,7 +1459,7 @@ const htmlDoc = `<!doctype html>
     --p3-quiet: rgb(124 166 184 / 14%);
     --p4-quiet: rgb(107 118 128 / 16%);
 
-    --pass: #57ab5a;
+    --pass: #3589e9;
     --fail: #e5534b;
     --on-pass: #06120a;
     --on-fail: #120605;
@@ -1508,7 +1508,7 @@ const htmlDoc = `<!doctype html>
   --p3-quiet: rgb(124 166 184 / 22%);
   --p4-quiet: rgb(107 118 128 / 11%);
 
-  --pass: #2e7d33;
+  --pass: #1d6ccc;
   --fail: #c0342b;
   --on-pass: #ffffff;
   --on-fail: #ffffff;
@@ -1545,7 +1545,7 @@ const htmlDoc = `<!doctype html>
     --p3-quiet: rgb(124 166 184 / 22%);
     --p4-quiet: rgb(107 118 128 / 11%);
 
-    --pass: #2e7d33;
+    --pass: #1d6ccc;
     --fail: #c0342b;
     --on-pass: #ffffff;
     --on-fail: #ffffff;

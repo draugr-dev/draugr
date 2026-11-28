@@ -2581,6 +2581,7 @@ controls:               # merged *underneath* the descriptor's own settings
 | `offline` | true or false | false | Make no network calls: optional fetches are skipped, and commands that exist to download refuse. A more specific file's `false` does not turn it off. Overridden by `--offline` and `$DRAUGR_OFFLINE`. |
 | `output.evidence` | true or false | false | Also print what stands behind the verdict: tool provenance, what each control measured against, the scanned revision, and what the run cost. Overridden by `--evidence`. |
 | `output.offerInstall` | true or false | true | Whether `draugr scan` on a terminal offers to install the scanners it is missing. Unset means it offers. |
+| `output.palette` | standard or light-background | standard | The colors of every command's output on a terminal that announces full color in `$COLORTERM`. Other terminals keep their own sixteen colors. |
 | `output.tips` | true or false | true | Whether a console scan prints its contextual tips and its progress line. Unset means it prints them. Overridden by `--no-tips` and `$DRAUGR_NO_TIPS`. |
 | `output.top` | a whole number of 0 or more | 10 for scan, every row for diff | How many rows a console report lists. `0` keeps the command's own default, a cap for `scan` and every row for `diff`. Overridden by `--top`. |
 | `output.view` | findings, actions or compact | findings | What a console report shows. Overridden by `--view`. |

@@ -16,6 +16,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/config"
 	"github.com/draugr-dev/draugr/pkg/engine"
 	"github.com/draugr-dev/draugr/pkg/sarif"
+	"github.com/draugr-dev/draugr/pkg/tui"
 )
 
 // projectBeside is a fresh directory holding ./draugr.config.yaml with body, leaving HOME and the
@@ -32,7 +33,8 @@ func projectBeside(t *testing.T, body string) string {
 // runRoot runs a whole command line from dir, through the root command's startup, and returns what
 // it printed to stdout and the buffer the logger it started with writes to.
 //
-// The logger and the network policy are the process's own, so both are put back afterwards.
+// The logger, the network policy and the palette are the process's own, so each is put back
+// afterwards.
 func runRoot(t *testing.T, dir string, args ...string) (string, *bytes.Buffer, error) {
 	t.Helper()
 	t.Chdir(dir)
@@ -41,6 +43,7 @@ func runRoot(t *testing.T, dir string, args ...string) (string, *bytes.Buffer, e
 		slog.SetDefault(prev)
 		rootConfigPath = prevConfig
 		netpolicy.Decide(nil, "")
+		_ = tui.SetPalette(tui.PaletteStandard)
 	})
 	root := newRootCommand()
 	var out, stderr bytes.Buffer
