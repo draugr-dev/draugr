@@ -378,7 +378,7 @@ func checkInit(t *testing.T, c sealed.Container, draugr, name, repo, out string,
 	if o, err := c.Command(repo, argv...).CombinedOutput(); err != nil {
 		t.Fatalf("%s: draugr init: %v\n%s", name, err, o)
 	}
-	got, err := sealed.ObserveInit(out)
+	got, err := sealed.ObserveInit(out, repo)
 	if err != nil {
 		t.Fatalf("%s: %v", name, err)
 	}

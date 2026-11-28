@@ -51,8 +51,9 @@ type htmlView struct {
 	// produce those and a table that omits them makes the parts look like the whole.
 	Components   []htmlComponent
 	Unattributed int
-	// Found is the console's FOUND section: what a run with no descriptor read from the tree, and
-	// what it turned on for each kind of file. Empty for a run from a descriptor.
+	// Found is the console's FOUND section: what a run read from the tree to turn its controls on,
+	// and what it turned on for each kind of file. Empty for a run whose descriptor names its
+	// controls itself.
 	Found []Found
 	// Caveats is the console's CAVEATS block under each component. A shared report is the copy read
 	// by somebody who never saw the console, and without it a component nothing checked reads as a
@@ -2386,8 +2387,7 @@ the component is, so the same issue ranks differently on a public API than on an
 {{end}}
 {{if .Found}}
 <details class="fold" open><summary id="found"><span class="sec">Found</span></summary>
-<p class="note">What the run read from the tree, which <code>draugr init</code> writes to
-<code>draugr.saga.yaml</code>.</p>
+<p class="note">What the run read from the tree, and what each kind of file turned on.</p>
 <table class="provenance found">
 <thead><tr><th scope="col">Kind</th><th scope="col">Files</th><th scope="col">This run</th></tr></thead>
 {{range .Found}}<tr><td>{{.Kind}}</td><td><code>{{.Files}}</code></td><td>{{.Did}}</td></tr>{{end}}

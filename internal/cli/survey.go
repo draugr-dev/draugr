@@ -627,13 +627,17 @@ func (o surveyOptions) mergesInto() bool {
 
 // baseModel returns the model to add to: the existing Saga at --output, unless --replace says to
 // start again or there is nothing there yet.
+//
+// Loaded as written, never with config.detect applied: the model is written back to the file, and
+// the controls detect turns on are read off the repositories on every run, so writing them down
+// would freeze today's list into a descriptor that asked for it to follow the files.
 func baseModel(opts surveyOptions) (saga.Model, error) {
 	if opts.mergesInto() {
-		m, err := loadSaga(opts.output)
+		res, err := loadWritten(context.Background(), opts.output, false)
 		if err != nil {
 			return saga.Model{}, err
 		}
-		return *m, nil
+		return *res.Model, nil
 	}
 	return saga.Model{Project: opts.name, Release: saga.Release{Version: opts.version}}, nil
 }

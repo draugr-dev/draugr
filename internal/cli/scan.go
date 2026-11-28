@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/draugr-dev/draugr/internal/builtins"
+	"github.com/draugr-dev/draugr/internal/detect"
 	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
 	"github.com/draugr-dev/draugr/internal/git"
@@ -271,7 +272,7 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	if err := errors.Join(saga.CheckEffects("--allow-effects", opts.allowEffects)...); err != nil {
 		return err
 	}
-	resolved, zc, err := scanResolved(target)
+	resolved, detected, err := scanResolved(target)
 	if err != nil {
 		return err
 	}
@@ -279,12 +280,15 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// are not work the scan left out, and counting them would say so.
 	ctx = git.WithOwnOutput(ctx, opts.outputDir)
 	model := resolved.Model
-	if zc != nil {
+	if detected.isSynthesized() {
 		// To stderr so it never pollutes a machine-readable stdout format (json/sarif).
 		// Names the shape rather than one filename: a reader whose file is called `web.saga.yaml`
 		// would otherwise read "no draugr.saga.yaml here" as a filename mismatch and rename it,
 		// when the real answer is that the file is somewhere else.
 		_, _ = io.WriteString(os.Stderr, zeroConfigNotice(model))
+	}
+	if detected != nil {
+		writeUnreadRepositories(os.Stderr, detected.result)
 	}
 	rootLocalRepositories(ctx, model)
 	// Refused before anything runs, as validate refuses it: an exclusion naming a line matches no
@@ -338,9 +342,9 @@ func runScan(ctx context.Context, target string, opts scanOptions, reg *engine.R
 	// offer looked on, so the two cannot disagree about what is installed.
 	var unexamined []report.Unexamined
 	var found []report.Found
-	if zc != nil {
-		unexamined = zc.turnOffUnrunnable(reg, scope, scanInstallOffer.lookPath)
-		found = zc.found()
+	if detected != nil {
+		unexamined = detected.turnOffUnrunnable(reg, scope, scanInstallOffer.lookPath)
+		found = detected.found(reg)
 	}
 
 	minPriority, err := validatePriority("--min-priority", opts.minPriority)
@@ -1447,7 +1451,7 @@ const versionProbeTimeout = 2 * time.Second
 // its absolute path, because the url the synthesized descriptor records for the working directory
 // is the `.` that `init` writes.
 //
-// One line. What the run read from the tree, and that `draugr init` writes it down, is the report's
+// One line. What the run read from the tree, and what each kind of file turned on, is the report's
 // FOUND section, which the HTML and markdown reports carry as well.
 func zeroConfigNotice(m *saga.Model) string {
 	dir := m.Components[0].Repositories[0].URL
@@ -1455,6 +1459,18 @@ func zeroConfigNotice(m *saga.Model) string {
 		dir = abs
 	}
 	return fmt.Sprintf("No *.saga.yaml here, scanning %s.\n\n", dir)
+}
+
+// writeUnreadRepositories warns, before the scan runs, of each repository config.detect could not
+// read. The controls it would have turned on for that repository's files alone are off, and a
+// reader who set detect expecting them is told now rather than left to notice a control missing
+// from the report. The report's FOUND section says it again, for whoever reads the run later.
+func writeUnreadRepositories(w io.Writer, res *detect.Result) {
+	for _, u := range res.Unread {
+		_, _ = fmt.Fprintf(w, "warning: config.detect did not read %s (%s): %s. A control only its files "+
+			"call for is off unless config.controls turns it on.\n",
+			u.URL, english.And(u.Components), detect.UnreadReason)
+	}
 }
 
 // checkWorkingTree refuses --working-tree for a descriptor Draugr cannot honor it for.

@@ -65,8 +65,9 @@ func propose(t *testing.T, root string, in ProposeInput) ProposeOutput {
 	return out
 }
 
-// A Go module and a package.json propose the controls init enables for them, iac left off with no
-// infrastructure file to read, and the tool writes nothing.
+// A Go module and a package.json propose the descriptor init writes, which sets config.detect, and
+// name the controls detect turns on for them, iac left off with no infrastructure file to read. The
+// tool writes nothing.
 func TestProposeSagaReturnsWhatInitWouldWrite(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "Shop.API")
@@ -87,8 +88,7 @@ func TestProposeSagaReturnsWhatInitWouldWrite(t *testing.T) {
 	}
 	for _, want := range []string{
 		"project: shop-api\n",
-		"analyzers: [govulncheck]",
-		"gosec:\n        enabled: true     # Go-specific checks · go.mod\n",
+		"  detect: true",
 		"# Unread · package.json no lockfile",
 	} {
 		if !strings.Contains(out.Saga, want) {

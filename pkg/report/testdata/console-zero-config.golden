@@ -10,7 +10,7 @@ CONTROLS
   sca      FAIL   1 P1
   secrets  pass   no findings
 
-FOUND  read from the tree · `draugr init` writes them to draugr.saga.yaml
+FOUND  read from the tree · what each kind of file turned on
   python             app/requirements.txt                                       sca
   go                 checkout/go.mod                                            sca · gosec off · govulncheck off
   npm                web/package-lock.json · web/package.json                   sca

@@ -1,0 +1,1 @@
+- **`draugr init` writes a short descriptor that keeps up with your files.** It sets `config.detect: true` instead of listing controls, so each run turns on what the files call for, such as `iac` once a Dockerfile appears, as `draugr scan .` does. Controls you write still apply as written. `draugr doctor` lists what was turned on and why.

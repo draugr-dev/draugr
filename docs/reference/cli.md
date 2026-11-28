@@ -179,19 +179,21 @@ and which change it is looking at. You do not set those; the platform does.
 ## `draugr init [dir]`
 
 Scaffold a `draugr.saga.yaml` for a project (default: the current directory) from what its tree
-holds. `sca`, `secrets` and `sast` are always on; the tree adds `iac`, scanners and stubs to them,
-each with a comment naming the files behind it. With no infrastructure code, `iac` is written
-commented out, and with nothing that serves, no host is written. Edit it, then `draugr scan`.
+holds. It writes the components and their repositories, and
+[`config.detect: true`](saga-schema.md#configdetect) for the controls: every run turns on `sca`,
+`secrets` and `sast` and what the files call for, so the file does not go stale when a Dockerfile or
+a `go.mod` is added. `draugr doctor` lists what was turned on and why. The tree adds stubs and
+comments to the file, and with nothing that serves, no host is written. Edit it, then `draugr scan`.
 
-| Found in the tree | Written |
+| Found in the tree | Turned on by `detect`, or written |
 |---|---|
 | `go.mod`, including one that requires nothing | `sast.gosec` · `config.reachability.analyzers: [govulncheck]` |
 | Copied JavaScript: anything under `vendor/`, or `*.min.js` or a file named for its release, unless it is named as a test (`*.test.js`, `*.spec.js`) | `sca.retirejs` |
 | `setup.py`, `pdm.lock` | `sca.grypeFs`, since Trivy reads neither |
 | `Cargo.lock` | `sca.osvScanner`, which reads RustSec advisories Trivy misses |
 | A requirements file named other than `requirements.txt`: `requirements-dev.txt`, `requirements/test.txt` | `sca.trivyFs.filePatterns` reaching it |
-| Terraform or OpenTofu, a Terraform plan, Helm, Kubernetes, a Dockerfile, CloudFormation, an Azure Resource Manager template, an Ansible project | `iac`, naming them in its comment |
-| A Dockerfile | a commented `images` control and image entry |
+| Terraform or OpenTofu, a Terraform plan, Helm, Kubernetes, a Dockerfile, CloudFormation, an Azure Resource Manager template, an Ansible project | `iac` |
+| A Dockerfile | a commented image entry, which the `images` control reads once `config.controls.images` turns it on |
 | An OpenAPI or Swagger document, a Dockerfile with `EXPOSE`, a Kubernetes Service or Ingress, a Compose file with `ports:` | a commented host naming them, with `spec: path:` pointing at the OpenAPI document |
 | A dependency file with no lockfile, or with no exact version | a comment on the component, and a row under `UNREAD` |
 | A directory of docs, examples or tests, by the names [Non-shipping paths](saga-schema.md#non-shipping-paths) lists | an `ignore` line for it, with a comment |
@@ -583,7 +585,8 @@ The scope flags change **what runs**, and so the verdict.
 What `init` writes commented out stays off: the `images:` entry for a Dockerfile, and the host for
 an OpenAPI document. The report gains a `FOUND` section after `CONTROLS`, in the console, HTML and
 markdown reports, listing each kind of file, its paths and what the run did with it; `draugr init`
-prints the same rows. A run from a descriptor has no `FOUND` section.
+prints the same rows. A run from a descriptor has a `FOUND` section only when it sets
+[`config.detect`](saga-schema.md#configdetect), which turns the controls on the same way.
 
 A scanner the tree called for that cannot run on this machine, because its tool or the runtime it
 runs on is missing, is turned off for the run after the
@@ -592,7 +595,8 @@ runs on is missing, is turned off for the run after the
 called for it and what is missing, such as `govulncheck needs Go` or
 `gosec not installed · draugr tools install gosec`. The run is not marked incomplete for it. A
 missing `trivy`, `semgrep` or `gitleaks` fails the control that needs it, except for `iac`, which is
-turned off and listed the same way.
+turned off and listed the same way. A descriptor that sets `config.detect` is treated alike, except
+that a scanner it names under `config.controls` fails its control when it cannot run.
 
 The line `No *.saga.yaml here, scanning <dir>.` is printed to stderr, with the directory's absolute
 path, so machine formats on stdout stay clean. The project, component and repository names are the
@@ -1807,6 +1811,21 @@ With a descriptor, it **exits non-zero** when:
 - `--strict`, `--policy` or `--fail-on-uncovered` applies, as the flag table says.
 
 So it gates CI: `draugr doctor saga.yaml && draugr scan saga.yaml`.
+
+**A descriptor that sets [`config.detect`](saga-schema.md#configdetect)** gets a `DETECTED` block
+under the descriptor line: per component, each repository with the controls every repository gets,
+then a row per kind of file naming the files and what they turned on.
+
+```console
+DETECTED  config.detect turned these on, from the files that call for them
+  shop
+    repository  .           sast · sca · secrets
+    go          go.mod      gosec · govulncheck
+    Dockerfile  Dockerfile  iac · images off
+```
+
+A tool only detect asked for is optional: missing, it is listed without failing doctor, since the
+scan turns its scanner off and names the files it would have read.
 
 **Without a descriptor it is an inventory.** It lists every tool Draugr can use and which are
 present, and exits zero when tools are missing, because nothing has been selected. Tools that back

@@ -72,6 +72,12 @@ type jsonReport struct {
 	// control is off, or, on a run with no descriptor, files that call for a scanner this machine
 	// cannot run. Listed whether or not the gate fails on it.
 	NotChecked []NotChecked `json:"notChecked,omitempty"`
+	// Found is what the run read from its repositories to decide which controls to turn on, on a
+	// run with no descriptor or one that sets config.detect: a row per kind of file, the files, and
+	// what the run did with them. What answers "why did iac run" from the report alone, since the
+	// descriptor that ran says `detect: true` and not which file turned iac on. Absent for a run
+	// whose descriptor names its controls itself.
+	Found []Found `json:"found,omitempty"`
 	// UnboundImports are the imported SARIF files that name no commit, per component. Their findings
 	// are in the report, and nothing in them shows they describe the code this run scanned.
 	UnboundImports []UnboundImport `json:"unboundImports,omitempty"`
@@ -401,9 +407,25 @@ type Provenance struct {
 	// NotChecked and UnboundImports are the run's caveats of those two kinds, every one of them.
 	NotChecked     []NotChecked
 	UnboundImports []UnboundImport
+	// Found is what the run read from its repositories to turn its controls on, nil where the
+	// descriptor named them itself.
+	Found []Found
 	// ComponentLabels is each declared component's labels by name, with an entry for every
 	// component the descriptor declares, labeled or not.
 	ComponentLabels map[string]map[string]string
+}
+
+// Found is one kind of file a run read from its repositories to decide which controls to turn on.
+type Found struct {
+	// Kind names what was found, an ecosystem or a kind of file: go, Dockerfile, Terraform. A
+	// repository config.detect could not read is a row of kind repository.
+	Kind string `json:"kind"`
+	// Paths are the files, every one of them, relative to their repository, or joined to its url
+	// where the run read more than one.
+	Paths []string `json:"paths,omitempty"`
+	// Did is what the run did with them, in the words the report prints: the controls and scanners
+	// they turned on, each one the run did not run written `<name> off`.
+	Did string `json:"did"`
 }
 
 // NotChecked is a not-checked caveat: a surface or files the run did not examine.
@@ -1240,6 +1262,7 @@ func RenderJSONFor(w io.Writer, project string, release saga.Release, run engine
 		Policy:          prov.Policy,
 		FailedCaveats:   prov.FailedCaveats,
 		NotChecked:      prov.NotChecked,
+		Found:           prov.Found,
 		UnboundImports:  prov.UnboundImports,
 		ScopedImports:   scopedImportsOf(run),
 		ScannerData:     ScannerDataFrom(run.Stats.Data),

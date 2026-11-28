@@ -153,6 +153,24 @@ type Config struct {
 	// that word belongs in the code rather than in the file people write.
 	Controls map[string]ControllerSettings `yaml:"controls,omitempty"`
 
+	// Detect turns on the controls and scanners the repositories' files call for, the ones `draugr
+	// scan .` turns on for the same files with no descriptor: sca, secrets and sast always, then
+	// gosec and govulncheck for a go.mod, iac for a Dockerfile or other infrastructure file, and the
+	// dependency scanners for the files only they read.
+	//
+	// Controls laid over what was detected rather than instead of it. A control written under
+	// Controls is set as written, so `sast: {enabled: false}` turns sast off and settings under iac
+	// apply, and every control the descriptor does not name stays as detected.
+	//
+	// Off unless written. A descriptor without it runs the controls it names and nothing else, which
+	// is what every descriptor written before this field meant, including one that names none at
+	// all because it only imports another tool's results.
+	//
+	// Read from the repositories on this machine. A repository named by a remote URL is fetched only
+	// once the scan runs, after the controls are decided, so detect does not read it and the run
+	// names it as unread rather than leaving the reader to wonder why a control it called for is off.
+	Detect bool `yaml:"detect,omitempty"`
+
 	// ControlSources names the fragments each control setting arrived from, keyed
 	// "control.option", for the settings FragmentControlOptions admits, and the configuration file
 	// behind each control default that reached the descriptor, keyed by the setting's dotted path,

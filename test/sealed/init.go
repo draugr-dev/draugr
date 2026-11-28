@@ -3,10 +3,14 @@ package sealed
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
 
+	"github.com/draugr-dev/draugr/internal/detect"
+	"github.com/draugr-dev/draugr/internal/git"
+	"github.com/draugr-dev/draugr/internal/inventory"
 	"github.com/draugr-dev/draugr/pkg/saga"
 )
 
@@ -17,13 +21,21 @@ var commentedSpec = regexp.MustCompile(`(?m)^\s*#\s*spec:\s*\n\s*#\s*path:\s*(\S
 // ObserveInit reads the descriptor `draugr init` wrote, through the loader a scan uses, as the
 // controls and scanners it enables and the components it declares, and from its text, the API
 // documents it proposes as a host's spec.
-func ObserveInit(path string) (InitExpectation, error) {
+//
+// The controls are the ones a scan of it runs: for a descriptor that sets config.detect, the ones
+// its repositories' files turn on, read from repo, the directory init ran in, where a relative url
+// resolves for the scan.
+func ObserveInit(path, repo string) (InitExpectation, error) {
 	m, err := saga.LoadFile(path)
 	if err != nil {
 		return InitExpectation{}, fmt.Errorf("the descriptor draugr init wrote does not load: %w", err)
 	}
 	var got InitExpectation
-	for name, settings := range m.Config.Controls {
+	controls, reachability, err := detectedIn(m, repo)
+	if err != nil {
+		return InitExpectation{}, err
+	}
+	for name, settings := range controls {
 		if enabled, _ := settings["enabled"].(bool); enabled {
 			got.Controls = append(got.Controls, name)
 		}
@@ -38,8 +50,8 @@ func ObserveInit(path string) (InitExpectation, error) {
 	}
 	sort.Strings(got.Controls)
 	sort.Strings(got.Scanners)
-	if m.Config.Reachability != nil {
-		got.Reachability = slices.Clone(m.Config.Reachability.Analyzers)
+	if reachability != nil {
+		got.Reachability = slices.Clone(reachability.Analyzers)
 	}
 	for _, c := range m.Components {
 		comp := ComponentExpectation{Name: c.Name}
@@ -87,4 +99,27 @@ func CheckInit(exp, got InitExpectation) []string {
 		problems = append(problems, fmt.Sprintf("init declares components %+v, want %+v", got.Components, exp.Components))
 	}
 	return problems
+}
+
+// detectedIn is m's controls and reachability analysis as a scan run from repo applies them: as
+// written, with what config.detect turns on beneath them. m is left as it is, its urls as written.
+func detectedIn(m *saga.Model, repo string) (map[string]saga.ControllerSettings, *saga.ReachabilityConfig, error) {
+	if !m.Config.Detect {
+		return m.Config.Controls, m.Config.Reachability, nil
+	}
+	rooted := *m
+	rooted.Components = slices.Clone(m.Components)
+	for i := range rooted.Components {
+		repos := slices.Clone(rooted.Components[i].Repositories)
+		for j := range repos {
+			if !filepath.IsAbs(repos[j].URL) && git.IsLocalPath(filepath.Join(repo, repos[j].URL)) {
+				repos[j].URL = filepath.Join(repo, repos[j].URL)
+			}
+		}
+		rooted.Components[i].Repositories = repos
+	}
+	if _, err := detect.ApplyWith(&rooted, inventory.Read); err != nil {
+		return nil, nil, err
+	}
+	return rooted.Config.Controls, rooted.Config.Reachability, nil
 }

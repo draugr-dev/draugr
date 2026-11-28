@@ -181,6 +181,7 @@ func runDoctor(
 	// Descriptor check: loading validates (parse + env-resolve + schema).
 	var required []tools.Tool
 	var model *saga.Model
+	var detected *detection
 	// inventoryOnly marks the no-descriptor run: it reports what is present without deciding
 	// that anything is missing, because nothing has asked for anything yet.
 	inventoryOnly := false
@@ -204,6 +205,11 @@ func runDoctor(
 			return fmt.Errorf("invalid descriptor: %w", err)
 		}
 		model = loaded
+		// The controls config.detect turns on, as `draugr scan` turns them on, before anything below
+		// reads which controls run.
+		if detected, err = detectIn(model); err != nil {
+			return err
+		}
 		// The configuration's controller defaults merged under the descriptor before anything reads
 		// it, as `draugr scan` merges them, because a default that selects a scanner makes that
 		// scanner's tool required. Everything below, the tools, the targets and the policy, then
@@ -211,7 +217,7 @@ func runDoctor(
 		if _, _, err := applyConfigDefaults(ctx, model); err != nil {
 			return err
 		}
-		required = needs.Tools(reg, model)
+		required = detected.optionalTools(reg, needs.Tools(reg, model))
 	} else {
 		// No descriptor, so nothing has been selected and nothing is required. The catalog is an
 		// inventory here. "what could Draugr use, and what have you got", and treating every entry as
@@ -302,6 +308,7 @@ func runDoctor(
 			col := tui.For(w)
 			_, _ = fmt.Fprintf(w, "Descriptor  %s %s\n",
 				col.Paint(tui.StylePass, "✓ valid"), col.Paint(tui.StyleMuted, "("+sagaPath+")"))
+			detected.writeDoctor(w, reg)
 			// The TOOLS heading has no blank line of its own above it; every later section does.
 			if len(statuses) > 0 {
 				_, _ = fmt.Fprintln(w)

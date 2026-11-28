@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/draugr-dev/draugr/internal/detect"
 	"github.com/draugr-dev/draugr/internal/english"
 	"github.com/draugr-dev/draugr/internal/enrich"
 	"github.com/draugr-dev/draugr/internal/exploitdata"
@@ -142,6 +143,10 @@ type ValidateOutput struct {
 	// agent checks that a descriptor says what it intended rather than merely parsing.
 	Components []string `json:"components,omitempty"`
 	Controls   []string `json:"controls,omitempty"`
+	// Detect is the descriptor's config.detect, under which a scan also turns on what the
+	// repositories' files call for. Controls lists only what the descriptor writes, so without it a
+	// descriptor `draugr init` wrote reads as one that checks nothing.
+	Detect bool `json:"detect,omitempty" jsonschema:"true when the descriptor sets config.detect: a scan also turns on the controls its repositories' files call for, which controls does not list"`
 }
 
 // ValidateSagaTool validates a descriptor from a path or inline content.
@@ -166,7 +171,7 @@ func ValidateSagaTool(_ context.Context, _ *mcp.CallToolRequest, in ValidateInpu
 		return nil, ValidateOutput{Valid: false, Error: err.Error()}, nil
 	}
 
-	out := ValidateOutput{Valid: true}
+	out := ValidateOutput{Valid: true, Detect: model.Config.Detect}
 	enabled := map[string]bool{}
 	for i := range model.Components {
 		out.Components = append(out.Components, model.Components[i].Name)
@@ -782,6 +787,11 @@ func scanTool(reg *engine.Registry, mode ScanMode, cfg ConfigLoader) mcp.ToolHan
 		if err != nil {
 			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
 		}
+		// The controls config.detect turns on, as `draugr scan` turns them on, before the consent
+		// below describes what will run.
+		if _, err := detect.Apply(model); err != nil {
+			return nil, ScanOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+		}
 		// The configuration merged in before the plan, so the consent below describes the scan that
 		// will run: a controller default can enable a control, or a scanner with an effect, that the
 		// descriptor alone does not.
@@ -1042,6 +1052,9 @@ func checkToolsTool(reg *engine.Registry, cfg ConfigLoader) mcp.ToolHandlerFor[C
 		if in.Path != "" {
 			model, err := saga.LoadFile(in.Path)
 			if err != nil {
+				return nil, CheckToolsOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
+			}
+			if _, err := detect.Apply(model); err != nil {
 				return nil, CheckToolsOutput{}, fmt.Errorf("load %s: %w", in.Path, err)
 			}
 			if _, err := cfg.apply(ctx, model); err != nil {

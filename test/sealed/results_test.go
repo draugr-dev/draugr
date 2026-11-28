@@ -300,7 +300,7 @@ func TestInit(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "draugr.saga.yaml")
 	writeFixture(t, path, "project: demo\nrelease:\n  version: \"1.0\"\nconfig:\n  controllers:\n    sca:\n      enabled: true\n    sast:\n      enabled: true\n    iac:\n      enabled: false\ncomponents:\n  - name: demo\n    repositories:\n      - url: .\n")
-	got, err := ObserveInit(path)
+	got, err := ObserveInit(path, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,7 +320,7 @@ func TestInit(t *testing.T) {
 		"  controls:\n    sast:\n      enabled: true\n      gosec:\n        enabled: true\n      semgrep:\n        enabled: false\n"+
 		"components:\n  - name: demo\n    repositories:\n      - url: .\n        ignore: [web/]\n"+
 		"  - name: web\n    repositories:\n      - url: .\n        paths: [web]\n")
-	got, err = ObserveInit(path)
+	got, err = ObserveInit(path, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,7 +344,7 @@ func TestInit(t *testing.T) {
 	writeFixture(t, path, "project: demo\nconfig:\n  controls:\n    sca:\n      enabled: true\ncomponents:\n  - name: demo\n"+
 		"    repositories:\n      - url: .\n    # hosts:\n    #   - name: api\n    #     url: https://api.example.com\n"+
 		"    #     type: api\n    #     spec:\n    #       path: ./openapi.yaml\n")
-	got, err = ObserveInit(path)
+	got, err = ObserveInit(path, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,8 +357,23 @@ func TestInit(t *testing.T) {
 		t.Errorf("problems = %v, want the spec named", p)
 	}
 
+	// A descriptor that sets config.detect turns on what the files in the directory init ran in call
+	// for, which is what a scan of it runs.
+	writeFixture(t, filepath.Join(dir, "go.mod"), "module demo\n\ngo 1.22\n")
+	writeFixture(t, filepath.Join(dir, "main.go"), "package main\n")
+	writeFixture(t, path, "project: demo\nconfig:\n  detect: true\ncomponents:\n  - name: demo\n    repositories:\n      - url: .\n")
+	got, err = ObserveInit(path, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp = InitExpectation{Controls: []string{"sast", "sca", "secrets"}, Scanners: []string{"sast.gosec"},
+		Reachability: []string{"govulncheck"}, Components: []ComponentExpectation{{Name: "demo", Repositories: []string{"."}}}}
+	if p := CheckInit(exp, got); len(p) != 0 {
+		t.Errorf("a detect descriptor reported %v", p)
+	}
+
 	writeFixture(t, path, "project: [\n")
-	if _, err := ObserveInit(path); err == nil || !strings.Contains(err.Error(), "does not load") {
+	if _, err := ObserveInit(path, dir); err == nil || !strings.Contains(err.Error(), "does not load") {
 		t.Errorf("err = %v", err)
 	}
 	_ = os.Remove(path)
