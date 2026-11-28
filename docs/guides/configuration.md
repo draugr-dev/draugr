@@ -189,7 +189,18 @@ output:
   evidence: false    # true to always print what stands behind the verdict
   top: 20            # rows in the fix list
   tips: false        # leave out the contextual tips and the progress display, as --no-tips does
+  palette: light-background  # colors that stay readable on a white terminal
 ```
+
+`palette` sets the colors on a terminal that announces full color, as `COLORTERM=truecolor` does.
+`standard`, the default, uses the colors of the HTML report and the website. `light-background`
+deepens P2's yellow to amber, P3's blue-grey to blue and P1's red to crimson, so every color keeps
+at least 3:1 contrast on a white terminal. The standard yellow, which also draws the caveat lines
+and `↑ KEV`, is hard to see there. In both, a pass and a fixed version are blue, because in green a
+reader with a red-green color vision deficiency can take them for a failure's red. A terminal that
+does not announce full color keeps its own sixteen colors, green included, whichever you choose. The
+setting describes the terminal you read on, not the project, so it usually goes in
+`~/.draugr/config.yaml`.
 
 ### `scan`
 
@@ -301,9 +312,10 @@ Precedence, highest first: a typed flag, `DRAUGR_OFFLINE` or `DRAUGR_NO_TIPS`,
 `./draugr.config.yaml`, `~/.draugr/config.yaml`, the built-in default. `--config` or
 `DRAUGR_CONFIG` replaces the two files with one.
 
-Every setting here except `controls`, `output.offerInstall` and `publish.apiUrl` has a flag that
-overrides it, and typing the flag wins **even when what you typed is the zero value**. `--top 0`
-means show everything, and a configured cap does not quietly override an explicit instruction.
+Every setting here except `controls`, `output.offerInstall`, `output.palette` and `publish.apiUrl`
+has a flag that overrides it, and typing the flag wins **even when what you typed is the zero
+value**. `--top 0` means show everything, and a configured cap does not quietly override an
+explicit instruction.
 
 That is what makes a configured default safe to set: it is a default, not a policy. Whether the
 *gate* should work the same way. Whether an organization can set a floor a descriptor cannot lower,

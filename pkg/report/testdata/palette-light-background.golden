@@ -1,0 +1,78 @@
+[38;2;120;131;141mDRAUGR[0m  [48;2;224;82;94;38;2;18;6;5m FAIL [0m  [1mdraugr-demo 0.0.0[0m  [38;2;120;131;141m34.5s[0m
+
+ [48;2;224;82;94;38;2;18;6;5m 3 P1 [0m [48;2;214;121;0;38;2;22;17;10m 3 P2 [0m [48;2;60;160;188;38;2;10;17;22m 3 P3 [0m [48;2;107;118;128;38;2;255;255;255m 1 P4 [0m
+
+[38;2;120;131;141mWHAT TO DO[0m  [38;2;120;131;141m8 actions clear 10 findings[0m
+
+Bump a dependency  [38;2;120;131;141m1 action clears 2 findings[0m
+  [1;38;2;224;82;94mP1[0m  Upgrade jinja2 2.10 → 2.11.3
+      [38;2;120;131;141mcomponent[0m payments[38;2;120;131;141m · [0m[38;2;120;131;141mcontrol[0m sca[38;2;120;131;141m · [0m[1;38;2;53;137;233m2 findings[0m[38;2;120;131;141m · [0m[38;2;120;131;141mapp/requirements.txt:5 · ]8;;https://nvd.nist.gov/vuln/detail/CVE-2019-10906CVE-2019-10906]8;; +1[0m
+
+Change the code  [38;2;120;131;141m3 actions clear 4 findings[0m
+  [1;38;2;224;82;94mP1[0m  Fix CVE-2019-20477 “PyYAML: command execution through python/object/ap…”
+      [38;2;120;131;141mcomponent[0m payments[38;2;120;131;141m · [0m[38;2;120;131;141mcontrol[0m sca[38;2;120;131;141m · [0m[1;38;2;53;137;233m1 finding[0m[38;2;120;131;141m · [0m[38;2;120;131;141mapp/requirements.txt:4 · ]8;;https://nvd.nist.gov/vuln/detail/CVE-2019-20477CVE-2019-20477]8;;[0m
+  [38;2;214;121;0mP2[0m  Fix “Detected user input flowing into a raw SQL string”
+      [38;2;120;131;141mSemgrep:[0m python.flask.security.injection.tainted-sql-string.tainted-sql-string[38;2;120;131;141m · [0m[38;2;120;131;141mBandit:[0m B608
+      [38;2;120;131;141mcontrol[0m sast[38;2;120;131;141m · [0m[1;38;2;53;137;233m2 findings[0m[38;2;120;131;141m · [0m[38;2;120;131;141mapp/main.py:42[0m
+  [38;2;120;131;141m… and 1 action not listed[0m
+
+Change the infrastructure  [38;2;120;131;141m2 actions clear 2 findings[0m
+  [1;38;2;224;82;94mP1[0m  Fix DS-0002 “Image user should not be 'root'”
+      [38;2;120;131;141mcomponent[0m payments[38;2;120;131;141m · [0m[38;2;120;131;141mcontrol[0m iac[38;2;120;131;141m · [0m[1;38;2;53;137;233m1 finding[0m[38;2;120;131;141m · [0m[38;2;120;131;141mapp/Dockerfile:1 · DS-0002[0m
+  [38;2;60;160;188mP3[0m  Fix KSV-0014 “Root file system is not read-only”
+      [38;2;120;131;141mcontrol[0m iac[38;2;120;131;141m · [0m[1;38;2;53;137;233m1 finding[0m[38;2;120;131;141m · [0m[38;2;120;131;141mdeploy/pod.yaml:8 · KSV-0014[0m
+
+Rotate a credential  [38;2;120;131;141m1 action clears 1 finding[0m
+  [38;2;214;121;0mP2[0m  Remove and rotate the private key if it is real
+      [38;2;120;131;141mIdentified a Private Key, which may compromise cryptographic security[0m
+      [38;2;120;131;141mgitleaks:[0m private-key
+      [38;2;120;131;141mcomponent[0m payments[38;2;120;131;141m · [0m[38;2;120;131;141mcontrol[0m secrets[38;2;120;131;141m · [0m[1;38;2;53;137;233m1 finding[0m[38;2;120;131;141m · [0m[38;2;120;131;141mapp/config.pem:1[0m
+
+Decide  [38;2;120;131;141m1 action clears 1 finding[0m
+  [38;2;60;160;188mP3[0m  Replace or accept some-lib, licensed GPL-3.0-only
+      [38;2;120;131;141mcontrol[0m licenses[38;2;120;131;141m · [0m[1;38;2;53;137;233m1 finding[0m[38;2;120;131;141m · [0m[38;2;120;131;141mgo.mod:17 · license/GPL-3.0-only/some-lib[0m
+
+[38;2;120;131;141mCONTROLS[0m
+  iac       [1;38;2;224;82;94mFAIL [0m  [48;2;224;82;94;38;2;18;6;5m 1 P1 [0m [48;2;60;160;188;38;2;10;17;22m 1 P3 [0m
+  licenses  [38;2;120;131;141mpass [0m  [48;2;60;160;188;38;2;10;17;22m 1 P3 [0m
+  sast      [1;38;2;224;82;94mFAIL [0m  [48;2;214;121;0;38;2;22;17;10m 1 P2 [0m [48;2;60;160;188;38;2;10;17;22m 1 P3 [0m
+  sca       [1;38;2;224;82;94mFAIL [0m  [48;2;224;82;94;38;2;18;6;5m 2 P1 [0m [48;2;214;121;0;38;2;22;17;10m 1 P2 [0m [48;2;107;118;128;38;2;255;255;255m 1 P4 [0m
+  secrets   [1;38;2;224;82;94mFAIL [0m  [48;2;214;121;0;38;2;22;17;10m 1 P2 [0m
+  dast      [1;38;2;224;82;94mERROR[0m  [38;2;120;131;141mdid not run[0m
+            [38;2;120;131;141mnuclei: executable file not found in $PATH[0m
+
+[38;2;120;131;141mMEASURED AGAINST[0m
+  licenses  [38;2;120;131;141mtrivy-license 0.69.3 · policy: deny copyleft[0m
+
+[38;2;120;131;141mCOMPONENTS[0m
+  payments       [1;38;2;224;82;94mFAIL [0m  [48;2;224;82;94;38;2;18;6;5m 3 P1 [0m [48;2;214;121;0;38;2;22;17;10m 3 P2 [0m [48;2;60;160;188;38;2;10;17;22m 1 P3 [0m
+  internal-tool  [38;2;53;137;233mpass [0m  [38;2;120;131;141mno findings[0m
+  [38;2;120;131;141m3 findings not tied to a component (project-wide controls)[0m
+
+[38;2;120;131;141mSIGNALS[0m
+  [1mKEV[0m    [38;2;120;131;141mnot read · --kev auto reads it[0m
+  [1mEPSS[0m   [38;2;120;131;141mnot read · --epss auto reads it[0m
+  [1mfloor[0m  [38;2;120;131;141mnothing raised[0m
+
+[38;2;120;131;141mACCEPTED[0m
+  [1mconfig.exclude[0m  [38;2;214;121;0m2 findings suppressed · 1 expired and no longer suppressing[0m
+              [38;2;120;131;141mexpired 2026-01-31 · draugr.saga.yaml:31 · waiting on the upstream release[0m
+
+[38;2;120;131;141mUNMATCHED[0m
+  [1mconfig.exclude[0m  [38;2;214;121;0mpaths tests* · test files that are not deployed[0m
+  [1mVEX[0m             [38;2;214;121;0mCVE-2023-45803 · pkg:pypi/urllib3[0m
+
+[38;2;120;131;141mTRY[0m
+  [38;2;120;131;141m--top 0[0m                                  [38;2;120;131;141mevery action, not the first two in each list[0m
+  [38;2;120;131;141m--report json,sarif,html -o .draugr/out[0m  [38;2;120;131;141mevery finding in one searchable page[0m
+  [38;2;120;131;141m--view compact[0m                           [38;2;120;131;141mone line each, to see how much there is[0m
+  [38;2;120;131;141m--view findings[0m                          [38;2;120;131;141mthe findings themselves, one row each[0m
+  [38;2;120;131;141mconfig.exclude[0m                           [38;2;120;131;141mset aside; findings stay, suppressed[0m
+  [38;2;120;131;141m  - rules: [<full rule id>][0m              [38;2;120;131;141m[0m
+  [38;2;120;131;141m    paths: [<file without :line>][0m        [38;2;120;131;141m[0m
+  [38;2;120;131;141m    reason: <why it is set aside>[0m        [38;2;120;131;141m[0m
+  [38;2;120;131;141m    expires: <YYYY-MM-DD>[0m                [38;2;120;131;141m[0m
+  [38;2;120;131;141mdraugr explain <rule>[0m                    [38;2;120;131;141mwhat a rule means and how to fix it, from .draugr/out[0m
+
+[38;2;120;131;141mDRAUGR[0m  [48;2;224;82;94;38;2;18;6;5m FAIL [0m  [48;2;224;82;94;38;2;18;6;5m 3 P1 [0m [48;2;214;121;0;38;2;22;17;10m 3 P2 [0m [48;2;60;160;188;38;2;10;17;22m 3 P3 [0m [48;2;107;118;128;38;2;255;255;255m 1 P4 [0m
+  [38;2;120;131;141miac, sast, sca and secrets fail · dast errored[0m

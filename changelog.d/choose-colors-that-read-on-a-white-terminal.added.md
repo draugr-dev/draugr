@@ -1,0 +1,1 @@
+- **Choose colors that read on a white terminal.** Set `output.palette: light-background` in `~/.draugr/config.yaml` to deepen the yellow of P2, caveats and `↑ KEV` to amber and the blue-grey of P3 to blue. Every color then keeps at least 3:1 contrast on white. `standard` stays the default.

@@ -20,6 +20,7 @@ import (
 	"github.com/draugr-dev/draugr/pkg/sarif"
 	"github.com/draugr-dev/draugr/pkg/sbom"
 	"github.com/draugr-dev/draugr/pkg/skald"
+	"github.com/draugr-dev/draugr/pkg/tui"
 	"github.com/draugr-dev/draugr/pkg/vex"
 )
 
@@ -848,5 +849,22 @@ func TestTryGivesTheRunExplainNeedsWhenTheReportsLeaveOutSarif(t *testing.T) {
 		if i < 0 || i+len(c.want) > len(rows) || !slices.Equal(rows[i:i+len(c.want)], c.want) {
 			t.Errorf("-o %s --report %s: TRY = %q, want it to hold %q", c.dir, strings.Join(c.formats, ","), rows, c.want)
 		}
+	}
+}
+
+// Each palette pinned in full color, on the run the CLI renders by default. The goldens above are
+// plain text, which is what a pipe gets, so without these a palette could lose a role's color, or
+// draw one role in another's, with every golden still passing.
+func TestConsoleGoldenInEachPalette(t *testing.T) {
+	for _, pal := range tui.Palettes() {
+		t.Run(string(pal), func(t *testing.T) {
+			t.Setenv("COLUMNS", "")
+			paint := tui.FullColorPainter().In(pal)
+			var b bytes.Buffer
+			if err := (consoleReporter{paint: &paint}).Render(&b, goldenGroupedData()); err != nil {
+				t.Fatal(err)
+			}
+			assertGolden(t, filepath.Join("testdata", "palette-"+string(pal)+".golden"), b.Bytes())
+		})
 	}
 }

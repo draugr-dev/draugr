@@ -1197,6 +1197,20 @@
           "description": "Whether `draugr scan` on a terminal offers to install the scanners it is missing. Unset means it offers.",
           "type": "boolean"
         },
+        "palette": {
+          "anyOf": [
+            {
+              "const": "standard",
+              "description": "The colors of the HTML report and the website. Meant for a dark terminal; its yellow is hard to read on white."
+            },
+            {
+              "const": "light-background",
+              "description": "Amber, blue and crimson in place of yellow, blue-grey and red, readable on white and on dark terminals."
+            }
+          ],
+          "description": "The colors of every command's output on a terminal that announces full color in `$COLORTERM`. Other terminals keep their own sixteen colors.",
+          "type": "string"
+        },
         "tips": {
           "description": "Whether a console scan prints its contextual tips and its progress line. Unset means it prints them. Overridden by `--no-tips` and `$DRAUGR_NO_TIPS`.",
           "type": "boolean"

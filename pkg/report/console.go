@@ -29,7 +29,11 @@ import (
 // per-control severity, and a ranked "fix first" list. It colorizes when writing to a TTY
 // (unless NO_COLOR is set). The gate and machine formats (json/sarif) still speak SARIF levels;
 // this human view speaks severity bands and priority.
-type consoleReporter struct{}
+type consoleReporter struct {
+	// paint, when set, is the painter the report draws with in place of the one its writer calls
+	// for, so a test can pin what each palette looks like without a terminal to write to.
+	paint *tui.Painter
+}
 
 func (consoleReporter) Format() string { return "console" }
 
@@ -78,12 +82,15 @@ const (
 	cInfo     = tui.StyleInfo
 )
 
-func (consoleReporter) Render(w io.Writer, d Data) error {
+func (r consoleReporter) Render(w io.Writer, d Data) error {
 	if d.judgedOnChange() {
 		return renderChange(w, d)
 	}
 	s := summarize(d)
 	col := tui.For(w)
+	if r.paint != nil {
+		col = *r.paint
+	}
 	// Everything below goes through e, which remembers how the output ends for the closer.
 	e := &endWriter{w: w}
 	w = e

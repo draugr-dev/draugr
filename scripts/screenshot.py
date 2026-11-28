@@ -76,7 +76,7 @@ def spans(line):
 # The sixteen-color fallback, in the same hues the project uses, so a terminal that did not
 # announce full color still produces a picture in the right palette.
 SIXTEEN = {
-    "30": "#0b0e11", "31": "#e5534b", "32": "#57ab5a", "33": "#e8b84b",
+    "30": "#0b0e11", "31": "#e5534b", "32": "#3589e9", "33": "#e8b84b",
     "34": "#7ca6b8", "35": "#a371f7", "36": "#7ca6b8", "37": "#e6e8ea",
 }
 

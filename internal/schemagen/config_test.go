@@ -200,9 +200,9 @@ func TestConfigSchemaRefusesWhatItCannotFillIn(t *testing.T) {
 		t.Errorf("a field with no description: err = %v, want one naming output.top", err)
 	}
 	stale := configFields()
-	stale["output.palette"] = map[string]any{"description": "x"}
-	if _, err := configSchema(current, stale); err == nil || !strings.Contains(err.Error(), "output.palette") {
-		t.Errorf("a description for no field: err = %v, want one naming output.palette", err)
+	stale["output.theme"] = map[string]any{"description": "x"}
+	if _, err := configSchema(current, stale); err == nil || !strings.Contains(err.Error(), "output.theme") {
+		t.Errorf("a description for no field: err = %v, want one naming output.theme", err)
 	}
 	s := &configShaper{docs: configFields(), defs: map[string]any{}, used: map[string]bool{}}
 	if _, err := s.shape(reflect.TypeOf(map[string]float64{}), "output.ratio"); err == nil {

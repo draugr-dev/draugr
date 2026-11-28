@@ -359,6 +359,9 @@ func flatten(f config.File) []kv {
 		if o.Tips != nil {
 			out = append(out, kv{"output.tips", strconv.FormatBool(*o.Tips)})
 		}
+		if o.Palette != "" {
+			out = append(out, kv{"output.palette", o.Palette})
+		}
 	}
 	if j := f.Scan.Jobs; j != nil {
 		out = append(out, kv{"scan.jobs", strconv.Itoa(*j)})
