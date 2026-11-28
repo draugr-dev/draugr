@@ -10,3 +10,8 @@ packages:
       version: 1.6.0
       in: Cargo.lock
       foundBy: [sca/trivy]
+  crates.io:
+    - name: smallvec
+      version: 1.6.0
+      in: Cargo.lock
+      foundBy: [sca/osv-scanner]
