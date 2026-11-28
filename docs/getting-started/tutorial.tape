@@ -10,6 +10,7 @@ Output tutorial.ascii
 
 Require git
 Require curl
+Require script
 
 Set Shell bash
 Set FontSize 18
@@ -19,10 +20,16 @@ Set Padding 24
 Set TypingSpeed 45ms
 Set WindowBar Colorful
 
-# Off camera: the fresh home the runner made, a plain prompt to wait on, an install fetch the site
-# counts apart from a reader's (the typed command is the tutorial's own), and a log of when each
-# command starts, which the narration is timed against.
+# Off camera: a shell whose every byte of output is logged as the terminal received it, so a cut can
+# scroll back to the top of a command's output from the same run, the fresh home the runner made, a
+# plain prompt to wait on, an install fetch the site counts apart from a reader's (the typed command
+# is the tutorial's own), and a log of when each command starts, which the narration is timed
+# against. script(1) runs the shell on a terminal of its own at this window's size, so what a command
+# prints is what it prints here without the log.
 Hide
+Type `exec script -qf -c 'bash --noprofile --norc' "$TUTORIAL_SESSION"`
+Enter
+Sleep 500ms
 Type `trap 'printf "%s %s\n" "$EPOCHREALTIME" "$BASH_COMMAND" >>"$TUTORIAL_TIMING"' DEBUG`
 Enter
 Type `export HOME="$TUTORIAL_HOME" PATH="$TUTORIAL_HOME/.local/bin:$TUTORIAL_PATH" DRAUGR_NO_UPDATE_CHECK=1 PS1='$ '`
