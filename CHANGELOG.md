@@ -12,6 +12,22 @@ and move it under a version on release.
 
 _Nothing yet._
 
+## [0.195.0] - 2026-11-28
+
+### Added
+
+- **Choose colors that read on a white terminal.** Set `output.palette: light-background` in `~/.draugr/config.yaml` and P2, caveats and `↑ KEV` turn from yellow to amber, and P3 from blue-grey to blue, so every color keeps at least 3:1 contrast on white. `standard` is the default.
+
+### Changed
+
+- **A pass and a fixed version are blue, not green.** In the HTML report and on terminals that set `COLORTERM=truecolor`, `pass` and the version that ends a finding (`→ 3.5.0`) are blue, because green and red look alike to a reader with deuteranomaly. Other terminals keep green.
+
+- **A scan ends on its answer.** The last lines of `draugr scan` repeat the verdict and counts, name the controls and caveats that fail the run, and give the first `FIX FIRST` row again: its rule, its fix and where it is. A long run that scrolled its top away still ends with what failed and where to start.
+
+### Fixed
+
+- **A caveat that fails the run reads FAIL, not ERROR.** The caveat's component and the controls it names now read `FAIL` in the console, markdown and HTML reports. The component used to read `ERROR`, and a control `pass` or `FAIL`. `ERROR` stays for a target no scanner read, so a caveat no longer sends you looking for a scanner that broke.
+
 ## [0.194.0] - 2026-11-28
 
 ### Added
@@ -7701,7 +7717,8 @@ First public preview of Draugr.
 - **Early preview** — the CLI and the Saga schema may change before 1.0.
 - Requires **Trivy** on your `PATH` (and `git` for repository scans).
 
-[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.194.0...HEAD
+[Unreleased]: https://github.com/draugr-dev/draugr/compare/v0.195.0...HEAD
+[0.195.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.195.0
 [0.194.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.194.0
 [0.193.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.193.0
 [0.192.0]: https://github.com/draugr-dev/draugr/releases/tag/v0.192.0
