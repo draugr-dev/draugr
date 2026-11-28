@@ -286,3 +286,16 @@ func TestFullColorIsAskedForRatherThanAssumed(t *testing.T) {
 		t.Errorf("painted = %q, want the sixteen-color role", got)
 	}
 }
+
+type sizedWriter struct{ io.Writer }
+
+func (sizedWriter) Columns() int { return 61 }
+
+// A writer that wraps the terminal answers for it, or everything drawn through it is drawn for no
+// width at all.
+func TestColumnsAsksAWriterThatKnowsItsWidth(t *testing.T) {
+	t.Setenv("COLUMNS", "")
+	if got := Columns(sizedWriter{io.Discard}); got != 61 {
+		t.Errorf("Columns = %d, want 61", got)
+	}
+}

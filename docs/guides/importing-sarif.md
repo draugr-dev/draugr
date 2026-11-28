@@ -223,6 +223,11 @@ TRY
       reason: <why it is set aside>
       expires: <YYYY-MM-DD>
   draugr explain <rule>                    what a rule means and how to fix it, from .draugr/out
+
+DRAUGR  FAIL  9 P1 6 P2 6 P3 0 P4 · scoped to 1 of 3 components and the sast control
+  sast fails
+  FIX FIRST  python.lang.security.dangerous-system-call.dangerous-system-call
+             fix change the code · app/app.py:16
 ```
 
 This run is [`draugr-demo`](https://github.com/draugr-dev/draugr-demo), whose `api` component

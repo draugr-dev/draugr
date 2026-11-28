@@ -236,6 +236,12 @@ func isDevNull(fi os.FileInfo) bool {
 // color is applied, or escape codes inflate the apparent length and columns stop lining up.
 func Pad(s string, width int) string { return fmt.Sprintf("%-*s", width, s) }
 
+// Sized is a writer that wraps another and answers Columns for it, such as one that watches what
+// passes through on its way to a terminal.
+type Sized interface {
+	Columns() int
+}
+
 // Columns reports how many character cells wide w is, or 0 when that cannot be answered.
 //
 // A caller that draws in place needs this, because a terminal wraps a line it cannot fit and the
@@ -244,12 +250,16 @@ func Pad(s string, width int) string { return fmt.Sprintf("%-*s", width, s) }
 // anything this program wrote.
 //
 // COLUMNS wins over the ioctl so a test, and a reader debugging a layout, can say what the width
-// is without a terminal of that size.
+// is without a terminal of that size. A writer that wraps another answers through Sized, so
+// wrapping the terminal does not lose its width.
 func Columns(w io.Writer) int {
 	if v := os.Getenv("COLUMNS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}
+	}
+	if s, ok := w.(Sized); ok {
+		return s.Columns()
 	}
 	f, ok := w.(*os.File)
 	if !ok {
