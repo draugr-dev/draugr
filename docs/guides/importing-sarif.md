@@ -248,7 +248,7 @@ config:
     failOnCaveats: [unbound-imports]
 ```
 
-The run then fails with the caveat marked `✗` and its component marked `ERROR`, and
+The run then fails with the caveat marked `✗` and its component and control marked `FAIL`, and
 `--allow-scan-errors` accepts it. `--fail-on-caveats unbound-imports` sets the same for one run.
 
 ## In GitHub Actions

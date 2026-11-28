@@ -617,12 +617,12 @@ func (htmlReporter) Render(w io.Writer, d Data) error {
 			Unread: unreadNote(d.Run.Inputs, c.Control),
 		})
 	}
-	// A control a failing caveat concerns has not been checked whole, whatever the change added to it.
+	// A caveat that fails the run fails the control it names, as a finding past the gate does.
+	failingCaveat := caveatControls(d)
+	for i := range view.Controls {
+		view.Controls[i].Fail = view.Controls[i].Fail || failingCaveat[view.Controls[i].Control]
+	}
 	if d.Gate.judgesChange() {
-		failingCaveat := caveatControls(d)
-		for i := range view.Controls {
-			view.Controls[i].Errored = view.Controls[i].Errored || failingCaveat[view.Controls[i].Control]
-		}
 		view.Change = changeViewFor(d, s.prioritized)
 	}
 	// Controls that produced no report at all have no verdict entry. Omitting them is how a
@@ -1034,12 +1034,12 @@ func htmlComponents(d Data, s summary) []htmlComponent {
 		// A component with a target no scanner read has not passed, whatever it found in the rest,
 		// which is the console's rule. With nothing found, "no findings" is true only in the sense
 		// that none were possible; with findings, they are not the whole picture.
+		// A caveat that fails the run fails the component, as a finding past the gate does.
+		if !row.Fail && componentFails(d, c) {
+			row.Verdict, row.Fail = "FAIL", true
+		}
 		if len(c.Unscanned) > 0 {
 			row.Unscanned = unscannedDetail(c.Unscanned, c.Declared)
-			row.Verdict, row.Errored, row.Fail = "ERROR", true, false
-		}
-		// A caveat the gate fails on is the same rule, arrived at from what the run did not cover.
-		if len(c.FailedCaveats) > 0 {
 			row.Verdict, row.Errored, row.Fail = "ERROR", true, false
 		}
 		out = append(out, row)

@@ -187,13 +187,15 @@ func (consoleReporter) Render(w io.Writer, d Data) error {
 				}
 			}
 		}
+		// A caveat that fails the run fails the control it names too, the way it fails its component.
+		failingCaveat := caveatControls(d)
 		for _, c := range d.Verdict.Controls {
 			bad := d.Run.Incomplete(c.Control)
 			if dense(d) && !bad {
 				continue
 			}
 			v, vc := "pass", cDim
-			if c.Verdict == norn.Fail {
+			if c.Verdict == norn.Fail || failingCaveat[c.Control] {
 				v, vc = "FAIL", cFail
 			}
 			if bad {
@@ -1341,7 +1343,7 @@ func writeComponents(w io.Writer, col tui.Painter, d Data) {
 	_, _ = fmt.Fprintln(w, heading(col, "Components"))
 	for _, c := range d.Components {
 		verdict, style := "pass", cPass
-		if c.Verdict == norn.Fail {
+		if componentFails(d, c) {
 			verdict, style = "FAIL", cFail
 		}
 		// A component with a target no scanner read has not passed, whatever it found in the rest.

@@ -626,25 +626,49 @@ func TestFailedCaveatsAreTheKindsTheGateLists(t *testing.T) {
 	}
 }
 
-// A component with a caveat the gate fails on reads ERROR in every format. Its row says nothing more:
-// the Caveats section lists the caveats, and a row naming each unread file grows with the tree.
-func TestAComponentWithAFailingCaveatReadsError(t *testing.T) {
+// A component with a caveat the gate fails on reads FAIL in every format, and so does the control the
+// caveat names, though neither found anything past the gate. ERROR is kept for a target no scanner
+// read: a reader takes it to mean a scanner broke, and looks for one. The row says nothing more: the
+// Caveats section lists the caveats, and a row naming each unread file grows with the tree. Under
+// --allow-scan-errors the caveat fails nothing, and both read pass.
+func TestAComponentWithAFailingCaveatReadsFail(t *testing.T) {
 	d := failingCaveatData()
 	d.Components = []ComponentVerdict{
 		{Name: "api", FailedCaveats: FailedCaveats(d)[:1]},
 		{Name: "web"},
+		{Name: "batch", Unscanned: []engine.Unscanned{{Kind: "repository", Target: "https://github.com/acme/batch"}}},
 	}
+	d.Verdict.Controls = []norn.ControlOutcome{{Control: "sca", Verdict: norn.Pass}, {Control: "sast", Verdict: norn.Pass}}
 	console := renderWith(t, consoleReporter{}, d)
-	if !strings.Contains(console, "api  ERROR") || !strings.Contains(console, "web  pass") {
-		t.Errorf("console:\n%s", console)
+	for _, want := range []string{"api    FAIL", "web    pass", "batch  ERROR", "sca   FAIL", "sast  pass"} {
+		if !strings.Contains(console, want) {
+			t.Errorf("console has no %q:\n%s", want, console)
+		}
 	}
 	md := renderWith(t, markdownReporter{}, d)
-	if !strings.Contains(md, "**ERROR**") || strings.Contains(md, "| unread-files go.mod") {
-		t.Errorf("markdown:\n%s", md)
+	for _, want := range []string{"**api** · public (assumed) · critical (assumed) · **FAIL**", "| batch | public (assumed) | critical (assumed) | **ERROR** |", "| sca | **FAIL** · 1 file unread |", "| sast | pass |"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("markdown has no %q:\n%s", want, md)
+		}
+	}
+	if strings.Contains(md, "| unread-files go.mod") {
+		t.Errorf("markdown names the caveat on the row:\n%s", md)
 	}
 	html := renderWith(t, htmlReporter{}, d)
-	if strings.Contains(html, `class="gap" href="#caveats"`) || !strings.Contains(html, `<td class="outcome"><span class="err">ERROR</span></td>`) {
-		t.Errorf("html: the row should read ERROR and say nothing more about the caveat")
+	if strings.Contains(html, `class="gap" href="#caveats"`) || strings.Count(html, `<td class="outcome"><span class="err">FAIL</span></td>`) != 1 ||
+		strings.Count(html, `<td class="outcome"><span class="err">ERROR</span></td>`) != 1 {
+		t.Errorf("html: api should read FAIL and batch ERROR, and say nothing more about the caveat")
+	}
+	if !strings.Contains(html, `<li class="ctl bad">`) && !strings.Contains(html, `<span class="ctl-verdict"><span class="err">FAIL</span>`) {
+		t.Errorf("html: sca should read FAIL")
+	}
+
+	d.AcceptedErrors = true
+	console = renderWith(t, consoleReporter{}, d)
+	for _, want := range []string{"api    pass", "sca   pass"} {
+		if !strings.Contains(console, want) {
+			t.Errorf("accepted: console has no %q:\n%s", want, console)
+		}
 	}
 	if got := joinNotes("", "b"); got != "b" {
 		t.Errorf("joinNotes = %q", got)

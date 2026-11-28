@@ -30,7 +30,6 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintf(w, "**Release:** %s\n\n", releaseLabel(d))
 	}
 
-	judged := d.Gate.judgesChange()
 	change := changeViewFor(d, s.prioritized)
 	if change != nil {
 		change.capActions(changeActions(d, s))
@@ -79,12 +78,12 @@ func (markdownReporter) Render(w io.Writer, d Data) error {
 		_, _ = fmt.Fprintln(w, "|---|---|---:|---:|---:|---:|")
 		for _, c := range d.Verdict.Controls {
 			v := "pass"
-			if c.Verdict == norn.Fail {
+			// A caveat that fails the run fails the control it names, as a finding past the gate does.
+			if c.Verdict == norn.Fail || caveatControls(d)[c.Control] {
 				v = "**FAIL**"
 			}
-			// It reported findings *and* something failed, so what it did report is partial. On a run
-			// judged on its change, a caveat that fails the run leaves its control unchecked the same way.
-			if _, bad := s.scanErrors[c.Control]; bad || judged && caveatControls(d)[c.Control] {
+			// It reported findings *and* something failed, so what it did report is partial.
+			if _, bad := s.scanErrors[c.Control]; bad {
 				v = "**ERROR**"
 			}
 			if note := unreadNote(d.Run.Inputs, c.Control); note != "" {
@@ -274,7 +273,7 @@ func writeCaveatRows(w io.Writer, d Data) {
 		// cover are read together, with the classification the ranking used as the table writes it.
 		if c, ok := verdicts[g.component]; ok {
 			exposure, criticality := rankedClass(c)
-			head += " · " + exposure.markdown() + " · " + criticality.markdown() + " · " + componentVerdictWord(c)
+			head += " · " + exposure.markdown() + " · " + criticality.markdown() + " · " + componentVerdictWord(d, c)
 		}
 		_, _ = fmt.Fprintln(w, head)
 		_, _ = fmt.Fprintln(w)
@@ -289,14 +288,14 @@ func writeCaveatRows(w io.Writer, d Data) {
 	}
 }
 
-// componentVerdictWord is a component's verdict as the markdown Components table prints it. A
-// component with a target no scanner read, or a caveat the gate fails on, has not passed, whatever
-// it found in the rest, which is the console's rule.
-func componentVerdictWord(c ComponentVerdict) string {
+// componentVerdictWord is a component's verdict as the markdown Components table prints it, by the
+// console's rule: ERROR for a target no scanner read, FAIL for a finding past the gate or a caveat
+// that fails the run.
+func componentVerdictWord(d Data, c ComponentVerdict) string {
 	switch {
-	case len(c.Unscanned) > 0 || len(c.FailedCaveats) > 0:
+	case c.Errored():
 		return "**ERROR**"
-	case c.Verdict == norn.Fail:
+	case componentFails(d, c):
 		return "**FAIL**"
 	}
 	return "pass"
@@ -516,7 +515,7 @@ func writeComponentTable(w io.Writer, d Data) {
 		// A row of counts beside the word "pass" for a component with a target no scanner read
 		// asserts something no scanner established, and a table is where that reads most like a
 		// result. So it reads ERROR, and says what was missed.
-		v := componentVerdictWord(c)
+		v := componentVerdictWord(d, c)
 		var notes []string
 		if len(c.Controls) > 0 {
 			notes = append(notes, strings.Join(c.Controls, ", "))

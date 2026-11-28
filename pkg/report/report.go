@@ -389,15 +389,21 @@ type ComponentVerdict struct {
 	// established. The same reasoning already keeps a component the scope excluded out of the pass
 	// list; a component the scan could not reach is the same situation arrived at later.
 	Unscanned []engine.Unscanned
-	// FailedCaveats are this component's caveats of a kind gate.failOnCaveats lists. Like a target
-	// no scanner read, each leaves the component short of what the gate requires, so the component
-	// reads ERROR rather than pass.
+	// FailedCaveats are this component's caveats of a kind gate.failOnCaveats lists. Like a finding
+	// past the gate, each fails the component, which reads FAIL unless the run accepts its errors.
 	FailedCaveats []FailedCaveat
 }
 
-// Errored reports whether something kept this component from a verdict the gate accepts: a target
-// no scanner read, or a caveat of a kind the gate fails on.
-func (c ComponentVerdict) Errored() bool { return len(c.Unscanned) > 0 || len(c.FailedCaveats) > 0 }
+// Errored reports whether a target of this component went unread by every scanner, which leaves it
+// without a verdict the gate accepts. ERROR means that and nothing else: a caveat that fails the
+// run is a reason to FAIL, said by the caveat block, rather than a scanner that broke.
+func (c ComponentVerdict) Errored() bool { return len(c.Unscanned) > 0 }
+
+// componentFails reports whether a component reads FAIL: a finding past the gate, or a caveat of
+// its that fails the run. Under --allow-scan-errors a caveat fails nothing, so only findings count.
+func componentFails(d Data, c ComponentVerdict) bool {
+	return c.Verdict == norn.Fail || len(c.FailedCaveats) > 0 && !d.AcceptedErrors
+}
 
 // classHalf is one half of a component's classification, exposure or criticality, as the ranking
 // read it.

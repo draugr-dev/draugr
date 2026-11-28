@@ -21,7 +21,9 @@ func TestControlRowCountsItsUnreadFiles(t *testing.T) {
 		}})
 
 	console := renderWith(t, consoleReporter{}, d)
-	if !regexp.MustCompile(`(?m)^  sca\s+pass\s+no findings · 3 files unread$`).MatchString(console) {
+	// FAIL, because the unbound import the gate fails on names sca: a caveat that fails the run fails
+	// the control it names.
+	if !regexp.MustCompile(`(?m)^  sca\s+FAIL\s+no findings · 3 files unread$`).MatchString(console) {
 		t.Errorf("console sca row does not count its 3 unread files:\n%s", console)
 	}
 	if !regexp.MustCompile(`(?m)^  licenses\s+pass\s+no findings$`).MatchString(console) {
@@ -29,7 +31,7 @@ func TestControlRowCountsItsUnreadFiles(t *testing.T) {
 	}
 
 	md := renderWith(t, markdownReporter{}, d)
-	if !strings.Contains(md, "| sca | pass · 3 files unread |") {
+	if !strings.Contains(md, "| sca | **FAIL** · 3 files unread |") {
 		t.Errorf("markdown sca row does not count its unread files:\n%s", md)
 	}
 	if !strings.Contains(md, "| licenses | pass |") {
