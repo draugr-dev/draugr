@@ -1,0 +1,1 @@
+- **A policy setting your organization's plan does not enforce reads as observed.** Where a Draugr server marks an enforce setting `not-on-plan`, a scan's POLICY block and `draugr doctor` show `observed, enforcement not on the plan`, not `fails the gate`. Any override this version does not know also reads as observed.
