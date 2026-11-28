@@ -23,6 +23,10 @@ packages:
       version: 1.8.3
       in: web/static/js/jquery.min.js
       foundBy: [sca/retirejs]
+    - name: lodash
+      version: 4.17.20
+      in: worker/package-lock.json
+      foundBy: [sca/trivy]
   pip:
     - name: Flask
       version: 0.12.2
@@ -55,3 +59,5 @@ files:
     foundBy: [iac/Trivy, sast/Semgrep OSS]
   - file: python:3.8-slim
     foundBy: [licenses/trivy-license]
+  - file: worker/reconcile.js
+    foundBy: [sast/Semgrep OSS]
