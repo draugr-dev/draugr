@@ -2,13 +2,23 @@
 
 > Know which security findings to fix first, [across the scanners you already run](docs/guides/importing-sarif.md). SAST, SCA, secrets, IaC and containers, every finding ranked by exposure, criticality, exploitability and, for Go, reachability.
 
+```bash
+curl -fsSL https://draugr.dev/install.sh | sh
+draugr tools install   # fetch the scanners a scan here runs, pinned and verified
+draugr scan .          # scan this repository, no descriptor needed
+```
+
+Installs to `~/.local/bin`, no `sudo`, and installs nothing if the archive fails [verification](docs/trust-and-operations/verifying-releases.md). [Other ways to install](docs/getting-started/install.md) · [See a sample report](https://draugr.dev/demo/cli/report/)
+
+**Nothing to write first.** Three commands in any repository, and its findings come back as one list, most urgent first.
+
 [![CI](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml/badge.svg)](https://github.com/draugr-dev/draugr/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/draugr-dev/draugr/badge)](https://scorecard.dev/viewer/?uri=github.com/draugr-dev/draugr)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13631/badge)](https://www.bestpractices.dev/projects/13631)
 [![Latest release](https://img.shields.io/github/v/release/draugr-dev/draugr?sort=semver)](https://github.com/draugr-dev/draugr/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
 
-**Describe your app in one file, and Draugr hands back the findings in the order to fix them.**
+**Then describe your app in one file, and the order follows your app: who can reach each part, and what the business loses when it stops.**
 
 Every application carries problems nobody put there on purpose: a library that turned out to have a
 hole in it, a password committed by accident, a server setting that leaves a door open. Draugr finds
