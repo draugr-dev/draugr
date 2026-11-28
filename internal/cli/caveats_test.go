@@ -89,8 +89,8 @@ func TestACaveatTheGateListsFailsTheRun(t *testing.T) {
 			t.Errorf("missing %q:\n%s", want, out)
 		}
 	}
-	if !strings.Contains(out, "web  ERROR") || !strings.Contains(out, "api  pass") {
-		t.Errorf("want web ERROR and api pass:\n%s", out)
+	if !strings.Contains(out, "web  FAIL") || !strings.Contains(out, "api  pass") {
+		t.Errorf("want web FAIL and api pass:\n%s", out)
 	}
 }
 

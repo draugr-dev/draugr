@@ -1969,8 +1969,9 @@ config:
 ```
 
 A caveat of a listed kind stays under **Caveats**, marked `✗`, and the heading says how many fail the
-run and under which setting. Its component reads `ERROR`, the scan exits non-zero as an incomplete
-one does, and `--allow-scan-errors` accepts it. Empty, the default, fails on none, because a caveat
+run and under which setting. Its component and the controls it names read `FAIL`, the scan exits
+non-zero as an incomplete one does, and `--allow-scan-errors` accepts it. `ERROR` is kept for a
+target no scanner read. Empty, the default, fails on none, because a caveat
 often follows from a choice: a descriptor narrowed on purpose declares surfaces no control looks at.
 [`--fail-on-caveats`](cli.md#draugr-scan-sagayaml--dir) overrides the list for one run, and
 [`draugr doctor`](cli.md#draugr-doctor-sagayaml) fails before the scan when the list names

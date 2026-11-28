@@ -138,11 +138,11 @@ func TestACaveatTheGateFailsOnIsMarkedInTheReports(t *testing.T) {
 	if n := strings.Count(rows, "✗"); n != 1 || !strings.Contains(rows, `<span class="cvchip fails">✗ unbound-imports</span>`) {
 		t.Errorf("want the mark on the unbound import alone, got %d marks:\n%s", n, rows)
 	}
-	// The component's row from the Components table, so the ERROR there and the caveat behind it
+	// The component's row from the Components table, so the FAIL there and the caveat behind it
 	// are read together.
 	for _, want := range []string{
 		`<span class="cv-comp">edge</span><span class="cls">public · critical</span><span class="cv-verdict"><span class="ok">PASS</span></span>`,
-		`<span class="cv-comp">ledger</span><span class="cls">internal · critical</span><span class="cv-verdict"><span class="err">ERROR</span></span>`,
+		`<span class="cv-comp">ledger</span><span class="cls">internal · critical</span><span class="cv-verdict"><span class="err">FAIL</span></span>`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing the group header %s:\n%s", want, html)
@@ -159,7 +159,7 @@ func TestACaveatTheGateFailsOnIsMarkedInTheReports(t *testing.T) {
 		"### Caveats\n\nShortfalls in what the run covered, by component.\n\n",
 		"\n1 fails the run · `config.gate.failOnCaveats: unbound-imports`\n",
 		"**edge** · public · critical · pass\n",
-		"**ledger** · internal · critical · **ERROR**\n",
+		"**ledger** · internal · critical · **FAIL**\n",
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown is missing %q:\n%s", want, md)
@@ -306,7 +306,7 @@ func TestACaveatGroupHeaderMarksAnAssumedHalf(t *testing.T) {
 	md := renderWith(t, markdownReporter{}, d)
 	for _, want := range []string{
 		"\n**edge** · internal · critical (assumed) · pass\n",
-		"\n**ledger** · public (assumed) · critical (assumed) · **ERROR**\n",
+		"\n**ledger** · public (assumed) · critical (assumed) · **FAIL**\n",
 	} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown is missing %q:\n%s", want, md)

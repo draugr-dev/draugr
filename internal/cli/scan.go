@@ -1590,7 +1590,7 @@ func caveatClause(failed []report.FailedCaveat) string {
 }
 
 // markCaveatComponents records, on each component's row, the caveats of its that fail the run, so
-// the row reads ERROR as it does for a target no scanner read.
+// the row reads FAIL as it does for a finding past the gate.
 func markCaveatComponents(components []report.ComponentVerdict, failed []report.FailedCaveat) {
 	for i := range components {
 		for _, c := range failed {
