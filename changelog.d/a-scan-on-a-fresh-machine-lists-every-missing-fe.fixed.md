@@ -1,0 +1,1 @@
+- **A scan on a fresh machine lists every missing feed in one error.** With KEV, EPSS or OSV.dev advisories read from the cache, the error names every feed the cache lacks, the Go vulnerability database included, and gives one `draugr feeds update` that fetches them. Before, the scan stopped at the first missing feed.
