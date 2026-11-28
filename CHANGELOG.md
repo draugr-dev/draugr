@@ -20,9 +20,9 @@ _Nothing yet._
 
 ### Changed
 
-- **A policy setting your organization's plan does not enforce reads as observed.** Where a Draugr server marks an enforce setting `not-on-plan`, a scan's POLICY block and `draugr doctor` show `observed, enforcement not on the plan`, not `fails the gate`. Any override this version does not know also reads as observed.
+- **A policy setting your organization's plan does not enforce reads as observed, not as failing.** Where a Draugr server marks an enforce setting `not-on-plan`, a scan's POLICY block and `draugr doctor` show `observed, enforcement not on the plan`, not `fails the gate`. Any other reason a server gives for not enforcing a setting reads as observed too, even one this version does not know.
 
-- **Prowler 5.52.0 is the release the cloud checks are read against.** What each AWS, Azure and Google Cloud check reads was checked against its source, and `draugr doctor` now suggests `pip install prowler==5.52.0` when another release is on PATH. Earlier releases still run, with the note doctor prints.
+- **`draugr doctor` says when the Prowler on PATH is not 5.52.0.** Draugr's list of what each AWS, Azure and Google Cloud check reads comes from that release. For any other, doctor suggests `pip install prowler==5.52.0` and warns that a check's result may be dropped though it ran, or kept though a read it needs was denied. Other releases still run.
 
 ### Fixed
 
@@ -30,9 +30,9 @@ _Nothing yet._
 
 - **A scan on a fresh machine lists every missing feed in one error.** With KEV, EPSS or OSV.dev advisories read from the cache, the error names every feed the cache lacks, the Go vulnerability database included, and gives one `draugr feeds update` that fetches them. Before, the scan stopped at the first missing feed.
 
-- **An assistant can read the descriptor schema one field at a time.** `get_saga_schema` takes a `field` such as `components.exposure` and returns its meaning and accepted values, or an outline of every field without one. The whole schema was too long for Claude Code to pass to a model, so the model guessed values such as an exposure.
+- **`get_saga_schema` answers one descriptor field at a time.** Pass `field` as a dotted path, such as `components.exposure`, for that field's meaning and accepted values, or leave it out for an outline of every field. The whole schema was longer than Claude Code passes to a model, which then guessed values such as an exposure.
 
-- **`draugr version` in an image built from the Docker recipe names its commit and build time.** It printed `commit none, built unknown`, so a report from the container could not say which build it came from. The recipe keeps checking the module against Go's checksum database.
+- **`draugr version` in an image built from `contrib/docker/Dockerfile` names its commit and build time.** It printed `commit none, built unknown`, so a report from the container could not say which build it came from.
 
 ## [0.193.0] - 2026-11-26
 
