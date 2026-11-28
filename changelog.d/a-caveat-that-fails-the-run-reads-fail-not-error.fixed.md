@@ -1,1 +1,0 @@
-- **A caveat that fails the run reads FAIL, not ERROR.** Its component and the controls it names now read `FAIL` in the console, markdown and HTML reports, where the component read `ERROR` and the control read `pass` or `FAIL`. `ERROR` means a target no scanner read, so it no longer sends you looking for a scanner that broke.
