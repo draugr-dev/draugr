@@ -24,6 +24,9 @@ func TestATermReadsInTheServersPhrases(t *testing.T) {
 		{PolicyVerdict{Mode: "enforce", Response: "fail", Override: "profile-observing"}, "observed, profile observing"},
 		{PolicyVerdict{Mode: "enforce", Response: "fail", ProfileState: "observing"}, "observed, profile observing"},
 		{PolicyVerdict{Mode: "enforce", Response: "fail", Override: "paused"}, "observed, enforcement paused"},
+		{PolicyVerdict{Mode: "enforce", Response: "fail", EnforceFrom: "2026-10-01", InForce: true, Override: "not-on-plan"}, "observed, enforcement not on the plan"},
+		// An override a later server adds still observes: never the mode's failing term.
+		{PolicyVerdict{Mode: "enforce", Response: "refuse", Override: "some-later-reason"}, "observed"},
 		{PolicyVerdict{Mode: "enforce", Response: "fail"}, "fails the gate"},
 	} {
 		if got := c.v.Term(); got != c.want {

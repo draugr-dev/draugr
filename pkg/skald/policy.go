@@ -69,7 +69,9 @@ type PolicyVerdict struct {
 	Response    string `json:"response,omitempty"`
 	// ProfileState is active, or observing where the setting observes whatever its mode.
 	ProfileState string `json:"profileState,omitempty"`
-	// Override names what made an enforce setting observe: profile-observing or paused.
+	// Override names what made an enforce setting observe: profile-observing, paused, or
+	// not-on-plan where the organization's plan does not include enforcement. Any override means
+	// the setting observes, so one this version does not know still reads as observed.
 	Override string `json:"override,omitempty"`
 	// InForce says the setting acts: enforced, its date reached, the profile active, no pause.
 	InForce bool `json:"inForce,omitempty"`
@@ -119,13 +121,20 @@ func (v PolicyVerdict) Evaluated() bool { return v.State == "violates" || v.Stat
 
 // Term is what the setting does to a run that breaks it, in the phrases every surface uses:
 // `observed`, `fails the gate, since 2026-10-01`, `refuses from 2026-12-01`,
-// `observed, profile observing`.
+// `observed, profile observing`, `observed, enforcement not on the plan`.
 func (v PolicyVerdict) Term() string {
 	switch v.Override {
+	case "":
 	case "profile-observing":
 		return "observed, profile observing"
 	case "paused":
 		return "observed, enforcement paused"
+	case "not-on-plan":
+		return "observed, enforcement not on the plan"
+	default:
+		// The server only overrides a setting to make it observe. Reading on to the mode would
+		// print a failing term for a setting that acts on nothing.
+		return "observed"
 	}
 	if v.Mode != "enforce" {
 		return "observed"
